@@ -1,0 +1,51 @@
+[package]
+name = "sklears-kernel-approximation"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "kernel-methods", "approximation"]
+categories = ["science", "mathematics"]
+description = "Kernel approximation methods"
+
+[dependencies]
+sklears-core = { workspace = true, features = ["parallel", "async_support"] }  # Removed ndarray-linalg (SciRS2 Policy)
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-stats = { workspace = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ ndarray-rand - use scirs2_core::random instead
+# ❌ ndarray-linalg - use scirs2-linalg instead
+# ❌ ndarray-stats - use scirs2-stats instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+# ❌ rand_chacha - use scirs2_core::random instead
+rayon = { workspace = true }
+num_cpus = "1.16"
+rustfft = "6.2"
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["serde"]
+serde = ["sklears-core/serde"]
+simd = []
+# Unstable SIMD features requiring nightly Rust
+nightly-simd = []
+nightly = ["simd"]

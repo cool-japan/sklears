@@ -1,0 +1,51 @@
+[package]
+name = "sklears-model-selection"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Model selection utilities for sklears: cross-validation, grid search, train-test split"
+keywords = ["machine-learning", "cross-validation", "grid-search", "model-selection"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-metrics = { workspace = true }
+numrs2 = { workspace = true }
+
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-optimize = { workspace = true, optional = true }
+scirs2-stats = { workspace = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ ndarray-rand - use scirs2_core::random instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+# ❌ rand_chacha - use scirs2_core::random instead
+
+# Approved numerical dependencies
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+num_cpus = "1.16"
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+# sklears-linear = { workspace = true }
+# sklears-ensemble = { workspace = true }
+
+[features]
+default = ["std", "serde", "parallel", "scirs2-optimize"]
+std = ["sklears-core/std"]
+parallel = ["rayon"]
+serde = ["dep:serde", "dep:serde_json"]
+optimization = ["scirs2-optimize"]

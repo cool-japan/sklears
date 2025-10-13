@@ -1,0 +1,144 @@
+name: Continuous Benchmarking
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable, nightly]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+    
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-git-
+    
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-build-${{ matrix.rust }}-
+    
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev liblapack-dev
+    
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install openblas lapack
+    
+    - name: Run benchmarks
+      run: |
+        cargo bench --no-fail-fast --all-features -- --output-format bencher | tee output.txt
+    
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: Rust Benchmark
+        tool: 'cargo'
+        output-file-path: output.txt
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: ${{ github.ref == 'refs/heads/main' }}
+        # Show alert with commit comment on detecting possible performance regression
+        alert-threshold: '200%'
+        comment-on-alert: true
+        fail-on-alert: false
+        alert-comment-cc-users: '@kitasan'
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results-${{ matrix.os }}-${{ matrix.rust }}
+        path: target/criterion
+    
+  benchmark-compare:
+    name: Compare Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install critcmp
+      run: cargo install critcmp
+    
+    - name: Checkout base branch
+      run: |
+        git fetch origin ${{ github.base_ref }}
+        git checkout origin/${{ github.base_ref }}
+    
+    - name: Run base benchmarks
+      run: |
+        cargo bench --all-features
+        mv target/criterion /tmp/criterion-base
+    
+    - name: Checkout PR branch
+      run: |
+        git checkout ${{ github.head_ref }}
+    
+    - name: Run PR benchmarks
+      run: |
+        cargo bench --all-features
+    
+    - name: Compare benchmarks
+      run: |
+        critcmp /tmp/criterion-base target/criterion > comparison.txt
+        cat comparison.txt
+    
+    - name: Comment PR with comparison
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const comparison = fs.readFileSync('comparison.txt', 'utf8');
+          
+          const body = `## Benchmark Comparison\n\n\`\`\`\n${comparison}\n\`\`\``;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });

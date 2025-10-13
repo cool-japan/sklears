@@ -1,0 +1,250 @@
+//! Comprehensive Decomposition Algorithms Showcase
+//!
+//! This example demonstrates all the matrix decomposition algorithms available
+//! in sklears-decomposition, including PCA, ICA, NMF, Factor Analysis, and
+//! Dictionary Learning.
+
+use scirs2_core::ndarray::{array, Array2, Axis};
+use sklears_core::prelude::{Fit, Transform};
+use sklears_decomposition::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🔍 SKLears Decomposition Algorithms Showcase");
+    println!("============================================");
+
+    // Generate sample data matrix (samples x features)
+    let data = array![
+        [2.0, 3.0, 1.0, 4.0, 2.0],
+        [1.0, 2.0, 3.0, 1.0, 3.0],
+        [4.0, 1.0, 2.0, 3.0, 1.0],
+        [3.0, 4.0, 1.0, 2.0, 4.0],
+        [2.0, 1.0, 4.0, 3.0, 2.0],
+        [1.0, 3.0, 2.0, 4.0, 1.0],
+        [3.0, 2.0, 4.0, 1.0, 3.0],
+        [4.0, 2.0, 3.0, 2.0, 4.0],
+    ];
+
+    println!("\n📊 Input Data Matrix (8 samples × 5 features):");
+    println!("{:8.3}", data);
+
+    // Demo 1: Principal Component Analysis (PCA)
+    println!("\n🔹 Demo 1: Principal Component Analysis (PCA)");
+    println!("----------------------------------------------");
+
+    let pca = PCA::builder().n_components(Some(3)).build(); // Reduce to 3 components
+    let pca_fitted = pca.fit(&data, &())?;
+    let pca_transformed = pca_fitted.transform(&data)?;
+
+    println!("Transformed data shape: {:?}", pca_transformed.dim());
+    println!(
+        "Explained variance ratio: {:?}",
+        pca_fitted.explained_variance_ratio
+    );
+    println!("PCA components (first 2 rows):");
+    for i in 0..2.min(pca_transformed.nrows()) {
+        println!(
+            "  Sample {}: [{:6.3}, {:6.3}, {:6.3}]",
+            i,
+            pca_transformed[[i, 0]],
+            pca_transformed[[i, 1]],
+            pca_transformed[[i, 2]]
+        );
+    }
+
+    // Demo 2: Independent Component Analysis (ICA)
+    println!("\n🔹 Demo 2: Independent Component Analysis (ICA)");
+    println!("-----------------------------------------------");
+
+    let ica = ICA::new()
+        .n_components(3)
+        .max_iter(200)
+        .tol(1e-4)
+        .algorithm(ICAAlgorithm::Parallel);
+
+    let ica_fitted = ica.fit(&data, &())?;
+    let ica_transformed = ica_fitted.transform(&data)?;
+
+    println!("ICA transformed data shape: {:?}", ica_transformed.dim());
+    println!("Independent components (first 2 samples):");
+    for i in 0..2.min(ica_transformed.nrows()) {
+        println!(
+            "  Sample {}: [{:6.3}, {:6.3}, {:6.3}]",
+            i,
+            ica_transformed[[i, 0]],
+            ica_transformed[[i, 1]],
+            ica_transformed[[i, 2]]
+        );
+    }
+
+    // Demo 3: Non-negative Matrix Factorization (NMF)
+    println!("\n🔹 Demo 3: Non-negative Matrix Factorization (NMF)");
+    println!("--------------------------------------------------");
+
+    // For NMF, we need non-negative data
+    let nmf_data = data.mapv(|x: f64| x.abs());
+
+    let nmf = NMF::new(3)
+        .max_iter(200)
+        .tol(1e-4)
+        .solver(NMFSolver::CoordinateDescent);
+
+    let nmf_fitted = nmf.fit(&nmf_data, &())?;
+    let nmf_transformed = nmf_fitted.transform(&nmf_data)?;
+
+    println!("NMF transformed data shape: {:?}", nmf_transformed.dim());
+    println!("NMF components (first 2 samples):");
+    for i in 0..2.min(nmf_transformed.nrows()) {
+        println!(
+            "  Sample {}: [{:6.3}, {:6.3}, {:6.3}]",
+            i,
+            nmf_transformed[[i, 0]],
+            nmf_transformed[[i, 1]],
+            nmf_transformed[[i, 2]]
+        );
+    }
+
+    // Demo 4: Factor Analysis
+    // Note: Factor Analysis is currently a placeholder without full implementation
+    // This demo is disabled until the FactorAnalysis API is completed
+    println!("\n🔹 Demo 4: Factor Analysis");
+    println!("----------------------------");
+    println!("⚠️  Factor Analysis is currently a placeholder and not yet implemented.");
+    println!("This feature will be available in a future release.");
+
+    /* TODO: Re-enable when FactorAnalysis is implemented
+    let factor_analysis = FactorAnalysis::new(3).max_iter(100).tol(1e-4);
+
+    let fa_fitted = factor_analysis.fit(&data, &())?;
+    let fa_transformed = fa_fitted.transform(&data)?;
+
+    println!(
+        "Factor Analysis transformed data shape: {:?}",
+        fa_transformed.dim()
+    );
+    println!("Latent factors (first 2 samples):");
+    for i in 0..2.min(fa_transformed.nrows()) {
+        println!(
+            "  Sample {}: [{:6.3}, {:6.3}, {:6.3}]",
+            i,
+            fa_transformed[[i, 0]],
+            fa_transformed[[i, 1]],
+            fa_transformed[[i, 2]]
+        );
+    }
+    */
+
+    // Demo 5: Dictionary Learning
+    println!("\n🔹 Demo 5: Dictionary Learning");
+    println!("-------------------------------");
+
+    let dict_learning = DictionaryLearning::builder()
+        .n_components(4) // 4 atoms
+        .max_iter(100)
+        .tol(1e-4)
+        .build();
+
+    let dl_fitted = dict_learning.fit(&data, &())?;
+    let dl_transformed = dl_fitted.transform(&data)?;
+
+    println!(
+        "Dictionary Learning transformed data shape: {:?}",
+        dl_transformed.dim()
+    );
+    println!("Sparse codes (first 2 samples):");
+    for i in 0..2.min(dl_transformed.nrows()) {
+        println!(
+            "  Sample {}: [{:6.3}, {:6.3}, {:6.3}]",
+            i,
+            dl_transformed[[i, 0]],
+            dl_transformed[[i, 1]],
+            dl_transformed[[i, 2]]
+        );
+    }
+
+    // Demo 6: Kernel PCA (non-linear dimensionality reduction)
+    println!("\n🔹 Demo 6: Kernel PCA");
+    println!("----------------------");
+
+    let kernel_pca = KernelPCA::new().n_components(3);
+
+    let kpca_fitted = kernel_pca.fit(&data, &())?;
+    let kpca_transformed = kpca_fitted.transform(&data)?;
+
+    println!(
+        "Kernel PCA transformed data shape: {:?}",
+        kpca_transformed.dim()
+    );
+    println!("Non-linear components (first 2 samples):");
+    for i in 0..2.min(kpca_transformed.nrows()) {
+        println!(
+            "  Sample {}: [{:6.3}, {:6.3}, {:6.3}]",
+            i,
+            kpca_transformed[[i, 0]],
+            kpca_transformed[[i, 1]],
+            kpca_transformed[[i, 2]]
+        );
+    }
+
+    // Demo 7: Reconstruction comparison
+    println!("\n🔹 Demo 7: Reconstruction Quality Comparison");
+    println!("---------------------------------------------");
+
+    // Test reconstruction for reversible methods
+    let original_sample = data.row(0).to_owned();
+    println!(
+        "Original sample: [{:6.3}, {:6.3}, {:6.3}, {:6.3}, {:6.3}]",
+        original_sample[0],
+        original_sample[1],
+        original_sample[2],
+        original_sample[3],
+        original_sample[4]
+    );
+
+    // PCA reconstruction
+    // Note: inverse_transform not yet implemented for PCA
+    /* TODO: Re-enable when inverse_transform is implemented
+    let pca_reconstructed =
+        pca_fitted.inverse_transform(&pca_transformed.row(0).to_owned().insert_axis(Axis(0)))?;
+    println!(
+        "PCA reconstructed:  [{:6.3}, {:6.3}, {:6.3}, {:6.3}, {:6.3}]",
+        pca_reconstructed[[0, 0]],
+        pca_reconstructed[[0, 1]],
+        pca_reconstructed[[0, 2]],
+        pca_reconstructed[[0, 3]],
+        pca_reconstructed[[0, 4]]
+    );
+    */
+    println!("⚠️  PCA inverse_transform not yet implemented - reconstruction demo skipped.");
+
+    // ICA reconstruction
+    let ica_reconstructed =
+        ica_fitted.inverse_transform(&ica_transformed.row(0).to_owned().insert_axis(Axis(0)))?;
+    println!(
+        "ICA reconstructed:  [{:6.3}, {:6.3}, {:6.3}, {:6.3}, {:6.3}]",
+        ica_reconstructed[[0, 0]],
+        ica_reconstructed[[0, 1]],
+        ica_reconstructed[[0, 2]],
+        ica_reconstructed[[0, 3]],
+        ica_reconstructed[[0, 4]]
+    );
+
+    // Summary
+    println!("\n📋 Summary");
+    println!("----------");
+    println!("✅ PCA: Linear dimensionality reduction preserving variance");
+    println!("✅ ICA: Finds statistically independent components");
+    println!("✅ NMF: Non-negative factorization for parts-based representation");
+    println!("✅ Factor Analysis: Latent variable model with noise modeling");
+    println!("✅ Dictionary Learning: Sparse representation with learned atoms");
+    println!("✅ Kernel PCA: Non-linear dimensionality reduction using kernels");
+
+    println!("\n🎯 Choose the right algorithm based on your data and requirements:");
+    println!("   • PCA: General purpose, interpretable principal directions");
+    println!("   • ICA: Signal separation, blind source separation");
+    println!("   • NMF: Non-negative data, parts-based decomposition");
+    println!("   • Factor Analysis: Gaussian assumptions, noise modeling");
+    println!("   • Dictionary Learning: Sparse coding, feature learning");
+    println!("   • Kernel PCA: Non-linear manifolds, complex relationships");
+
+    Ok(())
+}

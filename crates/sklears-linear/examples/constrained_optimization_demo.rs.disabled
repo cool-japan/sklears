@@ -1,0 +1,100 @@
+//! Constrained Optimization Demo
+//!
+//! This example demonstrates the usage of the constrained optimization framework
+//! that was recently re-enabled and fixed.
+
+#[cfg(not(feature = "constrained-optimization"))]
+fn main() {
+    println!("This example requires the 'constrained-optimization' feature to be enabled.");
+    println!("Run with: cargo run --example constrained_optimization_demo --features constrained-optimization");
+}
+
+#[cfg(feature = "constrained-optimization")]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use nalgebra::{DMatrix, DVector};
+    use sklears_linear::{
+        ConstrainedLinearRegression, ConstrainedOptimizationConfig, ConstrainedOptimizationProblem,
+        ConstraintType, InteriorPointSolver,
+    };
+    println!("Constrained Optimization Demo");
+    println!("==============================");
+
+    // Create a simple quadratic optimization problem: min 0.5 * x^2
+    let hessian = DMatrix::from_element(1, 1, 1.0);
+    let linear_coeff = DVector::from_element(1, 0.0);
+    let constant = 0.0;
+
+    let problem = ConstrainedOptimizationProblem {
+        hessian,
+        linear_coeff,
+        constant,
+        constraints: Vec::new(),
+    };
+
+    println!("Created unconstrained optimization problem");
+
+    // Create and test the solver
+    let solver = InteriorPointSolver::default();
+    let result = solver.solve(&problem)?;
+
+    println!("Solver result:");
+    println!("  Solution: {:?}", result.solution);
+    println!("  Objective value: {:.6}", result.objective_value);
+    println!("  Iterations: {}", result.iterations);
+    println!("  Converged: {}", result.converged);
+
+    // Test constrained optimization with box constraints
+    println!("\nTesting box constraints...");
+
+    // min 0.5 * (x - 2)^2 subject to 0 <= x <= 1
+    let hessian = DMatrix::from_element(1, 1, 1.0);
+    let linear_coeff = DVector::from_element(1, -2.0);
+    let constant = 2.0;
+
+    let constraints = vec![ConstraintType::Box {
+        lower: Some(DVector::from_element(1, 0.0)),
+        upper: Some(DVector::from_element(1, 1.0)),
+    }];
+
+    let problem = ConstrainedOptimizationProblem {
+        hessian,
+        linear_coeff,
+        constant,
+        constraints,
+    };
+
+    let result = solver.solve(&problem)?;
+
+    println!("Constrained solver result:");
+    println!("  Solution: {:?}", result.solution);
+    println!("  Objective value: {:.6}", result.objective_value);
+    println!("  Iterations: {}", result.iterations);
+    println!("  Converged: {}", result.converged);
+    println!("  Active constraints: {:?}", result.active_constraints);
+
+    // Test constrained linear regression
+    println!("\nTesting constrained linear regression...");
+
+    let x = DMatrix::from_vec(3, 2, vec![1.0, 1.0, 1.0, 2.0, 3.0, 4.0]);
+    let y = DVector::from_vec(vec![1.0, 2.0, 3.0]);
+
+    let constraints = vec![ConstraintType::Box {
+        lower: Some(DVector::from_element(2, 0.0)),
+        upper: None,
+    }];
+
+    let mut model = ConstrainedLinearRegression::new(ConstrainedOptimizationConfig::default());
+    model = model.add_constraint(constraints[0].clone());
+
+    model.fit(&x, &y)?;
+
+    let coeffs = model.coefficients()?;
+    println!("Fitted coefficients (non-negative): {:?}", coeffs);
+
+    let predictions = model.predict(&x)?;
+    println!("Predictions: {:?}", predictions);
+
+    println!("\nConstrained optimization demo completed successfully!");
+
+    Ok(())
+}

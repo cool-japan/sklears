@@ -1,0 +1,37 @@
+[package]
+name = "sklears-gaussian-process"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "gaussian-process", "scikit-learn"]
+categories = ["science", "mathematics"]
+description = "Gaussian Process models for regression and classification"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+# SciRS2 Policy - Core dependencies (REQUIRED)
+scirs2-core = { workspace = true }
+# ❌ REMOVED: scirs2-autograd - use scirs2_core::ndarray instead (SciRS2 Policy violation)
+scirs2-optimize = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-stats = { workspace = true }
+# Additional SciRS2 dependencies for Gaussian Processes
+scirs2-special = { workspace = true }  # For special functions
+approx = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]

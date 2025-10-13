@@ -1,0 +1,43 @@
+[package]
+name = "sklears-mixture"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "gaussian-mixture", "clustering"]
+categories = ["science", "mathematics"]
+description = "Gaussian mixture models"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-optimize = { workspace = true }   # For optimization algorithms
+scirs2-stats = { workspace = true }      # For statistical functions
+scirs2-cluster = { workspace = true }    # For clustering algorithms
+scirs2-linalg = { workspace = true }     # For linear algebra operations
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
+# ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
+# ❌ ndarray-linalg - use scirs2-linalg instead (SciRS2 Policy)
+# ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
+# ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
+# ❌ rand_chacha - use scirs2_core::random internal RNGs instead (SciRS2 Policy)
+# Standard dependencies
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]

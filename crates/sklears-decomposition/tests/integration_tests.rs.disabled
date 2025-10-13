@@ -1,0 +1,221 @@
+//! Integration tests for decomposition methods
+//!
+//! These tests demonstrate that all decomposition methods work together
+//! and can be used in realistic machine learning workflows.
+
+use scirs2_core::ndarray::array;
+use sklears_core::traits::{Fit, Transform};
+use sklears_decomposition::{
+    DictionaryLearning, DictionaryLearningConfig, DictionaryTransformAlgorithm,
+    // TODO: Migrate to scirs2-linalg (uses nalgebra types)
+    // ICAAlgorithm, ICAFunction, ICA,
+    NMFInit, NMFSolver, NMF,
+};
+
+#[test]
+fn test_decomposition_pipeline() {
+    // Create a synthetic dataset with known structure
+    let data = array![
+        [1.0, 2.0, 3.0, 4.0],
+        [2.0, 4.0, 6.0, 8.0],
+        [1.1, 2.1, 3.1, 4.1],
+        [1.9, 3.9, 5.9, 7.9],
+        [0.9, 1.9, 2.9, 3.9],
+        [2.1, 4.1, 6.1, 8.1],
+    ];
+
+    // Test that all decomposition methods can fit and transform the data
+    // Note: FactorAnalysis is currently a placeholder and not fully implemented
+
+    // NMF (requires non-negative data, so we'll use absolute values)
+    let positive_data = data.mapv(|x: f64| x.abs());
+
+    let nmf = NMF::new(2)
+        .solver(NMFSolver::CoordinateDescent)
+        .init(NMFInit::Random)
+        .random_state(42);
+
+    let fitted_nmf = nmf.fit(&positive_data, &()).expect("NMF should fit");
+    let nmf_transformed = fitted_nmf
+        .transform(&positive_data)
+        .expect("NMF should transform");
+
+    assert_eq!(nmf_transformed.dim(), (6, 2));
+    assert_eq!(fitted_nmf.components().dim(), (4, 2));
+
+    // ICA
+    let ica = ICA::new()
+        .n_components(2)
+        .algorithm(ICAAlgorithm::Parallel)
+        .fun(ICAFunction::Logcosh)
+        .random_state(42);
+
+    let fitted_ica = ica.fit(&data, &()).expect("ICA should fit");
+    let ica_transformed = fitted_ica.transform(&data).expect("ICA should transform");
+
+    assert_eq!(ica_transformed.dim(), (6, 2));
+    assert_eq!(fitted_ica.components().dim(), (2, 4));
+
+    // Dictionary Learning
+    let dl_config = DictionaryLearningConfig {
+        n_components: 3,
+        transform_algorithm: DictionaryTransformAlgorithm::OMP,
+        max_iter: 3,
+        random_state: Some(42),
+        ..Default::default()
+    };
+    let dl = DictionaryLearning::new(dl_config);
+
+    let fitted_dl = dl.fit(&data, &()).expect("Dictionary Learning should fit");
+    let dl_transformed = fitted_dl
+        .transform(&data)
+        .expect("Dictionary Learning should transform");
+
+    assert_eq!(dl_transformed.dim(), (6, 3));
+    assert_eq!(fitted_dl.components().dim(), (3, 4)); // Dictionary learning components are transposed
+}
+
+#[test]
+fn test_inverse_transforms() {
+    // Test that inverse transforms work correctly for methods that support them
+    let data = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0],];
+
+    // NMF inverse transform
+    let nmf = NMF::new(2).random_state(42);
+    let fitted_nmf = nmf.fit(&data, &()).expect("NMF should fit");
+    let transformed = fitted_nmf.transform(&data).expect("NMF should transform");
+    let reconstructed = fitted_nmf
+        .inverse_transform(&transformed)
+        .expect("NMF should inverse transform");
+
+    assert_eq!(reconstructed.dim(), data.dim());
+
+    // ICA inverse transform
+    let ica = ICA::new().n_components(2).random_state(42);
+    let fitted_ica = ica.fit(&data, &()).expect("ICA should fit");
+    let ica_transformed = fitted_ica.transform(&data).expect("ICA should transform");
+    let ica_reconstructed = fitted_ica
+        .inverse_transform(&ica_transformed)
+        .expect("ICA should inverse transform");
+
+    assert_eq!(ica_reconstructed.dim(), data.dim());
+
+    // Dictionary Learning transform (inverse transform not yet implemented)
+    let dl_config = DictionaryLearningConfig {
+        n_components: 2,
+        max_iter: 3,
+        random_state: Some(42),
+        ..Default::default()
+    };
+    let dl = DictionaryLearning::new(dl_config);
+    let fitted_dl = dl.fit(&data, &()).expect("DL should fit");
+    let dl_transformed = fitted_dl.transform(&data).expect("DL should transform");
+
+    // Note: inverse_transform not implemented for DictionaryLearning yet
+    assert_eq!(dl_transformed.dim().0, data.dim().0); // Same number of samples
+}
+
+#[test]
+fn test_different_configurations() {
+    let data = array![
+        [1.0, 2.0, 3.0],
+        [2.0, 3.0, 4.0],
+        [3.0, 4.0, 5.0],
+        [4.0, 5.0, 6.0],
+        [5.0, 6.0, 7.0],
+    ];
+
+    // Note: FactorAnalysis tests removed as it's currently a placeholder implementation
+
+    // Test NMF with different solvers and initialization
+    for solver in [
+        NMFSolver::MultiplicativeUpdate,
+        NMFSolver::CoordinateDescent,
+    ] {
+        for init in [
+            NMFInit::Random,
+            NMFInit::Nndsvd,
+            NMFInit::NndsvdA,
+            NMFInit::NndsvdAr,
+        ] {
+            let nmf = NMF::new(2).solver(solver).init(init).random_state(42);
+
+            let fitted = nmf.fit(&data, &()).expect("NMF should fit with any config");
+            let transformed = fitted.transform(&data).expect("NMF should transform");
+            assert_eq!(transformed.dim(), (5, 2));
+        }
+    }
+
+    // Test ICA with different algorithms and functions
+    for algorithm in [ICAAlgorithm::Parallel, ICAAlgorithm::Deflation] {
+        for fun in [ICAFunction::Logcosh, ICAFunction::Exp, ICAFunction::Cube] {
+            let ica = ICA::new()
+                .n_components(2)
+                .algorithm(algorithm)
+                .fun(fun)
+                .random_state(42);
+
+            if let Ok(fitted) = ica.fit(&data, &()) {
+                // Only test transform if fit succeeded (some configurations may fail numerically)
+                let transformed = fitted.transform(&data).expect("ICA should transform");
+                assert_eq!(transformed.dim(), (5, 2));
+            }
+        }
+    }
+}
+
+#[test]
+fn test_error_handling() {
+    let small_data = array![[1.0, 2.0]]; // Only 1 sample
+    let valid_data = array![[1.0, 2.0], [3.0, 4.0]];
+
+    // Test that methods properly handle insufficient data
+    // Note: FactorAnalysis error handling test removed as it's currently a placeholder
+
+    let nmf = NMF::new(1);
+    // NMF might succeed on single sample data, just verify it doesn't panic
+    let _ = nmf.fit(&small_data, &()); // Allow either success or failure
+
+    let ica = ICA::new().n_components(1);
+    assert!(ica.fit(&small_data, &()).is_err());
+
+    // Test that methods handle too many components
+    // Note: FactorAnalysis large component test removed as it's currently a placeholder
+
+    let nmf_large = NMF::new(5);
+    assert!(nmf_large.fit(&valid_data, &()).is_err());
+
+    let ica_large = ICA::new().n_components(5);
+    assert!(ica_large.fit(&valid_data, &()).is_err());
+}
+
+#[test]
+fn test_component_access() {
+    let data = array![
+        [1.0, 2.0, 3.0],
+        [2.0, 4.0, 6.0],
+        [1.5, 3.0, 4.5],
+        [2.5, 5.0, 7.5],
+    ];
+
+    // Test that fitted models provide access to their components
+    // Note: FactorAnalysis component access test removed as it's currently a placeholder
+
+    let nmf = NMF::new(2).random_state(42);
+    let fitted_nmf = nmf.fit(&data, &()).unwrap();
+
+    let nmf_components = fitted_nmf.components();
+    assert_eq!(nmf_components.dim(), (3, 2));
+    assert!(fitted_nmf.reconstruction_err().is_finite());
+    assert!(fitted_nmf.n_iter() > 0);
+
+    let ica = ICA::new().n_components(2).random_state(42);
+    let fitted_ica = ica.fit(&data, &()).unwrap();
+
+    let ica_components = fitted_ica.components();
+    assert_eq!(ica_components.dim(), (2, 3));
+
+    let mixing = fitted_ica.mixing();
+    assert_eq!(mixing.dim(), (3, 2));
+    assert!(fitted_ica.n_iter() > 0);
+}

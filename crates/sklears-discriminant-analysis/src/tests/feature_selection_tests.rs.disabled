@@ -1,0 +1,116 @@
+//! Feature selection tests for discriminant analysis
+
+use super::test_utils::*;
+use crate::lda::LinearDiscriminantAnalysisConfig;
+use crate::sequential_feature_selection::SelectionDirection;
+
+#[test]
+fn test_recursive_feature_elimination() {
+    let x = array![
+        [1.0, 2.0, 3.0, 4.0],
+        [2.0, 3.0, 4.0, 5.0],
+        [3.0, 4.0, 5.0, 6.0],
+        [4.0, 5.0, 6.0, 7.0],
+        [5.0, 6.0, 7.0, 8.0],
+        [6.0, 7.0, 8.0, 9.0]
+    ];
+    let y = array![0, 0, 0, 1, 1, 1];
+
+    let rfe = RecursiveFeatureElimination::new()
+        .estimator_config(LinearDiscriminantAnalysisConfig::default())
+        .n_features_to_select(2)
+        .step(1);
+
+    let fitted = rfe.fit(&x, &y).unwrap();
+    let support = fitted.support();
+    let ranking = fitted.ranking();
+
+    assert_eq!(support.len(), 4);
+    assert_eq!(ranking.len(), 4);
+    assert_eq!(support.iter().filter(|&&x| x).count(), 2);
+}
+
+#[test]
+fn test_sequential_feature_selection_forward() {
+    let x = array![
+        [1.0, 2.0, 3.0],
+        [2.0, 3.0, 4.0],
+        [3.0, 4.0, 5.0],
+        [4.0, 5.0, 6.0],
+        [5.0, 6.0, 7.0],
+        [6.0, 7.0, 8.0]
+    ];
+    let y = array![0, 0, 0, 1, 1, 1];
+
+    let sfs = SequentialFeatureSelection::new()
+        .estimator_config(LinearDiscriminantAnalysisConfig::default())
+        .n_features_to_select(2)
+        .direction(SelectionDirection::Forward)
+        .cv(2);
+
+    let fitted = sfs.fit(&x, &y).unwrap();
+    let support = fitted.support();
+
+    assert_eq!(support.len(), 3);
+    assert_eq!(support.iter().filter(|&&x| x).count(), 2);
+}
+
+#[test]
+fn test_sequential_feature_selection_backward() {
+    let x = array![
+        [1.0, 2.0, 3.0, 4.0],
+        [2.0, 3.0, 4.0, 5.0],
+        [3.0, 4.0, 5.0, 6.0],
+        [4.0, 5.0, 6.0, 7.0],
+        [5.0, 6.0, 7.0, 8.0],
+        [6.0, 7.0, 8.0, 9.0]
+    ];
+    let y = array![0, 0, 0, 1, 1, 1];
+
+    let sfs = SequentialFeatureSelection::new()
+        .estimator_config(LinearDiscriminantAnalysisConfig::default())
+        .n_features_to_select(2)
+        .direction(SelectionDirection::Backward)
+        .cv(3);
+
+    let fitted = sfs.fit(&x, &y).unwrap();
+    let support = fitted.support();
+    let selected_features = fitted.get_support_indices();
+
+    assert_eq!(support.len(), 4);
+    assert_eq!(support.iter().filter(|&&x| x).count(), 2);
+    assert_eq!(selected_features.len(), 2);
+}
+
+#[test]
+fn test_stability_selection() {
+    let x = array![
+        [1.0, 2.0, 3.0, 4.0, 5.0],
+        [2.0, 3.0, 4.0, 5.0, 6.0],
+        [3.0, 4.0, 5.0, 6.0, 7.0],
+        [4.0, 5.0, 6.0, 7.0, 8.0],
+        [5.0, 6.0, 7.0, 8.0, 9.0],
+        [6.0, 7.0, 8.0, 9.0, 10.0],
+        [7.0, 8.0, 9.0, 10.0, 11.0],
+        [8.0, 9.0, 10.0, 11.0, 12.0]
+    ];
+    let y = array![0, 0, 0, 0, 1, 1, 1, 1];
+
+    let stability_selection = StabilitySelection::new()
+        .base_selector("lasso")
+        .n_bootstrap(20)
+        .stability_threshold(0.6)
+        .random_state(42);
+
+    let fitted = stability_selection.fit(&x, &y).unwrap();
+    let support = fitted.support();
+    let stabilities = fitted.feature_stabilities();
+
+    assert_eq!(support.len(), 5);
+    assert_eq!(stabilities.len(), 5);
+
+    // All stability stabilities should be between 0 and 1
+    for &score in &stabilities {
+        assert!(score >= 0.0 && score <= 1.0);
+    }
+}

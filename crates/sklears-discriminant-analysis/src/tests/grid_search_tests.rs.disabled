@@ -1,0 +1,111 @@
+//! Grid search and parameter optimization tests
+
+use super::test_utils::*;
+use std::collections::HashMap;
+use crate::cross_validation::CrossValidationConfig;
+
+#[test]
+fn test_grid_search_lda() {
+    let (x, y) = create_simple_2d_data();
+
+    let mut param_grid = HashMap::new();
+    param_grid.insert(
+        "shrinkage".to_string(),
+        vec!["0.0".to_string(), "0.1".to_string(), "0.5".to_string()],
+    );
+    param_grid.insert(
+        "solver".to_string(),
+        vec!["svd".to_string(), "eigen".to_string()],
+    );
+
+    let grid_search = GridSearchLDA::new(
+        param_grid,
+        CrossValidationConfig { cv_folds: 3, scoring_metric: "accuracy".to_string(), ..Default::default() }
+    );
+
+    let fitted_grid = grid_search.fit(&x, &y).unwrap();
+
+    // Check that we have the best parameters
+    let best_params = fitted_grid.best_params();
+    assert!(!best_params.is_empty());
+
+    // Check that we can make predictions with the best estimator
+    let best_estimator = fitted_grid.best_estimator().unwrap();
+    let predictions = best_estimator.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 4);
+
+    // Check that we have CV results
+    let cv_results = fitted_grid.cv_results();
+    assert!(cv_results.mean_test_score.len() > 0);
+}
+
+#[test]
+fn test_grid_search_qda() {
+    let (x, y) = create_simple_2d_data();
+
+    let mut param_grid = HashMap::new();
+    param_grid.insert(
+        "reg_param".to_string(),
+        vec!["0.0".to_string(), "0.01".to_string(), "0.1".to_string()],
+    );
+    param_grid.insert(
+        "store_covariance".to_string(),
+        vec!["true".to_string(), "false".to_string()],
+    );
+
+    let grid_search = GridSearchQDA::new(
+        param_grid,
+        CrossValidationConfig { cv_folds: 3, scoring_metric: "accuracy".to_string(), ..Default::default() }
+    );
+
+    let fitted_grid = grid_search.fit(&x, &y).unwrap();
+
+    // Check that we have the best parameters
+    let best_params = fitted_grid.best_params();
+    assert!(!best_params.is_empty());
+
+    // Check that we have a valid best score
+    let best_score = fitted_grid.best_score();
+    assert!(best_score >= 0.0 && best_score <= 1.0);
+
+    // Check that we can make predictions
+    let best_estimator = fitted_grid.best_estimator().unwrap();
+    let predictions = best_estimator.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 4);
+}
+
+#[test]
+fn test_parameter_grid_combinations() {
+    let (x, y) = create_simple_2d_data();
+
+    let mut param_grid = HashMap::new();
+    param_grid.insert(
+        "shrinkage".to_string(),
+        vec!["0.0".to_string(), "0.5".to_string()],
+    );
+    param_grid.insert(
+        "n_components".to_string(),
+        vec!["1".to_string(), "2".to_string()],
+    );
+
+    let grid_search = GridSearchLDA::new(
+        param_grid,
+        CrossValidationConfig { cv_folds: 2, scoring_metric: "f1_macro".to_string(), ..Default::default() }
+    );
+
+    let fitted_grid = grid_search.fit(&x, &y).unwrap();
+
+    // Should test all combinations: 2 shrinkage * 2 n_components = 4 combinations
+    let cv_results = fitted_grid.cv_results();
+    assert_eq!(cv_results.params.len(), 4);
+
+    // All scores should be valid
+    for &score in &cv_results.mean_test_score {
+        assert!(score >= 0.0 && score <= 1.0, "Invalid score: {}", score);
+    }
+
+    // Check that the best parameters are selected correctly
+    let best_params = fitted_grid.best_params();
+    assert!(best_params.contains_key("shrinkage"));
+    assert!(best_params.contains_key("n_components"));
+}

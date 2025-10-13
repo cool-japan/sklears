@@ -1,0 +1,51 @@
+[package]
+name = "sklears-clustering"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Clustering algorithms for sklears: K-means, DBSCAN, hierarchical clustering"
+keywords = ["machine-learning", "clustering", "kmeans", "dbscan"]
+categories = ["science", "mathematics", "algorithms"]
+
+[dependencies]
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+scirs2-cluster = { workspace = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+# rand usage replaced with scirs2-core random module per SciRS2 policy
+approx = { workspace = true }
+log = { workspace = true }
+memmap2 = "0.9"
+tempfile = "3.8"
+serde_json = { workspace = true }
+num_cpus = "1.16"
+wgpu = { version = "26.0", optional = true }
+bytemuck = { version = "1.19", optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+sklears-metrics = { workspace = true }
+pollster = "0.4"
+# rand_distr usage replaced with scirs2-core random module per SciRS2 policy
+
+[features]
+default = ["std", "serde"]
+std = ["sklears-core/std"]
+parallel = ["rayon"]
+serde = ["dep:serde", "sklears-core/serde"]
+gpu = ["wgpu", "bytemuck"]

@@ -1,0 +1,101 @@
+//! Robust discriminant analysis methods tests
+
+use super::test_utils::*;
+use crate::robust_adaptive::MEstimatorType;
+
+#[test]
+fn test_robust_qda() {
+    let (x, y) = create_data_with_outliers();
+
+    let qda_standard = QuadraticDiscriminantAnalysis::new().robust(false);
+    let qda_robust = QuadraticDiscriminantAnalysis::new()
+        .robust(true)
+        .robust_method("mcd")
+        .contamination(0.2);
+
+    let fitted_standard = qda_standard.fit(&x, &y).unwrap();
+    let fitted_robust = qda_robust.fit(&x, &y).unwrap();
+
+    let test_x = array![[2.0, 2.0]];
+
+    let proba_standard = fitted_standard.predict_proba(&test_x).unwrap();
+    let proba_robust = fitted_robust.predict_proba(&test_x).unwrap();
+
+    // Both should produce valid probabilities
+    assert_probabilities_sum_to_one(&proba_standard);
+    assert_probabilities_sum_to_one(&proba_robust);
+
+    // Robust method may produce different (potentially better) results
+    // but we just test that it runs successfully
+    assert_eq!(proba_standard.dim(), proba_robust.dim());
+}
+
+#[test]
+fn test_robust_discriminant_analysis() {
+    let (x, y) = create_data_with_outliers();
+
+    let rda = RobustDiscriminantAnalysis::new()
+        .estimator_type(MEstimatorType::Huber { k: 1.345 })
+        .trimming_fraction(0.2)
+        .bootstrap_samples(100);
+
+    let fitted = rda.fit(&x, &y).unwrap();
+    let predictions = fitted.predict(&x).unwrap();
+    let probas = fitted.predict_proba(&x).unwrap();
+
+    assert_eq!(predictions.len(), 10);
+    assert_eq!(fitted.classes().len(), 2);
+    assert_eq!(probas.dim(), (10, 2));
+    assert_probabilities_sum_to_one(&probas);
+}
+
+#[test]
+fn test_robust_discriminant_predict_proba() {
+    let (x, y) = create_data_with_outliers();
+
+    let rda = RobustDiscriminantAnalysis::new()
+        .estimator_type(MEstimatorType::Huber { k: 1.345 })
+        .trimming_fraction(0.15)
+        .adaptive_threshold(true);
+
+    let fitted = rda.fit(&x, &y).unwrap();
+    let probas = fitted.predict_proba(&x).unwrap();
+
+    assert_eq!(probas.dim(), (10, 2));
+    assert_probabilities_sum_to_one(&probas);
+
+    // Test with new data
+    let test_x = array![[1.5, 1.5], [3.5, 3.5]];
+    let test_probas = fitted.predict_proba(&test_x).unwrap();
+    assert_eq!(test_probas.dim(), (2, 2));
+    assert_probabilities_sum_to_one(&test_probas);
+}
+
+#[test]
+fn test_robust_discriminant_outlier_detection() {
+    let (x, y) = create_data_with_outliers();
+
+    let rda = RobustDiscriminantAnalysis::new()
+        .estimator_type(MEstimatorType::Andrews { c: 1.339 })
+        .trimming_fraction(0.2)
+        .adaptive_threshold(true)
+        .bootstrap_samples(50);
+
+    let fitted = rda.fit(&x, &y).unwrap();
+
+    // Check if outliers are detected
+    let outlier_scores = fitted.outlier_scores().unwrap();
+    assert_eq!(outlier_scores.len(), 10);
+
+    // Check if outlier flags are available
+    let is_outlier = fitted.is_outlier().unwrap();
+    assert_eq!(is_outlier.len(), 10);
+
+    // At least some points should be flagged as outliers given our contamination rate
+    let outlier_count = is_outlier.iter().filter(|&&x| x).count();
+    assert!(outlier_count > 0, "Should detect some outliers");
+    assert!(
+        outlier_count <= 3,
+        "Should not flag too many points as outliers"
+    );
+}

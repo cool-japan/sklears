@@ -1,0 +1,38 @@
+[package]
+name = "sklears-feature-extraction"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "feature-extraction", "text-processing"]
+categories = ["science", "mathematics"]
+description = "Feature extraction from raw data (text, images)"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-stats = { workspace = true }  # For statistical feature extraction methods
+scirs2-linalg = { workspace = true }  # For linear transformations
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
+# ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
+# ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
+# ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
+numrs2 = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+rayon = { workspace = true }
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]

@@ -1,0 +1,34 @@
+[package]
+name = "sklears-isotonic"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "isotonic-regression", "monotonic"]
+categories = ["science", "mathematics"]
+description = "Isotonic regression"
+
+# SciRS2 Policy Compliant Dependencies
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+# ❌ REMOVED: scirs2-autograd - use scirs2_core::ndarray instead (SciRS2 Policy violation)
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
+parallel = ["dep:rayon"]

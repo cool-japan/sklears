@@ -1,0 +1,67 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Backup files
+**/*.rs.bak
+**/*.rs.bak2
+**/*.rs.old
+**/*.backup
+*.bak
+*.old
+*.backup
+*.orig
+*.original
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python artifacts (for potential Python bindings)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+
+# Documentation build
+/target/doc/
+/target/criterion/
+
+# Benchmark results
+/target/benchmark/
+*.bench
+
+# Coverage reports
+*.profraw
+*.profdata
+/coverage/
+lcov.info
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Example outputs
+/examples/output/
+
+# claude settings
+*/.claude/settings.local.json
+./.claude/settings*.*
+.claude/*
+
+./build_output.txt
+crates/sklears-semi-supervised/proptest-regressions/convergence_tests.txt

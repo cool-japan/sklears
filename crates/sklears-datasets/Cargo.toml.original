@@ -1,0 +1,69 @@
+[package]
+name = "sklears-datasets"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+keywords = ["machine-learning", "datasets", "data-generation", "scikit-learn"]
+categories = ["science", "mathematics"]
+description = "Dataset utilities and generators for sklears - scikit-learn compatible ML in Rust"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+sklears-simd = { path = "../sklears-simd", optional = true }
+numrs2 = { workspace = true }
+scirs2 = { workspace = true }
+ndarray = { workspace = true }
+ndarray-rand = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+thiserror = { workspace = true }
+memmap2 = "0.9"
+lazy_static = "1.5"
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = "1.0"
+serde_yaml = { version = "0.9", optional = true }
+num_cpus = "1.16"
+parquet = { version = "53.0", optional = true }
+arrow = { version = "53.0", optional = true }
+hdf5 = { version = "0.8", optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+# Cloud storage dependencies
+tokio = { version = "1.40", features = ["full"], optional = true }
+aws-sdk-s3 = { version = "1.57", optional = true }
+aws-config = { version = "1.5", optional = true }
+google-cloud-storage = { version = "0.20", optional = true }
+url = { version = "2.5", optional = true }
+futures = { version = "0.3", optional = true }
+# Visualization dependencies
+plotters = { version = "0.3", optional = true }
+image = { version = "0.25", optional = true }
+colorgrad = { version = "0.7", optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+tempfile = "3.12"
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_yaml", "sklears-core/serde"]
+# NOTE: parquet/arrow features currently have a dependency conflict with chrono 0.4
+# This is a known issue with arrow-arith v53.4.0 and chrono 0.4.42
+# See: https://github.com/apache/arrow-rs/issues/6709
+# These features are disabled until the upstream conflict is resolved
+parquet = ["dep:parquet", "dep:arrow"]
+# NOTE: hdf5 feature has API compatibility issues with hdf5 v0.8
+# The VarLenUnicode API has changed and read_1d() returns ndarray types instead of Vec
+# These features need updates to work with the current hdf5 version
+hdf5 = ["dep:hdf5"]
+simd = ["dep:sklears-simd"]
+cloud-storage = ["dep:tokio", "dep:aws-sdk-s3", "dep:aws-config", "dep:url", "dep:futures"]
+cloud-gcs = ["cloud-storage", "dep:google-cloud-storage"]
+cloud-s3 = ["cloud-storage"]
+visualization = ["dep:plotters", "dep:image", "dep:colorgrad"]

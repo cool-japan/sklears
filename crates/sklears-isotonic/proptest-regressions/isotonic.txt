@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b43bbbb3ca3729b20e51e18a350ea40e4623fce66dfaa0e068cf22707e7c2b30 # shrinks to y = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -4.358545600325896], x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 15.705369512831773, 0.0], y_min = -4.429500435717074, y_max = 5.0
+cc 603b2af6d28e5e0a06106e4b45367f0a4c14aa058ff0e88c51bbc2e46162c5f0 # shrinks to data = [(7.873687786537141, 9.977426447018168), (3.1116601444466423, 14.169594125385869), (0.0, 12.947058741128068), (1.774072721834353, 0.0), (-9.744548911398134, 0.0), (-0.2182220744079284, 0.0)], y_min = -4.40537531216895, y_max = 5.0
+cc b4eaeb8b37b621fa5e15de66210939db9637bc1ed93ae2f22900d805e94047e9 # shrinks to base_data = [(0.0, 0.0), (0.0, 0.0), (0.0, 9.164781995691248), (0.0, 9.041116219145884), (0.0, 0.0), (0.0, 0.0)], outlier_magnitude = 50.0, quantile = 0.5118720070964334

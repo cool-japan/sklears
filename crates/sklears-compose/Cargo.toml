@@ -1,0 +1,52 @@
+[package]
+name = "sklears-compose"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "pipeline", "column-transformer"]
+categories = ["science", "mathematics"]
+description = "Composite estimators and transformers"
+
+[lints]
+workspace = true
+
+# SciRS2 Policy Compliant Dependencies
+[dependencies]
+sklears-core = { workspace = true }
+# sklears-simd = { workspace = true }  # Temporarily disabled due to missing implementations
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+scirs2-optimize = { workspace = true }
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ rand - use scirs2_core::random instead
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+serde_yaml = { version = "0.9", optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+num_cpus = "1.16"
+uuid = { version = "1.8", features = ["v4"] }
+# ❌ REMOVED: rand_chacha - use scirs2_core::random instead (SciRS2 Policy violation)
+futures = "0.3"
+tokio = { version = "1.0", features = ["full"] }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
+
+[features]
+default = ["workflow"]
+serde = ["dep:serde", "sklears-core/serde"]
+workflow = ["serde", "dep:serde_json", "dep:serde_yaml"]
+
+[[bench]]
+name = "simd_benchmarks"
+harness = false

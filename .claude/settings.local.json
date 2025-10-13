@@ -1,0 +1,45 @@
+{
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "900000",
+    "BASH_MAX_TIMEOUT_MS": "900000"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(cargo add:*)",
+      "Bash(cargo build)",
+      "Bash(cargo build:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo run:*)",
+      "Bash(cargo test)",
+      "Bash(cargo test:*)",
+      "Bash(cp:*)",
+      "Bash(git add:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git stash:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(rustc --version)",
+      "Bash(sed:*)",
+      "Bash(touch:*)",
+      "Bash(find:*)",
+      "Bash(bash:*)",
+      "Bash(cargo nextest:*)",
+      "Bash(rustc:*)",
+      "Bash(/tmp/test_clustering_metrics:*)",
+      "Bash(python3:*)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(cargo fix:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}

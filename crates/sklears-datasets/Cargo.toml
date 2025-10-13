@@ -1,0 +1,40 @@
+[package]
+name = "sklears-datasets"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Dataset utilities and generation for sklears"
+keywords = ["machine-learning", "datasets", "data-generation"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+scirs2-core = { workspace = true }
+scirs2-datasets = { workspace = true }  # For dataset generation and utilities
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+thiserror = { workspace = true }
+memmap2 = { workspace = true }
+lazy_static = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+num_cpus = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["serde"]
+serde = []

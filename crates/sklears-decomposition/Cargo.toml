@@ -1,0 +1,56 @@
+[package]
+name = "sklears-decomposition"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Matrix decomposition algorithms for sklears: PCA, ICA, NMF, SVD"
+keywords = ["machine-learning", "pca", "decomposition", "dimension-reduction"]
+categories = ["science", "mathematics", "algorithms"]
+
+[dependencies]
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+
+# Core SciRS2 modules for Decomposition
+scirs2-linalg = { workspace = true }    # For linear algebra operations
+scirs2-optimize = { workspace = true }  # For optimization algorithms
+
+# Standard dependencies
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ ndarray-linalg - use scirs2-linalg instead
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+memmap2 = "0.9"
+# candle-core updated to 0.9 per Latest crates policy, no cuda features to avoid macOS build issues
+candle-core = { version = "0.9", optional = true, default-features = false }
+half = { version = "2.4", optional = true }
+hdf5 = { version = "0.8", optional = true }
+
+# CUDA support only available on Linux/Windows (macOS doesn't support CUDA)
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+cudarc = { version = "0.11", optional = true, default-features = false, features = ["cuda-version-from-build-system"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["std", "serde"]
+std = ["sklears-core/std"]
+parallel = ["rayon"]
+# GPU feature: on macOS only includes candle-core (no CUDA), on Linux/Windows includes cudarc for full CUDA support
+gpu = ["candle-core", "half"]
+hdf5-support = ["hdf5"]
+# sparse = ["sprs"]  # Removed: Use scirs2-sparse instead (SciRS2 Policy)
+serde = ["dep:serde", "sklears-core/serde"]

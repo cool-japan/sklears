@@ -1,0 +1,35 @@
+[package]
+name = "sklears-semi-supervised"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "semi-supervised", "label-propagation"]
+categories = ["science", "mathematics"]
+description = "Semi-supervised learning algorithms"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-stats = { workspace = true }  # For statistical semi-supervised methods
+scirs2-linalg = { workspace = true }  # For graph operations
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]

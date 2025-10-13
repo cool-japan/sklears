@@ -1,0 +1,44 @@
+[package]
+name = "sklears-dummy"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "baseline", "dummy-estimators"]
+categories = ["science", "mathematics"]
+description = "Dummy estimators for baseline comparisons"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-stats = { workspace = true }  # For statistical dummy methods
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
+# ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
+# ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
+numrs2 = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+rayon = { workspace = true }
+lru = { workspace = true }
+num_cpus = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]
+
+[[bench]]
+name = "dummy_performance"
+harness = false

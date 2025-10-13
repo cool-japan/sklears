@@ -1,0 +1,43 @@
+[package]
+name = "sklears-preprocessing"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Data preprocessing for sklears: scaling, encoding, imputation, transformations"
+keywords = ["machine-learning", "preprocessing", "scaling", "encoding"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+
+# Core SciRS2 modules for Preprocessing
+scirs2-stats = { workspace = true }  # For statistical preprocessing operations
+scirs2-linalg = { workspace = true }  # For transformation matrices and operations
+scirs2-optimize = { workspace = true }  # For optimization-based preprocessing
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+approx = { workspace = true }
+num_cpus = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["sklears-core/std"]
+parallel = ["rayon"]
+serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]

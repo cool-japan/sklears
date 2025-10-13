@@ -1,0 +1,58 @@
+[package]
+name = "sklears-covariance"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "covariance", "robust-estimation"]
+categories = ["science", "mathematics"]
+description = "Covariance estimation algorithms"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-stats = { workspace = true }  # For statistical covariance methods
+scirs2-linalg = { workspace = true }  # For linear algebra operations
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
+# ❌ ndarray-linalg - use scirs2-linalg instead (SciRS2 Policy)
+numrs2 = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+rayon = { workspace = true }
+lazy_static = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]
+
+[[example]]
+name = "advanced_covariance_analysis"
+path = "examples/advanced_covariance_analysis.rs"
+
+[[example]]
+name = "polars_dataframe_demo"
+path = "examples/polars_dataframe_demo.rs"
+
+[[example]]
+name = "covariance_hyperparameter_tuning_demo"
+path = "examples/covariance_hyperparameter_tuning_demo.rs"
+
+[[example]]
+name = "automatic_model_selection_demo"
+path = "examples/automatic_model_selection_demo.rs"
+
+[[example]]
+name = "comprehensive_cookbook"
+path = "examples/comprehensive_cookbook.rs"

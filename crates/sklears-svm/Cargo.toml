@@ -1,0 +1,63 @@
+[package]
+name = "sklears-svm"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Support Vector Machines for sklears: SVC, SVR with various kernels"
+keywords = ["machine-learning", "svm", "support-vector", "kernel"]
+categories = ["science", "mathematics", "algorithms"]
+
+[dependencies]
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+scirs2-optimize = { workspace = true }
+
+# ❌ REMOVED: scirs2-autograd - use scirs2_core::ndarray instead (SciRS2 Policy)
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+num_cpus = { workspace = true }
+memmap2 = "0.9"
+dashmap = "5.5"
+parking_lot = "0.12"
+wgpu = { version = "0.19", optional = true }
+bytemuck = { version = "1.14", optional = true }
+futures-intrusive = { version = "0.5", optional = true }
+tokio = { version = "1.0", optional = true, features = ["rt", "rt-multi-thread"] }
+serde_json = { version = "1.0", optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+sklears-metrics = { workspace = true }
+approx = { workspace = true }
+tempfile = "3.8"
+proptest = "1.0"
+
+[features]
+default = ["std", "parallel"]
+std = ["sklears-core/std"]
+parallel = ["rayon"]
+serde = ["dep:serde", "sklears-core/serde"]
+gpu = ["wgpu", "bytemuck", "futures-intrusive", "tokio"]
+visualization = ["serde_json"]
+
+[[example]]
+name = "custom_kernel_demo"
+path = "examples/custom_kernel_demo.rs"
+
+# Disabled - incomplete implementation
+# [[bench]]
+# name = "libsvm_comparison"
+# harness = false
+
+# Disabled - incomplete implementation
+# [[bench]]
+# name = "sklearn_comparison"
+# harness = false

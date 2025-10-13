@@ -1,0 +1,56 @@
+[package]
+name = "sklears-inspection"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "model-inspection", "interpretability"]
+categories = ["science", "mathematics"]
+description = "Model inspection and interpretation tools"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+sklears-simd = { workspace = true, optional = true }
+numrs2 = { workspace = true }
+# ✅ SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_chacha - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+rayon = { workspace = true, optional = true }
+num_cpus = { workspace = true, optional = true }
+memmap2 = { version = "0.9", optional = true }
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread"], optional = true }
+# WebAssembly dependencies
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console", "Window", "Document", "HtmlCanvasElement", "WebGlRenderingContext", "CanvasRenderingContext2d", "Performance", "Navigator"], optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+tempfile = "3.8"
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "macros"] }
+
+[features]
+default = ["serde", "parallel", "mmap"]
+serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
+simd = ["dep:sklears-simd"]
+parallel = ["dep:rayon", "dep:num_cpus"]
+mmap = ["dep:memmap2"]
+gpu = ["dep:tokio"]
+wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys", "dep:console_error_panic_hook"]

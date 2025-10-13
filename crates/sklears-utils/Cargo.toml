@@ -1,0 +1,69 @@
+[package]
+name = "sklears-utils"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Shared utilities for sklears: validation, data generation, helpers"
+keywords = ["machine-learning", "utilities", "helpers"]
+categories = ["science"]
+
+[dependencies]
+sklears-core = { workspace = true }
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-stats = { workspace = true }  # For statistical utilities
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
+# ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
+# ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
+# ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
+numrs2 = { workspace = true }
+thiserror = { workspace = true }
+once_cell = { workspace = true }
+num_cpus = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+rustc_version_runtime = { workspace = true }
+regex = { workspace = true }
+lazy_static = { workspace = true }
+sysinfo = { workspace = true, optional = true }
+
+# Optional compression support
+flate2 = { workspace = true, optional = true }
+
+# Optional format support
+serde_yaml = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
+serde_with = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
+
+# Platform-specific dependencies for memory mapping
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["handleapi", "memoryapi", "winnt"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+approx = { workspace = true }
+criterion = { workspace = true }
+tempfile = { workspace = true }
+
+[features]
+default = ["std", "simd"]
+std = ["sklears-core/std"]
+simd = []  # Enable SIMD optimizations
+compression = ["flate2"]
+sysinfo = ["dep:sysinfo"]
+yaml = ["serde_yaml"]
+toml_support = ["toml", "serde_with"]
+xml = ["quick-xml"]
+formats = ["yaml", "toml_support", "xml"]

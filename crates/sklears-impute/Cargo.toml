@@ -1,0 +1,47 @@
+[package]
+name = "sklears-impute"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "imputation", "missing-values"]
+categories = ["science", "mathematics"]
+description = "Missing value imputation strategies"
+
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+# ✅ SciRS2 Policy compliant dependencies
+scirs2-core = { workspace = true }
+scirs2-optimize = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-sparse = { workspace = true }
+scirs2-stats = { workspace = true }
+scirs2-neural = { workspace = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
+# Core utilities
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { version = "1.0" }
+itertools = "0.12"
+rayon = "1.8"
+wide = "0.7"
+approx = { workspace = true }
+# Additional dependencies for new modules
+memmap2 = "0.9"
+num_cpus = "1.16"
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["sklears-core/serde"]

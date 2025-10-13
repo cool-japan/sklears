@@ -1,0 +1,556 @@
+//! Performance benchmarks for decomposition algorithms
+//!
+//! These benchmarks measure the performance of various decomposition methods
+//! across different data sizes and conditions.
+
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::ChaCha8Rng;
+use sklears_core::traits::{Fit, Transform};
+use sklears_decomposition::{
+    DictionaryLearning, DictionaryTransformAlgorithm, FactorAnalysis, FactorRotation, ICAAlgorithm,
+    ICAFunction, NMFInit, NMFSolver, ICA, NMF, PCA,
+};
+
+// Helper function to generate test data
+fn generate_test_data(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    let mut data = Array2::zeros((n_samples, n_features));
+
+    for i in 0..n_samples {
+        for j in 0..n_features {
+            data[[i, j]] = rng.gen::<f64>() - 0.5;
+        }
+    }
+
+    data
+}
+
+// Helper function to generate non-negative test data for NMF
+fn generate_nonneg_data(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    let mut data = Array2::zeros((n_samples, n_features));
+
+    for i in 0..n_samples {
+        for j in 0..n_features {
+            data[[i, j]] = rng.gen::<f64>().abs() + 0.1;
+        }
+    }
+
+    data
+}
+
+// Helper function to generate correlated data
+fn generate_correlated_data(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    let mut data = Array2::zeros((n_samples, n_features));
+
+    // Create some underlying factors
+    let n_factors = (n_features / 2).max(1);
+    let mut factors = Array2::zeros((n_samples, n_factors));
+
+    for i in 0..n_samples {
+        for j in 0..n_factors {
+            factors[[i, j]] = rng.gen::<f64>() - 0.5;
+        }
+    }
+
+    // Mix factors to create observed variables
+    for i in 0..n_samples {
+        for j in 0..n_features {
+            let mut val = 0.0;
+            for k in 0..n_factors {
+                let weight = (j + k) as f64 / (n_features + n_factors) as f64;
+                val += weight * factors[[i, k]];
+            }
+            val += 0.1 * (rng.gen::<f64>() - 0.5); // Add some noise
+            data[[i, j]] = val;
+        }
+    }
+
+    data
+}
+
+fn bench_pca_fit(c: &mut Criterion) {
+    let mut group = c.benchmark_group("PCA Fit");
+
+    let data_sizes = vec![(50, 10), (100, 20), (200, 50), (500, 100)];
+
+    for &(n_samples, n_features) in &data_sizes {
+        let data = generate_test_data(n_samples, n_features, 42);
+        let n_components = (n_features / 2).max(1);
+
+        group.bench_with_input(
+            BenchmarkId::new("fit", format!("{}x{}", n_samples, n_features)),
+            &data,
+            |b, data| {
+                b.iter(|| {
+                    let pca = PCA::builder().n_components(Some(n_components)).build();
+                    black_box(pca.fit(data, &()).unwrap())
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_pca_transform(c: &mut Criterion) {
+    let mut group = c.benchmark_group("PCA Transform");
+
+    let data_sizes = vec![(50, 10), (100, 20), (200, 50)];
+
+    for &(n_samples, n_features) in &data_sizes {
+        let data = generate_test_data(n_samples, n_features, 42);
+        let n_components = (n_features / 2).max(1);
+        let pca = PCA::builder().n_components(Some(n_components)).build();
+        let fitted_pca = pca.fit(&data, &()).unwrap();
+
+        group.bench_with_input(
+            BenchmarkId::new("transform", format!("{}x{}", n_samples, n_features)),
+            &(&fitted_pca, &data),
+            |b, (fitted_pca, data)| b.iter(|| black_box(fitted_pca.transform(data).unwrap())),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_nmf_algorithms(c: &mut Criterion) {
+    let mut group = c.benchmark_group("NMF Algorithms");
+
+    let data = generate_nonneg_data(100, 20, 42);
+    let n_components = 10;
+
+    let algorithms = vec![
+        ("multiplicative_update", NMFSolver::MultiplicativeUpdate),
+        ("coordinate_descent", NMFSolver::CoordinateDescent),
+    ];
+
+    for (name, solver) in algorithms {
+        group.bench_with_input(BenchmarkId::new("fit", name), &solver, |b, &solver| {
+            b.iter(|| {
+                let nmf = NMF::new(n_components)
+                    .solver(solver)
+                    .max_iter(20) // Limit iterations for benchmarking
+                    .random_state(42);
+                black_box(nmf.fit(&data, &()).unwrap())
+            })
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_ica_algorithms(c: &mut Criterion) {
+    let mut group = c.benchmark_group("ICA Algorithms");
+
+    let data = generate_test_data(80, 15, 42);
+    let n_components = 10;
+
+    let algorithms = vec![
+        ("parallel", ICAAlgorithm::Parallel),
+        ("deflation", ICAAlgorithm::Deflation),
+    ];
+
+    for (name, algorithm) in algorithms {
+        group.bench_with_input(
+            BenchmarkId::new("fit", name),
+            &algorithm,
+            |b, &algorithm| {
+                b.iter(|| {
+                    let ica = ICA::new()
+                        .n_components(n_components)
+                        .algorithm(algorithm)
+                        .max_iter(50) // Limit iterations for benchmarking
+                        .random_state(42);
+                    black_box(ica.fit(&data, &()).unwrap())
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_ica_functions(c: &mut Criterion) {
+    let mut group = c.benchmark_group("ICA Functions");
+
+    let data = generate_test_data(60, 12, 42);
+    let n_components = 8;
+
+    let functions = vec![
+        ("logcosh", ICAFunction::Logcosh),
+        ("exp", ICAFunction::Exp),
+        ("cube", ICAFunction::Cube),
+    ];
+
+    for (name, function) in functions {
+        group.bench_with_input(BenchmarkId::new("fit", name), &function, |b, &function| {
+            b.iter(|| {
+                let ica = ICA::new()
+                    .n_components(n_components)
+                    .fun(function)
+                    .max_iter(30) // Limit iterations for benchmarking
+                    .random_state(42);
+                black_box(ica.fit(&data, &()).unwrap())
+            })
+        });
+    }
+
+    group.finish();
+}
+
+// Note: FactorAnalysis benchmarks disabled - FactorAnalysis is currently a placeholder
+// without full implementation. Will be re-enabled when API is complete.
+/* TODO: Re-enable when FactorAnalysis is implemented
+fn bench_factor_analysis(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Factor Analysis");
+
+    let data_sizes = vec![(40, 8), (80, 15), (120, 25)];
+
+    for &(n_samples, n_features) in &data_sizes {
+        let data = generate_correlated_data(n_samples, n_features, 42);
+        let n_components = (n_features / 2).max(1);
+
+        group.bench_with_input(
+            BenchmarkId::new("fit", format!("{}x{}", n_samples, n_features)),
+            &data,
+            |b, data| {
+                b.iter(|| {
+                    let fa = FactorAnalysis::new(n_components)
+                        .rotation(FactorRotation::None)
+                        .max_iter(50) // Limit iterations for benchmarking
+                        .random_state(42);
+                    black_box(fa.fit(data, &()).unwrap())
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+*/
+
+fn bench_dictionary_learning(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Dictionary Learning");
+
+    let data = generate_test_data(50, 12, 42);
+    let n_components = 8;
+
+    let algorithms = vec![
+        ("omp", DictionaryTransformAlgorithm::OMP),
+        ("lars", DictionaryTransformAlgorithm::LARS),
+        ("cd", DictionaryTransformAlgorithm::CoordinateDescent),
+    ];
+
+    for (name, algorithm) in algorithms {
+        group.bench_with_input(
+            BenchmarkId::new("fit", name),
+            &algorithm,
+            |b, &algorithm| {
+                b.iter(|| {
+                    let dl = DictionaryLearning::builder()
+                        .n_components(n_components)
+                        .transform_algorithm(algorithm)
+                        .max_iter(5) // Limit iterations for benchmarking
+                        .random_state(Some(42))
+                        .build();
+                    black_box(dl.fit(&data, &()).unwrap())
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_decomposition_scaling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Decomposition Scaling");
+
+    let sample_sizes = vec![50, 100, 200, 400];
+    let n_features = 20;
+    let n_components = 10;
+
+    for &n_samples in &sample_sizes {
+        let data = generate_test_data(n_samples, n_features, 42);
+
+        // Benchmark PCA scaling
+        group.bench_with_input(BenchmarkId::new("PCA", n_samples), &data, |b, data| {
+            b.iter(|| {
+                let pca = PCA::builder().n_components(Some(n_components)).build();
+                black_box(pca.fit(data, &()).unwrap())
+            })
+        });
+
+        // Benchmark ICA scaling
+        group.bench_with_input(BenchmarkId::new("ICA", n_samples), &data, |b, data| {
+            b.iter(|| {
+                let ica = ICA::new()
+                    .n_components(n_components)
+                    .max_iter(20) // Limit iterations
+                    .random_state(42);
+                black_box(ica.fit(data, &()).unwrap())
+            })
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_feature_scaling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Feature Scaling");
+
+    let feature_sizes = vec![10, 20, 50, 100];
+    let n_samples = 100;
+    let n_components = 5;
+
+    for &n_features in &feature_sizes {
+        let data = generate_test_data(n_samples, n_features, 42);
+
+        // Benchmark PCA with different feature sizes
+        group.bench_with_input(BenchmarkId::new("PCA", n_features), &data, |b, data| {
+            b.iter(|| {
+                let pca = PCA::builder().n_components(Some(n_components)).build();
+                black_box(pca.fit(data, &()).unwrap())
+            })
+        });
+
+        // Benchmark Factor Analysis with different feature sizes
+        // Note: Disabled - FactorAnalysis is a placeholder without implementation
+        /* TODO: Re-enable when FactorAnalysis is implemented
+        if n_components < n_features {
+            group.bench_with_input(
+                BenchmarkId::new("FactorAnalysis", n_features),
+                &data,
+                |b, data| {
+                    b.iter(|| {
+                        let fa = FactorAnalysis::new(n_components)
+                            .max_iter(20) // Limit iterations
+                            .random_state(42);
+                        black_box(fa.fit(data, &()).unwrap())
+                    })
+                },
+            );
+        }
+        */
+    }
+
+    group.finish();
+}
+
+fn bench_component_scaling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Component Scaling");
+
+    let component_sizes = vec![2, 5, 10, 15];
+    let n_samples = 100;
+    let n_features = 20;
+
+    for &n_components in &component_sizes {
+        if n_components < n_features {
+            let data = generate_test_data(n_samples, n_features, 42);
+
+            // Benchmark PCA with different component sizes
+            group.bench_with_input(BenchmarkId::new("PCA", n_components), &data, |b, data| {
+                b.iter(|| {
+                    let pca = PCA::builder().n_components(Some(n_components)).build();
+                    black_box(pca.fit(data, &()).unwrap())
+                })
+            });
+
+            // Benchmark ICA with different component sizes
+            group.bench_with_input(BenchmarkId::new("ICA", n_components), &data, |b, data| {
+                b.iter(|| {
+                    let ica = ICA::new()
+                        .n_components(n_components)
+                        .max_iter(20) // Limit iterations
+                        .random_state(42);
+                    black_box(ica.fit(data, &()).unwrap())
+                })
+            });
+        }
+    }
+
+    group.finish();
+}
+
+fn bench_transform_performance(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Transform Performance");
+
+    let n_samples = 200;
+    let n_features = 30;
+    let n_components = 15;
+
+    // Pre-fit all models
+    let data = generate_test_data(n_samples, n_features, 42);
+    let pca = PCA::builder().n_components(Some(n_components)).build();
+    let fitted_pca = pca.fit(&data, &()).unwrap();
+
+    let ica = ICA::new()
+        .n_components(n_components)
+        .max_iter(30)
+        .random_state(42);
+    let fitted_ica = ica.fit(&data, &()).unwrap();
+
+    // Note: FactorAnalysis disabled - placeholder without implementation
+    /* TODO: Re-enable when FactorAnalysis is implemented
+    let fa = FactorAnalysis::new(n_components)
+        .max_iter(30)
+        .random_state(42);
+    let fitted_fa = fa.fit(&data, &()).unwrap();
+    */
+
+    // Benchmark transform operations
+    group.bench_function("PCA_transform", |b| {
+        b.iter(|| black_box(fitted_pca.transform(&data).unwrap()))
+    });
+
+    group.bench_function("ICA_transform", |b| {
+        b.iter(|| black_box(fitted_ica.transform(&data).unwrap()))
+    });
+
+    /* TODO: Re-enable when FactorAnalysis is implemented
+    group.bench_function("FA_transform", |b| {
+        b.iter(|| black_box(fitted_fa.transform(&data).unwrap()))
+    });
+    */
+
+    group.finish();
+}
+
+fn bench_algorithm_comparison(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Algorithm Comparison");
+
+    let n_samples = 150;
+    let n_features = 25;
+    let n_components = 10;
+
+    let data = generate_test_data(n_samples, n_features, 42);
+    let correlated_data = generate_correlated_data(n_samples, n_features, 42);
+    let nonneg_data = generate_nonneg_data(n_samples, n_features, 42);
+
+    // Compare different algorithms on the same data
+    group.bench_function("PCA_random_data", |b| {
+        b.iter(|| {
+            let pca = PCA::builder().n_components(Some(n_components)).build();
+            black_box(pca.fit(&data, &()).unwrap())
+        })
+    });
+
+    group.bench_function("ICA_random_data", |b| {
+        b.iter(|| {
+            let ica = ICA::new()
+                .n_components(n_components)
+                .max_iter(30)
+                .random_state(42);
+            black_box(ica.fit(&data, &()).unwrap())
+        })
+    });
+
+    // Note: FactorAnalysis disabled - placeholder without implementation
+    /* TODO: Re-enable when FactorAnalysis is implemented
+    group.bench_function("FA_correlated_data", |b| {
+        b.iter(|| {
+            let fa = FactorAnalysis::new(n_components)
+                .max_iter(30)
+                .random_state(42);
+            black_box(fa.fit(&correlated_data, &()).unwrap())
+        })
+    });
+    */
+
+    group.bench_function("NMF_nonneg_data", |b| {
+        b.iter(|| {
+            let nmf = NMF::new(n_components).max_iter(30).random_state(42);
+            black_box(nmf.fit(&nonneg_data, &()).unwrap())
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_memory_efficiency(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Memory Efficiency");
+
+    // Test with larger data to stress memory usage
+    let sizes = vec![(500, 50), (1000, 100), (2000, 200)];
+    let n_components = 20;
+
+    for &(n_samples, n_features) in &sizes {
+        let data = generate_test_data(n_samples, n_features, 42);
+
+        group.bench_with_input(
+            BenchmarkId::new("PCA_large", format!("{}x{}", n_samples, n_features)),
+            &data,
+            |b, data| {
+                b.iter(|| {
+                    let pca = PCA::builder().n_components(Some(n_components)).build();
+                    black_box(pca.fit(data, &()).unwrap())
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_convergence_speed(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Convergence Speed");
+
+    let data = generate_test_data(100, 20, 42);
+    let n_components = 10;
+
+    // Test different iteration limits for iterative algorithms
+    let max_iters = vec![10, 20, 50, 100];
+
+    for &max_iter in &max_iters {
+        group.bench_with_input(
+            BenchmarkId::new("ICA", max_iter),
+            &max_iter,
+            |b, &max_iter| {
+                b.iter(|| {
+                    let ica = ICA::new()
+                        .n_components(n_components)
+                        .max_iter(max_iter)
+                        .random_state(42);
+                    black_box(ica.fit(&data, &()).unwrap())
+                })
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("NMF", max_iter),
+            &max_iter,
+            |b, &max_iter| {
+                b.iter(|| {
+                    let nmf = NMF::new(n_components).max_iter(max_iter).random_state(42);
+                    let nonneg_data = generate_nonneg_data(100, 20, 42);
+                    black_box(nmf.fit(&nonneg_data, &()).unwrap())
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_pca_fit,
+    bench_pca_transform,
+    bench_nmf_algorithms,
+    bench_ica_algorithms,
+    bench_ica_functions,
+    // bench_factor_analysis,  // Disabled - FactorAnalysis is placeholder
+    bench_dictionary_learning,
+    bench_decomposition_scaling,
+    bench_feature_scaling,
+    bench_component_scaling,
+    bench_transform_performance,
+    bench_algorithm_comparison,
+    bench_memory_efficiency,
+    bench_convergence_speed,
+);
+
+criterion_main!(benches);

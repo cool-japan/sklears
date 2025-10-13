@@ -1,0 +1,52 @@
+[package]
+name = "sklears-naive-bayes"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "naive-bayes", "classification", "scikit-learn"]
+categories = ["science", "mathematics"]
+description = "Naive Bayes classifiers for sklears - scikit-learn compatible ML in Rust"
+
+[dependencies]
+# Sklears core dependencies
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+
+# SciRS2 Policy Compliant Dependencies
+scirs2-core = { workspace = true }
+scirs2-optimize = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-stats = { workspace = true }
+scirs2-neural = { workspace = true }
+scirs2-sparse = { workspace = true }
+
+# Other approved dependencies
+numrs2 = { workspace = true }
+thiserror = { workspace = true }
+once_cell = { workspace = true }
+rayon = { workspace = true }
+
+# Serialization (optional features)
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ nalgebra - use scirs2-linalg instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_chacha - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]

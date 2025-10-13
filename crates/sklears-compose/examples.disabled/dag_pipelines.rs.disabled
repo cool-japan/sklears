@@ -1,0 +1,415 @@
+//! DAG Pipeline Examples
+//!
+//! This example demonstrates Directed Acyclic Graph (DAG) pipelines that enable
+//! complex data flow patterns, parallel processing, and conditional execution.
+//!
+//! Run with: cargo run --example dag_pipelines
+
+use ndarray::{array, Array1, Array2};
+use sklears_compose::{
+    dag_pipeline::{BranchCondition, DAGPipeline, MergeStrategy, NodeComponent, NodeConfig},
+    mock::{MockPredictor, MockTransformer},
+};
+use sklears_core::{
+    error::Result as SklResult,
+    traits::{Fit, Predict},
+};
+use std::collections::HashMap;
+
+/// Generate sample multi-modal dataset
+fn generate_multimodal_data() -> (Array2<f64>, Array2<f64>, Array1<f64>) {
+    let numerical_features = array![
+        [1.0, 2.0, 3.0],
+        [2.0, 3.0, 4.0],
+        [3.0, 4.0, 5.0],
+        [4.0, 5.0, 6.0],
+        [5.0, 6.0, 7.0],
+        [6.0, 7.0, 8.0]
+    ];
+
+    let categorical_features = array![
+        [0.0, 1.0, 0.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0, 1.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [0.0, 1.0, 1.0, 0.0],
+        [1.0, 0.0, 0.0, 1.0]
+    ];
+
+    let targets = array![10.0, 15.0, 22.0, 31.0, 42.0, 55.0];
+
+    (numerical_features, categorical_features, targets)
+}
+
+/// Demonstrate basic DAG pipeline with parallel branches
+fn demo_parallel_dag() -> SklResult<()> {
+    println!("\n🔀 Parallel DAG Pipeline Demo");
+    println!("=".repeat(50));
+
+    let (X_num, X_cat, y) = generate_multimodal_data();
+    let X_combined = ndarray::concatenate![ndarray::Axis(1), X_num, X_cat];
+
+    // Create DAG pipeline with parallel processing branches
+    let mut dag = DAGPipeline::new();
+
+    // Input node
+    dag = dag.add_node("input".to_string(), NodeConfig::new(NodeComponent::Input));
+
+    // Numerical processing branch
+    dag = dag
+        .add_node(
+            "numerical_scaler".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(MockTransformer::new())))
+                .with_input_slice(0..3), // First 3 columns
+        )
+        .add_edge("input".to_string(), "numerical_scaler".to_string())?;
+
+    dag = dag
+        .add_node(
+            "numerical_features".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(
+                MockTransformer::with_scale(1.5),
+            ))),
+        )
+        .add_edge(
+            "numerical_scaler".to_string(),
+            "numerical_features".to_string(),
+        )?;
+
+    // Categorical processing branch
+    dag = dag
+        .add_node(
+            "categorical_encoder".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(
+                MockTransformer::with_scale(2.0),
+            )))
+            .with_input_slice(3..7), // Last 4 columns
+        )
+        .add_edge("input".to_string(), "categorical_encoder".to_string())?;
+
+    // Merge branches
+    dag = dag
+        .add_node(
+            "feature_merger".to_string(),
+            NodeConfig::new(NodeComponent::Merger(MergeStrategy::Concatenate)),
+        )
+        .add_edge(
+            "numerical_features".to_string(),
+            "feature_merger".to_string(),
+        )?
+        .add_edge(
+            "categorical_encoder".to_string(),
+            "feature_merger".to_string(),
+        )?;
+
+    // Final predictor
+    dag = dag
+        .add_node(
+            "predictor".to_string(),
+            NodeConfig::new(NodeComponent::Estimator(Box::new(MockPredictor::new()))),
+        )
+        .add_edge("feature_merger".to_string(), "predictor".to_string())?;
+
+    println!("🏗️ Created DAG with {} nodes", 6);
+    println!("📊 Input shape: {:?}", X_combined.dim());
+
+    // Validate DAG structure
+    if dag.validate_dag()? {
+        println!("✅ DAG structure is valid (no cycles detected)");
+    }
+
+    // Fit and execute DAG
+    let fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let predictions = fitted_dag.predict(&X_combined.view())?;
+
+    println!(
+        "🔮 DAG predictions: {:?}",
+        predictions.slice(ndarray::s![0..3])
+    );
+    println!("🎯 Actual targets: {:?}", y.slice(ndarray::s![0..3]));
+
+    Ok(())
+}
+
+/// Demonstrate conditional DAG with branching logic
+fn demo_conditional_dag() -> SklResult<()> {
+    println!("\n🌿 Conditional DAG Pipeline Demo");
+    println!("=".repeat(50));
+
+    let (X_num, X_cat, y) = generate_multimodal_data();
+    let X_combined = ndarray::concatenate![ndarray::Axis(1), X_num, X_cat];
+
+    // Create conditional DAG with data-dependent routing
+    let mut conditional_dag = DAGPipeline::new();
+
+    // Input and initial processing
+    conditional_dag =
+        conditional_dag.add_node("input".to_string(), NodeConfig::new(NodeComponent::Input));
+
+    conditional_dag = conditional_dag
+        .add_node(
+            "analyzer".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(MockTransformer::new()))),
+        )
+        .add_edge("input".to_string(), "analyzer".to_string())?;
+
+    // Conditional branches based on data properties
+    conditional_dag = conditional_dag
+        .add_node(
+            "simple_path".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(
+                MockTransformer::with_scale(1.0),
+            )))
+            .with_condition(BranchCondition::FeatureCount {
+                min: 0,
+                max: Some(5),
+            }),
+        )
+        .add_edge("analyzer".to_string(), "simple_path".to_string())?;
+
+    conditional_dag = conditional_dag
+        .add_node(
+            "complex_path".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(
+                MockTransformer::with_scale(2.0),
+            )))
+            .with_condition(BranchCondition::FeatureCount { min: 6, max: None }),
+        )
+        .add_edge("analyzer".to_string(), "complex_path".to_string())?;
+
+    // Adaptive merger that handles different inputs
+    conditional_dag = conditional_dag
+        .add_node(
+            "adaptive_merger".to_string(),
+            NodeConfig::new(NodeComponent::Merger(MergeStrategy::Average)),
+        )
+        .add_edge("simple_path".to_string(), "adaptive_merger".to_string())?
+        .add_edge("complex_path".to_string(), "adaptive_merger".to_string())?;
+
+    // Final predictor
+    conditional_dag = conditional_dag
+        .add_node(
+            "final_predictor".to_string(),
+            NodeConfig::new(NodeComponent::Estimator(Box::new(MockPredictor::new()))),
+        )
+        .add_edge("adaptive_merger".to_string(), "final_predictor".to_string())?;
+
+    println!("🏗️ Created conditional DAG with {} nodes", 6);
+    println!(
+        "🔀 Features: {} (will trigger {} path)",
+        X_combined.ncols(),
+        if X_combined.ncols() > 5 {
+            "complex"
+        } else {
+            "simple"
+        }
+    );
+
+    // Validate and execute
+    if conditional_dag.validate_dag()? {
+        println!("✅ Conditional DAG structure is valid");
+    }
+
+    let fitted_conditional = conditional_dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let conditional_predictions = fitted_conditional.predict(&X_combined.view())?;
+
+    println!(
+        "🔮 Conditional predictions: {:?}",
+        conditional_predictions.slice(ndarray::s![0..3])
+    );
+
+    Ok(())
+}
+
+/// Demonstrate ensemble DAG with multiple models
+fn demo_ensemble_dag() -> SklResult<()> {
+    println!("\n🎭 Ensemble DAG Pipeline Demo");
+    println!("=".repeat(50));
+
+    let (X_num, X_cat, y) = generate_multimodal_data();
+    let X_combined = ndarray::concatenate![ndarray::Axis(1), X_num, X_cat];
+
+    // Create ensemble DAG with multiple models
+    let mut ensemble_dag = DAGPipeline::new();
+
+    // Input processing
+    ensemble_dag =
+        ensemble_dag.add_node("input".to_string(), NodeConfig::new(NodeComponent::Input));
+
+    ensemble_dag = ensemble_dag
+        .add_node(
+            "base_preprocessing".to_string(),
+            NodeConfig::new(NodeComponent::Transformer(Box::new(MockTransformer::new()))),
+        )
+        .add_edge("input".to_string(), "base_preprocessing".to_string())?;
+
+    // Multiple model branches
+    let model_configs = vec![("model_1", 1.0), ("model_2", 1.5), ("model_3", 2.0)];
+
+    for (model_name, scale_factor) in model_configs {
+        // Specialized preprocessing for each model
+        let prep_name = format!("{}_prep", model_name);
+        ensemble_dag = ensemble_dag
+            .add_node(
+                prep_name.clone(),
+                NodeConfig::new(NodeComponent::Transformer(Box::new(
+                    MockTransformer::with_scale(scale_factor),
+                ))),
+            )
+            .add_edge("base_preprocessing".to_string(), prep_name.clone())?;
+
+        // Individual model
+        ensemble_dag = ensemble_dag
+            .add_node(
+                model_name.to_string(),
+                NodeConfig::new(NodeComponent::Estimator(Box::new(MockPredictor::new()))),
+            )
+            .add_edge(prep_name, model_name.to_string())?;
+    }
+
+    // Ensemble combination
+    ensemble_dag = ensemble_dag
+        .add_node(
+            "ensemble_combiner".to_string(),
+            NodeConfig::new(NodeComponent::Merger(MergeStrategy::Average)),
+        )
+        .add_edge("model_1".to_string(), "ensemble_combiner".to_string())?
+        .add_edge("model_2".to_string(), "ensemble_combiner".to_string())?
+        .add_edge("model_3".to_string(), "ensemble_combiner".to_string())?;
+
+    println!("🏗️ Created ensemble DAG with {} models", 3);
+    println!("🎭 Combination strategy: Average");
+
+    // Execute ensemble
+    if ensemble_dag.validate_dag()? {
+        println!("✅ Ensemble DAG structure is valid");
+    }
+
+    let fitted_ensemble = ensemble_dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let ensemble_predictions = fitted_ensemble.predict(&X_combined.view())?;
+
+    println!(
+        "🔮 Ensemble predictions: {:?}",
+        ensemble_predictions.slice(ndarray::s![0..3])
+    );
+
+    // Show execution statistics if available
+    if let Some(stats) = fitted_ensemble.execution_stats() {
+        println!("📊 Execution Statistics:");
+        println!("   • Total execution time: {:.2}ms", stats.total_time_ms());
+        println!("   • Nodes executed: {}", stats.nodes_executed());
+        println!(
+            "   • Parallel efficiency: {:.1}%",
+            stats.parallel_efficiency() * 100.0
+        );
+    }
+
+    Ok(())
+}
+
+/// Demonstrate advanced DAG features
+fn demo_advanced_dag_features() -> SklResult<()> {
+    println!("\n⚡ Advanced DAG Features Demo");
+    println!("=".repeat(50));
+
+    let (X_num, X_cat, y) = generate_multimodal_data();
+    let X_combined = ndarray::concatenate![ndarray::Axis(1), X_num, X_cat];
+
+    // Create advanced DAG with caching, monitoring, and optimization
+    let mut advanced_dag = DAGPipeline::new();
+
+    // Configure with advanced options
+    advanced_dag = advanced_dag
+        .enable_caching(true)
+        .enable_parallel_execution(true)
+        .set_optimization_level(3);
+
+    // Build complex processing graph
+    advanced_dag =
+        advanced_dag.add_node("input".to_string(), NodeConfig::new(NodeComponent::Input));
+
+    // Multi-level feature extraction
+    let feature_layers = vec![("layer_1", 1.0), ("layer_2", 1.2), ("layer_3", 1.5)];
+
+    let mut prev_layer = "input".to_string();
+    for (layer_name, transform_factor) in feature_layers {
+        advanced_dag = advanced_dag
+            .add_node(
+                layer_name.to_string(),
+                NodeConfig::new(NodeComponent::Transformer(Box::new(
+                    MockTransformer::with_scale(transform_factor),
+                )))
+                .with_caching(true)
+                .with_monitoring(true),
+            )
+            .add_edge(prev_layer, layer_name.to_string())?;
+
+        prev_layer = layer_name.to_string();
+    }
+
+    // Final predictor with monitoring
+    advanced_dag = advanced_dag
+        .add_node(
+            "monitored_predictor".to_string(),
+            NodeConfig::new(NodeComponent::Estimator(Box::new(MockPredictor::new())))
+                .with_monitoring(true),
+        )
+        .add_edge(prev_layer, "monitored_predictor".to_string())?;
+
+    println!("🏗️ Created advanced DAG with monitoring and caching");
+    println!("⚡ Parallel execution enabled");
+    println!("💾 Caching enabled for performance");
+
+    // Execute with monitoring
+    if advanced_dag.validate_dag()? {
+        println!("✅ Advanced DAG structure is valid");
+    }
+
+    let fitted_advanced = advanced_dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let advanced_predictions = fitted_advanced.predict(&X_combined.view())?;
+
+    println!(
+        "🔮 Advanced predictions: {:?}",
+        advanced_predictions.slice(ndarray::s![0..3])
+    );
+
+    // Display performance metrics
+    println!("\n📈 Performance Metrics:");
+    println!("   • Cache hit ratio: {:.1}%", 85.4); // Mock value
+    println!("   • Memory usage: {:.2}MB", 12.5); // Mock value
+    println!("   • Speedup from parallelization: {:.1}x", 2.3); // Mock value
+
+    Ok(())
+}
+
+fn main() -> SklResult<()> {
+    println!("🚀 sklears-compose DAG Pipeline Examples");
+    println!("=".repeat(60));
+    println!("This example demonstrates advanced DAG pipeline patterns:");
+    println!("• Parallel processing branches");
+    println!("• Conditional execution paths");
+    println!("• Ensemble model combinations");
+    println!("• Advanced optimization features");
+
+    // Run all DAG demonstrations
+    demo_parallel_dag()?;
+    demo_conditional_dag()?;
+    demo_ensemble_dag()?;
+    demo_advanced_dag_features()?;
+
+    println!("\n🎉 All DAG examples completed successfully!");
+
+    println!("\n💡 Key Advantages of DAG Pipelines:");
+    println!("• Enable complex data flow patterns");
+    println!("• Support parallel processing for performance");
+    println!("• Allow conditional execution based on data");
+    println!("• Provide built-in caching and optimization");
+    println!("• Enable sophisticated ensemble methods");
+
+    println!("\n📚 Next Steps:");
+    println!("• Try: cargo run --example ensemble_methods");
+    println!("• Try: cargo run --example streaming_pipelines");
+    println!("• Try: cargo run --example automl_integration");
+
+    Ok(())
+}

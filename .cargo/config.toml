@@ -1,0 +1,11 @@
+[build]
+rustflags = [
+    "-L", "/opt/homebrew/opt/openblas/lib",
+    "-L", "/opt/homebrew/opt/libomp/lib",
+    "-l", "openblas",
+    "-l", "omp"
+]
+
+[env]
+PKG_CONFIG_PATH = "/opt/homebrew/lib/pkgconfig"
+CARGO_FEATURE_BLAS = "1"

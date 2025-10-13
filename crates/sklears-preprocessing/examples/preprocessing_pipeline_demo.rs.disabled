@@ -1,0 +1,146 @@
+//! Comprehensive Data Preprocessing Pipeline Demo
+//!
+//! This example demonstrates the key preprocessing capabilities currently implemented
+//! in sklears-preprocessing, including image processing, memory management, and GPU acceleration.
+
+use scirs2_core::ndarray::{s, Array2, Array3};
+use sklears_core::traits::{Fit, Transform};
+use sklears_preprocessing::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🔧 SKLears Preprocessing Pipeline Demo");
+    println!("======================================");
+
+    // Demo 1: Image Preprocessing
+    println!("\n🔹 Demo 1: Image Preprocessing");
+    println!("-------------------------------");
+
+    // Create a simple 3-channel RGB image (4x4x3)
+    let mut image_data = Array3::<f64>::zeros((4, 4, 3));
+
+    // Fill with sample RGB values
+    for row in 0..4 {
+        for col in 0..4 {
+            image_data[[row, col, 0]] = (row * col + 1) as f64 * 50.0; // Red channel
+            image_data[[row, col, 1]] = (row + col + 1) as f64 * 30.0; // Green channel
+            image_data[[row, col, 2]] = (row * 2 + col + 1) as f64 * 25.0; // Blue channel
+        }
+    }
+
+    println!("Original image shape: {:?}", image_data.dim());
+    println!(
+        "Red channel sample values: {:.1}",
+        image_data.slice(s![.., .., 0])
+    );
+
+    // Image normalization
+    let normalizer = ImageNormalizer::new()
+        .with_strategy(ImageNormalizationStrategy::MinMax)
+        .with_channel_wise(true);
+
+    let fitted_normalizer = normalizer.fit(&image_data, &())?;
+    let normalized_image = fitted_normalizer.transform(&image_data)?;
+
+    println!("\nNormalized image (should be in [0,1] range):");
+    println!(
+        "Red channel min: {:.3}, max: {:.3}",
+        normalized_image
+            .slice(s![.., .., 0])
+            .iter()
+            .fold(f64::INFINITY, |a, &b| a.min(b)),
+        normalized_image
+            .slice(s![.., .., 0])
+            .iter()
+            .fold(f64::NEG_INFINITY, |a, &b| a.max(b))
+    );
+
+    // Color space conversion
+    let color_converter = ColorSpaceTransformer::new().from_rgb().to_hsv();
+
+    let hsv_image = color_converter.transform(&normalized_image)?;
+    println!("Converted to HSV color space: {:?}", hsv_image.dim());
+
+    // Image resizing
+    let resizer = ImageResizer::new((6, 6)).with_method(ImageInterpolationMethod::Bilinear);
+
+    let resized_image = resizer.transform(&hsv_image)?;
+    println!("Resized from 4x4 to 6x6: {:?}", resized_image.dim());
+
+    // Demo 2: Memory Management
+    println!("\n🔹 Demo 2: Memory Management");
+    println!("-----------------------------");
+
+    let memory_config = MemoryPoolConfig::new()
+        .with_pool_size(1024 * 1024) // 1MB pool
+        .with_chunk_size(1024) // 1KB chunks
+        .with_max_chunks(10);
+
+    let memory_pool = MemoryPool::new(memory_config);
+
+    // Allocate and use some memory chunks
+    let chunk1 = memory_pool.allocate(100)?;
+    let chunk2 = memory_pool.allocate(200)?;
+
+    println!(
+        "Allocated chunks of sizes: {} and {}",
+        chunk1.len(),
+        chunk2.len()
+    );
+
+    // Return to pool
+    memory_pool.deallocate(chunk1);
+    memory_pool.deallocate(chunk2);
+
+    let stats = memory_pool.memory_stats();
+    println!(
+        "Memory pool stats - Free chunks: {}, Utilization: {:.2}%",
+        stats.free_chunks,
+        stats.pool_utilization * 100.0
+    );
+
+    // Demo 3: Sparse Matrix Operations
+    println!("\n🔹 Demo 3: Sparse Matrix Operations");
+    println!("------------------------------------");
+
+    // Create a sparse matrix from triplet format (row, col, value)
+    let rows = vec![0, 0, 1, 2, 2];
+    let cols = vec![0, 2, 1, 0, 2];
+    let data = vec![1.0, 3.0, 2.0, 4.0, 5.0];
+
+    let sparse_matrix = SparseMatrix::from_triplets((3, 3), rows, cols, data, SparseFormat::CSR)?;
+
+    println!("Sparse matrix shape: {:?}", sparse_matrix.shape());
+    println!("Non-zero elements: {}", sparse_matrix.nnz());
+    println!("Density: {:.2}%", sparse_matrix.density() * 100.0);
+
+    // Convert to dense for display
+    let dense_matrix = sparse_matrix.to_dense()?;
+    println!("Dense representation:");
+    println!("{:.1}", dense_matrix);
+
+    // Demo 4: GPU Configuration
+    println!("\n🔹 Demo 4: GPU Acceleration Setup");
+    println!("-----------------------------------");
+
+    let gpu_config = GpuConfig::new()
+        .with_cuda_backend()
+        .with_memory_pool_size(128 * 1024 * 1024) // 128MB
+        .with_gpu_threshold(1000)
+        .with_auto_fallback(true);
+
+    let gpu_manager = GpuContextManager::new(gpu_config)?;
+
+    println!("GPU available: {}", gpu_manager.is_gpu_available());
+    println!("GPU backend configured successfully (with CPU fallback)");
+
+    println!("\n✅ All demos completed successfully!");
+
+    println!("\n📋 Summary of Implemented Features");
+    println!("----------------------------------");
+    println!("✅ Image Preprocessing: Normalization, augmentation, color conversion, resizing");
+    println!("✅ Memory Management: Memory pools, copy-on-write arrays, memory-mapped datasets");
+    println!("✅ Sparse Operations: CSR/CSC/COO formats, sparse transformations");
+    println!("✅ GPU Acceleration: Multi-backend support with automatic CPU fallback");
+
+    Ok(())
+}

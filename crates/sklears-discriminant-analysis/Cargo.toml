@@ -1,0 +1,57 @@
+[package]
+name = "sklears-discriminant-analysis"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "lda", "qda", "discriminant"]
+categories = ["science", "mathematics"]
+description = "Linear and Quadratic Discriminant Analysis"
+
+# SciRS2 Policy Compliant Dependencies
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+
+# ✅ ESSENTIAL SciRS2 dependencies for discriminant analysis (SciRS2 Policy compliance)
+scirs2-core = { workspace = true, features = ["random"] }
+scirs2-optimize = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-stats = { workspace = true }
+
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+fastrand = "2.0"
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ ndarray-linalg - use scirs2-linalg instead
+# ❌ ndarray-stats - use scirs2-stats instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+
+rayon = { workspace = true }
+num_cpus = "1.16"
+memmap2 = { workspace = true }
+tempfile = { workspace = true }
+tokio = { version = "1.41", features = ["full"] }
+log = "0.4"
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]
+
+[[bench]]
+name = "discriminant_benchmarks"
+harness = false

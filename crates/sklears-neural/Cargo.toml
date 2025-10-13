@@ -1,0 +1,58 @@
+[package]
+name = "sklears-neural"
+version = "0.1.0-alpha.1"
+edition.workspace = true
+authors.workspace = true
+description = "Neural network implementations for the sklears machine learning library"
+license.workspace = true
+repository.workspace = true
+keywords = ["machine-learning", "neural-networks", "mlp", "backpropagation", "rust"]
+categories = ["algorithms", "mathematics", "science"]
+
+# SciRS2 Policy Compliant Dependencies
+[dependencies]
+sklears-core = { workspace = true }
+# sklears-utils = { workspace = true }  # Temporarily disabled due to compilation issues
+# sklears-metrics = { workspace = true }  # Temporarily disabled due to compilation issues
+scirs2-core = { workspace = true }
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ ndarray - use scirs2_core::ndarray instead
+# ❌ ndarray-rand - use scirs2_core::random instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+# ❌ rand_chacha - use scirs2_core::random instead
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+serde_yaml = { version = "0.9", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+bincode = { version = "1.3", optional = true }
+flate2 = { version = "1.0", optional = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+rayon = { workspace = true, optional = true }
+# cudarc = { version = "0.12", features = ["cublas", "cublaslt", "curand"], optional = true }  # Disabled for macOS compatibility
+bytemuck = { version = "1.14", optional = true }
+memmap2 = { version = "0.9", optional = true }
+half = { version = "2.4", optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+# sklears-preprocessing = { workspace = true }  # Temporarily disabled due to compilation issues
+# sklears-utils = { workspace = true }         # Temporarily disabled due to compilation issues
+
+[features]
+default = []
+parallel = ["rayon"]
+# gpu = ["cudarc", "bytemuck", "half"]  # Disabled for macOS compatibility
+serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:chrono", "dep:bincode", "dep:flate2"]
+mmap = ["memmap2"]
+
+[[example]]
+name = "rbm_demo"
+path = "examples/rbm_demo.rs"
+
+[[example]]
+name = "autoencoder_demo"
+path = "examples/autoencoder_demo.rs"

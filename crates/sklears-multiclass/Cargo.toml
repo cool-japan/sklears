@@ -1,0 +1,34 @@
+[package]
+name = "sklears-multiclass"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["machine-learning", "multiclass", "one-vs-rest"]
+categories = ["science", "mathematics"]
+description = "Multiclass classification strategies"
+
+# SciRS2 Policy Compliant Dependencies
+[dependencies]
+sklears-core = { workspace = true }
+sklears-utils = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }
+scirs2-autograd = { workspace = true }
+rayon = "1.8"
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde", "sklears-core/serde"]
+gpu = []
+memory-optimization = []

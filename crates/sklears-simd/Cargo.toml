@@ -1,0 +1,65 @@
+[package]
+name = "sklears-simd"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+description = "High-performance SIMD acceleration primitives for the Sklears machine learning ecosystem"
+
+[dependencies]
+# Core dependencies
+sklears-core = { workspace = true }
+numrs2 = { workspace = true }
+
+# ✅ SciRS2 Policy compliance - Use SciRS2 as scientific computing foundation
+scirs2-core = { workspace = true }
+scirs2-autograd = { workspace = true }
+scirs2-linalg = { workspace = true }
+
+# SIMD support - using stable SIMD features
+once_cell = "1.20"
+
+# Complex numbers for quantum computing
+num = "0.4"
+
+# Optional dependencies
+rayon = { workspace = true, optional = true }
+libm = { version = "0.2", optional = true }
+spin = { version = "0.9", optional = true }
+
+# GPU acceleration dependencies (optional) - Disabled for macOS compatibility
+# cudarc = { version = "0.11", optional = true }
+# opencl3 = { version = "0.9", optional = true }
+
+[features]
+default = []
+parallel = ["rayon"]
+nightly = []
+# no-std = ["libm", "spin"]  # Temporarily disabled - incomplete implementation
+
+# Note: std is always available. The no-std feature is disabled until
+# the implementation is complete and all tests pass with it enabled.
+# cuda = ["cudarc"]  # Disabled for macOS compatibility
+# opencl = ["opencl3"]  # Disabled for macOS compatibility  
+# gpu = ["cuda", "opencl"]  # Disabled for macOS compatibility
+
+[dev-dependencies]
+criterion = "0.5"
+approx = "0.5"
+
+[[bench]]
+name = "simd_benchmarks"
+harness = false
+
+[[bench]]
+name = "comprehensive_benchmarks"
+harness = false
+
+# Note: Profiles are configured at workspace level in root Cargo.toml
+# following workspace policy

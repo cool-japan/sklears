@@ -1,0 +1,241 @@
+[package]
+name = "sklears"
+version = "0.1.0-alpha.1"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "A comprehensive machine learning library in Rust, inspired by scikit-learn"
+keywords = ["machine-learning", "ml", "scikit-learn", "data-science", "rust"]
+categories = ["science", "mathematics", "algorithms", "data-structures"]
+
+[dependencies]
+# Core dependencies
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+numrs2 = { workspace = true }
+scirs2-core = { workspace = true }  # Unified access to ndarray and scientific computing
+polars = { workspace = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
+
+# Algorithm crates - optional
+sklears-linear = { workspace = true, optional = true }
+sklears-clustering = { workspace = true, optional = true }
+sklears-ensemble = { workspace = true, optional = true }
+sklears-svm = { workspace = true, optional = true }
+sklears-tree = { workspace = true, optional = true }
+sklears-neighbors = { workspace = true, optional = true }
+sklears-decomposition = { workspace = true, optional = true }
+# sklears-preprocessing = { workspace = true, optional = true }  # Temporarily disabled
+sklears-model-selection = { workspace = true, optional = true }
+sklears-metrics = { workspace = true, optional = true }
+sklears-utils = { workspace = true }
+sklears-neural = { workspace = true, optional = true }
+# sklears-simd = { workspace = true, optional = true } # Temporarily disabled
+sklears-datasets = { workspace = true, optional = true }
+sklears-feature-selection = { workspace = true, optional = true }
+sklears-naive-bayes = { workspace = true, optional = true }
+sklears-gaussian-process = { workspace = true, optional = true }
+sklears-discriminant-analysis = { workspace = true, optional = true }
+sklears-manifold = { workspace = true, optional = true }
+sklears-semi-supervised = { workspace = true, optional = true }
+sklears-feature-extraction = { workspace = true, optional = true }
+sklears-covariance = { workspace = true, optional = true }
+sklears-cross-decomposition = { workspace = true, optional = true }
+sklears-isotonic = { workspace = true, optional = true }
+sklears-kernel-approximation = { workspace = true, optional = true }
+sklears-dummy = { workspace = true, optional = true }
+sklears-calibration = { workspace = true, optional = true }
+sklears-multiclass = { workspace = true, optional = true }
+sklears-multioutput = { workspace = true, optional = true }
+sklears-compose = { workspace = true, optional = true }
+sklears-impute = { workspace = true, optional = true }
+sklears-inspection = { workspace = true, optional = true }
+sklears-mixture = { workspace = true, optional = true }
+
+# Re-export dependencies
+thiserror = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
+proptest = { workspace = true }
+# Additional crates needed for benches and tests
+sklears-ensemble = { workspace = true }
+sklears-tree = { workspace = true }
+sklears-neighbors = { workspace = true }
+sklears-preprocessing = { workspace = true }
+sklears-model-selection = { workspace = true }
+sklears-metrics = { workspace = true }
+sklears-utils = { workspace = true }
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
+# ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
+
+[dependencies.criterion]
+workspace = true
+optional = true
+
+[features]
+default = ["std", "linear", "clustering", "metrics", "model-selection", "neighbors"]
+
+# Core features
+std = ["sklears-core/std"]
+parallel = ["rayon"]
+serde = ["sklears-core/serde", "polars/serde"]
+
+# Algorithm categories
+linear = ["sklears-linear"]
+clustering = ["sklears-clustering"]
+ensemble = ["sklears-ensemble", "tree"]
+svm = ["sklears-svm"]
+tree = ["sklears-tree"]
+neighbors = ["sklears-neighbors"]
+decomposition = ["sklears-decomposition"]
+# preprocessing = ["sklears-preprocessing"]  # Temporarily disabled
+model-selection = ["sklears-model-selection"]
+metrics = ["sklears-metrics"]
+neural = ["sklears-neural"]
+# simd = ["sklears-simd"] # Temporarily disabled
+datasets = ["sklears-datasets"]
+feature-selection = ["sklears-feature-selection"]
+naive-bayes = ["sklears-naive-bayes"]
+gaussian-process = ["sklears-gaussian-process"]
+discriminant-analysis = ["sklears-discriminant-analysis"]
+manifold = ["sklears-manifold"]
+semi-supervised = ["sklears-semi-supervised"]
+feature-extraction = ["sklears-feature-extraction"]
+covariance = ["sklears-covariance"]
+cross-decomposition = ["sklears-cross-decomposition"]
+isotonic = ["sklears-isotonic"]
+kernel-approximation = ["sklears-kernel-approximation"]
+dummy = ["sklears-dummy"]
+calibration = ["sklears-calibration"]
+multiclass = ["sklears-multiclass"]
+multioutput = ["sklears-multioutput"]
+compose = ["sklears-compose"]
+impute = ["sklears-impute"]
+inspection = ["sklears-inspection"]
+mixture = ["sklears-mixture"]
+all-algorithms = [
+    "linear", "clustering", "ensemble", "svm", "tree", "neighbors",
+    "decomposition", "model-selection", "metrics", 
+    "neural", # "simd", # Temporarily disabled
+    "datasets", "feature-selection", "naive-bayes",
+    "gaussian-process", "discriminant-analysis", "manifold", 
+    "semi-supervised", "feature-extraction", "covariance", 
+    "cross-decomposition", "isotonic", "kernel-approximation",
+    "dummy", "calibration", "multiclass", "multioutput",
+    "compose", "impute", "inspection", "mixture"
+]
+
+# Backend options
+backend-cpu = []  # Default
+backend-blas = []  # TODO: Add when numrs2 supports it
+backend-cuda = []
+backend-wgpu = []
+
+# Development
+dev = ["all-algorithms", "parallel", "serde"]
+bench = ["criterion"]
+
+[dependencies.rayon]
+workspace = true
+optional = true
+
+# [[example]]
+# name = "quickstart"
+# required-features = ["linear", "preprocessing", "model-selection", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "linear_models_showcase"
+# required-features = ["linear", "preprocessing", "metrics"]
+
+# [[example]]
+# name = "lasso_regression"
+# required-features = ["linear", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "kmeans_clustering"
+# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "dbscan_clustering"
+# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "hierarchical_clustering"
+# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "mean_shift_clustering"
+# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "spectral_clustering"
+# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "gmm_clustering"
+# required-features = ["clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "bayesian_regression"
+# required-features = ["linear", "preprocessing", "metrics"]
+
+# [[example]]
+# name = "glm_example"
+# required-features = ["linear", "preprocessing", "metrics"]
+
+# [[example]]
+# name = "function_transformer"
+# required-features = ["preprocessing"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "data_integration"
+# required-features = ["linear", "clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "scirs2_integration"
+# required-features = ["linear", "clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+[[example]]
+name = "cross_validators_demo"
+required-features = ["model-selection"]
+
+# [[example]]
+# name = "multi_task_demo"
+# required-features = ["linear", "preprocessing"]
+
+[[example]]
+name = "pairwise_metrics_demo"
+required-features = ["metrics"]
+
+# [[example]]
+# name = "performance_comparison_comprehensive"
+# required-features = ["linear", "clustering", "preprocessing", "metrics"]  # Temporarily disabled due to preprocessing
+
+# [[example]]
+# name = "simd_demo"
+# required-features = ["simd"]
+
+[[bench]]
+name = "comprehensive_benchmarks"
+harness = false
+required-features = ["all-algorithms"]
+
+# [[bench]]
+# name = "tree_ensemble_benchmarks"
+# harness = false
+# required-features = ["tree", "ensemble", "neighbors", "preprocessing", "metrics", "model-selection"]  # Temporarily disabled due to preprocessing
+
+[[bench]]
+name = "continuous_benchmarks"
+harness = false
+required-features = ["all-algorithms", "bench"]

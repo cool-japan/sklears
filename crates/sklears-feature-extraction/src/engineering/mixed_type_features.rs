@@ -1,0 +1,730 @@
+//! Mixed Type Feature Processing Module
+//!
+//! This module provides comprehensive mixed type feature processing functionality
+//! for handling heterogeneous data with different types of features.
+
+use crate::*;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use sklears_core::prelude::{Fit, SklearsError, Transform};
+use sklears_core::traits::{Estimator, Untrained};
+use sklears_core::types::Float;
+use std::collections::HashMap;
+
+/// Mixed-type feature extractor for handling heterogeneous data
+///
+/// This extractor can handle different types of features (numerical, categorical, binary, ordinal)
+/// and apply appropriate transformations to each type, creating a unified feature matrix.
+///
+/// Features handled include:
+/// - Numerical features with optional normalization
+/// - Categorical features with multiple encoding strategies
+/// - Binary features with threshold-based conversion
+/// - Ordinal features preserving natural order
+/// - Missing value handling with multiple strategies
+///
+/// # Parameters
+///
+/// * `feature_types` - Types of features for each column
+/// * `normalize_numerical` - Whether to normalize numerical features
+/// * `handle_missing_values` - Whether to handle missing values
+/// * `missing_value_strategy` - Strategy for handling missing values
+/// * `encoding_strategy` - Categorical encoding strategy
+/// * `include_interaction_features` - Whether to include interaction features
+/// * `random_state` - Random state for reproducible results
+///
+/// # Examples
+///
+/// ```
+/// # use sklears_feature_extraction::engineering::MixedTypeFeatureExtractor;
+/// # use sklears_feature_extraction::engineering::{FeatureType, MissingValueStrategy, CategoricalEncoding};
+/// # use scirs2_core::ndarray::Array2;
+/// # use sklears_core::traits::{Transform, Fit};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let data = Array2::from_shape_vec((4, 6),
+///     vec![1.0, 2.0, 3.0, 1.0, 0.0, 5.0,
+///          4.0, 5.0, 6.0, 2.0, 1.0, 3.0,
+///          7.0, 8.0, 9.0, 1.0, 0.0, 4.0,
+///          2.0, 3.0, 4.0, 3.0, 1.0, 2.0])?;
+///
+/// let feature_types = vec![
+///     FeatureType::Numerical,   // col 0
+///     FeatureType::Numerical,   // col 1
+///     FeatureType::Numerical,   // col 2
+///     FeatureType::Categorical, // col 3
+///     FeatureType::Binary,      // col 4
+///     FeatureType::Ordinal,     // col 5
+/// ];
+///
+/// let extractor = MixedTypeFeatureExtractor::new()
+///     .feature_types(feature_types)
+///     .normalize_numerical(true)
+///     .encoding_strategy(CategoricalEncoding::OneHot);
+///
+/// let fitted = extractor.fit(&data, &())?;
+/// let features = fitted.transform(&data)?;
+/// assert!(features.ncols() > 6); // Should be expanded due to one-hot encoding
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone)]
+pub struct MixedTypeFeatureExtractor {
+    /// Types of features for each column
+    pub feature_types: Vec<FeatureType>,
+    /// Whether to normalize numerical features
+    pub normalize_numerical: bool,
+    /// Whether to handle missing values
+    pub handle_missing_values: bool,
+    /// Strategy for handling missing values
+    pub missing_value_strategy: MissingValueStrategy,
+    /// Categorical encoding strategy
+    pub encoding_strategy: CategoricalEncoding,
+    /// Whether to include interaction features
+    pub include_interaction_features: bool,
+    /// Random state for reproducible results
+    pub random_state: Option<u64>,
+}
+
+/// Types of features that can be handled
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FeatureType {
+    /// Continuous numerical features
+    Numerical,
+    /// Categorical features with no inherent order
+    Categorical,
+    /// Binary features (0/1)
+    Binary,
+    /// Ordinal features with inherent order
+    Ordinal,
+    /// Date/time features
+    DateTime,
+}
+
+/// Strategies for handling missing values
+#[derive(Debug, Clone, Copy)]
+pub enum MissingValueStrategy {
+    /// Replace with mean (for numerical) or mode (for categorical)
+    Mean,
+    /// Replace with median (for numerical) or mode (for categorical)
+    Median,
+    /// Replace with mode (most frequent value)
+    Mode,
+    /// Replace with zero
+    Zero,
+    /// Forward fill
+    ForwardFill,
+    /// Backward fill
+    BackwardFill,
+}
+
+/// Categorical encoding strategies
+#[derive(Debug, Clone, Copy)]
+pub enum CategoricalEncoding {
+    /// One-hot encoding
+    OneHot,
+    /// Label encoding (ordinal integers)
+    LabelEncoding,
+    /// Target encoding (mean of target for each category)
+    TargetEncoding,
+    /// Binary encoding
+    BinaryEncoding,
+    /// Frequency encoding
+    FrequencyEncoding,
+}
+
+impl MixedTypeFeatureExtractor {
+    /// Create a new mixed-type feature extractor
+    pub fn new() -> Self {
+        Self {
+            feature_types: Vec::new(),
+            normalize_numerical: true,
+            handle_missing_values: true,
+            missing_value_strategy: MissingValueStrategy::Mean,
+            encoding_strategy: CategoricalEncoding::OneHot,
+            include_interaction_features: false,
+            random_state: None,
+        }
+    }
+
+    /// Set feature types for each column
+    pub fn feature_types(mut self, types: Vec<FeatureType>) -> Self {
+        self.feature_types = types;
+        self
+    }
+
+    /// Set whether to normalize numerical features
+    pub fn normalize_numerical(mut self, normalize: bool) -> Self {
+        self.normalize_numerical = normalize;
+        self
+    }
+
+    /// Set whether to handle missing values
+    pub fn handle_missing_values(mut self, handle: bool) -> Self {
+        self.handle_missing_values = handle;
+        self
+    }
+
+    /// Set missing value strategy
+    pub fn missing_value_strategy(mut self, strategy: MissingValueStrategy) -> Self {
+        self.missing_value_strategy = strategy;
+        self
+    }
+
+    /// Set categorical encoding strategy
+    pub fn encoding_strategy(mut self, strategy: CategoricalEncoding) -> Self {
+        self.encoding_strategy = strategy;
+        self
+    }
+
+    /// Set whether to include interaction features
+    pub fn include_interaction_features(mut self, include: bool) -> Self {
+        self.include_interaction_features = include;
+        self
+    }
+
+    /// Set random state
+    pub fn random_state(mut self, seed: u64) -> Self {
+        self.random_state = Some(seed);
+        self
+    }
+
+    /// Handle missing values in data
+    fn handle_missing(
+        &self,
+        data: &Array2<f64>,
+        col_idx: usize,
+        feature_type: FeatureType,
+    ) -> Array1<f64> {
+        let column = data.column(col_idx);
+        let mut result = Array1::zeros(column.len());
+
+        // Find non-missing values
+        let valid_values: Vec<f64> = column.iter().filter(|&&x| x.is_finite()).copied().collect();
+        if valid_values.is_empty() {
+            return result; // All zeros if no valid values
+        }
+
+        let replacement_value = match (self.missing_value_strategy, feature_type) {
+            (MissingValueStrategy::Mean, FeatureType::Numerical) => {
+                valid_values.iter().sum::<f64>() / valid_values.len() as f64
+            }
+            (MissingValueStrategy::Median, FeatureType::Numerical) => {
+                let mut sorted = valid_values.clone();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                let mid = sorted.len() / 2;
+                if sorted.len() % 2 == 0 {
+                    (sorted[mid - 1] + sorted[mid]) / 2.0
+                } else {
+                    sorted[mid]
+                }
+            }
+            (MissingValueStrategy::Mode, _) => {
+                // Find most frequent value
+                let mut counts = std::collections::HashMap::new();
+                for &val in &valid_values {
+                    *counts.entry(val as i64).or_insert(0) += 1;
+                }
+                counts
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(val, _)| val as f64)
+                    .unwrap_or(0.0)
+            }
+            (MissingValueStrategy::Zero, _) => 0.0,
+            (MissingValueStrategy::ForwardFill, _) => {
+                // Use first valid value
+                valid_values[0]
+            }
+            (MissingValueStrategy::BackwardFill, _) => {
+                // Use last valid value
+                valid_values[valid_values.len() - 1]
+            }
+            _ => valid_values.iter().sum::<f64>() / valid_values.len() as f64, // Default to mean
+        };
+
+        // Replace missing values
+        for (i, &value) in column.iter().enumerate() {
+            result[i] = if value.is_finite() {
+                value
+            } else {
+                replacement_value
+            };
+        }
+
+        result
+    }
+
+    /// Normalize numerical features
+    fn normalize_column(&self, column: &Array1<f64>) -> Array1<f64> {
+        let mean = column.mean().unwrap_or(0.0);
+        let std = column.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / column.len() as f64;
+        let std = std.sqrt();
+
+        if std == 0.0 {
+            Array1::zeros(column.len())
+        } else {
+            column.mapv(|x| (x - mean) / std)
+        }
+    }
+
+    /// Encode categorical features
+    fn encode_categorical(&self, column: &Array1<f64>) -> Array2<f64> {
+        match self.encoding_strategy {
+            CategoricalEncoding::OneHot => {
+                // Find unique values
+                let mut unique_values: Vec<i64> = column
+                    .iter()
+                    .map(|&x| x as i64)
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect();
+                unique_values.sort();
+
+                let n_categories = unique_values.len();
+                let mut encoded = Array2::zeros((column.len(), n_categories));
+
+                for (row_idx, &value) in column.iter().enumerate() {
+                    if let Some(cat_idx) = unique_values.iter().position(|&x| x == value as i64) {
+                        encoded[[row_idx, cat_idx]] = 1.0;
+                    }
+                }
+                encoded
+            }
+            CategoricalEncoding::LabelEncoding => {
+                // Map each unique value to an integer
+                let mut unique_values: Vec<i64> = column
+                    .iter()
+                    .map(|&x| x as i64)
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect();
+                unique_values.sort();
+
+                let mut encoded = Array2::zeros((column.len(), 1));
+                for (row_idx, &value) in column.iter().enumerate() {
+                    if let Some(label) = unique_values.iter().position(|&x| x == value as i64) {
+                        encoded[[row_idx, 0]] = label as f64;
+                    }
+                }
+                encoded
+            }
+            CategoricalEncoding::TargetEncoding => {
+                // For simplicity, use the value itself (would normally use target mean)
+                let mut encoded = Array2::zeros((column.len(), 1));
+                for (row_idx, &value) in column.iter().enumerate() {
+                    encoded[[row_idx, 0]] = value;
+                }
+                encoded
+            }
+            CategoricalEncoding::BinaryEncoding => {
+                // Simple binary encoding (placeholder implementation)
+                let mut unique_values: Vec<i64> = column
+                    .iter()
+                    .map(|&x| x as i64)
+                    .collect::<std::collections::HashSet<_>>()
+                    .into_iter()
+                    .collect();
+                unique_values.sort();
+
+                let n_bits = (unique_values.len() as f64).log2().ceil() as usize;
+                let mut encoded = Array2::zeros((column.len(), n_bits.max(1)));
+
+                for (row_idx, &value) in column.iter().enumerate() {
+                    if let Some(label) = unique_values.iter().position(|&x| x == value as i64) {
+                        for bit_idx in 0..n_bits {
+                            if (label >> bit_idx) & 1 == 1 {
+                                encoded[[row_idx, bit_idx]] = 1.0;
+                            }
+                        }
+                    }
+                }
+                encoded
+            }
+            CategoricalEncoding::FrequencyEncoding => {
+                // Frequency encoding
+                let mut counts = std::collections::HashMap::new();
+                for &val in column.iter() {
+                    *counts.entry(val as i64).or_insert(0) += 1;
+                }
+
+                let mut encoded = Array2::zeros((column.len(), 1));
+                for (row_idx, &value) in column.iter().enumerate() {
+                    encoded[[row_idx, 0]] = counts.get(&(value as i64)).copied().unwrap_or(0) as f64;
+                }
+                encoded
+            }
+        }
+    }
+
+    /// Process a single feature column
+    fn process_feature(
+        &self,
+        data: &Array2<f64>,
+        col_idx: usize,
+        feature_type: FeatureType,
+    ) -> Array2<f64> {
+        // Handle missing values
+        let column = if self.handle_missing_values {
+            self.handle_missing(data, col_idx, feature_type)
+        } else {
+            data.column(col_idx).to_owned()
+        };
+
+        match feature_type {
+            FeatureType::Numerical => {
+                let processed = if self.normalize_numerical {
+                    self.normalize_column(&column)
+                } else {
+                    column
+                };
+                processed.insert_axis(Axis(1))
+            }
+            FeatureType::Categorical => self.encode_categorical(&column),
+            FeatureType::Binary => {
+                // Ensure binary values are 0 or 1
+                let binary = column.mapv(|x| if x > 0.5 { 1.0 } else { 0.0 });
+                binary.insert_axis(Axis(1))
+            }
+            FeatureType::Ordinal => {
+                // Treat as numerical but preserve order
+                let processed = if self.normalize_numerical {
+                    self.normalize_column(&column)
+                } else {
+                    column
+                };
+                processed.insert_axis(Axis(1))
+            }
+            FeatureType::DateTime => {
+                // For simplicity, treat as numerical
+                let processed = if self.normalize_numerical {
+                    self.normalize_column(&column)
+                } else {
+                    column
+                };
+                processed.insert_axis(Axis(1))
+            }
+        }
+    }
+
+    /// Transform the data according to feature types
+    fn transform_data(&self, data: &Array2<f64>) -> SklResult<Array2<f64>> {
+        if data.is_empty() {
+            return Err(SklearsError::InvalidInput("Empty input data".to_string()));
+        }
+
+        if self.feature_types.len() != data.ncols() {
+            return Err(SklearsError::InvalidInput(format!(
+                "Number of feature types ({}) doesn't match number of columns ({})",
+                self.feature_types.len(),
+                data.ncols()
+            )));
+        }
+
+        let mut processed_features = Vec::new();
+
+        // Process each feature according to its type
+        for (col_idx, &feature_type) in self.feature_types.iter().enumerate() {
+            let processed = self.process_feature(data, col_idx, feature_type);
+            processed_features.push(processed);
+        }
+
+        // Concatenate all processed features
+        if processed_features.is_empty() {
+            return Ok(Array2::zeros((data.nrows(), 0)));
+        }
+
+        let total_cols: usize = processed_features.iter().map(|f| f.ncols()).sum();
+        let mut result = Array2::zeros((data.nrows(), total_cols));
+
+        let mut col_offset = 0;
+        for feature_matrix in processed_features {
+            let n_cols = feature_matrix.ncols();
+            result
+                .slice_mut(s![.., col_offset..col_offset + n_cols])
+                .assign(&feature_matrix);
+            col_offset += n_cols;
+        }
+
+        Ok(result)
+    }
+}
+
+/// Fitted mixed-type feature extractor
+pub struct FittedMixedTypeFeatureExtractor {
+    extractor: MixedTypeFeatureExtractor,
+    transformation_stats: HashMap<String, f64>,
+}
+
+impl FittedMixedTypeFeatureExtractor {
+    /// Get transformation statistics
+    pub fn transformation_statistics(&self) -> &HashMap<String, f64> {
+        &self.transformation_stats
+    }
+}
+
+impl Default for MixedTypeFeatureExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Estimator<Untrained> for MixedTypeFeatureExtractor {
+    type Config = ();
+    type Error = SklearsError;
+    type Float = Float;
+
+    fn config(&self) -> &Self::Config {
+        &()
+    }
+}
+
+impl Fit<Array2<f64>, ()> for MixedTypeFeatureExtractor {
+    type Fitted = FittedMixedTypeFeatureExtractor;
+
+    fn fit(self, X: &Array2<f64>, _y: &()) -> SklResult<Self::Fitted> {
+        if X.is_empty() {
+            return Err(SklearsError::InvalidInput("Empty input data".to_string()));
+        }
+
+        // Set default feature types if not specified
+        let feature_types = if self.feature_types.is_empty() {
+            vec![FeatureType::Numerical; X.ncols()]
+        } else {
+            self.feature_types.clone()
+        };
+
+        // Calculate transformation statistics
+        let mut stats = HashMap::new();
+        let n_numerical = feature_types
+            .iter()
+            .filter(|&&t| t == FeatureType::Numerical)
+            .count();
+        let n_categorical = feature_types
+            .iter()
+            .filter(|&&t| t == FeatureType::Categorical)
+            .count();
+        let n_binary = feature_types
+            .iter()
+            .filter(|&&t| t == FeatureType::Binary)
+            .count();
+        let n_ordinal = feature_types
+            .iter()
+            .filter(|&&t| t == FeatureType::Ordinal)
+            .count();
+
+        stats.insert("n_numerical_features".to_string(), n_numerical as f64);
+        stats.insert("n_categorical_features".to_string(), n_categorical as f64);
+        stats.insert("n_binary_features".to_string(), n_binary as f64);
+        stats.insert("n_ordinal_features".to_string(), n_ordinal as f64);
+        stats.insert("total_input_features".to_string(), X.ncols() as f64);
+
+        // Estimate output feature count (simplified)
+        let estimated_output_features = match self.encoding_strategy {
+            CategoricalEncoding::OneHot => {
+                // Estimate expanded size for one-hot encoding
+                let categorical_expansion = n_categorical * 3; // Assume avg 3 categories
+                n_numerical + n_binary + n_ordinal + categorical_expansion
+            }
+            _ => feature_types.len(),
+        };
+
+        stats.insert(
+            "total_output_features".to_string(),
+            estimated_output_features as f64,
+        );
+
+        let updated_extractor = MixedTypeFeatureExtractor {
+            feature_types,
+            ..self
+        };
+
+        Ok(FittedMixedTypeFeatureExtractor {
+            extractor: updated_extractor,
+            transformation_stats: stats,
+        })
+    }
+}
+
+impl Transform<Array2<f64>, Array2<f64>> for FittedMixedTypeFeatureExtractor {
+    fn transform(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
+        self.extractor.transform_data(X)
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    #[test]
+    fn test_mixed_type_feature_extractor_basic() {
+        let data = Array2::from_shape_vec(
+            (4, 6),
+            vec![
+                1.0, 2.0, 3.0, 1.0, 0.0, 5.0, // numerical: 1,2,3  categorical: 1,0  ordinal: 5
+                4.0, 5.0, 6.0, 2.0, 1.0, 3.0, // numerical: 4,5,6  categorical: 2,1  ordinal: 3
+                7.0, 8.0, 9.0, 1.0, 0.0, 4.0, // numerical: 7,8,9  categorical: 1,0  ordinal: 4
+                2.0, 3.0, 4.0, 3.0, 1.0, 2.0, // numerical: 2,3,4  categorical: 3,1  ordinal: 2
+            ],
+        )
+        .unwrap();
+
+        let feature_types = vec![
+            FeatureType::Numerical,   // col 0
+            FeatureType::Numerical,   // col 1
+            FeatureType::Numerical,   // col 2
+            FeatureType::Categorical, // col 3
+            FeatureType::Binary,      // col 4
+            FeatureType::Ordinal,     // col 5
+        ];
+
+        let extractor = MixedTypeFeatureExtractor::new()
+            .feature_types(feature_types)
+            .normalize_numerical(true)
+            .encoding_strategy(CategoricalEncoding::OneHot);
+
+        let fitted = extractor.fit(&data, &()).unwrap();
+        let features = fitted.transform(&data).unwrap();
+
+        assert_eq!(features.nrows(), 4);
+        assert!(features.ncols() > 6); // Should be expanded due to one-hot encoding
+
+        // Check that all features are finite
+        for &value in features.iter() {
+            assert!(value.is_finite());
+        }
+    }
+
+    #[test]
+    fn test_mixed_type_feature_extractor_different_encodings() {
+        let data = Array2::from_shape_vec(
+            (3, 4),
+            vec![1.0, 1.0, 0.0, 5.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 0.0, 4.0],
+        )
+        .unwrap();
+
+        let feature_types = vec![
+            FeatureType::Numerical,
+            FeatureType::Categorical,
+            FeatureType::Binary,
+            FeatureType::Ordinal,
+        ];
+
+        let encodings = vec![
+            CategoricalEncoding::OneHot,
+            CategoricalEncoding::LabelEncoding,
+            CategoricalEncoding::TargetEncoding,
+        ];
+
+        for encoding in encodings {
+            let extractor = MixedTypeFeatureExtractor::new()
+                .feature_types(feature_types.clone())
+                .encoding_strategy(encoding);
+
+            let fitted = extractor.fit(&data, &()).unwrap();
+            let features = fitted.transform(&data).unwrap();
+
+            assert_eq!(features.nrows(), 3);
+            assert!(features.ncols() > 0);
+
+            // Check that all features are finite
+            for &value in features.iter() {
+                assert!(value.is_finite());
+            }
+        }
+    }
+
+    #[test]
+    fn test_mixed_type_feature_extractor_missing_values() {
+        let data = Array2::from_shape_vec(
+            (4, 3),
+            vec![
+                1.0,
+                1.0,
+                f64::NAN,
+                2.0,
+                f64::NAN,
+                1.0,
+                f64::NAN,
+                1.0,
+                0.0,
+                4.0,
+                2.0,
+                1.0,
+            ],
+        )
+        .unwrap();
+
+        let feature_types = vec![
+            FeatureType::Numerical,
+            FeatureType::Categorical,
+            FeatureType::Binary,
+        ];
+
+        let strategies = vec![
+            MissingValueStrategy::Mean,
+            MissingValueStrategy::Median,
+            MissingValueStrategy::Mode,
+            MissingValueStrategy::Zero,
+        ];
+
+        for strategy in strategies {
+            let extractor = MixedTypeFeatureExtractor::new()
+                .feature_types(feature_types.clone())
+                .handle_missing_values(true)
+                .missing_value_strategy(strategy);
+
+            let fitted = extractor.fit(&data, &()).unwrap();
+            let features = fitted.transform(&data).unwrap();
+
+            assert_eq!(features.nrows(), 4);
+
+            // Check that no NaN values remain
+            for &value in features.iter() {
+                assert!(
+                    value.is_finite(),
+                    "All values should be finite after missing value handling"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_mixed_type_feature_extractor_empty_data() {
+        let data = Array2::zeros((0, 0));
+        let extractor = MixedTypeFeatureExtractor::new();
+
+        let result = extractor.fit(&data, &());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mixed_type_feature_extractor_consistency() {
+        let data = Array2::from_shape_vec(
+            (3, 4),
+            vec![1.0, 1.0, 0.0, 5.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 0.0, 4.0],
+        )
+        .unwrap();
+
+        let feature_types = vec![
+            FeatureType::Numerical,
+            FeatureType::Categorical,
+            FeatureType::Binary,
+            FeatureType::Ordinal,
+        ];
+
+        let extractor = MixedTypeFeatureExtractor::new()
+            .feature_types(feature_types)
+            .random_state(42);
+
+        let fitted = extractor.fit(&data, &()).unwrap();
+        let features1 = fitted.transform(&data).unwrap();
+        let features2 = fitted.transform(&data).unwrap();
+
+        // Results should be identical
+        assert_eq!(features1.shape(), features2.shape());
+        for (a, b) in features1.iter().zip(features2.iter()) {
+            assert_eq!(a, b);
+        }
+    }
+}
