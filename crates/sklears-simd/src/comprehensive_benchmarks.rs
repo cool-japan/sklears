@@ -14,7 +14,6 @@ use crate::traits::SimdError;
 use alloc::collections::BTreeMap as HashMap;
 #[cfg(feature = "no-std")]
 use alloc::{
-    boxed::Box,
     format,
     string::{String, ToString},
     vec,
@@ -24,7 +23,7 @@ use alloc::{
 use std::{collections::HashMap, string::ToString, time::Duration};
 
 #[cfg(feature = "no-std")]
-use core::time::Duration;
+use crate::benchmark_framework::Duration;
 #[cfg(not(feature = "no-std"))]
 use std::time::Instant;
 
@@ -238,9 +237,9 @@ impl ComprehensiveBenchmarkSuite {
             size as u64,
             || {
                 // Scalar implementation
-                let mut sum = 0.0f32;
+                let mut _sum = 0.0f32;
                 for i in 0..size {
-                    sum += data[i] * data[i];
+                    _sum += data[i] * data[i];
                 }
             },
             || {
@@ -660,11 +659,12 @@ impl QuickBenchmark {
     /// Run quick benchmarks suitable for CI
     pub fn run_ci_benchmarks() -> Result<ComprehensiveBenchmarkResults, SimdError> {
         let mut config = BenchmarkConfig::default();
-        config.test_sizes = vec![128, 256, 512]; // Smaller sizes for CI
-        config.iterations = 100; // Fewer iterations for CI
-        config.warmup_iterations = 10;
+        config.test_sizes = vec![64, 128]; // Minimal sizes for CI
+        config.iterations = 10; // Minimal iterations for CI
+        config.warmup_iterations = 2;
         config.enable_detailed_reporting = false;
         config.enable_energy_tests = false; // Skip energy tests in CI
+        config.enable_scaling_tests = false; // Skip scaling tests in CI
 
         let mut suite = ComprehensiveBenchmarkSuite::new(config);
         suite.run_comprehensive_benchmarks()
@@ -687,7 +687,7 @@ impl QuickBenchmark {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use std::time::Duration;

@@ -4,7 +4,7 @@
 //! works correctly across all modules and platforms.
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     #[cfg(feature = "no-std")]
     use alloc::vec;

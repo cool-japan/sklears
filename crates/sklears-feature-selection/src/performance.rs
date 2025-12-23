@@ -20,6 +20,7 @@ impl SIMDStats {
     /// Compute correlation between two arrays using SIMD operations
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[target_feature(enable = "avx2")]
+    #[allow(unused_assignments)]
     pub unsafe fn correlation_simd(x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         if x.len() != y.len() || x.len() < 4 {
             return Self::correlation_fallback(x, y);
@@ -102,7 +103,6 @@ impl SIMDStats {
             return 0.0;
         }
 
-        let n = x.len() as f64;
         let mean_x = x.mean().unwrap_or(0.0);
         let mean_y = y.mean().unwrap_or(0.0);
 
@@ -515,8 +515,8 @@ impl ParallelSelector {
     fn compute_chi_square_score(
         feature: ArrayView1<f64>,
         y: ArrayView1<f64>,
-        class_counts: &[(f64, usize)],
-        total_samples: f64,
+        _class_counts: &[(f64, usize)],
+        _total_samples: f64,
     ) -> f64 {
         // Simplified chi-square computation
         // In practice, this would discretize continuous features and compute proper contingency tables
@@ -557,7 +557,6 @@ impl MemoryEfficientSelector {
         // Process data in chunks to reduce memory usage
         for chunk_start in (0..n_samples).step_by(self.chunk_size) {
             let chunk_end = (chunk_start + self.chunk_size).min(n_samples);
-            let chunk_size = chunk_end - chunk_start;
 
             // Update statistics for this chunk
             for i in chunk_start..chunk_end {
@@ -799,7 +798,7 @@ impl<T: Clone> CacheFriendlyMatrix<T> {
         block_offset + in_block_index
     }
 
-    pub fn column_iter(&self, col: usize) -> ColumnIterator<T> {
+    pub fn column_iter(&self, col: usize) -> ColumnIterator<'_, T> {
         ColumnIterator::new(self, col)
     }
 }

@@ -18,11 +18,6 @@
 //! using SIMD instructions. The logical operations can be chained for complex
 //! filtering and selection operations.
 
-#[cfg(feature = "no-std")]
-use alloc::vec;
-#[cfg(feature = "no-std")]
-use alloc::vec::Vec;
-
 // Import ARM64 feature detection macro
 #[cfg(all(target_arch = "aarch64", not(feature = "no-std")))]
 use std::arch::is_aarch64_feature_detected;
@@ -65,13 +60,13 @@ pub fn eq_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { eq_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { eq_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { eq_vec_sse2(a, b, result) };
             return;
         }
@@ -125,13 +120,13 @@ pub fn ne_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { ne_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { ne_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { ne_vec_sse2(a, b, result) };
             return;
         }
@@ -185,13 +180,13 @@ pub fn lt_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { lt_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { lt_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { lt_vec_sse2(a, b, result) };
             return;
         }
@@ -245,13 +240,13 @@ pub fn le_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { le_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { le_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { le_vec_sse2(a, b, result) };
             return;
         }
@@ -305,13 +300,13 @@ pub fn gt_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { gt_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { gt_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { gt_vec_sse2(a, b, result) };
             return;
         }
@@ -365,13 +360,13 @@ pub fn ge_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { ge_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { ge_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { ge_vec_sse2(a, b, result) };
             return;
         }
@@ -426,13 +421,13 @@ pub fn and_vec(a: &[bool], b: &[bool], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { and_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { and_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { and_vec_sse2(a, b, result) };
             return;
         }
@@ -486,13 +481,13 @@ pub fn or_vec(a: &[bool], b: &[bool], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { or_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { or_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { or_vec_sse2(a, b, result) };
             return;
         }
@@ -546,13 +541,13 @@ pub fn xor_vec(a: &[bool], b: &[bool], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { xor_vec_avx512(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { xor_vec_avx2(a, b, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { xor_vec_sse2(a, b, result) };
             return;
         }
@@ -603,13 +598,13 @@ pub fn not_vec(input: &[bool], result: &mut [bool]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             unsafe { not_vec_avx512(input, result) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { not_vec_avx2(input, result) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { not_vec_sse2(input, result) };
             return;
         }
@@ -1858,9 +1853,12 @@ unsafe fn not_vec_neon(input: &[bool], result: &mut [bool]) {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_eq_vec() {

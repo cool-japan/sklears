@@ -83,13 +83,11 @@ pub fn f_oneway(samples: &[ArrayView1<f64>]) -> CoreResult<(f64, f64)> {
 
     // Within-group sum of squares
     let mut ss_within = 0.0;
-    let mut idx = 0;
     for (i, sample) in samples.iter().enumerate() {
         let group_mean = group_means[i];
         for &value in sample {
             ss_within += (value - group_mean).powi(2);
         }
-        idx += sample.len();
     }
 
     // Degrees of freedom

@@ -272,16 +272,14 @@ impl ImputationCrossValidator {
         for<'a> <I as Fit<ArrayView2<'a, Float>, ()>>::Fitted:
             Transform<ArrayView2<'a, Float>, Array2<Float>>,
     {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
             return Err(SklearsError::InvalidInput("Empty dataset".to_string()));
         }
 
-        let mut rng = match self.random_state {
-            _ => Random::default(),
-        };
+        let mut rng = Random::default();
 
         // Generate fold indices
         let fold_indices = self.generate_fold_indices(n_samples, &mut rng)?;
@@ -316,7 +314,7 @@ impl ImputationCrossValidator {
 
             // Compute metrics
             let metrics =
-                self.compute_metrics(&X_test, &X_test_imputed.mapv(|x| x as f64), &missing_mask)?;
+                self.compute_metrics(&X_test, &X_test_imputed.mapv(|x| x), &missing_mask)?;
             fold_metrics.push(metrics);
         }
 
@@ -713,7 +711,7 @@ impl ImputationCrossValidator {
         }
 
         // Simple 95% confidence intervals using t-distribution approximation
-        let n = fold_metrics.len() as f64;
+        let _n = fold_metrics.len() as f64;
         let t_critical = 2.0; // Approximation for 95% CI
 
         // RMSE
@@ -867,16 +865,14 @@ impl HoldOutValidator {
         for<'a> <I as Fit<ArrayView2<'a, Float>, ()>>::Fitted:
             Transform<ArrayView2<'a, Float>, Array2<Float>>,
     {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
             return Err(SklearsError::InvalidInput("Empty dataset".to_string()));
         }
 
-        let mut rng = match self.random_state {
-            _ => Random::default(),
-        };
+        let mut rng = Random::default();
 
         // Split data
         let test_size = (n_samples as f64 * self.test_size) as usize;
@@ -914,6 +910,6 @@ impl HoldOutValidator {
         let X_test_imputed = fitted_imputer.transform(&X_test_missing_float.view())?;
 
         // Compute metrics
-        cv.compute_metrics(&X_test, &X_test_imputed.mapv(|x| x as f64), &missing_mask)
+        cv.compute_metrics(&X_test, &X_test_imputed.mapv(|x| x), &missing_mask)
     }
 }

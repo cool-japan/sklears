@@ -200,7 +200,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for HeterogeneousImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         // Auto-detect variable types if not provided
@@ -287,7 +287,7 @@ impl HeterogeneousImputer<Untrained> {
 
         if all_integers && unique_values.len() <= 10 {
             // Assume ordinal if few unique integer values
-            let mut sorted_values: Vec<f64> = values.iter().cloned().collect();
+            let mut sorted_values: Vec<f64> = values.to_vec();
             sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
             sorted_values.dedup();
             return VariableType::Ordinal(sorted_values);
@@ -376,7 +376,9 @@ impl HeterogeneousImputer<Untrained> {
                     probabilities,
                 })
             }
-            VariableType::SemiContinuous { zero_probability } => {
+            VariableType::SemiContinuous {
+                zero_probability: _,
+            } => {
                 let zero_count = observed_values.iter().filter(|&&x| x == 0.0).count();
                 let zero_prob = zero_count as f64 / observed_values.len() as f64;
 
@@ -447,7 +449,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -463,7 +465,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
         // Iterative imputation for mixed-type data
         for iteration in 0..self.max_iter {
             let mut converged = true;
-            let prev_X = X_imputed.clone();
+            let _prev_X = X_imputed.clone();
 
             for (&feature_idx, var_type) in &self.state.variable_types {
                 if let Some(params) = self.state.learned_parameters.get(&feature_idx) {
@@ -541,7 +543,7 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 }
 
                 // Fallback to first level
-                Ok(levels.get(0).copied().unwrap_or(0.0))
+                Ok(levels.first().copied().unwrap_or(0.0))
             }
             (
                 VariableType::Categorical(categories),
@@ -559,7 +561,7 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 }
 
                 // Fallback to first category
-                Ok(categories.get(0).copied().unwrap_or(0.0))
+                Ok(categories.first().copied().unwrap_or(0.0))
             }
             (
                 VariableType::SemiContinuous { .. },
@@ -926,7 +928,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MixedTypeMICEImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         // Use HeterogeneousImputer for initial parameter learning
@@ -976,17 +978,17 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
         &self,
         X: &ArrayView2<'_, Float>,
     ) -> SklResult<MixedTypeMultipleImputationResults> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let mut imputations = Vec::new();
 
-        let mut base_rng = if let Some(seed) = self.random_state {
+        let mut base_rng = if let Some(_seed) = self.random_state {
             Random::default()
         } else {
             Random::default()
         };
 
-        for m in 0..self.n_imputations {
-            let imputation_seed = base_rng.gen::<u64>();
+        for _m in 0..self.n_imputations {
+            let imputation_seed = base_rng.random::<u64>();
             let imputation = self.generate_single_imputation(&X, imputation_seed)?;
             imputations.push(imputation);
         }
@@ -1005,7 +1007,7 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
         })
     }
 
-    fn generate_single_imputation(&self, X: &Array2<f64>, seed: u64) -> SklResult<Array2<f64>> {
+    fn generate_single_imputation(&self, X: &Array2<f64>, _seed: u64) -> SklResult<Array2<f64>> {
         let mut X_imputed = X.clone();
         let mut rng = Random::default();
 
@@ -1061,10 +1063,12 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
                                 VariableParameters::ContinuousParams { mean, .. },
                             ) => *mean,
                             (VariableType::Ordinal(levels), _) => {
-                                levels[rng.gen_range(0..levels.len())]
+                                let idx = rng.gen_range(0..levels.len());
+                                levels[idx]
                             }
                             (VariableType::Categorical(categories), _) => {
-                                categories[rng.gen_range(0..categories.len())]
+                                let idx = rng.gen_range(0..categories.len());
+                                categories[idx]
                             }
                             (
                                 VariableType::SemiContinuous { .. },
@@ -1117,7 +1121,7 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
             variable_types: HashMap::new(),
             max_iter: 1,
             tol: self.tol,
-            random_state: Some(rng.gen()),
+            random_state: Some(rng.gen::<u64>()),
             missing_values: self.missing_values,
         };
 
@@ -1126,7 +1130,7 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
                 let imputed_value = hetero_imputer.impute_value(
                     var_type,
                     params,
-                    /// X_imputed
+                    // X_imputed
                     X_imputed,
                     i,
                     feature_idx,
@@ -1332,7 +1336,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for OrdinalImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         if n_features != 1 {
@@ -1461,7 +1465,7 @@ impl OrdinalImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for OrdinalImputer<OrdinalImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -1546,7 +1550,7 @@ impl OrdinalImputer<OrdinalImputerTrained> {
 
             for (i, &value) in column.iter().enumerate() {
                 if !self.is_missing(value) {
-                    let distance = (i as i32 - sample_idx as i32).abs() as usize;
+                    let distance = (i as i32 - sample_idx as i32).unsigned_abs() as usize;
                     if distance < min_distance {
                         min_distance = distance;
                         closest_value = Some(value);
@@ -1611,12 +1615,12 @@ mod tests {
         let result = fitted.transform(&data.view()).unwrap();
 
         // Should have no missing values
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Non-missing values should be preserved
-        assert_abs_diff_eq!(result[[0, 0]] as f64, 1.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 1]] as f64, 2.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 2]] as f64, 0.5, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 1]], 2.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 2]], 0.5, epsilon = 1e-10);
     }
 
     #[test]
@@ -1666,16 +1670,16 @@ mod tests {
         let result = fitted.transform(&data.view()).unwrap();
 
         // Should have no missing values
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Non-missing values should be preserved
-        assert_abs_diff_eq!(result[[0, 0]] as f64, 1.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[1, 0]] as f64, 2.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[3, 0]] as f64, 3.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[4, 0]] as f64, 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[1, 0]], 2.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[3, 0]], 3.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[4, 0]], 1.0, epsilon = 1e-10);
 
         // Imputed value should be one of the levels
-        let imputed_val = result[[2, 0]] as f64;
+        let imputed_val = result[[2, 0]];
         assert!([1.0, 2.0, 3.0, 4.0, 5.0].contains(&imputed_val));
     }
 

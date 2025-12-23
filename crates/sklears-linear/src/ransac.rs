@@ -5,8 +5,9 @@
 //! data and fits the model to these subsets.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::SeedableRng;
 use scirs2_core::random::SliceRandomExt;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::StdRng;
 use std::marker::PhantomData;
 
 use sklears_core::{

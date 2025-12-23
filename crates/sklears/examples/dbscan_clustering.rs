@@ -156,7 +156,7 @@ fn main() -> Result<()> {
     };
     let kmeans = KMeans::new(config);
     let y_dummy = scirs2_core::ndarray::Array1::zeros(comparison_data.nrows());
-    let kmeans_model = kmeans.fit(&comparison_data, &y_dummy)?;
+    let _kmeans_model = kmeans.fit(&comparison_data, &y_dummy)?;
 
     println!("\nK-Means results:");
     println!("  Clusters: 2 (specified)");

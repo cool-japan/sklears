@@ -4,7 +4,7 @@
 //! that leverage Rust's type system for improved safety and performance.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use sklears_core::{error::Result, prelude::SklearsError, traits::Fit, types::Float};
+use sklears_core::{error::Result, prelude::SklearsError, types::Float};
 use std::marker::PhantomData;
 
 /// Marker trait for decomposition states

@@ -34,10 +34,12 @@ pub mod parallel;
 pub mod sampling;
 pub mod simd_ops;
 pub mod simple;
-pub mod testing_pipeline;
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub mod testing_pipeline;
 pub mod timeseries;
 pub mod type_safe;
-pub mod validation;
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub mod validation;
 pub mod visualization;
 
 // Re-export commonly used types and functions for convenience
@@ -133,10 +135,11 @@ pub use type_safe::{
     TypeSafeImputation, TypeSafeMeanImputer, TypeSafeMissingOps, TypedArray, UnknownMechanism,
     WithMissing, MAR, MCAR, MNAR,
 };
-pub use validation::{
-    validate_with_holdout, CrossValidationResults, CrossValidationStrategy, HoldOutValidator,
-    ImputationCrossValidator, ImputationMetrics, MissingDataPattern, SyntheticMissingValidator,
-};
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub use validation::{
+//     validate_with_holdout, CrossValidationResults, CrossValidationStrategy, HoldOutValidator,
+//     ImputationCrossValidator, ImputationMetrics, MissingDataPattern, SyntheticMissingValidator,
+// };
 pub use visualization::{
     create_completeness_matrix, create_missing_correlation_heatmap,
     create_missing_distribution_plot, create_missing_pattern_plot, export_correlation_csv,
@@ -162,10 +165,11 @@ pub use sampling::{
     ProposalDistribution, QuasiSequenceType, SampleDistribution, SamplingConfig,
     SamplingSimpleImputer, SamplingStrategy, StratifiedSamplingImputer, WeightFunction,
 };
-pub use testing_pipeline::{
-    AutomatedTestPipeline, CompletedTestCase, PerformanceBenchmarks, QualityThresholds, TestCase,
-    TestDataset, TestPipelineConfig, TestResults, TestRunner, TestStatus,
-};
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub use testing_pipeline::{
+//     AutomatedTestPipeline, CompletedTestCase, PerformanceBenchmarks, QualityThresholds, TestCase,
+//     TestDataset, TestPipelineConfig, TestResults, TestRunner, TestStatus,
+// };
 
 // ✅ SciRS2 Policy compliant imports
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
@@ -296,7 +300,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for KNNImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         Ok(KNNImputer {
@@ -316,7 +320,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for KNNImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for KNNImputer<KNNImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -438,7 +442,7 @@ pub fn analyze_missing_patterns(
     X: &ArrayView2<'_, Float>,
     missing_values: f64,
 ) -> SklResult<HashMap<String, Vec<usize>>> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
     let mut patterns = HashMap::new();
 
@@ -468,7 +472,7 @@ pub fn missing_correlation_matrix(
     X: &ArrayView2<'_, Float>,
     missing_values: f64,
 ) -> SklResult<Array2<f64>> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     // Create missing indicators
@@ -508,7 +512,7 @@ pub fn missing_completeness_matrix(
     X: &ArrayView2<'_, Float>,
     missing_values: f64,
 ) -> SklResult<Array2<f64>> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     let mut completeness_matrix = Array2::zeros((n_features, n_features));

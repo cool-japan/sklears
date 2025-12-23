@@ -265,7 +265,7 @@ impl MemoryPool {
             config,
             buckets: RwLock::new(HashMap::new()),
             stats: RwLock::new(MemoryPoolStats::default()),
-            pool_id: rand::random(),
+            pool_id: 0, // TODO: implement proper pool ID generation
             next_cleanup: Mutex::new(std::time::Instant::now() + config.max_idle_time),
         }
     }

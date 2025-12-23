@@ -1,6 +1,6 @@
 [package]
 name = "sklears-datasets"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -30,6 +30,31 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 num_cpus = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+tempfile = { workspace = true }
+rayon = { workspace = true }
+
+# Cloud storage dependencies (optional, behind feature flags)
+tokio = { version = "1.47", features = ["full"], optional = true }
+futures = { version = "0.3", optional = true }
+url = { version = "2.5", optional = true }
+
+# AWS S3 support
+aws-config = { version = "1.8", optional = true }
+aws-sdk-s3 = { version = "1.79", optional = true }  # TODO: Upgrade to 1.118+ in Phase 4 (breaking changes)
+
+# Google Cloud Storage support
+google-cloud-storage = { version = "0.25", optional = true }  # TODO: Upgrade to 1.5+ in Phase 4 (breaking changes)
+
+# Parquet support
+parquet = { version = "54.3", optional = true }
+arrow = { version = "54.3", optional = true }
+
+# HDF5 support
+hdf5 = { version = "0.8", optional = true }
+
+# Visualization support
+plotters = { version = "0.3", optional = true }
+plotters-backend = { version = "0.3", optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -38,3 +63,10 @@ proptest = { workspace = true }
 [features]
 default = ["serde"]
 serde = []
+simd = []  # SIMD optimizations (uses scirs2-core SIMD support)
+parquet = ["dep:parquet", "dep:arrow"]
+hdf5 = ["dep:hdf5"]
+cloud-storage = ["dep:tokio", "dep:futures", "dep:url"]
+cloud-s3 = ["cloud-storage", "dep:aws-config", "dep:aws-sdk-s3"]
+cloud-gcs = ["cloud-storage", "dep:google-cloud-storage"]
+visualization = ["dep:plotters", "dep:plotters-backend"]

@@ -199,7 +199,7 @@ impl MulticlassTemperatureScaling {
 
     /// Fit the temperature parameter using negative log-likelihood optimization
     pub fn fit(mut self, probabilities: &Array2<Float>, y_true: &Array1<i32>) -> Result<Self> {
-        let (n_samples, n_classes) = probabilities.dim();
+        let (n_samples, _n_classes) = probabilities.dim();
 
         if n_samples != y_true.len() {
             return Err(SklearsError::InvalidInput(
@@ -361,7 +361,7 @@ impl MatrixScaling {
         for _iter in 0..n_iterations {
             let mut weight_grad = Array2::zeros((n_classes, n_classes));
             let mut bias_grad = Array1::zeros(n_classes);
-            let mut total_loss = 0.0;
+            let mut _total_loss = 0.0;
 
             for i in 0..n_samples {
                 let logit_row = logits.row(i);
@@ -380,7 +380,7 @@ impl MatrixScaling {
 
                 // Cross-entropy loss
                 if true_class < probs.len() {
-                    total_loss -= probs[true_class].ln();
+                    _total_loss -= probs[true_class].ln();
 
                     // Compute gradients
                     let mut target = Array1::zeros(n_classes);
@@ -388,7 +388,7 @@ impl MatrixScaling {
                     let error = probs - target;
 
                     // Gradient w.r.t. bias
-                    bias_grad = bias_grad + &error;
+                    bias_grad += &error;
 
                     // Gradient w.r.t. weight matrix
                     for j in 0..n_classes {

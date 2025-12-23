@@ -1,7 +1,7 @@
 //! Tri-Training implementation for semi-supervised learning
 
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -117,7 +117,7 @@ impl TriTraining<Untrained> {
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
             // Use k=5 nearest neighbors with majority vote
-            let k = distances.len().min(5).max(1);
+            let k = distances.len().clamp(1, 5);
             let mut class_votes: HashMap<i32, usize> = HashMap::new();
 
             for &(_, label) in distances.iter().take(k) {
@@ -431,7 +431,7 @@ impl TriTraining<TriTrainingTrained> {
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
             // Use k=5 nearest neighbors with majority vote
-            let k = distances.len().min(5).max(1);
+            let k = distances.len().clamp(1, 5);
             let mut class_votes: HashMap<i32, usize> = HashMap::new();
 
             for &(_, label) in distances.iter().take(k) {

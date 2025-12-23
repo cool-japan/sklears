@@ -7,6 +7,9 @@ use crate::{MetricsError, MetricsResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::{BTreeSet, HashMap};
 
+/// Type alias for reliability diagram output: (bin_edges, mean_predicted, mean_observed, counts)
+type ReliabilityDiagramOutput = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<usize>);
+
 /// Logarithmic loss (cross-entropy loss) for probabilistic predictions
 ///
 /// Computes the cross-entropy loss for multi-class classification problems.
@@ -265,7 +268,7 @@ pub fn reliability_diagram(
     y_true: &Array1<i32>,
     y_proba: &Array1<f64>,
     n_bins: usize,
-) -> MetricsResult<(Vec<f64>, Vec<f64>, Vec<f64>, Vec<usize>)> {
+) -> MetricsResult<ReliabilityDiagramOutput> {
     if y_true.len() != y_proba.len() {
         return Err(MetricsError::ShapeMismatch {
             expected: vec![y_true.len()],

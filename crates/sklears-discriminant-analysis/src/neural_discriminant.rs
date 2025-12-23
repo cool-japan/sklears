@@ -600,7 +600,7 @@ impl TrainedNeuralDiscriminantAnalysis {
         let mut best_loss = Float::INFINITY;
         let mut patience_counter = 0;
 
-        for epoch in 0..self.config.training.max_epochs {
+        for _epoch in 0..self.config.training.max_epochs {
             let mut epoch_loss = 0.0;
 
             // Process mini-batches
@@ -649,7 +649,7 @@ impl TrainedNeuralDiscriminantAnalysis {
 
     /// Compute discriminant analysis loss
     fn compute_discriminant_loss(&self, outputs: &Array2<Float>, y: &Array1<i32>) -> Result<Float> {
-        let n_samples = outputs.nrows();
+        let _n_samples = outputs.nrows();
         let n_components = outputs.ncols();
 
         // Compute within-class and between-class scatter matrices
@@ -731,9 +731,9 @@ impl TrainedNeuralDiscriminantAnalysis {
     /// Update network weights (simplified gradient descent)
     fn update_weights(
         &mut self,
-        x_batch: &Array2<Float>,
-        y_batch: &Array1<i32>,
-        outputs: &Array2<Float>,
+        _x_batch: &Array2<Float>,
+        _y_batch: &Array1<i32>,
+        _outputs: &Array2<Float>,
     ) -> Result<()> {
         let learning_rate = self.config.training.learning_rate;
         let weight_decay = self.config.training.weight_decay;

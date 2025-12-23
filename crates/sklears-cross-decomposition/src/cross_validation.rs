@@ -2,8 +2,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Random};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, Random, Rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},

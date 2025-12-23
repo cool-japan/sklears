@@ -84,7 +84,7 @@ impl WaveletTransform {
         let mut features = Vec::new();
         let mut current_signal = signal.to_owned();
 
-        for level in 0..self.levels {
+        for _level in 0..self.levels {
             let (low, high) = self.wavelet_decompose(&current_signal.view())?;
 
             // Energy of detail coefficients at this level
@@ -202,7 +202,7 @@ impl WaveletTransform {
     /// Perform single-level wavelet decomposition
     fn wavelet_decompose(&self, signal: &ArrayView1<f64>) -> SklResult<(Array1<f64>, Array1<f64>)> {
         let n = signal.len();
-        let half_n = n / 2;
+        let _half_n = n / 2;
 
         match self.wavelet.as_str() {
             "haar" => self.haar_decompose(signal),
@@ -346,7 +346,7 @@ impl WaveletTransform {
         let decomposition = self.decompose(signal)?;
         let mut coefficients = Vec::new();
 
-        for (approx, detail) in decomposition.iter() {
+        for (_approx, detail) in decomposition.iter() {
             coefficients.extend(detail.iter());
         }
 

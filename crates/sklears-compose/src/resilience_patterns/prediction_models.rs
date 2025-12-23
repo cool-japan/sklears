@@ -577,8 +577,10 @@ impl PredictionModelsCore {
         // Get appropriate model
         let predictor = self.performance_predictor.read().unwrap();
         let model = predictor.select_model(&prediction_request)?;
-        let prediction = model.predict(&features)?;
         drop(predictor);
+
+        // Make prediction
+        let prediction = model.predict(&features)?;
 
         // Validate prediction
         let confidence_score = self.calculate_confidence_score(&prediction, &features)?;
@@ -1362,7 +1364,6 @@ impl_more_defaults!(
     ExponentialSmoothing,
     FourierAnalyzer,
     WaveletAnalyzer,
-    NeuralNetworkModel,
     DecisionTreeModel,
     EnsembleModel,
     SVMModel,
@@ -1407,12 +1408,188 @@ impl_more_defaults!(
     DataPoint
 );
 
+// NeuralNetworkModel needs special handling for PredictionModel trait
+#[derive(Debug, Clone, Default)]
+pub struct NeuralNetworkModel {
+    model_id: String,
+    weights: Vec<f64>,
+    confidence: f64,
+}
+
+impl PredictionModel for NeuralNetworkModel {
+    fn predict(&self, features: &Array1<f64>) -> Result<PredictionOutput> {
+        // Simple linear combination as mock neural network
+        let value = if !features.is_empty() && !self.weights.is_empty() {
+            let min_len = features.len().min(self.weights.len());
+            features.slice(scirs2_core::ndarray::s![..min_len])
+                .iter()
+                .zip(self.weights.iter().take(min_len))
+                .map(|(f, w)| f * w)
+                .sum::<f64>()
+                .max(0.0)
+                .min(1.0) // Clamp to [0, 1]
+        } else {
+            0.5
+        };
+
+        Ok(PredictionOutput {
+            value,
+            confidence_interval: (value - 0.1, value + 0.1),
+            confidence: self.confidence,
+            feature_importance: vec![1.0 / features.len().max(1) as f64; features.len()],
+            model_id: self.model_id.clone(),
+            metadata: PredictionMetadata::default(),
+            uncertainty: UncertaintyMeasures::default(),
+        })
+    }
+
+    fn model_type(&self) -> String {
+        "NeuralNetwork".to_string()
+    }
+
+    fn confidence(&self) -> f64 {
+        self.confidence
+    }
+
+    fn update(&mut self, features: &Array1<f64>, target: f64) -> Result<()> {
+        // Initialize weights if needed
+        if self.weights.is_empty() {
+            self.weights = vec![0.5; features.len()];
+        }
+
+        // Simple gradient descent update
+        let pred = self.predict(features)?;
+        let error = target - pred.value;
+        let learning_rate = 0.01;
+
+        for (i, &feature) in features.iter().enumerate() {
+            if i < self.weights.len() {
+                self.weights[i] += learning_rate * error * feature;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate(&self, validation_data: &[(Array1<f64>, f64)]) -> Result<ValidationResult> {
+        let mut total_error = 0.0;
+        for (features, target) in validation_data {
+            let pred = self.predict(features)?;
+            total_error += (pred.value - target).powi(2);
+        }
+
+        let mse = if !validation_data.is_empty() {
+            total_error / validation_data.len() as f64
+        } else {
+            0.0
+        };
+
+        let performance_score = (1.0 - mse).max(0.0);
+
+        Ok(ValidationResult {
+            performance_score,
+            ..Default::default()
+        })
+    }
+}
+
+// Simple mock prediction model for basic functionality
+#[derive(Debug, Clone)]
+struct MockPredictionModel {
+    model_id: String,
+    confidence: f64,
+    baseline_prediction: f64,
+}
+
+impl MockPredictionModel {
+    fn new() -> Self {
+        Self {
+            model_id: format!("mock_model_{}", uuid::Uuid::new_v4()),
+            confidence: 0.85,
+            baseline_prediction: 0.5,
+        }
+    }
+}
+
+impl PredictionModel for MockPredictionModel {
+    fn predict(&self, features: &Array1<f64>) -> Result<PredictionOutput> {
+        // Simple weighted average of features as prediction
+        let value = if features.len() > 0 {
+            features.mean().unwrap_or(self.baseline_prediction)
+        } else {
+            self.baseline_prediction
+        };
+
+        // Calculate confidence interval based on feature variance
+        let std_dev = if features.len() > 1 {
+            features.std(0.0)
+        } else {
+            0.1
+        };
+
+        Ok(PredictionOutput {
+            value,
+            confidence_interval: (value - 1.96 * std_dev, value + 1.96 * std_dev),
+            confidence: self.confidence,
+            feature_importance: vec![1.0 / features.len() as f64; features.len()],
+            model_id: self.model_id.clone(),
+            metadata: PredictionMetadata::default(),
+            uncertainty: UncertaintyMeasures::default(),
+        })
+    }
+
+    fn model_type(&self) -> String {
+        "MockLinearModel".to_string()
+    }
+
+    fn confidence(&self) -> f64 {
+        self.confidence
+    }
+
+    fn update(&mut self, features: &Array1<f64>, target: f64) -> Result<()> {
+        // Simple update: adjust baseline prediction towards target
+        let current_pred = features.mean().unwrap_or(self.baseline_prediction);
+        let error = target - current_pred;
+        self.baseline_prediction += 0.1 * error; // Learning rate of 0.1
+        Ok(())
+    }
+
+    fn validate(&self, validation_data: &[(Array1<f64>, f64)]) -> Result<ValidationResult> {
+        let mut total_error = 0.0;
+        for (features, target) in validation_data {
+            let pred = self.predict(features)?;
+            total_error += (pred.value - target).abs();
+        }
+
+        let performance_score = if !validation_data.is_empty() {
+            1.0 - (total_error / validation_data.len() as f64).min(1.0)
+        } else {
+            1.0
+        };
+
+        Ok(ValidationResult {
+            performance_score,
+            ..Default::default()
+        })
+    }
+}
+
 // Implement required methods for key components
 impl PerformancePredictor {
-    pub fn select_model(&self, _request: &PerformancePredictionRequest) -> Result<&dyn PredictionModel> {
+    // Global mock model for returning references
+    fn get_mock_model(&self) -> MockPredictionModel {
+        MockPredictionModel::new()
+    }
+
+    pub fn select_model(&self, _request: &PerformancePredictionRequest) -> Result<MockPredictionModel> {
+        // Select appropriate model based on request characteristics
         // For now, return a simple mock model
-        // In a real implementation, this would select based on request characteristics
-        todo!("Implement model selection logic")
+        // In a production implementation, this would:
+        // 1. Analyze request features and requirements
+        // 2. Select from trained models in the registry
+        // 3. Consider model performance history
+        // 4. Return the best matching model
+        Ok(self.get_mock_model())
     }
 }
 
@@ -1459,12 +1636,30 @@ impl TimeSeriesAnalyzer {
 }
 
 impl MachineLearningModels {
-    pub fn register_model(&mut self, _model: Box<dyn PredictionModel>, _request: &ModelTrainingRequest) -> Result<String> {
-        Ok(Uuid::new_v4().to_string())
+    // Internal mock model storage for mutable reference returns
+    fn get_or_create_mock_model(&mut self, model_id: &str) -> &mut dyn PredictionModel {
+        // Store a mock model in the neural_networks map if it doesn't exist
+        self.neural_networks
+            .entry(model_id.to_string())
+            .or_insert_with(|| NeuralNetworkModel::default())
     }
 
-    pub fn get_model_mut(&mut self, _model_id: &str) -> Result<&mut dyn PredictionModel> {
-        todo!("Implement model retrieval")
+    pub fn register_model(&mut self, _model: Box<dyn PredictionModel>, _request: &ModelTrainingRequest) -> Result<String> {
+        let model_id = Uuid::new_v4().to_string();
+        // In production, would store the actual model
+        // For now, just return the ID
+        Ok(model_id)
+    }
+
+    pub fn get_model_mut(&mut self, model_id: &str) -> Result<&mut dyn PredictionModel> {
+        // Try to find model in any of the model collections
+        // For now, return a mock model
+        // In production implementation:
+        // 1. Search through all model collections (neural_networks, decision_trees, etc.)
+        // 2. Return mutable reference to the found model
+        // 3. Return error if not found
+
+        Ok(self.get_or_create_mock_model(model_id))
     }
 
     pub fn get_model_count(&self) -> usize {
@@ -1536,8 +1731,17 @@ impl AnomalyScorer {
 }
 
 impl ModelFactory {
-    pub fn create_model(&self, _config: &ModelArchitectureConfig) -> Result<Box<dyn PredictionModel>> {
-        todo!("Implement model creation")
+    pub fn create_model(&self, config: &ModelArchitectureConfig) -> Result<Box<dyn PredictionModel>> {
+        // Create model based on configuration
+        // For now, return a mock model wrapped in Box
+        // In production implementation, this would:
+        // 1. Parse architecture configuration
+        // 2. Initialize model layers and parameters
+        // 3. Set up training configuration
+        // 4. Return fully configured model ready for training
+
+        let model = MockPredictionModel::new();
+        Ok(Box::new(model))
     }
 }
 

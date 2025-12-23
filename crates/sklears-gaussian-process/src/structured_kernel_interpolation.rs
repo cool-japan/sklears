@@ -484,7 +484,7 @@ impl StructuredKernelInterpolationGPR {
         &self,
         interpolation_weights: &Array2<f64>,
         targets: &Array1<f64>,
-        kernel_eigenvalues: &Option<Array1<f64>>,
+        _kernel_eigenvalues: &Option<Array1<f64>>,
     ) -> SklResult<Array1<f64>> {
         let n_grid = interpolation_weights.ncols();
 

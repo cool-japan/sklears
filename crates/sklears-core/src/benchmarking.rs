@@ -181,8 +181,8 @@ impl BenchmarkSuite {
                 // Generate features using Box-Muller transform
                 for i in 0..size {
                     for j in 0..n_features {
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         features[[i, j]] =
                             (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                     }
@@ -191,8 +191,8 @@ impl BenchmarkSuite {
                 // Generate target with linear relationship + noise using Box-Muller transform
                 let weights: Vec<f64> = (0..n_features)
                     .map(|_| {
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
                     })
                     .collect();
@@ -202,8 +202,8 @@ impl BenchmarkSuite {
                         y += features[[i, j]] * weights[j];
                     }
                     // Add noise using Box-Muller transform
-                    let u1: f64 = rng.gen_range(0.0..1.0);
-                    let u2: f64 = rng.gen_range(0.0..1.0);
+                    let u1: f64 = rng.random_range(0.0, 1.0);
+                    let u2: f64 = rng.random_range(0.0, 1.0);
                     let noise =
                         0.1 * (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                     y += noise;
@@ -226,8 +226,8 @@ impl BenchmarkSuite {
                     for j in 0..n_features {
                         let class_offset = class as f64 * 2.0; // Separate classes
                                                                // Generate normal random value using Box-Muller transform
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         let normal_val =
                             (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         features[[i, j]] = normal_val + class_offset;
@@ -248,8 +248,8 @@ impl BenchmarkSuite {
 
                     for j in 0..n_features {
                         // Generate normal random value using Box-Muller transform
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         let normal_val =
                             (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         features[[i, j]] = normal_val + cluster_center;

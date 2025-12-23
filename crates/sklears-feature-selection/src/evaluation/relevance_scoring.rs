@@ -224,7 +224,7 @@ impl InformationGainScoring {
 
             // Compute H(Y | X = x_val)
             let mut entropy_y_given_x = 0.0;
-            for (&(joint_x, joint_y), &joint_count) in joint_counts.iter() {
+            for (&(joint_x, _joint_y), &joint_count) in joint_counts.iter() {
                 if joint_x == x_val && joint_count > 0 {
                     let p_y_given_x = joint_count as f64 / x_count as f64;
                     entropy_y_given_x -= p_y_given_x * p_y_given_x.ln();

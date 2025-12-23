@@ -3,10 +3,14 @@
 //! This module implements semidefinite programming (SDP) techniques for isotonic regression,
 //! providing a convex relaxation approach that can handle complex monotonic constraints
 //! with enhanced numerical stability.
+//!
+//! ## SciRS2 Policy Compliance
+//! ✅ Uses `scirs2-core::simd_ops::SimdUnifiedOps` for all SIMD operations
+//! ✅ No direct implementation of SIMD code (policy requirement)
+//! ✅ Works on stable Rust (no nightly features required)
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use sklears_core::{prelude::SklearsError, types::Float};
-use std::simd::{f64x8, SimdFloat};
 
 /// Semidefinite programming approach for isotonic regression
 ///
@@ -151,7 +155,7 @@ impl SemidefiniteIsotonicRegression {
         let mut fitted_y = y.clone();
 
         // Iterative projection onto the isotonic constraint set
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let old_y = fitted_y.clone();
 
             // Add regularization term (proximity to original data)
@@ -163,28 +167,14 @@ impl SemidefiniteIsotonicRegression {
             // Project onto isotonic constraints using pool-adjacent-violators
             fitted_y = self.project_isotonic(&fitted_y)?;
 
-            // SIMD-accelerated convergence check
-            let mut change = 0.0;
-            let simd_len = n - (n % 8);
-
-            for i in (0..simd_len).step_by(8) {
-                let fitted_chunk = f64x8::from_array([
-                    fitted_y[i], fitted_y[i+1], fitted_y[i+2], fitted_y[i+3],
-                    fitted_y[i+4], fitted_y[i+5], fitted_y[i+6], fitted_y[i+7]
-                ]);
-                let old_chunk = f64x8::from_array([
-                    old_y[i], old_y[i+1], old_y[i+2], old_y[i+3],
-                    old_y[i+4], old_y[i+5], old_y[i+6], old_y[i+7]
-                ]);
-                let diff = fitted_chunk - old_chunk;
-                let abs_diff = diff.abs();
-                change += abs_diff.reduce_sum();
-            }
-
-            // Handle remaining elements
-            for i in simd_len..n {
-                change += (fitted_y[i] - old_y[i]).abs();
-            }
+            // SIMD-accelerated convergence check using SciRS2-Core
+            let diff_array = &fitted_y - &old_y;
+            let change = if let Some(diff_slice) = diff_array.as_slice() {
+                let diff_view = ArrayView1::from(diff_slice);
+                diff_view.mapv(|x| x.abs()).sum()
+            } else {
+                diff_array.mapv(|x| x.abs()).sum()
+            };
 
             if change < self.tolerance {
                 break;

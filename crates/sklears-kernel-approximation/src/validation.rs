@@ -6,7 +6,6 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use sklears_core::error::Result;
@@ -377,7 +376,7 @@ impl KernelApproximationValidator {
         for (param_name, param_values) in &parameter_grid {
             let mut sensitivities = Vec::new();
 
-            for (i, &param_value) in param_values.iter().enumerate() {
+            for &param_value in param_values.iter() {
                 let mut single_param = best_parameters.clone();
                 single_param.insert(param_name.clone(), param_value);
 
@@ -672,7 +671,7 @@ impl KernelApproximationValidator {
 
     fn analyze_dimension_dependency<T: ValidatableKernelMethod>(
         &self,
-        method: &T,
+        _method: &T,
         data: &Array2<f64>,
         errors: &[f64],
     ) -> Result<DimensionDependencyAnalysis> {
@@ -837,7 +836,7 @@ mod tests {
 
         fn fit_with_dimension(
             &self,
-            data: &Array2<f64>,
+            _data: &Array2<f64>,
             n_components: usize,
         ) -> Result<Box<dyn ValidatedFittedMethod>> {
             Ok(Box::new(MockValidatedFitted { n_components }))
@@ -845,7 +844,7 @@ mod tests {
 
         fn fit_with_parameters(
             &self,
-            data: &Array2<f64>,
+            _data: &Array2<f64>,
             parameters: &HashMap<String, f64>,
         ) -> Result<Box<dyn ValidatedFittedMethod>> {
             let n_components = parameters.get("n_components").copied().unwrap_or(100.0) as usize;

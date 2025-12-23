@@ -78,7 +78,7 @@ where
                 let mut column = X_permuted.column_mut(feature_idx);
                 let mut rng = scirs2_core::random::thread_rng();
                 for i in (1..n_samples).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     column.swap(i, j);
                 }
             } // Drop mutable borrow here
@@ -259,8 +259,21 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_permutation_importance_optimized() {
-        let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let y = array![3.0, 7.0, 11.0]; // y = x1 + x2
+        use scirs2_core::random::seeded_rng;
+
+        // Use a larger dataset to make the test more robust
+        // and reduce the chance of random permutations resulting in zero importance
+        let X = array![
+            [1.0, 2.0],
+            [3.0, 4.0],
+            [5.0, 6.0],
+            [7.0, 8.0],
+            [9.0, 10.0],
+            [11.0, 12.0],
+            [13.0, 14.0],
+            [15.0, 16.0],
+        ];
+        let y = array![3.0, 7.0, 11.0, 15.0, 19.0, 23.0, 27.0, 31.0]; // y = x1 + x2
         let config = CacheConfig::default();
 
         let model = |x: &ArrayView2<Float>| -> SklResult<Array1<Float>> {
@@ -273,8 +286,28 @@ mod tests {
                 .unwrap();
 
         assert_eq!(importances.len(), 2);
-        // Both features should have some importance since they both contribute
-        assert!(importances[0].abs() > 0.0 || importances[1].abs() > 0.0);
+
+        // With 8 samples and perfect model, both features should have positive importance
+        // Allow small negative values due to numerical precision issues with perfect models
+        // The probability of a random permutation not changing anything is 1/8! which is negligible
+        assert!(
+            importances[0] >= -0.01,
+            "Feature 0 importance should be non-negative (allowing small numerical error), got {}",
+            importances[0]
+        );
+        assert!(
+            importances[1] >= -0.01,
+            "Feature 1 importance should be non-negative (allowing small numerical error), got {}",
+            importances[1]
+        );
+
+        // At least one feature should have significant positive importance
+        assert!(
+            importances[0] > 0.01 || importances[1] > 0.01,
+            "At least one feature should have significant importance, got {} and {}",
+            importances[0],
+            importances[1]
+        );
     }
 
     #[test]

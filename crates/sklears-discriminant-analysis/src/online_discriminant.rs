@@ -323,7 +323,6 @@ impl TrainedOnlineDiscriminantAnalysis {
         y: &Array1<i32>,
         decay_rate: Float,
     ) -> Result<()> {
-        let n_new_samples = x.nrows();
         let learning_rate = 1.0 - decay_rate;
 
         // Update class statistics
@@ -366,10 +365,6 @@ impl TrainedOnlineDiscriminantAnalysis {
         if let (Some(ref mut data_buffer), Some(ref mut label_buffer)) =
             (&mut self.data_buffer, &mut self.label_buffer)
         {
-            // Append new data
-            let new_data = data_buffer.clone();
-            let new_labels = label_buffer.clone();
-
             for (i, &label) in y.iter().enumerate() {
                 // Add new sample (simplified - in practice you'd use proper concatenation)
                 // For now, we'll just update statistics
@@ -381,13 +376,35 @@ impl TrainedOnlineDiscriminantAnalysis {
                 }
             }
 
-            // Trim buffer if exceeds window size
-            if new_data.nrows() + x.nrows() > window_size {
-                let excess = new_data.nrows() + x.nrows() - window_size;
-                // Remove oldest samples (simplified)
-                for _ in 0..excess {
-                    // In practice, you'd implement proper buffer management
-                }
+            let existing_rows = data_buffer.nrows();
+            let n_features = data_buffer.ncols();
+            let new_rows = x.nrows();
+
+            let mut updated_data = Array2::zeros((existing_rows + new_rows, n_features));
+            updated_data
+                .slice_mut(s![..existing_rows, ..])
+                .assign(&data_buffer.view());
+            updated_data
+                .slice_mut(s![existing_rows.., ..])
+                .assign(&x.view());
+
+            let mut updated_labels = Array1::<i32>::zeros(existing_rows + new_rows);
+            updated_labels
+                .slice_mut(s![..existing_rows])
+                .assign(&label_buffer.view());
+            updated_labels
+                .slice_mut(s![existing_rows..])
+                .assign(&y.view());
+
+            let total_rows = updated_data.nrows();
+            let start = total_rows.saturating_sub(window_size);
+
+            if start > 0 {
+                *data_buffer = updated_data.slice(s![start.., ..]).to_owned();
+                *label_buffer = updated_labels.slice(s![start..]).to_owned();
+            } else {
+                *data_buffer = updated_data;
+                *label_buffer = updated_labels;
             }
         } else {
             // Initialize buffers
@@ -421,8 +438,6 @@ impl TrainedOnlineDiscriminantAnalysis {
 
     /// Update using cumulative approach
     fn update_cumulative(&mut self, x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
-        let n_new_samples = x.nrows();
-
         // Update class statistics
         for (i, &label) in y.iter().enumerate() {
             let sample = x.row(i);
@@ -506,7 +521,6 @@ impl TrainedOnlineDiscriminantAnalysis {
             return Ok(0.0); // Not enough data to detect drift
         }
 
-        let mut drift_score = 0.0;
         let n_samples = x.nrows();
 
         // Compute prediction accuracy on new batch
@@ -523,7 +537,7 @@ impl TrainedOnlineDiscriminantAnalysis {
 
         // Compare with expected accuracy (simplified)
         let expected_accuracy = 0.8; // This should be based on historical performance
-        drift_score = (expected_accuracy - current_accuracy).abs();
+        let drift_score = (expected_accuracy - current_accuracy).abs();
 
         Ok(drift_score)
     }
@@ -619,7 +633,6 @@ impl Fit<Array2<Float>, Array1<i32>, TrainedOnlineDiscriminantAnalysis>
             ));
         }
 
-        let n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Get unique classes

@@ -11,7 +11,7 @@
 //! - [`BiasDetectionBaseline`] - Bias detection and measurement baseline
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{prelude::*, thread_rng};
+use scirs2_core::random::{prelude::*, thread_rng, Rng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::error::SklearsError;

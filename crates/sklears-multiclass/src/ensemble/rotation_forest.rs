@@ -4,9 +4,8 @@
 //! Rotation Forest is an ensemble method that applies Principal Component Analysis (PCA)
 //! on different feature subsets to create diverse base classifiers.
 
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -22,7 +21,7 @@ pub struct RotationForestConfig {
     pub max_features: Option<usize>,
     /// Whether to bootstrap the training data
     pub bootstrap: bool,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -42,7 +41,7 @@ impl Default for RotationForestConfig {
             bootstrap: true,
             random_state: None,
             n_jobs: None,
-            feature_selection_strategy: FeatureSelectionStrategy::Random,
+            feature_selection_strategy: FeatureSelectionStrategy::StdRng,
             n_feature_subsets: 3,
             warm_start: false,
         }
@@ -52,8 +51,8 @@ impl Default for RotationForestConfig {
 /// Feature selection strategies for Rotation Forest
 #[derive(Debug, Clone, PartialEq)]
 pub enum FeatureSelectionStrategy {
-    /// Random selection of features
-    Random,
+    /// StdRng selection of features
+    StdRng,
     /// Select features based on variance
     Variance,
     /// Use all available features
@@ -62,7 +61,7 @@ pub enum FeatureSelectionStrategy {
 
 impl Default for FeatureSelectionStrategy {
     fn default() -> Self {
-        Self::Random
+        Self::StdRng
     }
 }
 
@@ -316,18 +315,18 @@ where
             ));
         }
 
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         let mut estimators = Vec::new();
         let mut rotations = Vec::new();
 
         // Train each estimator with different rotated feature space
-        for estimator_idx in 0..self.config.n_estimators {
+        for _estimator_idx in 0..self.config.n_estimators {
             // Generate feature subsets
             let feature_subsets = self.generate_feature_subsets(n_features, &mut rng);
 
@@ -375,7 +374,7 @@ where
     pub fn generate_feature_subsets(
         &self,
         n_features: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> Vec<Vec<usize>> {
         let max_features = self.config.max_features.unwrap_or(n_features);
         let subset_size = (max_features / self.config.n_feature_subsets).max(1);
@@ -384,11 +383,11 @@ where
         let mut subsets = Vec::new();
 
         match self.config.feature_selection_strategy {
-            FeatureSelectionStrategy::Random => {
-                // Randomly shuffle features and create subsets
+            FeatureSelectionStrategy::StdRng => {
+                // StdRngly shuffle features and create subsets
                 for _ in 0..n_features {
-                    let i = rng.random_range(0, n_features);
-                    let j = rng.random_range(0, n_features);
+                    let i = rng.gen_range(0..n_features);
+                    let j = rng.gen_range(0..n_features);
                     all_features.swap(i, j);
                 }
 
@@ -404,8 +403,8 @@ where
                 // This would require computing feature variances
                 // For now, fall back to random selection
                 for _ in 0..n_features {
-                    let i = rng.random_range(0, n_features);
-                    let j = rng.random_range(0, n_features);
+                    let i = rng.gen_range(0..n_features);
+                    let j = rng.gen_range(0..n_features);
                     all_features.swap(i, j);
                 }
 
@@ -436,7 +435,7 @@ where
         &self,
         X: &Array2<f64>,
         feature_subsets: &[Vec<usize>],
-        rng: &mut Random<StdRng>,
+        _rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<RotationInfo> {
         let n_features = X.ncols();
         let mut rotation_matrix = Array2::<f64>::eye(n_features);
@@ -455,7 +454,7 @@ where
             let centered = &X_subset - &mean.insert_axis(Axis(0));
 
             // Compute covariance matrix
-            let cov_matrix = centered.t().dot(&centered) / (X_subset.nrows() as f64 - 1.0);
+            let _cov_matrix = centered.t().dot(&centered) / (X_subset.nrows() as f64 - 1.0);
 
             // Apply proper PCA using SVD
             let subset_rotation = self.svd_pca_rotation(&centered)?;
@@ -519,13 +518,13 @@ where
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> (Array2<f64>, Array1<i32>) {
         let n_samples = X.nrows();
         let mut indices = Vec::with_capacity(n_samples);
 
         for _ in 0..n_samples {
-            indices.push(rng.random_range(0, n_samples));
+            indices.push(rng.gen_range(0..n_samples));
         }
 
         let X_bootstrap = X.select(Axis(0), &indices);
@@ -665,7 +664,7 @@ where
             }
         }
 
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         if n_features != self.base_estimator.n_features {
             return Err(SklearsError::InvalidInput(
                 "Number of features must match the initial training data".to_string(),
@@ -673,9 +672,9 @@ where
         }
 
         // Generate additional estimators with new rotations
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed + self.base_estimator.estimators.len() as u64),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed + self.base_estimator.estimators.len() as u64),
+            None => seeded_rng(42),
         };
 
         for _ in 0..additional_estimators {
@@ -711,7 +710,7 @@ where
     fn generate_rotation_info(
         &self,
         X: &Array2<f64>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<RotationInfo> {
         let (_, n_features) = X.dim();
 
@@ -721,11 +720,11 @@ where
 
         // Select features based on strategy
         let selected_features = match self.config.feature_selection_strategy {
-            FeatureSelectionStrategy::Random => {
+            FeatureSelectionStrategy::StdRng => {
                 let mut features: Vec<usize> = (0..n_features).collect();
                 // Shuffle using Fisher-Yates algorithm
                 for i in (1..features.len()).rev() {
-                    let j = rng.random_range(0, i + 1);
+                    let j = rng.gen_range(0..i + 1);
                     features.swap(i, j);
                 }
                 features.truncate(n_selected_features);
@@ -794,13 +793,13 @@ where
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> (Array2<f64>, Array1<i32>) {
         let n_samples = X.nrows();
         let mut indices = Vec::with_capacity(n_samples);
 
         for _ in 0..n_samples {
-            indices.push(rng.random_range(0, n_samples));
+            indices.push(rng.gen_range(0..n_samples));
         }
 
         let X_bootstrap = X.select(Axis(0), &indices);
@@ -906,7 +905,7 @@ mod tests {
             .n_estimators(5)
             .max_features(Some(2))
             .bootstrap(false)
-            .feature_selection_strategy(FeatureSelectionStrategy::Random)
+            .feature_selection_strategy(FeatureSelectionStrategy::StdRng)
             .n_feature_subsets(2)
             .random_state(Some(42))
             .build();
@@ -929,7 +928,7 @@ mod tests {
         assert_eq!(config.n_jobs, None);
         assert_eq!(
             config.feature_selection_strategy,
-            FeatureSelectionStrategy::Random
+            FeatureSelectionStrategy::StdRng
         );
         assert_eq!(config.n_feature_subsets, 3);
     }
@@ -937,7 +936,7 @@ mod tests {
     #[test]
     fn test_feature_selection_strategy_default() {
         let strategy = FeatureSelectionStrategy::default();
-        assert_eq!(strategy, FeatureSelectionStrategy::Random);
+        assert_eq!(strategy, FeatureSelectionStrategy::StdRng);
     }
 
     #[test]
@@ -977,7 +976,7 @@ mod tests {
             .n_feature_subsets(3)
             .max_features(Some(6));
 
-        let mut rng = Random::seed(42);
+        let mut rng: CoreRandom<StdRng> = seeded_rng(42);
         let subsets = rf.generate_feature_subsets(8, &mut rng);
 
         // Should have the requested number of subsets (or fewer if not enough features)
@@ -1003,7 +1002,7 @@ mod tests {
         ];
 
         let feature_subsets = vec![vec![0, 1], vec![2]];
-        let mut rng = Random::seed(42);
+        let mut rng: CoreRandom<StdRng> = seeded_rng(42);
 
         let rotation_info = rf
             .create_rotation_matrix(&X, &feature_subsets, &mut rng)

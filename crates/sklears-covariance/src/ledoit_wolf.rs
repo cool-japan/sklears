@@ -241,3 +241,105 @@ impl LedoitWolf<LedoitWolfTrained> {
         self.state.shrinkage
     }
 }
+
+// DataFrame integration implementation
+use crate::polars_integration::{
+    CovarianceDataFrame, CovarianceResult, DataFrameEstimator, EstimatorInfo, PerformanceMetrics,
+};
+use std::collections::HashMap;
+use std::time::Instant;
+
+impl DataFrameEstimator<f64> for LedoitWolf<Untrained> {
+    fn fit_dataframe(&self, df: &CovarianceDataFrame) -> SklResult<CovarianceResult<f64>> {
+        let start_time = Instant::now();
+
+        // Validate DataFrame
+        df.validate()?;
+
+        // Fit using standard method
+        let fitted = self.clone().fit(&df.as_array_view(), &())?;
+
+        let computation_time = start_time.elapsed().as_millis() as f64;
+
+        // Create performance metrics
+        let performance_metrics = Some(PerformanceMetrics {
+            computation_time_ms: computation_time,
+            memory_usage_mb: None, // Could be implemented with memory profiling
+            condition_number: None, // Could compute if needed
+            log_likelihood: None,  // Could implement for Gaussian likelihood
+        });
+
+        // Create estimator info
+        let estimator_info = EstimatorInfo {
+            name: "LedoitWolf".to_string(),
+            parameters: self.parameters(),
+            convergence: None, // LedoitWolf has closed-form solution
+            metrics: performance_metrics,
+        };
+
+        Ok(CovarianceResult::new(
+            fitted.get_covariance().clone(),
+            fitted.get_precision().cloned(),
+            df.column_names().to_vec(),
+            df.metadata.clone(),
+            estimator_info,
+        ))
+    }
+
+    fn name(&self) -> &str {
+        "LedoitWolf"
+    }
+
+    fn parameters(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+        params.insert(
+            "store_precision".to_string(),
+            self.config.store_precision.to_string(),
+        );
+        params.insert(
+            "assume_centered".to_string(),
+            self.config.assume_centered.to_string(),
+        );
+        params.insert("block_size".to_string(), self.config.block_size.to_string());
+        params
+    }
+}
+
+impl DataFrameEstimator<f64> for LedoitWolf<LedoitWolfTrained> {
+    fn fit_dataframe(&self, df: &CovarianceDataFrame) -> SklResult<CovarianceResult<f64>> {
+        // For already trained estimators, just return the current state with DataFrame context
+        let estimator_info = EstimatorInfo {
+            name: "LedoitWolf".to_string(),
+            parameters: self.parameters(),
+            convergence: None,
+            metrics: None,
+        };
+
+        Ok(CovarianceResult::new(
+            self.get_covariance().clone(),
+            self.get_precision().cloned(),
+            df.column_names().to_vec(),
+            df.metadata.clone(),
+            estimator_info,
+        ))
+    }
+
+    fn name(&self) -> &str {
+        "LedoitWolf"
+    }
+
+    fn parameters(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+        params.insert(
+            "store_precision".to_string(),
+            self.config.store_precision.to_string(),
+        );
+        params.insert(
+            "assume_centered".to_string(),
+            self.config.assume_centered.to_string(),
+        );
+        params.insert("block_size".to_string(), self.config.block_size.to_string());
+        params.insert("shrinkage".to_string(), self.state.shrinkage.to_string());
+        params
+    }
+}

@@ -4,32 +4,11 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Predict, Trained, Transform, Untrained},
+    traits::Predict,
 };
 
 use crate::gpr::{GaussianProcessRegressor, GprTrained};
-use crate::kernels::Kernel;
 
-/// Bayesian Optimizer for global optimization using Gaussian Processes
-///
-/// The Bayesian Optimizer uses a Gaussian Process as a surrogate model to
-/// intelligently search for the global optimum of an expensive-to-evaluate function.
-/// It balances exploration and exploitation using acquisition functions.
-///
-/// # Parameters
-///
-/// * `gp` - The Gaussian Process model
-/// * `acquisition` - The acquisition function to use
-/// * `xi` - Exploration parameter for acquisition functions
-/// * `n_restarts` - Number of random restarts for acquisition optimization
-/// * `random_state` - Random state for reproducibility
-///
-/// # Examples
-///
-/// ```
-/// use sklears_gaussian_process::{BayesianOptimizer, GaussianProcessRegressor, kernels::RBF, AcquisitionFunction};
-/// // SciRS2 Policy - Use scirs2-autograd for ndarray types and operations
-use scirs2_core::ndarray::array;
 ///
 /// let kernel = RBF::new(1.0);
 /// let gpr = GaussianProcessRegressor::new().kernel(Box::new(kernel));
@@ -84,7 +63,7 @@ pub struct OptimizationResult {
 
 impl BayesianOptimizer {
     /// Create a new BayesianOptimizer instance
-    pub fn new(gp: GaussianProcessRegressor) -> Self {
+    pub fn new(_gp: GaussianProcessRegressor) -> Self {
         Self {
             gp: None,
             acquisition: AcquisitionFunction::ExpectedImprovement,
@@ -125,7 +104,7 @@ impl BayesianOptimizer {
 
     /// Fit the initial Gaussian Process model
     pub fn fit_initial(
-        mut self,
+        self,
         X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<BayesianOptimizerFitted> {
@@ -140,7 +119,7 @@ impl BayesianOptimizer {
             Some(gp) => gp,
             None => {
                 use crate::kernels::RBF;
-                use sklears_core::traits::{Fit, Untrained};
+                use sklears_core::traits::Fit;
 
                 let kernel = RBF::new(1.0);
                 let gpr = GaussianProcessRegressor::new().kernel(Box::new(kernel));
@@ -240,7 +219,7 @@ impl BayesianOptimizerFitted {
 
         // Refit GP
         use crate::kernels::RBF;
-        use sklears_core::traits::{Fit, Untrained};
+        use sklears_core::traits::Fit;
 
         let kernel = RBF::new(1.0);
         let gpr = GaussianProcessRegressor::new().kernel(Box::new(kernel));
@@ -357,7 +336,9 @@ impl BayesianOptimizerFitted {
 
     /// Predict variance at given points
     pub fn predict_variance(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
-        self.gp.predict_variance(X)
+        let (_mean, std) = self.gp.predict_with_std(X)?;
+        // Variance is the square of standard deviation
+        Ok(std.mapv(|s| s * s))
     }
 
     /// Compute acquisition value at a given point
@@ -492,7 +473,7 @@ impl BayesianOptimizerFitted {
 
         // Refit GP
         use crate::kernels::RBF;
-        use sklears_core::traits::{Fit, Untrained};
+        use sklears_core::traits::Fit;
 
         let kernel = RBF::new(1.0);
         let gpr = GaussianProcessRegressor::new().kernel(Box::new(kernel));

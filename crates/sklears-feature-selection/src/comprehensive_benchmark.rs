@@ -5,7 +5,6 @@
 
 use crate::fluent_api::{presets, FeatureSelectionBuilder, FluentSelectionResult};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::Rng;
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -529,7 +528,7 @@ impl ComprehensiveBenchmarkSuite {
             BenchmarkMetric::FeatureRelevance => result.feature_scores.mean().unwrap_or(0.0),
             _ => {
                 // Placeholder implementations for other metrics
-                use scirs2_core::random::{thread_rng, Rng};
+                use scirs2_core::random::thread_rng;
                 thread_rng().gen_range(0.0..1.0)
             }
         }
@@ -637,7 +636,7 @@ impl Default for ComprehensiveBenchmarkSuite {
 /// Generate synthetic datasets with various characteristics
 #[allow(non_snake_case)]
 pub fn generate_synthetic_datasets() -> Vec<BenchmarkDataset> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
     let mut datasets = Vec::new();
     let mut rng = thread_rng();
 

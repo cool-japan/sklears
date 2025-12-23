@@ -161,9 +161,7 @@ impl BayesianVariableSelector<Untrained> {
             _ => (0.01, 1.0), // Default values
         };
 
-        let mut evidence = 0.0;
-
-        for iter in 0..max_iter {
+        for _iter in 0..max_iter {
             let gamma_old = gamma.clone();
 
             // Update coefficient parameters
@@ -221,7 +219,7 @@ impl BayesianVariableSelector<Untrained> {
                 }
 
                 // Ensure gamma is in valid range [0, 1]
-                gamma[j] = gamma[j].max(0.0).min(1.0);
+                gamma[j] = gamma[j].clamp(0.0, 1.0);
 
                 mu[j] = gamma[j] * mu_slab + (1.0 - gamma[j]) * mu_spike;
                 sigma2[j] = gamma[j] * (sigma2_slab + mu_slab * mu_slab)
@@ -237,7 +235,7 @@ impl BayesianVariableSelector<Untrained> {
         }
 
         // Compute evidence (approximate)
-        evidence = self.compute_evidence(features, target, &gamma, &mu);
+        let evidence = self.compute_evidence(features, target, &gamma, &mu);
 
         Ok((gamma, mu, evidence))
     }
@@ -261,7 +259,7 @@ impl BayesianVariableSelector<Untrained> {
         let mut gamma_samples = Array2::zeros((n_samples, n_features));
         let mut coeff_samples = Array2::zeros((n_samples, n_features));
 
-        let (spike_var, slab_var) = match &self.prior {
+        let (_spike_var, slab_var) = match &self.prior {
             PriorType::SpikeAndSlab {
                 spike_var,
                 slab_var,
@@ -357,7 +355,7 @@ impl BayesianVariableSelector<Untrained> {
             _ => (0.01, 1.0),
         };
 
-        for iter in 0..max_iter {
+        for _iter in 0..max_iter {
             let inclusion_probs_old = inclusion_probs.clone();
 
             // E-step: Update posterior inclusion probabilities
@@ -398,7 +396,7 @@ impl BayesianVariableSelector<Untrained> {
                         * (mean_in * mean_in * precision_in - mean_out * mean_out * precision_out);
 
                 let prob = 1.0 / (1.0 + (-log_bf).exp());
-                inclusion_probs[j] = prob.max(0.0).min(1.0); // Ensure valid probability
+                inclusion_probs[j] = prob.clamp(0.0, 1.0); // Ensure valid probability
                 coefficients[j] = inclusion_probs[j] * mean_in;
             }
 
@@ -411,7 +409,9 @@ impl BayesianVariableSelector<Untrained> {
                 }
                 sse += (target[i] - pred).powi(2);
             }
-            noise_var = sse / features.nrows() as Float;
+            // Add minimum variance constraint to prevent numerical instability
+            // when data is all zeros or nearly zero
+            noise_var = (sse / features.nrows() as Float).max(1e-10);
 
             // Check convergence
             let diff = (&inclusion_probs - &inclusion_probs_old)
@@ -723,7 +723,7 @@ impl BayesianModelAveraging<Untrained> {
 
         // For demonstration, use a subset of all possible models
         // In practice, would use more sophisticated model enumeration
-        let max_features_per_model = (n_features / 3).max(1).min(10);
+        let max_features_per_model = (n_features / 3).clamp(1, 10);
 
         // Simple random model generation
         let mut rng_state = self.random_state.unwrap_or(42);
@@ -806,7 +806,7 @@ impl BayesianModelAveraging<Untrained> {
 
         // Ensure inclusion probabilities are properly bounded [0, 1]
         for prob in inclusion_probs.iter_mut() {
-            *prob = prob.min(1.0).max(0.0);
+            *prob = prob.clamp(0.0, 1.0);
         }
 
         Ok((models, model_probs, inclusion_probs))
@@ -851,7 +851,7 @@ impl BayesianModelAveraging<Untrained> {
 
         // Bayesian linear regression marginal likelihood approximation
         let xtx = model_x.t().dot(&model_x);
-        let xty = model_x.t().dot(target);
+        let _xty = model_x.t().dot(target);
 
         // Add regularization for numerical stability
         let mut xtx_reg = xtx.clone();

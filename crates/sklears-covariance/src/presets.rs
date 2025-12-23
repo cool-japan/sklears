@@ -257,7 +257,6 @@ impl PresetRecommendations {
             (_, _, _, true) => "financial_timeseries",
             (false, false, false, false) => "empirical",
             (true, true, false, false) => "very_robust",
-            (true, false, true, true) => "large_scale_sparse",
             _ => "empirical", // Default fallback
         }
     }

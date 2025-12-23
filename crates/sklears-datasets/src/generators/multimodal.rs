@@ -44,7 +44,7 @@ pub fn make_multi_agent_environment(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // States: [episode, timestep, agent] -> state_id
@@ -156,7 +156,7 @@ pub fn make_vision_language_dataset(
         ));
     }
 
-    if alignment_strength < 0.0 || alignment_strength > 1.0 {
+    if !(0.0..=1.0).contains(&alignment_strength) {
         return Err(SklearsError::InvalidInput(
             "alignment_strength must be in [0, 1]".to_string(),
         ));
@@ -165,7 +165,7 @@ pub fn make_vision_language_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let (height, width) = image_size;
@@ -195,9 +195,8 @@ pub fn make_vision_language_dataset(
         for j in 0..max_sequence_length {
             let token = if rng.gen::<f64>() < alignment_strength {
                 // Aligned token based on image features
-                let feature_based_token =
-                    ((image_mean * vocab_size as f64) as usize).min(vocab_size - 1);
-                feature_based_token
+
+                ((image_mean * vocab_size as f64) as usize).min(vocab_size - 1)
             } else {
                 // Random token
                 rng.gen_range(0..vocab_size)
@@ -233,7 +232,7 @@ pub fn make_audio_visual_dataset(
         ));
     }
 
-    if sync_strength < 0.0 || sync_strength > 1.0 {
+    if !(0.0..=1.0).contains(&sync_strength) {
         return Err(SklearsError::InvalidInput(
             "sync_strength must be in [0, 1]".to_string(),
         ));
@@ -242,7 +241,7 @@ pub fn make_audio_visual_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let (height, width) = frame_size;
@@ -343,7 +342,7 @@ pub fn make_communication_cost_datasets(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Communication costs per round per client
@@ -353,7 +352,7 @@ pub fn make_communication_cost_datasets(
     let mut total_bandwidth_usage = Array1::zeros(n_rounds);
 
     // Calculate topology-specific parameters
-    let (n_connections, aggregation_factor) = match config.network_topology.as_str() {
+    let (_n_connections, aggregation_factor) = match config.network_topology.as_str() {
         "star" => (1, 1.0), // Each client connects to server
         "ring" => (2, 0.5), // Each client connects to 2 neighbors
         "full_mesh" => (config.n_clients - 1, 1.0 / (config.n_clients - 1) as f64),
@@ -434,7 +433,7 @@ pub fn make_sensor_fusion_dataset(
         ));
     }
 
-    if sync_accuracy < 0.0 || sync_accuracy > 1.0 {
+    if !(0.0..=1.0).contains(&sync_accuracy) {
         return Err(SklearsError::InvalidInput(
             "sync_accuracy must be in [0, 1]".to_string(),
         ));
@@ -443,7 +442,7 @@ pub fn make_sensor_fusion_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let n_sensors = sensor_types.len();
@@ -582,13 +581,13 @@ pub fn make_multimodal_alignment_dataset(
         ));
     }
 
-    if alignment_strength < 0.0 || alignment_strength > 1.0 {
+    if !(0.0..=1.0).contains(&alignment_strength) {
         return Err(SklearsError::InvalidInput(
             "alignment_strength must be in [0, 1]".to_string(),
         ));
     }
 
-    if cross_modal_noise < 0.0 || cross_modal_noise > 1.0 {
+    if !(0.0..=1.0).contains(&cross_modal_noise) {
         return Err(SklearsError::InvalidInput(
             "cross_modal_noise must be in [0, 1]".to_string(),
         ));
@@ -597,7 +596,7 @@ pub fn make_multimodal_alignment_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let n_modalities = modality_types.len();
@@ -746,7 +745,7 @@ pub fn make_cross_modal_retrieval_dataset(
         ));
     }
 
-    if retrieval_difficulty < 0.0 || retrieval_difficulty > 1.0 {
+    if !(0.0..=1.0).contains(&retrieval_difficulty) {
         return Err(SklearsError::InvalidInput(
             "retrieval_difficulty must be in [0, 1]".to_string(),
         ));
@@ -755,7 +754,7 @@ pub fn make_cross_modal_retrieval_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Define embedding dimensions for each modality
@@ -797,14 +796,8 @@ pub fn make_cross_modal_retrieval_dataset(
                     let semantic_weight = 0.6 + 0.4 * rng.gen::<f64>();
                     shared_influence * semantic_weight
                 }
-                "image" => {
-                    let visual_pattern = (shared_influence * 1.5).sin() * 0.7;
-                    visual_pattern
-                }
-                "audio" => {
-                    let spectral_component = shared_influence * 0.8;
-                    spectral_component
-                }
+                "image" => (shared_influence * 1.5).sin() * 0.7,
+                "audio" => shared_influence * 0.8,
                 _ => shared_influence,
             };
 
@@ -826,14 +819,8 @@ pub fn make_cross_modal_retrieval_dataset(
                     let semantic_weight = 0.6 + 0.4 * rng.gen::<f64>();
                     shared_influence * semantic_weight
                 }
-                "image" => {
-                    let visual_pattern = (shared_influence * 1.5).sin() * 0.7;
-                    visual_pattern
-                }
-                "audio" => {
-                    let spectral_component = shared_influence * 0.8;
-                    spectral_component
-                }
+                "image" => (shared_influence * 1.5).sin() * 0.7,
+                "audio" => shared_influence * 0.8,
                 _ => shared_influence,
             };
 
@@ -863,14 +850,8 @@ pub fn make_cross_modal_retrieval_dataset(
                         let semantic_weight = 0.6 + 0.4 * rng.gen::<f64>();
                         shared_influence * semantic_weight
                     }
-                    "image" => {
-                        let visual_pattern = (shared_influence * 1.5).sin() * 0.7;
-                        visual_pattern
-                    }
-                    "audio" => {
-                        let spectral_component = shared_influence * 0.8;
-                        spectral_component
-                    }
+                    "image" => (shared_influence * 1.5).sin() * 0.7,
+                    "audio" => shared_influence * 0.8,
                     _ => shared_influence,
                 };
 
@@ -884,8 +865,8 @@ pub fn make_cross_modal_retrieval_dataset(
         let shared_len = 64.min(source_dim).min(target_dim);
 
         let mut dot_product = 0.0;
-        let mut source_norm_sq = 0.0;
-        let mut target_norm_sq = 0.0;
+        let mut source_norm_sq: f64 = 0.0;
+        let mut target_norm_sq: f64 = 0.0;
 
         for k in 0..shared_len {
             let source_val = source_embeddings[[sample, k]];

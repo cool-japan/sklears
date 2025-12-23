@@ -5,7 +5,6 @@
 //! using the sklears-linear crate.
 
 use super::common::*;
-use numpy::IntoPyArray;
 use pyo3::types::PyDict;
 use pyo3::Bound;
 use sklears_core::traits::{Fit, Predict, Score, Trained};
@@ -33,10 +32,11 @@ impl Default for PyLinearRegressionConfig {
 
 impl From<PyLinearRegressionConfig> for LinearRegressionConfig {
     fn from(py_config: PyLinearRegressionConfig) -> Self {
-        let mut config = LinearRegressionConfig::default();
-        config.fit_intercept = py_config.fit_intercept;
         // Note: copy_x, n_jobs, and positive are Python-specific and handled at the Python level
-        config
+        LinearRegressionConfig {
+            fit_intercept: py_config.fit_intercept,
+            ..Default::default()
+        }
     }
 }
 
@@ -147,8 +147,8 @@ impl PyLinearRegression {
     /// self : object
     ///     Fitted Estimator.
     fn fit(&mut self, x: PyReadonlyArray2<f64>, y: PyReadonlyArray1<f64>) -> PyResult<()> {
-        let x_array = x.as_array().to_owned();
-        let y_array = y.as_array().to_owned();
+        let x_array = pyarray_to_core_array2(x)?;
+        let y_array = pyarray_to_core_array1(y)?;
 
         // Validate input arrays
         validate_fit_arrays(&x_array, &y_array)?;
@@ -181,34 +181,30 @@ impl PyLinearRegression {
     /// -------
     /// C : array, shape (n_samples,)
     ///     Returns predicted values.
-    fn predict(&self, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray1<f64>>> {
+    fn predict(&self, py: Python<'_>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray1<f64>>> {
         let fitted = self
             .fitted_model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        let x_array = x.as_array().to_owned();
+        let x_array = pyarray_to_core_array2(x)?;
         validate_predict_array(&x_array)?;
 
         match fitted.predict(&x_array) {
-            Ok(predictions) => {
-                let py = unsafe { Python::assume_attached() };
-                Ok(predictions.into_pyarray(py).into())
-            }
+            Ok(predictions) => Ok(core_array1_to_py(py, &predictions)),
             Err(e) => Err(PyValueError::new_err(format!("Prediction failed: {:?}", e))),
         }
     }
 
     /// Get model coefficients
     #[getter]
-    fn coef_(&self) -> PyResult<Py<PyArray1<f64>>> {
+    fn coef_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
         let fitted = self
             .fitted_model
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        let py = unsafe { Python::assume_attached() };
-        Ok(fitted.coef().clone().into_pyarray(py).into())
+        Ok(core_array1_to_py(py, fitted.coef()))
     }
 
     /// Get model intercept
@@ -267,8 +263,8 @@ impl PyLinearRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        let x_array = x.as_array().to_owned();
-        let y_array = y.as_array().to_owned();
+        let x_array = pyarray_to_core_array2(x)?;
+        let y_array = pyarray_to_core_array1(y)?;
 
         match fitted.score(&x_array, &y_array) {
             Ok(score) => Ok(score),
@@ -292,10 +288,9 @@ impl PyLinearRegression {
     }
 
     /// Return parameters for this estimator (sklearn compatibility)
-    fn get_params(&self, deep: Option<bool>) -> PyResult<Py<PyDict>> {
+    fn get_params(&self, py: Python<'_>, deep: Option<bool>) -> PyResult<Py<PyDict>> {
         let _deep = deep.unwrap_or(true);
 
-        let py = unsafe { Python::assume_attached() };
         let dict = PyDict::new(py);
 
         dict.set_item("fit_intercept", self.py_config.fit_intercept)?;

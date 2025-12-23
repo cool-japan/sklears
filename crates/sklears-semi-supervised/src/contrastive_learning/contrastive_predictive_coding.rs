@@ -122,8 +122,8 @@ impl ContrastivePredictiveCoding {
         for i in 0..n_features {
             for j in 0..self.embedding_dim {
                 // Generate normal distributed random number using Box-Muller transform
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 encoder_weights[(i, j)] = z * 0.1; // mean=0.0, std=0.1
             }
@@ -153,8 +153,8 @@ impl ContrastivePredictiveCoding {
         for i in 0..self.embedding_dim {
             for j in 0..self.hidden_dim {
                 // Generate normal distributed random number using Box-Muller transform
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 context_weights[(i, j)] = z * 0.1; // mean=0.0, std=0.1
             }
@@ -252,8 +252,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCodi
         // Fill encoder weights with normal distribution (mean=0.0, std=0.1)
         for i in 0..n_features {
             for j in 0..self.embedding_dim {
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 encoder_weights[(i, j)] = z * 0.1;
             }
@@ -262,8 +262,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCodi
         // Fill context weights with normal distribution (mean=0.0, std=0.1)
         for i in 0..self.embedding_dim {
             for j in 0..self.hidden_dim {
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 context_weights[(i, j)] = z * 0.1;
             }
@@ -370,8 +370,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCodi
                 // Fill encoder grad with normal noise
                 for i in 0..encoder_weights.nrows() {
                     for j in 0..encoder_weights.ncols() {
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         encoder_grad[(i, j)] = z * noise_std;
                     }
@@ -380,8 +380,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastivePredictiveCodi
                 // Fill context grad with normal noise
                 for i in 0..context_weights.nrows() {
                     for j in 0..context_weights.ncols() {
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         context_grad[(i, j)] = z * noise_std;
                     }

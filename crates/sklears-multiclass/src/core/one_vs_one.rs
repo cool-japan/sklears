@@ -180,7 +180,7 @@ where
         // Validate inputs
         validate::check_consistent_length(x, y)?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Get unique classes
         let mut classes: Vec<i32> = y
@@ -772,7 +772,7 @@ where
         config: &ConsensusConfig,
     ) -> SklResult<ConsensusResult> {
         let (n_samples, _) = x.dim();
-        let n_classes = self.base_estimator.classes.len();
+        let _n_classes = self.base_estimator.classes.len();
 
         // Collect predictions and scores from all strategies
         let mut strategy_votes = Vec::new();
@@ -829,7 +829,7 @@ where
         &self,
         strategy_scores: &[Array2<f64>],
         strategy_votes: &[Array1<i32>],
-        method: &ConsensusMethod,
+        _method: &ConsensusMethod,
         agreement_threshold: f64,
     ) -> SklResult<(Array2<f64>, Array1<f64>)> {
         let n_samples = strategy_scores[0].nrows();
@@ -843,8 +843,8 @@ where
         for sample_idx in 0..n_samples {
             for class_idx in 0..n_classes {
                 let mut sum = 0.0;
-                for strategy_idx in 0..n_strategies {
-                    sum += strategy_scores[strategy_idx][[sample_idx, class_idx]];
+                for scores in strategy_scores.iter().take(n_strategies) {
+                    sum += scores[[sample_idx, class_idx]];
                 }
                 combined_scores[[sample_idx, class_idx]] = sum / (n_strategies as f64);
             }

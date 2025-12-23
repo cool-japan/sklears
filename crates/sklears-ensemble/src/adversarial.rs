@@ -10,7 +10,7 @@ use crate::bagging::BaggingClassifier;
 // ❌ REMOVED: rand_chacha::scirs2_core::random::rngs::StdRng - use scirs2_core::random instead
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 #[allow(unused_imports)]
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::Result as SklResult,
     prelude::{Predict, SklearsError},

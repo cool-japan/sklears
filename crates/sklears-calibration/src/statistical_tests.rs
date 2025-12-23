@@ -10,7 +10,7 @@ use crate::{
         expected_calibration_error, hosmer_lemeshow_test, kolmogorov_smirnov_calibration_test,
         CalibrationMetricsConfig,
     },
-    CalibratedClassifierCV, CalibrationEstimator, CalibrationMethod,
+    CalibratedClassifierCV, CalibrationMethod,
 };
 
 /// Result of a calibration test
@@ -110,7 +110,7 @@ pub fn test_ece_improvement(
         config,
     )?;
 
-    let passed = improvement > 0.0 && p_value.map_or(false, |p| p < config.alpha);
+    let passed = improvement > 0.0 && p_value.is_some_and(|p| p < config.alpha);
 
     Ok(StatisticalTestResult {
         test_name: "ECE Improvement Test".to_string(),
@@ -163,7 +163,7 @@ pub fn test_brier_score_improvement(
         config,
     )?;
 
-    let passed = brier_improvement > 0.0 && p_value.map_or(false, |p| p < config.alpha);
+    let passed = brier_improvement > 0.0 && p_value.is_some_and(|p| p < config.alpha);
 
     Ok(StatisticalTestResult {
         test_name: "Brier Score Improvement Test".to_string(),
@@ -194,7 +194,7 @@ pub fn test_calibration_statistical_validity(
         test_statistic: hl_statistic,
         p_value: None, // Would need chi-squared distribution function
         critical_value: Some(15.5),
-        details: format!("Good calibration if statistic < 15.5"),
+        details: "Good calibration if statistic < 15.5".to_string(),
     });
 
     // Chi-squared test
@@ -439,7 +439,7 @@ fn paired_test_brier_improvement(
     original_probabilities: &Array1<Float>,
     calibrated_probabilities: &Array1<Float>,
     y_true: &Array1<i32>,
-    config: &StatisticalTestConfig,
+    _config: &StatisticalTestConfig,
 ) -> Result<Option<Float>> {
     let n = original_probabilities.len();
 

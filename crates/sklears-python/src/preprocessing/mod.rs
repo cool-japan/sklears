@@ -5,9 +5,8 @@
 //! Each transformer type is implemented in its own submodule for
 //! better code organization.
 
-// Common functionality shared across preprocessing transformers
+// Common functionality shared across preprocessing transformers (internal use only)
 mod common;
-pub use common::*;
 
 // Individual transformer implementations
 mod label_encoder;

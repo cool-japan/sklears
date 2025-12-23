@@ -699,16 +699,17 @@ mod tests {
     }
 }
 
-// Placeholder for tempfile
+// Temporary directory helper using std::env::temp_dir() as per CLAUDE.md policy
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tempfile {
     use std::path::PathBuf;
 
     pub fn tempdir() -> Result<TempDir, std::io::Error> {
-        Ok(TempDir {
-            path: PathBuf::from("/tmp/test_dir"),
-        })
+        let mut path = std::env::temp_dir();
+        path.push(format!("sklears_test_{}", std::process::id()));
+        std::fs::create_dir_all(&path)?;
+        Ok(TempDir { path })
     }
 
     pub struct TempDir {
@@ -718,6 +719,12 @@ mod tempfile {
     impl TempDir {
         pub fn path(&self) -> &std::path::Path {
             &self.path
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
         }
     }
 }

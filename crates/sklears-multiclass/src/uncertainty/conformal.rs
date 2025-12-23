@@ -146,7 +146,7 @@ impl ConformalPredictor {
             ));
         };
 
-        let (n_samples, n_classes) = test_scores.dim();
+        let (n_samples, _n_classes) = test_scores.dim();
         let mut prediction_sets = Vec::with_capacity(n_samples);
         let mut set_sizes = Array1::zeros(n_samples);
         let mut conformity_scores = Array1::zeros(n_samples);
@@ -185,7 +185,7 @@ impl ConformalPredictor {
         scores: &Array2<f64>,
         labels: &Array1<i32>,
     ) -> SklResult<Array1<f64>> {
-        let (n_samples, n_classes) = scores.dim();
+        let (n_samples, _n_classes) = scores.dim();
         let mut conformity_scores = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
@@ -281,13 +281,13 @@ impl ConformalPredictor {
         indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
         // Find position of true label in sorted order
-        let mut position = 0;
+        let mut _position = 0;
         let mut cumulative_score = 0.0;
 
         for (i, (class_idx, score)) in indexed_scores.iter().enumerate() {
             cumulative_score += score;
             if *class_idx == true_label as usize {
-                position = i + 1;
+                _position = i + 1;
                 break;
             }
         }
@@ -375,6 +375,7 @@ impl ConformalPredictor {
         threshold: f64,
     ) -> SklResult<(Vec<i32>, f64)> {
         let mut prediction_set = Vec::new();
+        #[allow(unused_assignments)]
         let mut conformity_score = 0.0;
 
         match &self.method {

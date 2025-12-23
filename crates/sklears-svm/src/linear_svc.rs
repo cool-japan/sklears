@@ -4,7 +4,8 @@
 //! for BLAS operations while still providing efficient linear SVM training.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::{SeedableRng, StdRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},
@@ -256,7 +257,6 @@ impl LinearSVC {
             // Shuffle sample indices for better convergence
             let mut indices: Vec<usize> = (0..n_samples).collect();
             if self.random_state.is_some() {
-                use scirs2_core::rand_prelude::SliceRandom;
                 indices.shuffle(&mut rng);
             }
 
@@ -366,7 +366,6 @@ impl LinearSVC {
             // Shuffle feature indices for better convergence
             let mut feature_indices: Vec<usize> = (0..n_features).collect();
             if self.random_state.is_some() {
-                use scirs2_core::rand_prelude::SliceRandom;
                 feature_indices.shuffle(&mut rng);
             }
 
@@ -520,7 +519,7 @@ impl LinearSVC {
         intercept: &mut f64,
     ) -> Result<()> {
         let (n_samples, n_features) = x.dim();
-        let rng = StdRng::seed_from_u64(42);
+        let _rng = StdRng::seed_from_u64(42);
 
         let y_binary: Array1<f64> = y.map(|&label| if label == 1 { 1.0 } else { -1.0 });
 
@@ -727,7 +726,7 @@ impl LinearSVC {
     }
 
     /// Compute objective function value for a single sample
-    fn compute_sample_objective(&self, alpha: f64, y: f64, x: ArrayView1<f64>) -> Result<f64> {
+    fn compute_sample_objective(&self, alpha: f64, _y: f64, _x: ArrayView1<f64>) -> Result<f64> {
         match self.loss.as_str() {
             "hinge" => Ok(alpha), // Simplified for line search
             "squared_hinge" => Ok(alpha * alpha / (2.0 * self.c)), // Simplified
@@ -739,7 +738,7 @@ impl LinearSVC {
     }
 
     /// Compute gradient for a single sample
-    fn compute_gradient(&self, alpha: f64, y: f64, x: ArrayView1<f64>) -> Result<f64> {
+    fn compute_gradient(&self, _alpha: f64, y: f64, _x: ArrayView1<f64>) -> Result<f64> {
         match self.loss.as_str() {
             "hinge" => Ok(-y),               // Simplified
             "squared_hinge" => Ok(-2.0 * y), // Simplified

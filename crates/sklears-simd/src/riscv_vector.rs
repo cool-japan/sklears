@@ -545,7 +545,7 @@ pub fn riscv_config() -> &'static RiscVConfig {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

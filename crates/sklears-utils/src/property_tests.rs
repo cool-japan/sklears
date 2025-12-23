@@ -196,8 +196,8 @@ proptest! {
         n_features in 2..10usize,
         test_size in 0.1..0.5f64
     ) {
-        let x = Array2::<f64>::zeros((n_samples, n_features));
-        let y = Array1::from_vec((0..n_samples).map(|i| (i % 3) as i32).collect());
+        let _x = Array2::<f64>::zeros((n_samples, n_features));
+        let _y = Array1::from_vec((0..n_samples).map(|i| (i % 3) as i32).collect());
 
         use crate::random::train_test_split_indices;
         let result = train_test_split_indices(n_samples, test_size, true, Some(42));

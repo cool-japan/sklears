@@ -493,7 +493,7 @@ impl SpectralFeatureSelector<Untrained> {
     /// Simple k-means clustering (simplified implementation)
     fn kmeans_clustering(&self, features_t: &Array2<Float>) -> SklResult<Array1<usize>> {
         let n_features = features_t.nrows();
-        let n_dims = features_t.ncols();
+        let _n_dims = features_t.ncols();
 
         if n_features == 0 {
             return Ok(Array1::zeros(0));
@@ -519,7 +519,7 @@ impl SpectralFeatureSelector<Untrained> {
     /// Find the most representative feature in a cluster
     fn find_cluster_representative(
         &self,
-        features_t: &Array2<Float>,
+        _features_t: &Array2<Float>,
         assignments: &Array1<usize>,
         cluster_id: usize,
     ) -> Option<usize> {
@@ -541,7 +541,7 @@ impl SpectralFeatureSelector<Untrained> {
     /// Find the next best feature in a cluster (excluding already selected ones)
     fn find_next_best_in_cluster(
         &self,
-        features_t: &Array2<Float>,
+        _features_t: &Array2<Float>,
         assignments: &Array1<usize>,
         cluster_id: usize,
         selected: &[usize],
@@ -731,7 +731,7 @@ impl ManifoldFeatureSelector<Untrained> {
     /// Compute manifold-based feature scores
     fn compute_manifold_scores(&self, features: &Array2<Float>) -> SklResult<Array1<Float>> {
         let n_features = features.ncols();
-        let n_samples = features.nrows();
+        let _n_samples = features.nrows();
 
         // Transpose features for manifold learning on feature space
         let features_t = features.t().to_owned();
@@ -777,7 +777,7 @@ impl ManifoldFeatureSelector<Untrained> {
         let adjacency = self.build_knn_graph(features_t)?;
 
         // Compute graph Laplacian
-        let laplacian = self.compute_normalized_laplacian(&adjacency)?;
+        let _laplacian = self.compute_normalized_laplacian(&adjacency)?;
 
         // For simplicity, return a random embedding
         // In practice, we would compute the eigenvectors of the Laplacian
@@ -797,7 +797,7 @@ impl ManifoldFeatureSelector<Untrained> {
         features_t: &Array2<Float>,
         n_components: usize,
     ) -> SklResult<Array2<Float>> {
-        let n_points = features_t.nrows();
+        let _n_points = features_t.nrows();
 
         // Build k-NN graph
         let adjacency = self.build_knn_graph(features_t)?;
@@ -817,7 +817,7 @@ impl ManifoldFeatureSelector<Untrained> {
         features_t: &Array2<Float>,
         n_components: usize,
     ) -> SklResult<Array2<Float>> {
-        let n_points = features_t.nrows();
+        let _n_points = features_t.nrows();
 
         // Find k-nearest neighbors
         let neighbors = self.find_knn(features_t)?;
@@ -849,7 +849,7 @@ impl ManifoldFeatureSelector<Untrained> {
             // Sort by distance and take k nearest
             distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-            for &(neighbor, dist) in distances.iter().take(self.n_neighbors) {
+            for &(neighbor, _dist) in distances.iter().take(self.n_neighbors) {
                 adjacency[[i, neighbor]] = 1.0;
                 adjacency[[neighbor, i]] = 1.0; // Symmetric
             }
@@ -970,7 +970,7 @@ impl ManifoldFeatureSelector<Untrained> {
     fn compute_reconstruction_weights(
         &self,
         features_t: &Array2<Float>,
-        neighbors: &Array2<usize>,
+        _neighbors: &Array2<usize>,
     ) -> SklResult<Array2<Float>> {
         let n_points = features_t.nrows();
         let mut weights = Array2::zeros((n_points, self.n_neighbors));
@@ -1260,7 +1260,7 @@ impl KernelFeatureSelector<Untrained> {
         target: &Array1<Float>,
     ) -> SklResult<Array1<Float>> {
         let n_features = features.ncols();
-        let n_samples = features.nrows();
+        let _n_samples = features.nrows();
         let mut scores = Array1::zeros(n_features);
 
         for i in 0..n_features {

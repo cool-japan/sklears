@@ -61,7 +61,7 @@
 //! ```
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::Result as SklResult,
     prelude::{Predict, SklearsError},
@@ -516,7 +516,7 @@ impl PerformanceAnalyzer {
 
         // Add Gaussian noise
         for element in noisy_data.iter_mut() {
-            *element += noise_level * (thread_rng().gen::<Float>() - 0.5);
+            *element += noise_level * (thread_rng().random::<Float>() - 0.5);
         }
 
         let noisy_predictions = ensemble.member_predictions(&noisy_data.view())?;
@@ -1126,7 +1126,7 @@ fn optimize_weights_grid_search<T: EnsemblePredictor>(
         let mut remaining = 1.0;
 
         for i in 0..(n_models - 1) {
-            let weight = remaining * (thread_rng().gen::<Float>());
+            let weight = remaining * (thread_rng().random::<Float>());
             current_weights[i] = weight;
             remaining -= weight;
         }
@@ -1205,7 +1205,7 @@ fn optimize_weights_random_search<T: EnsemblePredictor>(
         let mut remaining = 1.0;
 
         for i in 0..(n_models - 1) {
-            let weight = remaining * thread_rng().gen::<Float>();
+            let weight = remaining * thread_rng().random::<Float>();
             random_weights[i] = weight;
             remaining -= weight;
         }

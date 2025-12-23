@@ -188,7 +188,7 @@ impl HookManager {
             for hook in hooks {
                 if hook.should_execute(phase) {
                     match hook.execute(context, data)? {
-                        HookResult::Continue => continue,
+                        HookResult::Continue => {}
                         HookResult::Skip => return Ok(HookResult::Skip),
                         HookResult::Abort(msg) => return Ok(HookResult::Abort(msg)),
                         HookResult::ContinueWithData(modified_data) => {

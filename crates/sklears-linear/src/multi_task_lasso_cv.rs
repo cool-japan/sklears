@@ -223,7 +223,7 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskLassoCV {
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
         let n_tasks = y.ncols();
 

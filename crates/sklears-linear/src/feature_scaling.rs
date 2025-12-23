@@ -406,7 +406,7 @@ impl FeatureScaler {
     fn compute_unit_vector_scaling(
         &self,
         stats: &mut FeatureStats,
-        x: &[Vec<f64>],
+        _x: &[Vec<f64>],
     ) -> Result<(), SklearsError> {
         // For unit vector scaling, we compute the L2 norm of each sample
         for j in 0..stats.n_features {
@@ -623,12 +623,10 @@ impl FeatureScaler {
                             } else {
                                 ((*value + 1.0).powf(lambda) - 1.0) / lambda
                             }
+                        } else if (lambda - 2.0).abs() < 1e-8 {
+                            (-*value).ln()
                         } else {
-                            if (lambda - 2.0).abs() < 1e-8 {
-                                (-*value).ln()
-                            } else {
-                                -((-*value + 1.0).powf(2.0 - lambda) - 1.0) / (2.0 - lambda)
-                            }
+                            -((-*value + 1.0).powf(2.0 - lambda) - 1.0) / (2.0 - lambda)
                         };
                     }
                 }

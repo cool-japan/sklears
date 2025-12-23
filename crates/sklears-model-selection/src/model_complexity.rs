@@ -299,7 +299,7 @@ impl ModelComplexityAnalyzer {
     }
 
     /// Estimate number of features (simplified)
-    fn estimate_feature_count<X>(&self, x_train: &[X]) -> f64 {
+    fn estimate_feature_count<X>(&self, _x_train: &[X]) -> f64 {
         // This is a simplified estimation - in practice, this would depend on the actual data type
         // For now, we'll use a default estimate
         10.0 // Placeholder
@@ -391,7 +391,7 @@ impl ModelComplexityAnalyzer {
         let overfitting_score = relative_gap * (1.0 + complexity_score * 0.1) * (1.0 + size_factor);
 
         // Normalize to [0, 1]
-        overfitting_score.max(0.0).min(1.0)
+        overfitting_score.clamp(0.0, 1.0)
     }
 
     /// Generate recommendation based on analysis

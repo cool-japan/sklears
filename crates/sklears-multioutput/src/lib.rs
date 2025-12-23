@@ -33,12 +33,14 @@ pub mod multitask;
 pub mod neighbors;
 pub mod neural;
 pub mod optimization;
+pub mod performance;
 pub mod probabilistic;
 pub mod ranking;
 pub mod recurrent;
 pub mod regularization;
 pub mod sequence;
 pub mod sparse_storage;
+pub mod streaming;
 pub mod svm;
 pub mod transfer_learning;
 pub mod tree;
@@ -111,6 +113,7 @@ pub use optimization::{
 // Re-export probabilistic algorithms
 pub use probabilistic::{
     BayesianMultiOutputConfig, BayesianMultiOutputModel, BayesianMultiOutputModelTrained,
+    EnsembleBayesianConfig, EnsembleBayesianModel, EnsembleBayesianModelTrained, EnsembleStrategy,
     GaussianProcessMultiOutput, GaussianProcessMultiOutputTrained, InferenceMethod, KernelFunction,
     PosteriorDistribution, PredictionWithUncertainty, PriorDistribution,
 };
@@ -125,6 +128,19 @@ pub use ranking::{
 pub use sparse_storage::{
     sparse_utils, CSRMatrix, MemoryUsage, SparseMultiOutput, SparseMultiOutputTrained,
     SparsityAnalysis, StorageRecommendation,
+};
+
+// Re-export streaming and incremental learning algorithms
+pub use streaming::{
+    IncrementalMultiOutputRegression, IncrementalMultiOutputRegressionConfig,
+    IncrementalMultiOutputRegressionTrained, StreamingMultiOutput, StreamingMultiOutputConfig,
+    StreamingMultiOutputTrained,
+};
+
+// Re-export performance optimization algorithms
+pub use performance::{
+    EarlyStopping, EarlyStoppingConfig, PredictionCache, WarmStartRegressor,
+    WarmStartRegressorConfig, WarmStartRegressorTrained,
 };
 
 // Re-export multi-label algorithms

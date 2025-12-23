@@ -153,10 +153,9 @@ impl HierarchicalGraphConstruction {
 
                     distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-                    for k in 0..k_neighbors.min(distances.len()) {
-                        let j = distances[k].1;
-                        let weight = (-distances[k].0.powi(2) / 2.0).exp();
-                        graph[[i, j]] = weight;
+                    for (dist, j) in distances.iter().take(k_neighbors.min(distances.len())) {
+                        let weight = (-dist.powi(2) / 2.0).exp();
+                        graph[[i, *j]] = weight;
                     }
                 }
 
@@ -258,10 +257,9 @@ impl HierarchicalGraphConstruction {
 
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-            for k in 0..adaptive_k.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = (-distances[k].0.powi(2) / 2.0).exp();
-                graph[[i, j]] = weight;
+            for (dist, j) in distances.iter().take(adaptive_k.min(distances.len())) {
+                let weight = (-dist.powi(2) / 2.0).exp();
+                graph[[i, *j]] = weight;
             }
         }
 

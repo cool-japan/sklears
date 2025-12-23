@@ -1,5 +1,5 @@
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Float;
 
 #[derive(Debug, Clone)]
 pub enum UncertaintyDecompositionMethod {

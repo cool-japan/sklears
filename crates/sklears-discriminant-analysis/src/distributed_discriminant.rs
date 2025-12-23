@@ -132,7 +132,6 @@ impl Fit<Array2<Float>, Array1<i32>> for DistributedLinearDiscriminantAnalysis<U
 
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
         let chunks = self.chunk_data(x.view(), y)?;
-        let chunk_sizes: Vec<usize> = chunks.iter().map(|(_, y)| y.len()).collect();
 
         let models: std::result::Result<Vec<_>, _> = chunks
             .into_par_iter()
@@ -247,7 +246,6 @@ impl Fit<Array2<Float>, Array1<i32>> for DistributedQuadraticDiscriminantAnalysi
 
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
         let chunks = self.chunk_data(x.view(), y)?;
-        let chunk_sizes: Vec<usize> = chunks.iter().map(|(_, y)| y.len()).collect();
 
         let models: std::result::Result<Vec<_>, _> = chunks
             .into_par_iter()

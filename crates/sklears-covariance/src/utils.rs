@@ -785,7 +785,10 @@ mod tests {
         // but still retain some of the original structure
         assert!(shrunk[[0, 0]] > 0.0);
         assert!(shrunk[[1, 1]] > 0.0);
-        assert!((shrunk[[0, 1]] as f64).abs() < (sample_cov[[0, 1]] as f64).abs());
+        #[allow(clippy::unnecessary_cast)]
+        {
+            assert!((shrunk[[0, 1]] as f64).abs() < (sample_cov[[0, 1]] as f64).abs());
+        }
 
         // Test with custom target
         let target = array![[1.0, 0.0], [0.0, 1.0]];

@@ -75,7 +75,7 @@ impl CDEncoder {
     }
 
     /// Perform coordinate descent sparse coding
-    pub fn encode(&self, dictionary: &Array2<Float>, signal: &Array1<Float>) -> Result<CDResult> {
+    pub fn encode(&self, dictionary: &Array2<Float>, _signal: &Array1<Float>) -> Result<CDResult> {
         let n_atoms = dictionary.nrows();
         let coefficients = Array1::zeros(n_atoms);
 

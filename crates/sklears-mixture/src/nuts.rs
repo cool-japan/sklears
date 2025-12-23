@@ -351,9 +351,9 @@ impl NUTSSampler {
     /// Compute log posterior and its gradient
     fn compute_log_posterior_and_gradient(
         &self,
-        X: &Array2<f64>,
+        _X: &Array2<f64>,
         position: &Array1<f64>,
-        n_features: usize,
+        _n_features: usize,
     ) -> SklResult<(f64, Array1<f64>)> {
         // Simplified implementation
         // In practice, this would compute the actual log posterior of the mixture model
@@ -588,7 +588,7 @@ impl NUTSSampler {
     }
 
     /// Check for U-turn condition
-    fn check_uturn(&self, tree_state: &TreeState, subtree: &TreeState) -> bool {
+    fn check_uturn(&self, tree_state: &TreeState, _subtree: &TreeState) -> bool {
         // Simplified U-turn check using momentum dot product
         let left_momentum = &tree_state.left_node.momentum;
         let right_momentum = &tree_state.right_node.momentum;
@@ -667,7 +667,7 @@ impl NUTSSampler {
     /// Decode parameters from position vector
     fn decode_parameters(
         &self,
-        position: &Array1<f64>,
+        _position: &Array1<f64>,
         n_features: usize,
     ) -> SklResult<(Array1<f64>, Array2<f64>, Array1<f64>)> {
         // Simplified parameter decoding

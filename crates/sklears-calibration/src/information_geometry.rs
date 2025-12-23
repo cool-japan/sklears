@@ -344,7 +344,7 @@ impl RiemannianCurvature {
     /// Compute Riemann curvature tensor
     fn compute_riemann_tensor(
         point: &ManifoldPoint,
-        metric: &FisherInformationMetric,
+        _metric: &FisherInformationMetric,
         dim: usize,
     ) -> Result<Array3<Float>> {
         let mut riemann = Array3::zeros((dim, dim, dim));
@@ -474,7 +474,7 @@ impl InformationGeometricCalibrator {
         let mut current_point = ManifoldPoint::from_natural_params(initial_params)?;
 
         // Natural gradient descent on Riemannian manifold
-        for iteration in 0..self.config.max_riemannian_iterations {
+        for _iteration in 0..self.config.max_riemannian_iterations {
             // Compute Fisher information metric
             let fisher_metric = FisherInformationMetric::compute(&current_point, &self.config)?;
 
@@ -549,7 +549,7 @@ impl InformationGeometricCalibrator {
         let mut gradient = Array1::zeros(dim);
 
         // Compute likelihood gradient
-        for (i, (&prob, &label)) in probabilities.iter().zip(y_true.iter()).enumerate() {
+        for (&prob, &label) in probabilities.iter().zip(y_true.iter()) {
             let prediction = self.predict_at_point(point, prob)?;
             let error = prediction - label as Float;
 
@@ -599,7 +599,7 @@ impl InformationGeometricCalibrator {
     /// Compute derivative of score function
     fn compute_score_derivative(
         &self,
-        point: &ManifoldPoint,
+        _point: &ManifoldPoint,
         input_prob: Float,
         param_idx: usize,
     ) -> Result<Float> {
@@ -742,7 +742,7 @@ impl InformationGeometricCalibrator {
             "Convergence Path Length: {:.6}\n",
             stats.convergence_path_length
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         if let Some(ref curvature_summary) = stats.curvature_summary {
             report.push_str("CURVATURE ANALYSIS:\n");
@@ -759,7 +759,7 @@ impl InformationGeometricCalibrator {
                 "Gaussian Curvature: {:.6}\n",
                 curvature_summary.gaussian_curvature
             ));
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report.push_str("FINAL MANIFOLD POINT:\n");
@@ -776,7 +776,7 @@ impl InformationGeometricCalibrator {
             "Log-Normalizer: {:.6}\n",
             current_point.log_normalizer
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         report.push_str("OPTIMIZATION SUMMARY:\n");
         report.push_str("====================\n");

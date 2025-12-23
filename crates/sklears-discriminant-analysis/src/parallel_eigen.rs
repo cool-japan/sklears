@@ -96,9 +96,6 @@ impl ParallelEigenDecomposition {
                 "Matrix must be square for eigenvalue decomposition".to_string(),
             ));
         }
-
-        let n = matrix.nrows();
-
         // Setup thread pool if specified
         if let Some(num_threads) = self.config.num_threads {
             rayon::ThreadPoolBuilder::new()
@@ -204,8 +201,6 @@ impl ParallelEigenDecomposition {
         &self,
         matrix: &Array2<Float>,
     ) -> Result<(Array1<Float>, Array2<Float>)> {
-        let n = matrix.nrows();
-
         // For now, use SIMD for matrix operations leading up to eigenvalue decomposition
         // First, compute matrix products using SIMD where possible
         let mut processed_matrix = matrix.clone();

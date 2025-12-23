@@ -3,8 +3,6 @@
 //! This module provides tools to measure power consumption and energy efficiency
 //! of SIMD operations, essential for mobile and edge deployment optimization.
 
-#![cfg_attr(feature = "no-std", no_std)]
-
 #[cfg(feature = "no-std")]
 extern crate alloc;
 
@@ -563,9 +561,12 @@ pub mod standard_benchmarks {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{string::ToString, vec, vec::Vec};
 
     #[test]
     fn test_energy_profiler_creation() {
@@ -580,9 +581,9 @@ mod tests {
 
         let measurement = profiler.measure_energy("test_op", 1000, || {
             // Simulate some work
-            let mut sum = 0.0f32;
+            let mut _sum = 0.0f32;
             for i in 0..1000 {
-                sum += (i as f32).sin();
+                _sum += (i as f32).sin();
             }
         });
 
@@ -602,9 +603,9 @@ mod tests {
             1000,
             || {
                 // Scalar operation (slower)
-                let mut sum = 0.0f32;
+                let mut _sum = 0.0f32;
                 for i in 0..1000 {
-                    sum += (i as f32) * 2.0;
+                    _sum += (i as f32) * 2.0;
                 }
             },
             || {
@@ -712,9 +713,9 @@ mod tests {
         let results = profiler.benchmark_vector_sizes("test_scaling", &sizes, |size| {
             Box::new(move || {
                 // Simulate work proportional to size
-                let mut sum = 0.0f32;
+                let mut _sum = 0.0f32;
                 for i in 0..size {
-                    sum += (i as f32).sqrt();
+                    _sum += (i as f32).sqrt();
                 }
             })
         });

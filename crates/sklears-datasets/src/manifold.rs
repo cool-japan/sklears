@@ -24,7 +24,7 @@ pub fn make_swiss_roll(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate 3D Swiss roll manifold
@@ -33,12 +33,12 @@ pub fn make_swiss_roll(
 
     for i in 0..n_samples {
         // Parameter t controls the angle of the roll
-        let t_val = 1.5 * PI * (1.0 + 2.0 * rng.gen::<f64>());
+        let t_val = 1.5 * PI * (1.0 + 2.0 * rng.gen());
         t[i] = t_val;
 
         // Swiss roll equations
         x[[i, 0]] = t_val * t_val.cos(); // x = t * cos(t)
-        x[[i, 1]] = 21.0 * rng.gen::<f64>(); // y = uniform [0, 21]
+        x[[i, 1]] = 21.0 * rng.gen(); // y = uniform [0, 21]
         x[[i, 2]] = t_val * t_val.sin(); // z = t * sin(t)
 
         // Add noise if specified
@@ -67,7 +67,7 @@ pub fn make_s_curve(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate 3D S-curve manifold
@@ -76,12 +76,12 @@ pub fn make_s_curve(
 
     for i in 0..n_samples {
         // Parameters for S-curve
-        let t_val = 3.0 * PI * (rng.gen::<f64>() - 0.5); // t in [-1.5π, 1.5π]
+        let t_val = 3.0 * PI * (rng.gen() - 0.5); // t in [-1.5π, 1.5π]
         t[i] = t_val;
 
         // S-curve equations
         x[[i, 0]] = t_val.sin(); // x = sin(t)
-        x[[i, 1]] = 2.0 * rng.gen::<f64>(); // y = uniform [0, 2]
+        x[[i, 1]] = 2.0 * rng.gen(); // y = uniform [0, 2]
         x[[i, 2]] = t_val.cos().signum() * (t_val.cos().abs().powf(0.5)); // z = sign(cos(t)) * sqrt(|cos(t)|)
 
         // Add noise if specified
@@ -126,7 +126,7 @@ pub fn make_biclusters(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let (n_rows, n_cols) = shape;
@@ -186,14 +186,14 @@ pub fn make_biclusters(
         // Shuffle rows
         let mut row_indices: Vec<usize> = (0..n_rows).collect();
         for i in (1..row_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             row_indices.swap(i, j);
         }
 
         // Shuffle columns
         let mut col_indices: Vec<usize> = (0..n_cols).collect();
         for i in (1..col_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             col_indices.swap(i, j);
         }
 
@@ -247,7 +247,7 @@ pub fn make_checkerboard(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let (n_rows, n_cols) = shape;
@@ -303,14 +303,14 @@ pub fn make_checkerboard(
         // Shuffle rows
         let mut row_indices: Vec<usize> = (0..n_rows).collect();
         for i in (1..row_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             row_indices.swap(i, j);
         }
 
         // Shuffle columns
         let mut col_indices: Vec<usize> = (0..n_cols).collect();
         for i in (1..col_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             col_indices.swap(i, j);
         }
 

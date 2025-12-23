@@ -116,6 +116,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
     }
 
     /// Initialize mixture parameters
+    #[allow(clippy::type_complexity)]
     fn initialize_parameters(
         &self,
         X: &Array2<f64>,
@@ -257,6 +258,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
     }
 
     /// E-step: Compute responsibilities
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     fn e_step(
         &self,
         X: &Array2<f64>,
@@ -329,6 +331,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
     }
 
     /// M-step: Update parameters
+    #[allow(clippy::type_complexity)]
     fn m_step(
         &self,
         X: &Array2<f64>,

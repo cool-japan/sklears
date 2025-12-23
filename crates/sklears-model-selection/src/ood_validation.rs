@@ -5,7 +5,9 @@
 //! when encountering data that differs from the training distribution.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use scirs2_core::SliceRandomExt;
 use sklears_core::types::Float;
 
@@ -530,8 +532,8 @@ impl OODValidator {
 
     fn calculate_kl_divergence_sample(
         &self,
-        x_train: &Array2<Float>,
-        sample: &scirs2_core::ndarray::ArrayView1<Float>,
+        _x_train: &Array2<Float>,
+        _sample: &scirs2_core::ndarray::ArrayView1<Float>,
     ) -> Result<Float, Box<dyn std::error::Error>> {
         // Simplified KL divergence calculation
         Ok(0.1) // Mock value
@@ -564,7 +566,7 @@ impl OODValidator {
     fn calculate_feature_drift_scores(
         &self,
         x_train: &Array2<Float>,
-        x_ood: &Array2<Float>,
+        _x_ood: &Array2<Float>,
     ) -> Result<Vec<Float>, Box<dyn std::error::Error>> {
         let n_features = x_train.ncols();
         Ok(vec![0.05; n_features]) // Mock values

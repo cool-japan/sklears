@@ -488,7 +488,7 @@ where
         // Project back to epsilon ball
         let perturbation_norm = total_perturbation.mapv(|x: Float| x.powi(2)).sum().sqrt();
         if perturbation_norm > config.epsilon {
-            total_perturbation = total_perturbation * (config.epsilon / perturbation_norm);
+            total_perturbation *= (config.epsilon / perturbation_norm);
             adversarial_example = input.to_owned() + &total_perturbation;
         }
     }
@@ -562,7 +562,7 @@ fn generate_random_perturbation(
     let mut perturbation = Array2::zeros((shape[0], shape[1]));
 
     for elem in perturbation.iter_mut() {
-        *elem = min_val + (max_val - min_val) * scirs2_core::random::thread_rng().gen::<Float>();
+        *elem = min_val + (max_val - min_val) * scirs2_core::random::thread_rng().random::<Float>();
     }
 
     Ok(perturbation)
@@ -911,8 +911,8 @@ fn generate_gaussian_noise(shape: &[usize], mean: Float, std: Float) -> SklResul
 
     // Simple Box-Muller transform for Gaussian noise
     for elem in noise.iter_mut() {
-        let u1 = scirs2_core::random::thread_rng().gen::<Float>();
-        let u2 = scirs2_core::random::thread_rng().gen::<Float>();
+        let u1 = scirs2_core::random::thread_rng().random::<Float>();
+        let u2 = scirs2_core::random::thread_rng().random::<Float>();
         let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
         *elem = mean + std * z as Float;
     }

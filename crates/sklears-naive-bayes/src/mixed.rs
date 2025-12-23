@@ -351,7 +351,7 @@ impl MixedNB<Trained> {
                                     "Beta distribution requires values in [0,1]".to_string(),
                                 ));
                             }
-                            let safe_x = x_val.max(1e-15).min(1.0 - 1e-15);
+                            let safe_x = x_val.clamp(1e-15, 1.0 - 1e-15);
                             (alpha - 1.0) * safe_x.ln() + (beta - 1.0) * (1.0 - safe_x).ln()
                                 - beta_function_ln(alpha, beta)
                         }
@@ -455,7 +455,6 @@ impl NaiveBayesMixin for MixedNB<Trained> {
 }
 
 /// Helper functions
-
 /// Infer feature distributions from data characteristics
 fn infer_feature_distributions(x: &Array2<Float>) -> Result<Vec<FeatureDistribution>> {
     let mut distributions = Vec::new();
@@ -558,7 +557,7 @@ fn estimate_beta_parameters(values: &[f64]) -> (f64, f64) {
     let mean = values.iter().sum::<f64>() / values.len() as f64;
     let variance = values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
 
-    let safe_mean = mean.max(1e-10).min(1.0 - 1e-10);
+    let safe_mean = mean.clamp(1e-10, 1.0 - 1e-10);
     let safe_variance = variance
         .max(1e-10)
         .min(safe_mean * (1.0 - safe_mean) * 0.99);

@@ -483,10 +483,10 @@ mod tests {
     fn test_batch_processing_with_overlap() {
         let training_data =
             Array2::from_shape_vec((20, 2), (0..40).map(|x| x as Float).collect()).unwrap();
-        let test_data =
+        let _test_data =
             Array2::from_shape_vec((10, 2), (0..20).map(|x| x as Float).collect()).unwrap();
 
-        let search = BatchNeighborSearch::new(3, Distance::Euclidean, training_data);
+        let _search = BatchNeighborSearch::new(3, Distance::Euclidean, training_data);
         let processor = BatchProcessor::builder()
             .batch_size(4)
             .chunk_overlap(2)

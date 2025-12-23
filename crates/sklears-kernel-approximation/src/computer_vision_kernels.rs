@@ -6,8 +6,8 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 use sklears_core::error::Result;
@@ -117,7 +117,7 @@ pub struct FittedSpatialPyramidFeatures {
 impl Fit<Array2<f64>, ()> for SpatialPyramidFeatures {
     type Fitted = FittedSpatialPyramidFeatures;
 
-    fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
+    fn fit(self, _x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let level_weights = if self.pyramid_weighting {
             Array1::from_vec(
                 (0..self.levels)
@@ -417,7 +417,7 @@ pub struct FittedTextureKernelApproximation {
 impl Fit<Array2<f64>, ()> for TextureKernelApproximation {
     type Fitted = FittedTextureKernelApproximation;
 
-    fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
+    fn fit(self, _x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let mut feature_dim = 0;
 
         if self.use_lbp {
@@ -645,8 +645,8 @@ impl ScaleInvariantFeatures {
         // Simplified keypoint detection using Harris corner detector
         for i in 1..height - 1 {
             for j in 1..width - 1 {
-                let ix = (image[[i, j + 1]] - image[[i, j - 1]]) / 2.0;
-                let iy = (image[[i + 1, j]] - image[[i - 1, j]]) / 2.0;
+                let _ix = (image[[i, j + 1]] - image[[i, j - 1]]) / 2.0;
+                let _iy = (image[[i + 1, j]] - image[[i - 1, j]]) / 2.0;
                 let ixx = image[[i, j - 1]] - 2.0 * image[[i, j]] + image[[i, j + 1]];
                 let iyy = image[[i - 1, j]] - 2.0 * image[[i, j]] + image[[i + 1, j]];
                 let ixy = (image[[i - 1, j - 1]] + image[[i + 1, j + 1]]
@@ -746,8 +746,8 @@ impl FittedScaleInvariantFeatures {
         // Simplified keypoint detection using Harris corner detector
         for i in 1..height - 1 {
             for j in 1..width - 1 {
-                let ix = (image[[i, j + 1]] - image[[i, j - 1]]) / 2.0;
-                let iy = (image[[i + 1, j]] - image[[i - 1, j]]) / 2.0;
+                let _ix = (image[[i, j + 1]] - image[[i, j - 1]]) / 2.0;
+                let _iy = (image[[i + 1, j]] - image[[i - 1, j]]) / 2.0;
                 let ixx = image[[i, j - 1]] - 2.0 * image[[i, j]] + image[[i, j + 1]];
                 let iyy = image[[i - 1, j]] - 2.0 * image[[i, j]] + image[[i + 1, j]];
                 let ixy = (image[[i - 1, j - 1]] + image[[i + 1, j + 1]]
@@ -942,7 +942,7 @@ pub struct FittedConvolutionalKernelFeatures {
 impl Fit<Array2<f64>, ()> for ConvolutionalKernelFeatures {
     type Fitted = FittedConvolutionalKernelFeatures;
 
-    fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
+    fn fit(self, _x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let mut rng = RealStdRng::from_seed(thread_rng().gen());
         let normal = RandNormal::new(0.0, 1.0).unwrap();
 

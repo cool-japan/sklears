@@ -40,6 +40,8 @@ pub use isotonic_regression::IsotonicRegression;
 pub use platt_scaling::PlattScaling;
 pub use temperature_scaling::TemperatureScaling;
 
+use scirs2_core::random::seeded_rng;
+
 /// Calibration method configuration
 #[derive(Debug, Clone, PartialEq)]
 pub enum CalibrationMethod {
@@ -66,7 +68,7 @@ pub struct CalibrationConfig {
     pub method: CalibrationMethod,
     /// Number of cross-validation folds
     pub cv_folds: usize,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Ensemble calibration across CV folds
     pub ensemble: bool,
@@ -244,8 +246,6 @@ pub fn stratified_kfold_split(
     n_splits: usize,
     random_state: Option<u64>,
 ) -> SklResult<Vec<(Vec<usize>, Vec<usize>)>> {
-    use scirs2_core::random::Random;
-
     let n_samples = y.len();
     if n_samples == 0 {
         return Err(SklearsError::InvalidInput(
@@ -279,14 +279,14 @@ pub fn stratified_kfold_split(
 
     // Shuffle indices for each class
     let mut rng = match random_state {
-        Some(seed) => Random::seed(seed),
-        None => Random::seed(42),
+        Some(seed) => seeded_rng(seed),
+        None => seeded_rng(42),
     };
 
     for indices in class_indices.values_mut() {
         // Shuffle indices using Fisher-Yates algorithm
         for i in (1..indices.len()).rev() {
-            let j = rng.random_range(0, i + 1);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
     }
@@ -344,7 +344,7 @@ pub fn stratified_kfold_split(
         let mut all_indices: Vec<usize> = (0..n_samples).collect();
         // Shuffle indices using Fisher-Yates algorithm
         for i in (1..all_indices.len()).rev() {
-            let j = rng.random_range(0, i + 1);
+            let j = rng.gen_range(0..i + 1);
             all_indices.swap(i, j);
         }
 
@@ -376,7 +376,7 @@ pub fn stratified_kfold_split(
         let mut all_indices: Vec<usize> = (0..n_samples).collect();
         // Shuffle indices using Fisher-Yates algorithm
         for i in (1..all_indices.len()).rev() {
-            let j = rng.random_range(0, i + 1);
+            let j = rng.gen_range(0..i + 1);
             all_indices.swap(i, j);
         }
 
@@ -456,9 +456,7 @@ where
 
             match &self.config.method {
                 CalibrationMethod::PlattScaling => {
-                    for class_idx in 0..n_classes {
-                        let target_class = classes[class_idx];
-
+                    for (class_idx, &target_class) in classes.iter().enumerate().take(n_classes) {
                         // Create binary targets
                         let binary_targets = Array1::from_vec(
                             y_val
@@ -480,7 +478,7 @@ where
                         // Convert to decision values
                         let mut decision_values = Array1::zeros(class_probs.len());
                         for (i, &prob) in class_probs.iter().enumerate() {
-                            let p_clipped = prob.max(1e-15).min(1.0 - 1e-15);
+                            let p_clipped = prob.clamp(1e-15, 1.0 - 1e-15);
                             decision_values[i] = (p_clipped / (1.0 - p_clipped)).ln();
                         }
 
@@ -498,9 +496,7 @@ where
                     }
                 }
                 CalibrationMethod::IsotonicRegression => {
-                    for class_idx in 0..n_classes {
-                        let target_class = classes[class_idx];
-
+                    for (class_idx, &target_class) in classes.iter().enumerate().take(n_classes) {
                         // Create binary targets
                         let binary_targets = Array1::from_vec(
                             y_val
@@ -634,7 +630,7 @@ where
                 CalibrationMethod::TemperatureScaling { .. }
                 | CalibrationMethod::DirichletCalibration { .. } => {
                     // For methods that calibrate all classes together
-                    if let Some(calibrator) = fold_calibrators.first() {
+                    if let Some(_calibrator) = fold_calibrators.first() {
                         // For temperature scaling and Dirichlet, we stored the same calibrator for all classes
                         // We need to handle this differently - let's apply the multiclass calibration directly
                         match &self.config.method {

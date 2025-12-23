@@ -4,7 +4,7 @@
 //! including k-means distance computations, centroid updates, and validity indices.
 
 #[cfg(feature = "no-std")]
-use alloc::{format, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 
 /// SIMD-optimized k-means distance computation
 /// Computes distances from each point to each centroid
@@ -31,10 +31,10 @@ pub fn kmeans_distances(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { kmeans_distances_avx2(points, centroids, distances) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { kmeans_distances_sse2(points, centroids, distances) };
             return;
         }
@@ -191,12 +191,12 @@ pub fn update_centroids(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe {
                 update_centroids_avx2(points, assignments, n_clusters, centroids, &mut counts)
             };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe {
                 update_centroids_sse2(points, assignments, n_clusters, centroids, &mut counts)
             };
@@ -372,9 +372,9 @@ pub fn wcss(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { wcss_avx2(points, centroids, assignments) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { wcss_sse2(points, centroids, assignments) };
         }
     }
@@ -501,11 +501,11 @@ pub fn silhouette_score(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe {
                 silhouette_score_avx2(points, assignments, n_clusters, &mut silhouette_scores)
             };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe {
                 silhouette_score_sse2(points, assignments, n_clusters, &mut silhouette_scores)
             };
@@ -848,10 +848,10 @@ pub fn dbscan_neighbors(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { dbscan_neighbors_avx2(points, eps_squared, neighbors) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { dbscan_neighbors_sse2(points, eps_squared, neighbors) };
             return;
         }
@@ -890,7 +890,6 @@ unsafe fn dbscan_neighbors_sse2(points: &[&[f32]], eps_squared: f32, neighbors: 
 
     let n_samples = points.len();
     let n_features = points[0].len();
-    let eps_vec = _mm_set1_ps(eps_squared);
 
     for i in 0..n_samples {
         neighbors[i].clear();
@@ -1005,11 +1004,11 @@ pub fn hierarchical_linkage_distances(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe {
                 hierarchical_linkage_distances_avx2(points, cluster1, cluster2, linkage)
             };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe {
                 hierarchical_linkage_distances_sse2(points, cluster1, cluster2, linkage)
             };
@@ -1199,7 +1198,7 @@ unsafe fn hierarchical_linkage_distances_avx2(
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;

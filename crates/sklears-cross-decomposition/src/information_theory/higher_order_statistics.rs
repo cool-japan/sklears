@@ -12,8 +12,7 @@
 //! - Blind Source Separation with higher-order moments
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;

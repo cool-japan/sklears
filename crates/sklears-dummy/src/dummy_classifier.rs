@@ -2,7 +2,7 @@
 
 use crate::validation::{analyze_classification_dataset, get_adaptive_classification_strategy};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::prelude::*;
+use scirs2_core::random::{prelude::*, Rng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};
 use sklears_core::types::{Features, Float, Int};

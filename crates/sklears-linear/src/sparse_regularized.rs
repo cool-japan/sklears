@@ -353,7 +353,7 @@ impl SparseLasso<Trained> {
     pub fn coefficient_sparsity(&self) -> f64 {
         let coeffs = self.coefficients();
         let nnz = self.n_nonzero_coefficients();
-        if coeffs.len() > 0 {
+        if !coeffs.is_empty() {
             1.0 - (nnz as f64 / coeffs.len() as f64)
         } else {
             0.0
@@ -753,7 +753,7 @@ impl SparseElasticNet<Trained> {
     pub fn coefficient_sparsity(&self) -> f64 {
         let coeffs = self.coefficients();
         let nnz = self.n_nonzero_coefficients();
-        if coeffs.len() > 0 {
+        if !coeffs.is_empty() {
             1.0 - (nnz as f64 / coeffs.len() as f64)
         } else {
             0.0
@@ -811,7 +811,7 @@ impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseElasticNet<Trained
 #[cfg(all(test, feature = "sparse"))]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -837,6 +837,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Waiting for SciRS2-sparse v0.1.0-rc.2 to be published to crates.io"]
     fn test_sparse_lasso_sparse_input() {
         let triplets = vec![
             (0, 0, 1.0),

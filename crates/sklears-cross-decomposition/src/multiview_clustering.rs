@@ -353,7 +353,7 @@ impl MultiViewClustering<Untrained> {
                 let threshold = if let Some(seed) = self.random_state {
                     ((seed as usize + k) as Float / u64::MAX as Float) * total_distance
                 } else {
-                    thread_rng().gen::<Float>() * total_distance
+                    thread_rng().random::<Float>() * total_distance
                 };
 
                 let mut chosen_idx = 0;

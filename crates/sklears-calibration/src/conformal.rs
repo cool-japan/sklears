@@ -536,8 +536,8 @@ pub fn jackknife_plus_prediction(
             }
         }
 
-        let loo_predictions = Array1::from(loo_pred);
-        let loo_targets = Array1::from(loo_targ);
+        let _loo_predictions = Array1::from(loo_pred);
+        let _loo_targets = Array1::from(loo_targ);
 
         // Compute conformity score for excluded sample
         let pred_i = Array1::from(vec![predictions[i]]);

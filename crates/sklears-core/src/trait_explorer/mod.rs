@@ -886,7 +886,7 @@ mod tests {
 
         // These would fail in actual execution due to trait registry being empty,
         // but we're just testing the API exists
-        assert!(true); // Placeholder for actual workflow tests
+        // Placeholder for actual workflow tests
     }
 
     #[test]

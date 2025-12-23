@@ -103,7 +103,7 @@ impl GradientBasedCalibrator {
         let n = probabilities.len() as Float;
 
         // Negative log-likelihood
-        for (i, (&prob, &target)) in probabilities.iter().zip(targets.iter()).enumerate() {
+        for (&prob, &target) in probabilities.iter().zip(targets.iter()) {
             let pred = self.sigmoid(prob);
             let safe_pred = pred.clamp(1e-15, 1.0 - 1e-15);
 
@@ -132,7 +132,7 @@ impl GradientBasedCalibrator {
     fn compute_constraint_penalties(
         &self,
         probabilities: &Array1<Float>,
-        targets: &Array1<i32>,
+        _targets: &Array1<i32>,
     ) -> Float {
         let mut penalty = 0.0;
 
@@ -477,7 +477,7 @@ impl MultiObjectiveCalibrator {
         pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut tp = 0.0;
-        let mut fp = 0.0;
+        let mut _fp = 0.0;
         let mut auc = 0.0;
 
         let n_pos = targets.iter().filter(|&&t| t == 1).count() as Float;
@@ -492,7 +492,7 @@ impl MultiObjectiveCalibrator {
                 tp += 1.0;
             } else {
                 auc += tp;
-                fp += 1.0;
+                _fp += 1.0;
             }
         }
 
@@ -670,7 +670,7 @@ impl CalibrationEstimator for MultiObjectiveCalibrator {
         match &self.selected_solution {
             Some(_) => {
                 // Use a simple sigmoid transformation as approximation
-                let simple_calibrator = SigmoidCalibrator::new();
+                let _simple_calibrator = SigmoidCalibrator::new();
                 // This is a placeholder - we'd need to store the actual calibrator
                 Ok(probabilities.clone()) // Return uncalibrated for now
             }

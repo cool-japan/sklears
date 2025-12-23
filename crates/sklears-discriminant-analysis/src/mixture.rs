@@ -147,7 +147,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
 
         // Initialize covariances
         let mut covariances = Vec::with_capacity(n_components);
-        for k in 0..n_components {
+        for _ in 0..n_components {
             let mut cov = Array2::eye(n_features) * 0.1; // Small initial covariance
             if self.config.reg_param > 0.0 {
                 for i in 0..n_features {

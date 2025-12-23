@@ -11,10 +11,11 @@
 //! - Scalability with dataset size
 //! - SIMD optimization benefits
 //!
-//! Run with: cargo run --example performance_benchmarks
+use scirs2_core::random::Rng;
+// Run with: cargo run --example performance_benchmarks
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_compose::{
     column_transformer::ColumnTransformerBuilder,
     ensemble::VotingClassifier,
@@ -24,7 +25,7 @@ use sklears_compose::{
 };
 use sklears_core::{
     error::Result as SklResult,
-    traits::{Fit, Predict, Transform},
+    traits::{Fit, Transform},
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -56,8 +57,8 @@ struct BenchmarkResults {
     dataset_size: usize,
     mean_duration: Duration,
     std_duration: Duration,
-    throughput: f64,             // samples per second
-    memory_usage: Option<usize>, // bytes
+    throughput: f64,              // samples per second
+    _memory_usage: Option<usize>, // bytes
 }
 
 impl BenchmarkResults {
@@ -84,7 +85,7 @@ impl BenchmarkResults {
             mean_duration,
             std_duration,
             throughput,
-            memory_usage: None,
+            _memory_usage: None,
         }
     }
 
@@ -103,11 +104,13 @@ impl BenchmarkResults {
 /// Generate synthetic dataset for benchmarking
 fn generate_benchmark_dataset(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
     let mut rng = thread_rng();
-    let features = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>() * 2.0 - 1.0);
-    let labels = Array1::from_shape_fn(
-        n_samples,
-        |_| if rng.gen::<f64>() < 0.5 { 0.0 } else { 1.0 },
-    );
+    let features =
+        Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>() * 2.0 - 1.0);
+    let labels =
+        Array1::from_shape_fn(
+            n_samples,
+            |_| if rng.random::<f64>() < 0.5 { 0.0 } else { 1.0 },
+        );
     (features, labels)
 }
 
@@ -252,7 +255,7 @@ fn benchmark_ensemble_methods(config: &BenchmarkConfig) -> SklResult<Vec<Benchma
         let (X, y) = generate_benchmark_dataset(dataset_size, config.n_features);
 
         // Create voting classifier with multiple estimators using builder
-        let voting_classifier = VotingClassifier::builder()
+        let _voting_classifier = VotingClassifier::builder()
             .estimator("model_0", Box::new(MockPredictor::new()))
             .estimator("model_1", Box::new(MockPredictor::new()))
             .estimator("model_2", Box::new(MockPredictor::new()))
@@ -300,7 +303,7 @@ fn benchmark_simd_optimizations(config: &BenchmarkConfig) -> SklResult<Vec<Bench
     for &dataset_size in &config.dataset_sizes {
         let mut rng = thread_rng();
         let data = Array2::from_shape_fn((dataset_size, config.n_features), |_| {
-            rng.gen::<f64>() * 2.0 - 1.0
+            rng.random::<f64>() * 2.0 - 1.0
         });
 
         // Benchmark without SIMD
@@ -318,7 +321,7 @@ fn benchmark_simd_optimizations(config: &BenchmarkConfig) -> SklResult<Vec<Bench
         ));
 
         // Benchmark with SIMD (simulated - actual SIMD would use hardware instructions)
-        let simd_config = SimdConfig {
+        let _simd_config = SimdConfig {
             use_avx2: true,
             use_avx512: false,
             use_fma: true,

@@ -38,7 +38,7 @@ pub fn make_low_rank_matrix(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;
@@ -106,7 +106,7 @@ pub fn make_sparse_coded_signal(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;
@@ -139,7 +139,7 @@ pub fn make_sparse_coded_signal(
         // Select n_nonzero_coefs random components
         let mut available_components: Vec<usize> = (0..n_components).collect();
         for j in (n_nonzero_coefs..available_components.len()).rev() {
-            let k = rng.gen_range(0..=j);
+            let k = rng.gen_range(0..j + 1);
             available_components.swap(j, k);
         }
 
@@ -193,7 +193,7 @@ pub fn make_sparse_spd_matrix(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Start with identity matrix
@@ -266,7 +266,7 @@ pub fn make_spd_matrix(n_dim: usize, random_state: Option<u64>) -> Result<Array2
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;

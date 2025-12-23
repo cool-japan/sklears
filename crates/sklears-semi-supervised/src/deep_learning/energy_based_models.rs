@@ -6,7 +6,7 @@
 //! labeled and unlabeled data through energy minimization and contrastive learning.
 
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Fit, Predict, PredictProba};
 
@@ -156,7 +156,7 @@ impl EnergyBasedModel {
             for i in 0..fan_in {
                 for j in 0..fan_out {
                     // Generate uniform distributed random number in [-scale, scale]
-                    let u: f64 = rng.gen_range(0.0..1.0);
+                    let u: f64 = rng.random_range(0.0, 1.0);
                     weight[(i, j)] = u * (2.0 * scale) - scale;
                 }
             }
@@ -175,7 +175,7 @@ impl EnergyBasedModel {
         for i in 0..*last_hidden_dim {
             for j in 0..self.n_classes {
                 // Generate uniform distributed random number in [-class_scale, class_scale]
-                let u: f64 = rng.gen_range(0.0..1.0);
+                let u: f64 = rng.random_range(0.0, 1.0);
                 class_weights[(i, j)] = u * (2.0 * class_scale) - class_scale;
             }
         }
@@ -271,8 +271,8 @@ impl EnergyBasedModel {
         for i in 0..self.n_negative_samples {
             for j in 0..input_dim {
                 // Generate normal distributed random number (mean=0.0, std=1.0)
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 negative_samples[(i, j)] = z; // mean=0.0, std=1.0
             }
@@ -355,7 +355,7 @@ impl EnergyBasedModel {
             let mut noise = Array1::zeros(sample.len());
             for i in 0..sample.len() {
                 // Generate standard normal and scale
-                noise[i] = rng.gen_range(-3.0..3.0) * noise_std / 3.0; // Approximate normal
+                noise[i] = rng.random_range(-3.0, 3.0) * noise_std / 3.0; // Approximate normal
             }
             sample = &sample - step_size * &gradient + &noise;
         }
@@ -379,7 +379,7 @@ impl EnergyBasedModel {
             let mut sample = Array1::zeros(self.input_dim);
             for i in 0..self.input_dim {
                 // Generate standard normal (approximate)
-                sample[i] = rng.gen_range(-3.0..3.0) / 3.0; // Approximate standard normal
+                sample[i] = rng.random_range(-3.0, 3.0) / 3.0; // Approximate standard normal
             }
             let energy = self.compute_energy(&sample.view())?;
             let log_prob = -energy / self.temperature;

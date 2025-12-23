@@ -16,7 +16,6 @@ description = "Cross decomposition algorithms (PLS, CCA)"
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 
 # Standard dependencies

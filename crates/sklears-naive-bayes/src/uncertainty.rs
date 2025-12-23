@@ -1,9 +1,11 @@
 //! Uncertainty quantification for Naive Bayes classifiers
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
+use once_cell::sync::Lazy;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::Result;
 use std::f64::consts::PI;
+use std::sync::Mutex;
 
 /// Uncertainty types for Naive Bayes predictions
 #[derive(Debug, Clone)]
@@ -17,6 +19,9 @@ pub struct UncertaintyMeasures {
     /// Variance of the prediction distribution
     pub variance: Array1<f64>,
 }
+
+static RNG_STATE: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(12345));
+static BOX_MULLER_CACHE: Lazy<Mutex<Option<f64>>> = Lazy::new(|| Mutex::new(None));
 
 /// Uncertainty quantification methods
 pub trait UncertaintyQuantification {
@@ -541,27 +546,37 @@ impl ModelUncertaintyPropagation {
 
     /// Simple Gaussian sampling (in practice, would use a proper RNG)
     fn sample_gaussian(&self, mean: f64, std: f64) -> f64 {
-        // Box-Muller transform for Gaussian sampling
-        static mut CACHED: Option<f64> = None;
-        static mut SEED: u64 = 12345;
-
-        unsafe {
-            if let Some(cached) = CACHED.take() {
-                return mean + std * cached;
-            }
-
-            SEED = SEED.wrapping_mul(1103515245).wrapping_add(12345);
-            let u1 = (SEED as f64) / (u64::MAX as f64);
-            SEED = SEED.wrapping_mul(1103515245).wrapping_add(12345);
-            let u2 = (SEED as f64) / (u64::MAX as f64);
-
-            let mag = std * (-2.0 * u1.ln()).sqrt();
-            let z0 = mag * (2.0 * PI * u2).cos();
-            let z1 = mag * (2.0 * PI * u2).sin();
-
-            CACHED = Some(z1);
-            mean + z0
+        if std == 0.0 {
+            return mean;
         }
+
+        if let Some(cached) = {
+            let mut cache = BOX_MULLER_CACHE.lock().unwrap();
+            cache.take()
+        } {
+            return mean + std * cached;
+        }
+
+        const MULTIPLIER: u64 = 1_103_515_245;
+        const INCREMENT: u64 = 12_345;
+
+        let (u1, u2) = {
+            let mut state = RNG_STATE.lock().unwrap();
+            *state = state.wrapping_mul(MULTIPLIER).wrapping_add(INCREMENT);
+            let first = (*state as f64) / (u64::MAX as f64);
+            *state = state.wrapping_mul(MULTIPLIER).wrapping_add(INCREMENT);
+            let second = (*state as f64) / (u64::MAX as f64);
+            (first, second)
+        };
+
+        let u1 = u1.clamp(f64::EPSILON, 1.0);
+        let radius = (-2.0 * u1.ln()).sqrt();
+        let theta = 2.0 * PI * u2;
+        let z0 = radius * theta.cos();
+        let z1 = radius * theta.sin();
+
+        *BOX_MULLER_CACHE.lock().unwrap() = Some(z1);
+        mean + std * z0
     }
 
     /// Compute ensemble mean

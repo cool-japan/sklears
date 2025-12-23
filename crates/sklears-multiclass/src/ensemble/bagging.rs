@@ -6,7 +6,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -22,7 +22,7 @@ pub struct BaggingConfig {
     pub max_samples: Option<usize>,
     /// Whether to sample with replacement
     pub bootstrap: bool,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -324,9 +324,9 @@ where
         }
 
         let max_samples = self.config.max_samples.unwrap_or(n_samples);
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed + self.base_estimator.estimators.len() as u64),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed + self.base_estimator.estimators.len() as u64),
+            None => seeded_rng(42),
         };
 
         // Train additional estimators
@@ -335,7 +335,7 @@ where
             (0..additional_estimators)
                 .into_par_iter()
                 .map(|i| {
-                    let mut local_rng = Random::seed(
+                    let mut local_rng = seeded_rng(
                         self.config.random_state.unwrap_or(0)
                             + (self.base_estimator.estimators.len() + i) as u64,
                     );
@@ -368,7 +368,7 @@ where
         X: &Array2<f64>,
         y: &Array1<i32>,
         max_samples: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Array1<i32>)> {
         let n_samples = X.nrows();
         let n_features = X.ncols();
@@ -380,7 +380,7 @@ where
         if self.config.bootstrap {
             // Sample with replacement
             for i in 0..sample_size {
-                let idx = rng.random_range(0, n_samples);
+                let idx = rng.gen_range(0..n_samples);
                 X_bootstrap.row_mut(i).assign(&X.row(idx));
                 y_bootstrap[i] = y[idx];
             }
@@ -389,7 +389,7 @@ where
             let mut indices: Vec<usize> = (0..n_samples).collect();
             // Shuffle indices using Fisher-Yates algorithm
             for i in (1..indices.len()).rev() {
-                let j = rng.random_range(0, i + 1);
+                let j = rng.gen_range(0..i + 1);
                 indices.swap(i, j);
             }
             indices.truncate(sample_size);
@@ -429,9 +429,9 @@ where
         }
 
         let max_samples = self.config.max_samples.unwrap_or(n_samples);
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         // Train estimators in parallel or sequentially
@@ -441,7 +441,7 @@ where
                 .into_par_iter()
                 .map(|i| {
                     let mut local_rng =
-                        Random::seed(self.config.random_state.unwrap_or(0) + i as u64);
+                        seeded_rng(self.config.random_state.unwrap_or(0) + i as u64);
                     let (X_bootstrap, y_bootstrap) =
                         self.bootstrap_sample(X, y, max_samples, &mut local_rng)?;
                     self.base_estimator.clone().fit(&X_bootstrap, &y_bootstrap)
@@ -487,7 +487,7 @@ where
         X: &Array2<f64>,
         y: &Array1<i32>,
         max_samples: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Array1<i32>)> {
         let n_samples = X.nrows();
         let n_features = X.ncols();
@@ -499,10 +499,10 @@ where
         for i in 0..sample_size {
             let idx = if self.config.bootstrap {
                 // Sample with replacement
-                rng.random_range(0, n_samples)
+                rng.gen_range(0..n_samples)
             } else {
                 // Sample without replacement (would need more complex logic for true without replacement)
-                rng.random_range(0, n_samples)
+                rng.gen_range(0..n_samples)
             };
 
             X_bootstrap.row_mut(i).assign(&X.row(idx));

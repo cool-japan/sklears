@@ -5,7 +5,8 @@
 //! extraction when the data is inherently non-negative.
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{thread_rng, Rng, SeedableRng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -206,9 +207,12 @@ impl Fit<Array2<f64>, ()> for NMF<Untrained> {
             ));
         }
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seed for reproducibility
+        let mut rng = if let Some(seed) = self.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut thread_rng())
+        };
 
         // Initialize W and H matrices
         let (mut w, mut h) = self.initialize_matrices(x, &mut rng)?;

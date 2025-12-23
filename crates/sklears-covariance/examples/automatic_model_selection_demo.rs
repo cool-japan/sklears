@@ -5,6 +5,7 @@
 //! analyzes data properties and intelligently selects from multiple candidate estimators.
 
 use scirs2_core::ndarray::Array2;
+use scirs2_core::random::Rng;
 use sklears_core::error::Result as SklResult;
 use sklears_covariance::{
     model_selection_presets, AutoCovarianceSelector, CovarianceDataFrame, DataFrameEstimator,
@@ -47,7 +48,7 @@ fn demo_basic_model_selection() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Create a basic model selector with common estimators
-    let mut selector = model_selection_presets::basic_selector::<f64>();
+    let mut selector = model_selection_presets::basic_selector();
 
     // Add additional candidate estimators
     selector = add_custom_candidates(selector);
@@ -134,9 +135,9 @@ fn demo_data_type_specific_selection() -> Result<(), Box<dyn std::error::Error>>
 
         // Use appropriate selector for data type
         let selector = match data_type {
-            "High-Dimensional" => model_selection_presets::high_dimensional_selector::<f64>(),
-            "Sparse Correlation" => model_selection_presets::sparse_selector::<f64>(),
-            _ => model_selection_presets::basic_selector::<f64>(),
+            "High-Dimensional" => model_selection_presets::high_dimensional_selector(),
+            "Sparse Correlation" => model_selection_presets::sparse_selector(),
+            _ => model_selection_presets::basic_selector(),
         };
 
         let selector = add_custom_candidates(selector);
@@ -218,8 +219,7 @@ fn demo_advanced_selection_strategies() -> Result<(), Box<dyn std::error::Error>
     println!("==============================");
 
     for (strategy_name, strategy) in strategies {
-        let selector =
-            model_selection_presets::basic_selector::<f64>().selection_strategy(strategy);
+        let selector = model_selection_presets::basic_selector().selection_strategy(strategy);
         let selector = add_custom_candidates(selector);
 
         let start_time = std::time::Instant::now();
@@ -267,7 +267,7 @@ fn demo_data_characterization() -> Result<(), Box<dyn std::error::Error>> {
         complex_data.shape().1
     );
 
-    let selector = model_selection_presets::basic_selector::<f64>();
+    let selector = model_selection_presets::basic_selector();
     let selector = add_custom_candidates(selector);
 
     let result = selector.select_best(&complex_data)?;
@@ -469,21 +469,21 @@ fn create_financial_return_data(
     n_samples: usize,
     n_assets: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_assets));
 
     for i in 0..n_samples {
         // Market factor with volatility clustering
-        let market_vol = 0.01 + 0.005 * (rng.gen::<f64>() * 2.0 - 1.0).abs();
-        let market_return = rng.gen::<f64>() * 2.0 - 1.0 * market_vol;
+        let market_vol = 0.01 + 0.005 * (rng.random::<f64>() * 2.0 - 1.0).abs();
+        let market_return = rng.random::<f64>() * 2.0 - 1.0 * market_vol;
 
         for j in 0..n_assets {
             // Asset-specific beta and idiosyncratic risk
             let beta = 0.5 + (j as f64 / n_assets as f64) * 1.0;
-            let idiosyncratic_vol = 0.008 + 0.002 * (rng.gen::<f64>() * 2.0 - 1.0).abs();
-            let idiosyncratic = rng.gen::<f64>() * 2.0 - 1.0 * idiosyncratic_vol;
+            let idiosyncratic_vol = 0.008 + 0.002 * (rng.random::<f64>() * 2.0 - 1.0).abs();
+            let idiosyncratic = rng.random::<f64>() * 2.0 - 1.0 * idiosyncratic_vol;
 
             data[[i, j]] = market_return * beta + idiosyncratic;
         }
@@ -497,7 +497,7 @@ fn create_high_dimensional_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
@@ -509,7 +509,7 @@ fn create_high_dimensional_data(
     // Generate factors
     for i in 0..n_samples {
         for f in 0..n_factors {
-            factors[[i, f]] = rng.gen::<f64>() * 2.0 - 1.0;
+            factors[[i, f]] = rng.random::<f64>() * 2.0 - 1.0;
         }
     }
 
@@ -519,7 +519,7 @@ fn create_high_dimensional_data(
             let factor_loading = (j % n_factors) as f64 / n_factors as f64 + 0.1;
             let factor_idx = j % n_factors;
             data[[i, j]] =
-                factors[[i, factor_idx]] * factor_loading + rng.gen::<f64>() * 2.0 - 1.0 * 0.1;
+                factors[[i, factor_idx]] * factor_loading + rng.random::<f64>() * 2.0 - 1.0 * 0.1;
         }
     }
 
@@ -531,7 +531,7 @@ fn create_well_conditioned_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
@@ -539,7 +539,7 @@ fn create_well_conditioned_data(
     // Create well-conditioned data (low correlations)
     for i in 0..n_samples {
         for j in 0..n_features {
-            data[[i, j]] = rng.gen::<f64>() * 2.0 - 1.0;
+            data[[i, j]] = rng.random::<f64>() * 2.0 - 1.0;
         }
     }
 
@@ -553,7 +553,7 @@ fn create_sparse_correlation_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
@@ -565,19 +565,19 @@ fn create_sparse_correlation_data(
     for i in 0..n_samples {
         for block in 0..n_blocks {
             // Block factor
-            let block_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.7;
+            let block_factor = rng.random::<f64>() * 2.0 - 1.0 * 0.7;
 
             for j in 0..block_size {
                 let feature_idx = block * block_size + j;
                 if feature_idx < n_features {
-                    data[[i, feature_idx]] = block_factor + rng.gen::<f64>() * 2.0 - 1.0 * 0.5;
+                    data[[i, feature_idx]] = block_factor + rng.random::<f64>() * 2.0 - 1.0 * 0.5;
                 }
             }
         }
 
         // Independent features
         for j in (n_blocks * block_size)..n_features {
-            data[[i, j]] = rng.gen::<f64>() * 2.0 - 1.0;
+            data[[i, j]] = rng.random::<f64>() * 2.0 - 1.0;
         }
     }
 
@@ -589,21 +589,21 @@ fn create_noisy_financial_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
         // Add occasional jumps (outliers)
-        let is_jump_day = rng.gen_bool(0.05); // 5% chance of jump
+        let is_jump_day = rng.random::<f64>() < 0.05; // 5% chance of jump
         let jump_magnitude = if is_jump_day { 3.0 } else { 1.0 };
 
-        let market_return = rng.gen::<f64>() * 2.0 - 1.0 * 0.015 * jump_magnitude;
+        let market_return = rng.random::<f64>() * 2.0 - 1.0 * 0.015 * jump_magnitude;
 
         for j in 0..n_features {
             let beta = 0.3 + (j as f64 / n_features as f64) * 1.4;
-            let noise = rng.gen::<f64>() * 2.0 - 1.0 * 0.02;
+            let noise = rng.random::<f64>() * 2.0 - 1.0 * 0.02;
 
             data[[i, j]] = market_return * beta + noise;
         }
@@ -617,7 +617,7 @@ fn create_complex_mixed_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
@@ -626,23 +626,23 @@ fn create_complex_mixed_data(
         // Mixed characteristics: some normal, some skewed, some heavy-tailed
         for j in 0..n_features {
             let value = match j % 3 {
-                0 => rng.gen::<f64>() * 2.0 - 1.0, // Normal
+                0 => rng.random::<f64>() * 2.0 - 1.0, // Normal
                 1 => {
                     // Skewed distribution
-                    let u = rng.gen_range(0.0..1.0);
+                    let u = rng.random_range(0.0..1.0);
                     if u < 0.8 {
-                        rng.gen::<f64>() * 2.0 - 1.0 * 0.5
+                        rng.random::<f64>() * 2.0 - 1.0 * 0.5
                     } else {
-                        rng.gen::<f64>() * 2.0 - 1.0 * 2.0 + 1.0
+                        rng.random::<f64>() * 2.0 - 1.0 * 2.0 + 1.0
                     }
                 }
                 _ => {
                     // Heavy-tailed (t-distribution approximation)
-                    let u = rng.gen_range(0.0..1.0);
+                    let u = rng.random_range(0.0..1.0);
                     if u < 0.9 {
-                        rng.gen::<f64>() * 2.0 - 1.0
+                        rng.random::<f64>() * 2.0 - 1.0
                     } else {
-                        rng.gen::<f64>() * 2.0 - 1.0 * 5.0
+                        rng.random::<f64>() * 2.0 - 1.0 * 5.0
                     }
                 }
             };
@@ -657,7 +657,7 @@ fn create_complex_mixed_data(
 fn create_benchmark_data(n_samples: usize, n_features: usize) -> SklResult<CovarianceDataFrame> {
     // Create realistic benchmark data combining multiple characteristics
     let financial_data = create_financial_return_data(n_samples, n_features / 2)?;
-    let sparse_data = create_sparse_correlation_data(n_samples, n_features / 2)?;
+    let _sparse_data = create_sparse_correlation_data(n_samples, n_features / 2)?;
 
     // Combine datasets (simplified - just use financial data for demo)
     Ok(financial_data)
@@ -712,7 +712,7 @@ fn add_custom_candidates(mut selector: AutoCovarianceSelector<f64>) -> AutoCovar
 
 // Create a comprehensive selector with many candidates
 fn create_comprehensive_selector() -> AutoCovarianceSelector<f64> {
-    let selector = model_selection_presets::basic_selector::<f64>();
+    let selector = model_selection_presets::basic_selector();
     let selector = add_custom_candidates(selector);
 
     // Add more sophisticated selection strategy

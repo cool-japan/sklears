@@ -809,7 +809,7 @@ mod tests {
             .importance_method(FeatureImportanceMethod::Variance);
 
         let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let _result = fitted_fu.transform(&x).unwrap();
 
         // Should select only features with variance > 0.1 (likely just the last column)
         assert!(fitted_fu.is_feature_selection_enabled());

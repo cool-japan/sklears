@@ -130,7 +130,7 @@ pub fn generate_calibration_curve(
     let mut confidence_upper = Array1::zeros(n_bins);
 
     // Assign samples to bins and compute statistics
-    for (i, (&prob, &label)) in y_prob.iter().zip(y_true.iter()).enumerate() {
+    for (&prob, &label) in y_prob.iter().zip(y_true.iter()) {
         if let Some(bin_idx) = find_bin_index(prob, &bin_edges) {
             bin_counts[bin_idx] += 1;
             bin_centers[bin_idx] += prob;
@@ -362,13 +362,8 @@ fn find_bin_index(value: Float, bin_edges: &Array1<Float>) -> Option<usize> {
         return None;
     }
 
-    for i in 0..bin_edges.len() - 1 {
-        if value >= bin_edges[i] && (value < bin_edges[i + 1] || i == bin_edges.len() - 2) {
-            return Some(i);
-        }
-    }
-
-    None
+    (0..bin_edges.len() - 1)
+        .find(|&i| value >= bin_edges[i] && (value < bin_edges[i + 1] || i == bin_edges.len() - 2))
 }
 
 /// Wilson confidence interval for proportions

@@ -5,7 +5,7 @@
 
 use crate::core::{ImputationError, ImputationResult, Imputer};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -122,7 +122,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SimpleImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
         let mut statistics = Vec::new();
         let mut all_valid_values = Vec::new();
@@ -209,7 +209,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SimpleImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for SimpleImputer<SimpleImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.statistics.len() {
@@ -409,7 +409,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MissingIndicator<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         let features_ = match self.features.as_str() {
@@ -449,7 +449,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MissingIndicator<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for MissingIndicator<MissingIndicatorTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -521,6 +521,6 @@ impl Imputer for SimpleImputer<Untrained> {
         })?;
 
         // Convert back to f64 for the imputation interface
-        Ok(result.mapv(|x| x as f64))
+        Ok(result.mapv(|x| x))
     }
 }

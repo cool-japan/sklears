@@ -374,7 +374,7 @@ impl FluentPipelineBuilder<BuilderEmpty> {
             execution_strategy: Some(ParallelExecutionStrategy::FullParallel),
             memory_config: MemoryConfiguration {
                 efficient_ops: true,
-                chunk_size: Some(100000),
+                chunk_size: Some(100_000),
                 memory_limit_mb: Some(8192),
                 gc_frequency: Some(200),
             },

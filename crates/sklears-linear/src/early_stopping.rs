@@ -4,12 +4,16 @@
 //! cross-validation and iterative optimization processes.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, SeedableRng, SliceRandomExt};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::{SeedableRng, StdRng};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
 };
 use std::collections::VecDeque;
+
+/// Type alias for train-validation split result
+pub type TrainValidationSplit = (Array2<Float>, Array1<Float>, Array2<Float>, Array1<Float>);
 
 /// Early stopping criteria
 #[derive(Debug, Clone)]
@@ -233,7 +237,7 @@ pub fn train_validation_split(
     validation_split: Float,
     shuffle: bool,
     random_state: Option<u64>,
-) -> Result<(Array2<Float>, Array1<Float>, Array2<Float>, Array1<Float>)> {
+) -> Result<TrainValidationSplit> {
     let n_samples = x.nrows();
     let _n_features = x.ncols();
 

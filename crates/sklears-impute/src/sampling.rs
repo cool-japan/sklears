@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::{Random, Rng};
 // use scirs2_core::parallel::{ParallelExecutor, ChunkStrategy}; // Note: not available
 
-use rayon::prelude::*;
+// use rayon::prelude::*; // Unused
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -141,6 +141,15 @@ pub struct SampleDistribution {
     /// distribution_type
     pub distribution_type: DistributionType,
 }
+
+/// Type alias for stratified distributions result
+type StratifiedDistributionsResult = Result<
+    (
+        HashMap<Vec<usize>, HashMap<usize, SampleDistribution>>,
+        Vec<Array1<f64>>,
+    ),
+    SklearsError,
+>;
 
 /// Distribution types for sampling
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -303,8 +312,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for SamplingSimpleImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         let (sample_statistics, sample_distributions) = self.compute_sample_statistics(&X)?;
 
@@ -327,7 +336,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -567,7 +576,7 @@ impl SamplingSimpleImputer<Untrained> {
         for i in 0..n_samples {
             let lower_bound = i as f64 / n_samples as f64;
             let upper_bound = (i + 1) as f64 / n_samples as f64;
-            let uniform_sample = rng.gen::<f64>();
+            let uniform_sample: f64 = rng.gen();
             let stratified_sample = lower_bound + uniform_sample * (upper_bound - lower_bound);
 
             // Map to quantile
@@ -670,7 +679,7 @@ impl SamplingSimpleImputer<SamplingSimpleImputerTrained> {
     fn sample_imputed_value(&self, feature_idx: usize) -> Result<f64, SklearsError> {
         let distribution = &self.state.sample_distributions_[feature_idx];
         let mut rng = Random::default();
-        let random_value = rng.gen::<f64>();
+        let random_value: f64 = rng.gen();
 
         // Find the corresponding value using cumulative weights
         for (i, &cum_weight) in distribution.cumulative_weights.iter().enumerate() {
@@ -759,8 +768,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for StratifiedSamplingImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if self.stratification_features.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -789,7 +798,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -824,16 +833,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 
 impl StratifiedSamplingImputer<Untrained> {
     /// Compute distributions for each stratum
-    fn compute_stratified_distributions(
-        &self,
-        X: &Array2<f64>,
-    ) -> Result<
-        (
-            HashMap<Vec<usize>, HashMap<usize, SampleDistribution>>,
-            Vec<Array1<f64>>,
-        ),
-        SklearsError,
-    > {
+    fn compute_stratified_distributions(&self, X: &Array2<f64>) -> StratifiedDistributionsResult {
         let (n_samples, n_features) = X.dim();
 
         // Compute strata boundaries for stratification features
@@ -873,10 +873,7 @@ impl StratifiedSamplingImputer<Untrained> {
             let row = X.row(i).to_owned();
             let stratum_key = self.assign_to_stratum(&row, &feature_strata)?;
 
-            strata_samples
-                .entry(stratum_key)
-                .or_insert_with(Vec::new)
-                .push(row);
+            strata_samples.entry(stratum_key).or_default().push(row);
         }
 
         // Compute distributions for each stratum and feature
@@ -998,7 +995,7 @@ impl StratifiedSamplingImputer<StratifiedSamplingImputerTrained> {
         distribution: &SampleDistribution,
     ) -> Result<f64, SklearsError> {
         let mut rng = Random::default();
-        let random_value = rng.gen::<f64>();
+        let random_value: f64 = rng.gen();
 
         // Find the corresponding value using cumulative weights
         for (i, &cum_weight) in distribution.cumulative_weights.iter().enumerate() {

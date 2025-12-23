@@ -5,7 +5,9 @@
 //! and out-of-bag evaluation strategies specifically designed for ensemble learning.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -393,7 +395,7 @@ impl EnsembleEvaluator {
             variance.sqrt()
         };
 
-        let alpha = 1.0 - confidence_level;
+        let _alpha = 1.0 - confidence_level;
         let z_score = 1.96; // Approximate for 95% confidence
         let margin_of_error = z_score * std_oob_score / (oob_scores.len() as Float).sqrt();
         let confidence_interval = (
@@ -456,7 +458,7 @@ impl EnsembleEvaluator {
     where
         F: Fn(&Array1<Float>, &Array1<Float>) -> Result<Float, Box<dyn std::error::Error>>,
     {
-        let (cv_strategy, n_folds) = match &self.config.strategy {
+        let (_cv_strategy, n_folds) = match &self.config.strategy {
             EnsembleEvaluationStrategy::EnsembleCrossValidation {
                 cv_strategy,
                 n_folds,
@@ -578,7 +580,7 @@ impl EnsembleEvaluator {
     where
         F: Fn(&Array1<Float>, &Array1<Float>) -> Result<Float, Box<dyn std::error::Error>>,
     {
-        let (diversity_measures, diversity_threshold) = match &self.config.strategy {
+        let (diversity_measures, _diversity_threshold) = match &self.config.strategy {
             EnsembleEvaluationStrategy::DiversityEvaluation {
                 diversity_measures,
                 diversity_threshold,
@@ -695,7 +697,7 @@ impl EnsembleEvaluator {
     where
         F: Fn(&Array1<Float>, &Array1<Float>) -> Result<Float, Box<dyn std::error::Error>>,
     {
-        let (n_bootstrap_samples, stability_metrics) = match &self.config.strategy {
+        let (n_bootstrap_samples, _stability_metrics) = match &self.config.strategy {
             EnsembleEvaluationStrategy::StabilityAnalysis {
                 n_bootstrap_samples,
                 stability_metrics,
@@ -780,7 +782,7 @@ impl EnsembleEvaluator {
     /// Progressive evaluation implementation
     fn evaluate_progressive<F>(
         &mut self,
-        ensemble_predictions: &Array2<Float>,
+        _ensemble_predictions: &Array2<Float>,
         true_labels: &Array1<Float>,
         model_predictions: Option<&Array2<Float>>,
         evaluation_fn: &F,

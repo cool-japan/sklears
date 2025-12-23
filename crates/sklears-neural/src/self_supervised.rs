@@ -368,7 +368,7 @@ impl<T: FloatBounds + ScalarOperand + Debug> SelfSupervisedAutoencoder<T> {
         let mut noisy_input = input.clone();
 
         for element in noisy_input.iter_mut() {
-            let noise = T::from(rng.gen::<f32>()).unwrap() * self.config.noise_level;
+            let noise = T::from(rng.random::<f32>()).unwrap() * self.config.noise_level;
             *element = *element + noise;
         }
 

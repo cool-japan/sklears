@@ -6,8 +6,8 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -332,8 +332,8 @@ where
     ) -> Result<(Array2<f64>, Array1<f64>)> {
         match Method::NAME {
             "rff" => self.generate_rff_approximation::<K>(input_dim),
-            "nystrom" => self.generate_nystrom_approximation::<K>(input_dim),
-            "fastfood" => self.generate_fastfood_approximation::<K>(input_dim),
+            "nystrom" => self.generate_nystrom_approximation(input_dim),
+            "fastfood" => self.generate_fastfood_approximation(input_dim),
             _ => Err(SklearsError::InvalidInput(format!(
                 "Unknown method: {}",
                 Method::NAME
@@ -365,7 +365,7 @@ where
                 for i in 0..N {
                     for j in 0..input_dim {
                         let u1: f64 = rng.gen();
-                        let u2: f64 = rng.gen();
+                        let _u2: f64 = rng.gen();
                         let cauchy_sample = cauchy_scale * (PI * (u1 - 0.5)).tan();
                         weights[[i, j]] = cauchy_sample;
                     }
@@ -386,7 +386,7 @@ where
         Ok((weights, biases))
     }
 
-    fn generate_nystrom_approximation<Kernel: KernelType>(
+    fn generate_nystrom_approximation(
         &self,
         input_dim: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
@@ -405,7 +405,7 @@ where
         Ok((weights, biases))
     }
 
-    fn generate_fastfood_approximation<Kernel: KernelType>(
+    fn generate_fastfood_approximation(
         &self,
         input_dim: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
@@ -593,7 +593,10 @@ where
         }
 
         let mut v = Array1::from_vec(vec![1.0; n]);
-        v /= (v.dot(&v) as f64).sqrt();
+        #[allow(clippy::unnecessary_cast)]
+        {
+            v /= (v.dot(&v) as f64).sqrt();
+        }
 
         let mut eigenvalue = 0.0;
         for _ in 0..20 {

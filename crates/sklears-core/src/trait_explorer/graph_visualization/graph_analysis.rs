@@ -13,7 +13,8 @@ use crate::error::{Result, SklearsError};
 
 // SciRS2 Core imports for numerical computations and SIMD acceleration
 use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Random, rng};
+use scirs2_core::random::{Random, thread_rng, CoreRandom};
+use scirs2_core::Rng;
 // SIMD operations may not be available in current scirs2_core version
 // use scirs2_core::simd::{SimdArray, SimdOps};
 

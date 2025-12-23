@@ -2,6 +2,8 @@
 //! NOTE: Custom kernel support is not yet implemented in SVC/SVR.
 //! These tests are commented out until the feature is added.
 
+#![allow(unexpected_cfgs)]
+
 #[cfg(feature = "custom_kernels")] // Feature doesn't exist yet
 mod custom_kernel_tests {
 
@@ -37,6 +39,7 @@ mod custom_kernel_tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_custom_kernel_svc() {
         // Simple linearly separable data
         let x = array![
@@ -67,6 +70,7 @@ mod custom_kernel_tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_custom_kernel_svr() {
         // Simple regression data
         let x = array![[1.0], [2.0], [3.0], [4.0], [5.0],];
@@ -87,6 +91,7 @@ mod custom_kernel_tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_custom_kernel_multiclass() {
         // Multi-class classification
         let x = array![
@@ -126,6 +131,7 @@ mod custom_kernel_tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_custom_kernel_matrix_computation() {
         // Test that custom kernel matrix computation works correctly
         #[derive(Debug)]
@@ -163,6 +169,7 @@ mod custom_kernel_tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_custom_kernel_cross_computation() {
         // Test cross kernel computation (between train and test sets)
         #[derive(Debug)]
@@ -205,6 +212,7 @@ mod basic_kernel_tests {
     use sklears_svm::kernels::*;
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_linear_kernel() {
         let kernel = LinearKernel;
         let x1 = array![1.0, 2.0, 3.0];
@@ -215,6 +223,7 @@ mod basic_kernel_tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_rbf_kernel() {
         let kernel = RbfKernel::new(1.0);
         let x1 = array![1.0, 0.0];

@@ -489,10 +489,12 @@ The sklears project has **exceeded all v0.1.0 goals** and is ready for productio
 
 ---
 
-*Version: 0.1.0-alpha.1*  
-*Last updated: 2025-10-13*  
-*Release Date: 2025-10-13*  
-*Next Target: 0.1.0-beta - Q4 2025*
+*Version: 0.1.0-alpha.2*  
+*Last updated: 2025-12-22*  
+*Release Date: 2025-12-22*  
+*Next Target: 0.1.0-beta - Q1 2026*
+
+**Alpha.2 Launch (2025-12-22)**: Second alpha release with 11,292 passing tests (170 skipped) representing a significant increase in test coverage and stability. Continued refinement of APIs and documentation in preparation for beta milestone.
 
 **Alpha.1 Launch (2025-10-13)**: Tagged and published the first public preview! All 10,013 workspace tests pass (69 skipped) across 50+ crates, confirming production readiness of the Rust-native scikit-learn experience. Documentation, examples, and benchmarking suites were refreshed; crates.io metadata and docs.rs builds validated; release notes authored for downstream consumers. Focus now shifts to API stabilization, developer documentation polish, and automated release tooling ahead of the beta.
 

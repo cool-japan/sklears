@@ -252,7 +252,7 @@ impl TreeValidator {
     }
 
     /// Validate that the tree has been fitted
-    pub fn validate_fitted(tree: &DecisionTree<Trained>) -> Result<()> {
+    pub fn validate_fitted(_tree: &DecisionTree<Trained>) -> Result<()> {
         // Type system ensures tree is fitted
         Ok(())
     }

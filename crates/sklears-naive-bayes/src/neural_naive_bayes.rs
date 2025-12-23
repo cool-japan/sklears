@@ -355,7 +355,7 @@ impl NeuralNaiveBayes {
     /// Train a single neural network
     fn train_network(
         &mut self,
-        network: &mut Vec<NeuralLayer>,
+        network: &mut [NeuralLayer],
         x: &Array2<f64>,
         y: &Array1<f64>,
     ) -> Result<(), NeuralNBError> {

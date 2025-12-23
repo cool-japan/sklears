@@ -127,7 +127,7 @@ impl QuadraticDiscriminantAnalysis<Untrained> {
 
     /// Compute robust mean using iterative reweighting
     fn robust_mean(&self, data: &Array2<Float>, weights: &Array1<Float>) -> Array1<Float> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
         let mut robust_mean = Array1::zeros(n_features);
 
         for j in 0..n_features {

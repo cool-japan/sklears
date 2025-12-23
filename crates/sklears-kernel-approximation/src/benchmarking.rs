@@ -6,8 +6,8 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::prelude::Result;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -126,8 +126,8 @@ impl BenchmarkDataset {
 
         // Helper function to generate normal distribution samples using Box-Muller
         let normal_sample = |rng: &mut RealStdRng, mean: f64, std_dev: f64| -> f64 {
-            let u1 = rng.gen::<f64>();
-            let u2 = rng.gen::<f64>();
+            let u1: f64 = rng.gen();
+            let u2: f64 = rng.gen();
             let z = (-2.0_f64 * u1.ln()).sqrt() * (2.0_f64 * std::f64::consts::PI * u2).cos();
             mean + z * std_dev
         };
@@ -206,8 +206,8 @@ impl BenchmarkDataset {
 
         // Helper function to generate normal distribution samples using Box-Muller
         let normal_sample = |rng: &mut RealStdRng, mean: f64, std_dev: f64| -> f64 {
-            let u1 = rng.gen::<f64>();
-            let u2 = rng.gen::<f64>();
+            let u1: f64 = rng.gen();
+            let u2: f64 = rng.gen();
             let z = (-2.0_f64 * u1.ln()).sqrt() * (2.0_f64 * std::f64::consts::PI * u2).cos();
             mean + z * std_dev
         };
@@ -388,7 +388,7 @@ impl KernelApproximationBenchmark {
         method: &dyn BenchmarkableKernelMethod,
     ) -> Result<Vec<BenchmarkResult>> {
         let mut method_results = Vec::new();
-        let method_name = method.method_name();
+        let _method_name = method.method_name();
 
         for dataset in &self.datasets {
             for &n_components in &self.config.approximation_dimensions {
@@ -437,7 +437,7 @@ impl KernelApproximationBenchmark {
         }
 
         // Actual benchmark run
-        let fit_start = Instant::now();
+        let _fit_start = Instant::now();
         let (fitted_method, fit_time) =
             match method.benchmark_fit(&dataset.data, dataset.target.as_ref()) {
                 Ok(result) => result,
@@ -898,7 +898,7 @@ mod tests {
 
         fn benchmark_fit(
             &self,
-            data: &Array2<f64>,
+            _data: &Array2<f64>,
             _target: Option<&Array1<f64>>,
         ) -> Result<(Box<dyn BenchmarkableTransformer>, Duration)> {
             let start = Instant::now();

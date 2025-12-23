@@ -455,11 +455,9 @@ impl ProximalGradientOptimizer {
 
             // Optional: track objective value for convergence
             let f_curr = f(&x);
-            if (f_curr - f_prev).abs() < self.tol * f_prev.abs().max(1.0) {
-                if iter > 10 {
-                    // Avoid early termination
-                    return Ok(x);
-                }
+            if (f_curr - f_prev).abs() < self.tol * f_prev.abs().max(1.0) && iter > 10 {
+                // Avoid early termination
+                return Ok(x);
             }
             f_prev = f_curr;
         }

@@ -302,12 +302,12 @@ impl LayoutAlgorithmImpl for ForceDirectedLayout {
 
         // Place nodes in random positions
         for node in &graph.nodes {
-            let x = rng.gen_range(-100.0..100.0);
-            let y = rng.gen_range(-100.0..100.0);
+            let x = rng.random_range(-100.0, 100.0);
+            let y = rng.random_range(-100.0, 100.0);
             positions_2d.insert(node.id.clone(), (x, y));
 
             if let Some(ref mut pos_3d) = positions_3d {
-                let z = rng.gen_range(-100.0..100.0);
+                let z = rng.random_range(-100.0, 100.0);
                 pos_3d.insert(node.id.clone(), (x, y, z));
             }
         }
@@ -828,8 +828,8 @@ fn spring_embedder_layout_fn(layout: &SpringEmbedderLayout, graph: &TraitGraph) 
 
     // Simple spring embedder - start with random positions
     for node in &graph.nodes {
-        let x = layout.center.0 + rng.gen_range(-layout.spacing..layout.spacing);
-        let y = layout.center.1 + rng.gen_range(-layout.spacing..layout.spacing);
+        let x = layout.center.0 + rng.random_range(-layout.spacing, layout.spacing);
+        let y = layout.center.1 + rng.random_range(-layout.spacing, layout.spacing);
         positions.insert(node.id.clone(), (x, y));
     }
 

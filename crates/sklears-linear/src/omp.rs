@@ -376,7 +376,7 @@ mod tests {
             .unwrap();
 
         // Should get a reasonable approximation
-        let predictions = model.predict(&x).unwrap();
+        let _predictions = model.predict(&x).unwrap();
         let r2 = model.score(&x, &y).unwrap();
         assert!(r2 > 0.95);
     }

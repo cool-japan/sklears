@@ -7,7 +7,9 @@ use crate::base::FeatureSelector;
 use scirs2_core::ndarray::{Array2, Axis};
 
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Transform},
@@ -419,7 +421,7 @@ impl DistributionalPropertyTest {
         ))
     }
 
-    fn compute_clustering_score(selected_features: &[usize], n_features: usize) -> Float {
+    fn compute_clustering_score(selected_features: &[usize], _n_features: usize) -> Float {
         if selected_features.len() <= 1 {
             return 1.0;
         }

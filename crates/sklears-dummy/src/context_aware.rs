@@ -5,9 +5,9 @@
 //! while still remaining simple and interpretable baselines.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::prelude::*;
-use scirs2_core::random::Distribution;
+use scirs2_core::random::{
+    essentials::Normal, prelude::*, rngs::StdRng, Distribution, Rng, SeedableRng,
+};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
 use sklears_core::types::{Features, Float};

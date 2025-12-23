@@ -1,60 +1,31 @@
 //! SIMD-accelerated Gaussian Mixture Model operations
 //!
-//! This module provides SIMD-optimized implementations of computationally intensive
+//! This module provides optimized implementations of computationally intensive
 //! GMM operations including multivariate normal densities, EM algorithm steps,
 //! matrix operations, and statistical computations.
 //!
-//! For stable Rust compatibility, scalar fallbacks are provided when SIMD
-//! features are not available. Performance claims of 6.4x-11.2x speedups
-//! apply to nightly Rust with full SIMD support enabled.
-
-// TODO: Uncomment for nightly Rust with SIMD support
-// use std::simd::{f32x16, f32x8, f64x4, f64x8};
+//! ## SciRS2 Policy Compliance
+//! ✅ Uses scirs2-core for array operations
+//! ✅ Scalar implementations with ndarray backend optimizations
+//! ✅ Works on stable Rust (no nightly features required)
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::types::Float;
 
-/// SIMD-accelerated Euclidean distance computation
-/// Achieves 6.4x-9.8x speedup for distance calculations in GMM clustering (scalar fallback)
+/// Euclidean distance computation
 pub fn simd_euclidean_distance_squared(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> Float {
     let len = x.len().min(y.len());
     let mut sum = 0.0;
 
-    // Scalar fallback implementation for stable Rust
     for i in 0..len {
         let diff = x[i] - y[i];
         sum += diff * diff;
     }
 
     sum
-
-    /* SIMD implementation for nightly Rust:
-    // Process 8 elements at a time with f64x8 SIMD
-    let simd_len = len - (len % 8);
-    for i in (0..simd_len).step_by(8) {
-        let x_chunk = f64x8::from_array([
-            x[i], x[i + 1], x[i + 2], x[i + 3],
-            x[i + 4], x[i + 5], x[i + 6], x[i + 7],
-        ]);
-        let y_chunk = f64x8::from_array([
-            y[i], y[i + 1], y[i + 2], y[i + 3],
-            y[i + 4], y[i + 5], y[i + 6], y[i + 7],
-        ]);
-        let diff = x_chunk - y_chunk;
-        let squared_diff = diff * diff;
-        sum += squared_diff.reduce_sum();
-    }
-
-    // Handle remaining elements
-    for i in simd_len..len {
-        let diff = x[i] - y[i];
-        sum += diff * diff;
-    }
-    */
 }
 
-/// SIMD-accelerated multivariate Gaussian log-likelihood computation
-/// Achieves 7.8x-11.2x speedup for probability density calculations (scalar fallback)
+/// Multivariate Gaussian log-likelihood computation
 pub fn simd_multivariate_normal_log_density(
     sample: &ArrayView1<Float>,
     mean: &ArrayView1<Float>,
@@ -63,7 +34,6 @@ pub fn simd_multivariate_normal_log_density(
 ) -> Float {
     let n_features = sample.len() as Float;
 
-    // Scalar fallback implementation for stable Rust
     let mut mahalanobis = 0.0;
     for i in 0..sample.len() {
         let diff = sample[i] - mean[i];

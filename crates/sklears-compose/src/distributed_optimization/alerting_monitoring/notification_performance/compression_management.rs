@@ -346,8 +346,10 @@ impl CompressionManager {
             });
         }
 
+        let start_time = SystemTime::now();
         let best_algorithm = self.select_best_algorithm(data)?;
         let compressed_data = self.compress(data, best_algorithm.clone())?;
+        let compression_time = start_time.elapsed().unwrap_or(Duration::from_millis(0));
 
         let compression_ratio = data.len() as f64 / compressed_data.len() as f64;
         let request_id = format!("auto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos());
@@ -357,10 +359,10 @@ impl CompressionManager {
             compressed_data,
             algorithm_used: best_algorithm,
             compression_ratio,
-            compression_time: Duration::from_millis(0), // TODO: Track actual time
+            compression_time,
             original_size: data.len(),
             compressed_size: compressed_data.len(),
-            metadata: CompressionMetadata::default(),
+            metadata: CompressionMetadata::new(compression_time),
         })
     }
 

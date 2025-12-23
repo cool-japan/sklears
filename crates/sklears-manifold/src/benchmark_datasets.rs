@@ -47,8 +47,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let t = 1.5 * PI * (1.0 + 2.0 * rng.gen::<f64>());
-            let height = 21.0 * rng.gen::<f64>();
+            let t: f64 = 1.5 * PI * (1.0 + 2.0 * rng.gen::<f64>());
+            let height: f64 = 21.0 * rng.gen::<f64>();
 
             data[[i, 0]] = t * t.cos() + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
             data[[i, 1]] = height + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
@@ -82,8 +82,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let t = 3.0 * PI * rng.gen::<f64>();
-            let height = 2.0 * rng.gen::<f64>();
+            let t: f64 = 3.0 * PI * rng.gen::<f64>();
+            let height: f64 = 2.0 * rng.gen::<f64>();
 
             data[[i, 0]] = t.sin() + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
             data[[i, 1]] = height + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);

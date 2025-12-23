@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_precision)]
+#![allow(clippy::manual_clamp)]
 //! Residual analysis utilities for regression diagnostics
 //!
 //! This module provides comprehensive tools for analyzing regression residuals,
@@ -203,15 +205,16 @@ pub struct ResidualAnalyzer {
     config: ResidualAnalysisConfig,
 }
 
+impl Default for ResidualAnalyzer {
+    fn default() -> Self {
+        Self::new(ResidualAnalysisConfig::default())
+    }
+}
+
 impl ResidualAnalyzer {
     /// Create a new residual analyzer
     pub fn new(config: ResidualAnalysisConfig) -> Self {
         Self { config }
-    }
-
-    /// Create analyzer with default configuration
-    pub fn default() -> Self {
-        Self::new(ResidualAnalysisConfig::default())
     }
 
     /// Perform comprehensive residual analysis
@@ -268,7 +271,7 @@ impl ResidualAnalyzer {
     fn compute_basic_stats(
         &self,
         residuals: &[f64],
-        fitted_values: &[f64],
+        _fitted_values: &[f64],
     ) -> Result<ResidualStats, SklearsError> {
         let n = residuals.len() as f64;
         let mean = residuals.iter().sum::<f64>() / n;
@@ -331,19 +334,74 @@ impl ResidualAnalyzer {
     }
 
     fn detect_outliers(&self, residuals: &[f64]) -> Result<OutlierAnalysis, SklearsError> {
+        if residuals.len() < 2 {
+            return Err(SklearsError::InvalidInput(
+                "Need at least two residuals to perform outlier detection".to_string(),
+            ));
+        }
+
         let mean = residuals.iter().sum::<f64>() / residuals.len() as f64;
         let std_dev = (residuals.iter().map(|&r| (r - mean).powi(2)).sum::<f64>()
             / (residuals.len() - 1) as f64)
             .sqrt();
 
+        // Robust statistics based on the median absolute deviation (MAD)
+        let mut sorted = residuals.to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+        let median = if sorted.len() % 2 == 0 {
+            let mid = sorted.len() / 2;
+            (sorted[mid - 1] + sorted[mid]) / 2.0
+        } else {
+            sorted[sorted.len() / 2]
+        };
+
+        let mut deviations: Vec<f64> = residuals.iter().map(|r| (r - median).abs()).collect();
+        deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+        let mad = if deviations.len() % 2 == 0 {
+            let mid = deviations.len() / 2;
+            (deviations[mid - 1] + deviations[mid]) / 2.0
+        } else {
+            deviations[deviations.len() / 2]
+        };
+        // Consistency constant to make MAD comparable to standard deviation under normality
+        let mad_scale = mad * 1.4826;
+
         let mut outlier_indices = vec![];
         let mut outlier_scores = vec![];
 
         for (i, &residual) in residuals.iter().enumerate() {
-            let standardized = (residual - mean) / std_dev;
-            if standardized.abs() > self.config.outlier_threshold {
+            let standardized = if std_dev > 0.0 {
+                (residual - mean) / std_dev
+            } else {
+                0.0
+            };
+
+            let robust = if mad_scale > 0.0 {
+                (residual - median) / mad_scale
+            } else {
+                0.0
+            };
+
+            let exceeds_standard = standardized.abs() > self.config.outlier_threshold;
+            let exceeds_robust = robust.abs() > self.config.outlier_threshold;
+
+            if exceeds_standard || exceeds_robust {
                 outlier_indices.push(i);
-                outlier_scores.push(standardized);
+                let score = match (exceeds_standard, exceeds_robust) {
+                    (true, false) => standardized,
+                    (false, true) => robust,
+                    (true, true) => {
+                        if robust.abs() >= standardized.abs() {
+                            robust
+                        } else {
+                            standardized
+                        }
+                    }
+                    (false, false) => 0.0,
+                };
+                outlier_scores.push(score);
             }
         }
 
@@ -355,7 +413,10 @@ impl ResidualAnalyzer {
             outlier_scores,
             num_outliers,
             outlier_percentage,
-            detection_method: format!("Standardized residuals > {}", self.config.outlier_threshold),
+            detection_method: format!(
+                "Standardized or MAD-scaled residuals > {}",
+                self.config.outlier_threshold
+            ),
         })
     }
 
@@ -505,7 +566,7 @@ impl ResidualAnalyzer {
 
         // Regress squared residuals on original predictors
         // This is a simplified implementation
-        let mut ssr = 0.0;
+        let mut _ssr = 0.0;
         let mut tss = 0.0;
 
         for &sq_res in &squared_residuals {
@@ -514,7 +575,7 @@ impl ResidualAnalyzer {
 
         // Simplified R-squared calculation
         let r_squared = 0.1; // Placeholder - would need proper regression
-        ssr = r_squared * tss;
+        _ssr = r_squared * tss;
 
         let lm_statistic = n as f64 * r_squared;
         let critical_value = self.chi_square_critical_value(p - 1, self.config.confidence_level);
@@ -1014,17 +1075,17 @@ impl ResidualAnalyzer {
 
         if p < p_low {
             let q = (-2.0 * p.ln()).sqrt();
-            return (((((c0 * q + c1) * q + c2) * q + c3) * q + c4) * q + c5)
-                / ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0);
+            (((((c0 * q + c1) * q + c2) * q + c3) * q + c4) * q + c5)
+                / ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0)
         } else if p <= p_high {
             let q = p - 0.5;
             let r = q * q;
-            return (((((a0 * r + a1) * r + a2) * r + a3) * r + a4) * r + a5) * q
-                / (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1.0);
+            (((((a0 * r + a1) * r + a2) * r + a3) * r + a4) * r + a5) * q
+                / (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1.0)
         } else {
             let q = (-2.0 * (1.0 - p).ln()).sqrt();
-            return -(((((c0 * q + c1) * q + c2) * q + c3) * q + c4) * q + c5)
-                / ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0);
+            -(((((c0 * q + c1) * q + c2) * q + c3) * q + c4) * q + c5)
+                / ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0)
         }
     }
 }

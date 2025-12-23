@@ -16,7 +16,6 @@ description = "Isotonic regression"
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 # ❌ REMOVED: scirs2-autograd - use scirs2_core::ndarray instead (SciRS2 Policy violation)
 thiserror = { workspace = true }
@@ -32,3 +31,4 @@ proptest = { workspace = true }
 default = []
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
 parallel = ["dep:rayon"]
+benchmarks = []

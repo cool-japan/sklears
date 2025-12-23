@@ -1,7 +1,7 @@
 //! Multi-block Partial Least Squares
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Transform, Untrained},

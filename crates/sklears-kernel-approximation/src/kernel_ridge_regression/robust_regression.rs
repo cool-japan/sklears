@@ -334,11 +334,11 @@ impl RobustKernelRidgeRegression<Untrained> {
         let n_features = x.ncols();
 
         // Initialize with ordinary least squares solution
-        let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]] as f64);
-        let y_f64 = Array1::from_vec(y.iter().map(|&val| val as f64).collect());
+        let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]]);
+        let y_f64 = Array1::from_vec(y.iter().copied().collect());
 
         let xtx = x_f64.t().dot(&x_f64);
-        let regularized_xtx = xtx + Array2::<f64>::eye(n_features) * (self.alpha as f64);
+        let regularized_xtx = xtx + Array2::<f64>::eye(n_features) * self.alpha;
         let xty = x_f64.t().dot(&y_f64);
         let mut weights_f64 =
             regularized_xtx
@@ -359,7 +359,7 @@ impl RobustKernelRidgeRegression<Untrained> {
 
             // Update sample weights based on residuals
             for (i, &residual) in residuals.iter().enumerate() {
-                sample_weights[i] = self.robust_loss.weight(residual as Float) as f64;
+                sample_weights[i] = self.robust_loss.weight(residual as Float);
             }
 
             // Solve weighted least squares
@@ -384,7 +384,7 @@ impl RobustKernelRidgeRegression<Untrained> {
             }
 
             // Add regularization
-            weighted_xtx += &(Array2::eye(n_features) * (self.alpha as f64));
+            weighted_xtx += &(Array2::eye(n_features) * self.alpha);
 
             // Solve the weighted system
             weights_f64 = match self.solver {
@@ -409,13 +409,13 @@ impl RobustKernelRidgeRegression<Untrained> {
                     vt.t().dot(&y_svd)
                 }
                 Solver::ConjugateGradient { max_iter, tol } => {
-                    self.solve_cg_weighted(&weighted_xtx, &weighted_xty, max_iter, tol as f64)?
+                    self.solve_cg_weighted(&weighted_xtx, &weighted_xty, max_iter, tol)?
                 }
             };
 
             // Check convergence
             let weight_change = (&weights_f64 - &prev_weights).mapv(|x| x.abs()).sum();
-            if weight_change < (self.tolerance as f64) {
+            if weight_change < self.tolerance {
                 break;
             }
 

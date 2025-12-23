@@ -17,9 +17,9 @@ pub fn mse_loss(y_true: &[f32], y_pred: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { mse_loss_avx2(y_true, y_pred) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { mse_loss_sse2(y_true, y_pred) };
         }
     }
@@ -114,9 +114,9 @@ pub fn mae_loss(y_true: &[f32], y_pred: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { mae_loss_avx2(y_true, y_pred) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { mae_loss_sse2(y_true, y_pred) };
         }
     }
@@ -209,9 +209,9 @@ pub fn huber_loss(y_true: &[f32], y_pred: &[f32], delta: f32) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { huber_loss_avx2(y_true, y_pred, delta) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { huber_loss_sse2(y_true, y_pred, delta) };
         }
     }
@@ -354,9 +354,9 @@ pub fn binary_cross_entropy(y_true: &[f32], y_pred: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { binary_cross_entropy_avx2(y_true, y_pred) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { binary_cross_entropy_sse2(y_true, y_pred) };
         }
     }
@@ -385,20 +385,9 @@ unsafe fn binary_cross_entropy_sse2(y_true: &[f32], y_pred: &[f32]) -> f32 {
     use core::arch::x86_64::*;
 
     let mut sum = _mm_setzero_ps();
-    let epsilon = _mm_set1_ps(1e-15);
-    let one_minus_epsilon = _mm_set1_ps(1.0 - 1e-15);
-    let one = _mm_set1_ps(1.0);
     let mut i = 0;
 
     while i + 4 <= y_true.len() {
-        let true_vec = _mm_loadu_ps(y_true.as_ptr().add(i));
-        let pred_vec = _mm_loadu_ps(y_pred.as_ptr().add(i));
-
-        // Clip predictions to avoid log(0)
-        let pred_clipped = _mm_min_ps(_mm_max_ps(pred_vec, epsilon), one_minus_epsilon);
-        let one_minus_pred = _mm_sub_ps(one, pred_clipped);
-        let one_minus_true = _mm_sub_ps(one, true_vec);
-
         // Fast ln approximation using the activation module's exp_approx
         // For actual implementation, we'd need a ln_approx function
         // For now, fallback to scalar computation for this vectorized part
@@ -529,10 +518,10 @@ pub fn mse_gradient(y_true: &[f32], y_pred: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { mse_gradient_avx2(y_true, y_pred, output, scale) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { mse_gradient_sse2(y_true, y_pred, output, scale) };
             return;
         }
@@ -615,10 +604,10 @@ pub fn mae_gradient(y_true: &[f32], y_pred: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { mae_gradient_avx2(y_true, y_pred, output, scale) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { mae_gradient_sse2(y_true, y_pred, output, scale) };
             return;
         }
@@ -729,10 +718,10 @@ pub fn huber_gradient(y_true: &[f32], y_pred: &[f32], delta: f32, output: &mut [
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { huber_gradient_avx2(y_true, y_pred, delta, output, scale) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { huber_gradient_sse2(y_true, y_pred, delta, output, scale) };
             return;
         }
@@ -908,10 +897,10 @@ pub fn binary_cross_entropy_gradient(y_true: &[f32], y_pred: &[f32], output: &mu
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { binary_cross_entropy_gradient_avx2(y_true, y_pred, output, scale) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { binary_cross_entropy_gradient_sse2(y_true, y_pred, output, scale) };
             return;
         }
@@ -1017,10 +1006,13 @@ unsafe fn binary_cross_entropy_gradient_avx2(
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_mse_loss() {

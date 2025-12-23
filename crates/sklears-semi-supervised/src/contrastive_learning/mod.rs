@@ -15,7 +15,7 @@ pub use simclr::*;
 pub use supervised_contrastive::*;
 
 use scirs2_core::ndarray_ext::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 // use scirs2_core::random::rand::seq::SliceRandom;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};

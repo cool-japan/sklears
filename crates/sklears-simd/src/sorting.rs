@@ -18,10 +18,10 @@ pub fn quicksort_f32_simd(arr: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 16 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 16 {
             unsafe { quicksort_avx2(arr) };
             return;
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 8 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 8 {
             unsafe { quicksort_sse2(arr) };
             return;
         }
@@ -327,10 +327,10 @@ pub fn bitonic_sort_f32_simd(arr: &mut [f32], ascending: bool) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && len >= 8 {
+        if crate::simd_feature_detected!("avx2") && len >= 8 {
             unsafe { bitonic_sort_avx2(arr, ascending) };
             return;
-        } else if is_x86_feature_detected!("sse2") && len >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && len >= 4 {
             unsafe { bitonic_sort_sse2(arr, ascending) };
             return;
         }
@@ -416,8 +416,6 @@ unsafe fn bitonic_sort_4_sse2(arr: &mut [f32], ascending: bool) {
         return;
     }
 
-    let mut vec = _mm_loadu_ps(arr.as_ptr());
-
     // Implement 4-element bitonic sort with SSE2
     // This is a simplified version - a full implementation would be more complex
     let temp = [arr[0], arr[1], arr[2], arr[3]];
@@ -430,7 +428,7 @@ unsafe fn bitonic_sort_4_sse2(arr: &mut [f32], ascending: bool) {
         }
     });
 
-    vec = _mm_loadu_ps(sorted.as_ptr());
+    let vec = _mm_loadu_ps(sorted.as_ptr());
     _mm_storeu_ps(arr.as_mut_ptr(), vec);
 }
 
@@ -643,10 +641,13 @@ fn partition_range(arr: &mut [f32], left: usize, right: usize) -> usize {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use scirs2_core::random::prelude::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     fn is_sorted(arr: &[f32], ascending: bool) -> bool {
         for i in 1..arr.len() {
@@ -670,7 +671,7 @@ mod tests {
     #[test]
     fn test_quicksort_random() {
         let mut rng = thread_rng();
-        let mut arr: Vec<f32> = (0..100).map(|_| rng.gen_range(0.0..100.0)).collect();
+        let mut arr: Vec<f32> = (0..100).map(|_| rng.random_range(0.0..100.0)).collect();
 
         quicksort_f32_simd(&mut arr);
         assert!(is_sorted(&arr, true));

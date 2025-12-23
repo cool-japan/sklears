@@ -216,7 +216,7 @@ impl CVModelSelector {
         &self,
         models: &[(E, String)],
         x: &[X],
-        y: &[Y],
+        _y: &[Y],
         cv: &dyn CrossValidator,
         scoring: &dyn Scoring,
     ) -> Result<CVModelSelectionResult>
@@ -241,7 +241,7 @@ impl CVModelSelector {
         // Evaluate each model using cross-validation
         let mut cv_scores = Vec::with_capacity(models.len());
 
-        for (model_idx, (model, name)) in models.iter().enumerate() {
+        for (model_idx, (_model, name)) in models.iter().enumerate() {
             let dummy_x = Array2::zeros((0, 0));
             let dummy_y = Array1::zeros(0);
             let fold_scores = self.evaluate_model_cv(&(), &dummy_x, &dummy_y, &splits, scoring)?;
@@ -359,8 +359,7 @@ impl CVModelSelector {
     ) -> Result<Vec<ModelRanking>> {
         let mut rankings: Vec<ModelRanking> = cv_scores
             .iter()
-            .enumerate()
-            .map(|(idx, score)| {
+            .map(|score| {
                 let confidence_interval = if self.config.compute_confidence_intervals {
                     self.calculate_confidence_interval(
                         &score.fold_scores,
@@ -425,7 +424,7 @@ impl CVModelSelector {
             ModelSelectionCriteria::Weighted {
                 mean_weight,
                 std_weight,
-                consistency_weight,
+                consistency_weight: _consistency_weight,
             } => {
                 // Calculate weighted scores
                 let max_mean = rankings

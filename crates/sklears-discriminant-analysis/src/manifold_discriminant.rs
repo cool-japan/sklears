@@ -277,7 +277,7 @@ impl ManifoldDiscriminantAnalysis {
         let mut weights = Array2::zeros((n_samples, n_samples));
 
         for i in 0..n_samples {
-            let xi = x.row(i);
+            let _xi = x.row(i);
             let mut neighbors = Vec::new();
 
             // Find neighbors from graph
@@ -673,7 +673,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedManifoldDiscriminantAnalysis
             }
             BaseDiscriminant::QDA {
                 means,
-                covariances,
+                covariances: _,
                 priors,
             } => {
                 for i in 0..n_samples {
@@ -754,7 +754,7 @@ impl PredictProba<Array2<Float>, Array2<Float>> for TrainedManifoldDiscriminantA
             }
             BaseDiscriminant::QDA {
                 means,
-                covariances,
+                covariances: _,
                 priors,
             } => {
                 for i in 0..n_samples {

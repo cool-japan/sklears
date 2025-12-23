@@ -7,7 +7,8 @@
 use crate::common::CovarianceType;
 use crate::variational::{VariationalBayesianGMM, VariationalBayesianGMMTrained};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Distribution, RandNormal, Rng, SeedableRng};
+use scirs2_core::random::essentials::Normal;
+use scirs2_core::random::{thread_rng, Rng, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Predict},
@@ -538,7 +539,7 @@ impl PriorSensitivityAnalyzer {
             let mut sample = Array1::zeros(n_features);
             for d in 0..n_features {
                 let std_dev = cov[[d, d]].sqrt();
-                let normal = RandNormal::new(mean[d], std_dev).unwrap();
+                let normal = Normal::new(mean[d], std_dev).unwrap();
                 sample[d] = rng.sample(normal);
             }
 
@@ -621,7 +622,7 @@ impl PriorSensitivityAnalyzer {
             return Array1::zeros(0);
         }
 
-        let n_arrays = arrays.len();
+        let _n_arrays = arrays.len();
         let array_len = arrays[0].len();
         let mut variances = Array1::zeros(array_len);
 

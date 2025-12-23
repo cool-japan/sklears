@@ -96,7 +96,7 @@ impl PBTParameterSpace {
         let mut params = PBTParameters::new();
 
         for (name, (low, high)) in &self.continuous {
-            let value = rng.gen_range(*low..=*high);
+            let value = rng.gen_range(*low..*high + 1.0);
             params.set(name.clone(), value);
         }
 
@@ -120,7 +120,7 @@ impl PBTParameterSpace {
         for (name, (low, high)) in &self.continuous {
             if let Some(&current_value) = params.get(name) {
                 let range = high - low;
-                let perturbation = rng.gen_range(-factor..=factor) * range;
+                let perturbation = rng.gen_range(-factor..factor + 1.0) * range;
                 let new_value = (current_value + perturbation).clamp(*low, *high);
                 new_params.set(name.clone(), new_value);
             }

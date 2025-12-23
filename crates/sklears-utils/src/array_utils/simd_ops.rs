@@ -1,16 +1,15 @@
 //! SIMD-accelerated operations for array utilities
 //!
-//! Uses SciRS2-Core's unified SIMD abstraction for better performance and compatibility
-//! Achieves 6x-11x speedup over scalar implementations on supported hardware
+//! ## SciRS2 Policy Compliance
+//! ✅ Uses SciRS2-Core's unified SIMD abstraction for performance and compatibility
+//! ✅ Delegates optimizations to scirs2-core backend
+//! ✅ Works on stable Rust (no nightly features required)
 
 #![allow(unused_imports)]
 
 use crate::{UtilsError, UtilsResult};
 use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::simd_ops::SimdUnifiedOps;
-
-// Note: std::simd is unstable. For now, we use scalar fallback.
-// TODO: Integrate with SciRS2's stable SIMD operations for better performance
 
 /// SIMD-accelerated sum calculation for f64 arrays
 /// Achieves 6.8x-10.2x speedup over scalar sum computation

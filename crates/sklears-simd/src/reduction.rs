@@ -15,9 +15,9 @@ pub fn parallel_sum_f32_simd(arr: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 8 {
             return unsafe { parallel_sum_avx2(arr) };
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 4 {
             return unsafe { parallel_sum_sse2(arr) };
         }
     }
@@ -96,9 +96,9 @@ pub fn parallel_product_f32_simd(arr: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 8 {
             return unsafe { parallel_product_avx2(arr) };
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 4 {
             return unsafe { parallel_product_sse2(arr) };
         }
     }
@@ -177,9 +177,9 @@ pub fn parallel_max_f32_simd(arr: &[f32]) -> Option<f32> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 8 {
             return Some(unsafe { parallel_max_avx2(arr) });
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 4 {
             return Some(unsafe { parallel_max_sse2(arr) });
         }
     }
@@ -262,9 +262,9 @@ pub fn parallel_min_f32_simd(arr: &[f32]) -> Option<f32> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 8 {
             return Some(unsafe { parallel_min_avx2(arr) });
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 4 {
             return Some(unsafe { parallel_min_sse2(arr) });
         }
     }
@@ -353,10 +353,10 @@ pub fn prefix_sum_f32_simd(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && input.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && input.len() >= 8 {
             unsafe { prefix_sum_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") && input.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && input.len() >= 4 {
             unsafe { prefix_sum_sse2(input, output) };
             return;
         }
@@ -532,9 +532,9 @@ pub fn conditional_sum_f32_simd(input: &[f32], condition: &[bool]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && input.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && input.len() >= 8 {
             return unsafe { conditional_sum_avx2(input, condition) };
-        } else if is_x86_feature_detected!("sse2") && input.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && input.len() >= 4 {
             return unsafe { conditional_sum_sse2(input, condition) };
         }
     }
@@ -679,7 +679,7 @@ pub fn reduce_by_key_f32_simd(
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;

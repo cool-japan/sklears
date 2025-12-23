@@ -5,10 +5,9 @@
 //! variational inference, mini-batch processing, and streaming algorithms.
 
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::SliceRandomExt;
-use scirs2_core::random::{Distribution, RandNormal as Normal};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::{Distribution, RandNormal as Normal, Rng};
+use scirs2_core::{SeedableRng, StdRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -221,6 +220,12 @@ pub struct LargeScaleVariationalRegression<State = Untrained> {
     intercept: Option<Float>,
 }
 
+impl Default for LargeScaleVariationalRegression<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LargeScaleVariationalRegression<Untrained> {
     /// Create a new large-scale variational regression model
     pub fn new() -> Self {
@@ -289,7 +294,7 @@ impl LargeScaleVariationalRegression<Trained> {
 
     /// Get convergence history
     pub fn convergence_history(&self) -> Option<&[Float]> {
-        self.convergence_history.as_ref().map(|h| h.as_slice())
+        self.convergence_history.as_deref()
     }
 
     /// Sample predictions from the posterior predictive distribution

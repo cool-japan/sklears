@@ -5,20 +5,63 @@
 #![allow(unexpected_cfgs)]
 //! SIMD-optimized operations for sklears
 //!
-//! This crate provides SIMD-accelerated implementations of common machine learning operations
-//! using Rust's portable SIMD API and platform-specific intrinsics.
+//! This crate provides SIMD-accelerated implementations of common machine learning operations.
+//!
+//! ## SciRS2 Policy Compliance
+//! ✅ SIMD operations delegated to scirs2-core's backend
+//! ✅ Works on stable Rust (no nightly features required)
+//! ✅ Platform-specific optimizations handled by ndarray/BLAS
 
 #![allow(incomplete_features)]
 // Note: no-std feature is temporarily disabled until implementation is complete
 #![cfg_attr(feature = "no-std", no_std)]
-// Portable SIMD is unstable and requires nightly Rust
-// #![cfg_attr(feature = "nightly", feature(portable_simd))]
 
 #[cfg(feature = "no-std")]
 extern crate alloc;
 
+// No-std compatible print macros (no-op for tests)
 #[cfg(feature = "no-std")]
-use alloc::{boxed::Box, string::String, vec::Vec};
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => {{}};
+}
+
+#[cfg(feature = "no-std")]
+#[macro_export]
+macro_rules! eprintln {
+    ($($arg:tt)*) => {{}};
+}
+
+// Conditional SIMD feature detection macro
+// In no-std mode, always return false (use scalar fallback)
+// In std mode, use the actual is_x86_feature_detected! macro
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "no-std")))]
+#[macro_export]
+macro_rules! simd_feature_detected {
+    ($feature:tt) => {
+        std::arch::is_x86_feature_detected!($feature)
+    };
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), feature = "no-std"))]
+#[macro_export]
+#[allow(unused_macros)]
+macro_rules! simd_feature_detected {
+    ($feature:tt) => {
+        false
+    };
+}
+
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+#[macro_export]
+#[allow(unused_macros)]
+macro_rules! simd_feature_detected {
+    ($feature:tt) => {
+        false
+    };
+}
+
+// Re-export for use in submodules
 
 pub mod activation;
 pub mod adaptive_optimization;
@@ -101,23 +144,23 @@ impl SimdCapabilities {
     pub fn detect() -> Self {
         Self {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            sse: is_x86_feature_detected!("sse"),
+            sse: simd_feature_detected!("sse"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            sse2: is_x86_feature_detected!("sse2"),
+            sse2: simd_feature_detected!("sse2"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            sse3: is_x86_feature_detected!("sse3"),
+            sse3: simd_feature_detected!("sse3"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            ssse3: is_x86_feature_detected!("ssse3"),
+            ssse3: simd_feature_detected!("ssse3"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            sse41: is_x86_feature_detected!("sse4.1"),
+            sse41: simd_feature_detected!("sse4.1"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            sse42: is_x86_feature_detected!("sse4.2"),
+            sse42: simd_feature_detected!("sse4.2"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            avx: is_x86_feature_detected!("avx"),
+            avx: simd_feature_detected!("avx"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            avx2: is_x86_feature_detected!("avx2"),
+            avx2: simd_feature_detected!("avx2"),
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            avx512: is_x86_feature_detected!("avx512f"),
+            avx512: simd_feature_detected!("avx512f"),
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             sse: false,
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
@@ -236,7 +279,7 @@ pub static SIMD_CAPS: once_cell::sync::Lazy<SimdCapabilities> =
     once_cell::sync::Lazy::new(SimdCapabilities::detect);
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

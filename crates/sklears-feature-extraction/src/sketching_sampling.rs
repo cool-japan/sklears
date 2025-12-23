@@ -4,7 +4,7 @@
 //! for efficient feature extraction and data processing.
 
 use crate::*;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::Rng;
 use sklears_core::prelude::{SklearsError, Transform};
@@ -513,7 +513,7 @@ impl ReservoirSampler {
 
         // Replace elements with gradually decreasing probability
         for i in actual_size..dataset_size {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             if j < actual_size {
                 reservoir[j] = i;
             }
@@ -781,7 +781,7 @@ impl StratifiedSampler {
                 let mut stratum_indices = indices.clone();
                 // Simple Fisher-Yates shuffle
                 for i in (1..stratum_indices.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     stratum_indices.swap(i, j);
                 }
                 selected_indices.extend(stratum_indices.into_iter().take(stratum_sample_size));
@@ -802,7 +802,7 @@ impl StratifiedSampler {
 
             // Simple Fisher-Yates shuffle
             for i in (1..remaining.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 remaining.swap(i, j);
             }
             let needed = self.sample_size - selected_indices.len();

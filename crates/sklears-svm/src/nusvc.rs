@@ -8,7 +8,7 @@ use crate::{
     smo::{SmoConfig, SmoSolver},
 };
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::{SeedableRng, StdRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Predict, Trained, Untrained},

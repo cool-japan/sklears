@@ -1,11 +1,10 @@
 //! Tree-based feature selection methods
 
-use crate::{FeatureImportance, IndexableTarget};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Predict, Trained, Transform, Untrained},
+    traits::{Estimator, Fit, Trained, Transform, Untrained},
     types::Float,
 };
 use std::marker::PhantomData;
@@ -223,7 +222,7 @@ pub struct GradientBoostingSelector<State = Untrained> {
 
 /// Simple decision stump for gradient boosting
 #[derive(Debug, Clone)]
-struct DecisionStump {
+pub(crate) struct DecisionStump {
     feature_idx: usize,
     threshold: f64,
     left_value: f64,
@@ -588,7 +587,7 @@ impl GradientBoostingSelector<Trained> {
     }
 
     /// Get the trained estimators (decision stumps)
-    pub fn estimators(&self) -> &[DecisionStump] {
+    pub(crate) fn estimators(&self) -> &[DecisionStump] {
         self.estimators_.as_ref().unwrap()
     }
 }

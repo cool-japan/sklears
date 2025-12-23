@@ -194,7 +194,7 @@ impl IRLSEstimator {
             x.to_vec()
         };
 
-        let effective_n_features = x_matrix[0].len();
+        let _effective_n_features = x_matrix[0].len();
 
         // Initialize coefficients with ordinary least squares
         let mut coefficients = self.ordinary_least_squares(&x_matrix, y)?;
@@ -342,8 +342,10 @@ impl IRLSEstimator {
 
         // Compute X^T X
         let mut xtx = vec![vec![0.0; n_features]; n_features];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n_features {
             for j in 0..n_features {
+                #[allow(clippy::needless_range_loop)]
                 for k in 0..n_samples {
                     xtx[i][j] += x[k][i] * x[k][j];
                 }
@@ -357,6 +359,7 @@ impl IRLSEstimator {
 
         // Compute X^T y
         let mut xty = vec![0.0; n_features];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n_features {
             for j in 0..n_samples {
                 xty[i] += x[j][i] * y[j];
@@ -379,6 +382,7 @@ impl IRLSEstimator {
 
         // Compute X^T W X
         let mut xtwx = vec![vec![0.0; n_features]; n_features];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n_features {
             for j in 0..n_features {
                 for k in 0..n_samples {
@@ -394,6 +398,7 @@ impl IRLSEstimator {
 
         // Compute X^T W y
         let mut xtwy = vec![0.0; n_features];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n_features {
             for j in 0..n_samples {
                 xtwy[i] += weights[j] * x[j][i] * y[j];
@@ -406,11 +411,52 @@ impl IRLSEstimator {
 
     /// Solve linear system using Gaussian elimination with partial pivoting
     fn solve_linear_system(&self, a: &[Vec<f64>], b: &[f64]) -> Result<Vec<f64>, SklearsError> {
+        match Self::gaussian_elimination(a, b) {
+            Ok(solution) => Ok(solution),
+            Err(original_error) => {
+                // Apply a small ridge regularization and retry to handle rank-deficient systems
+                let mut regularized = a.to_vec();
+                if regularized.is_empty() || regularized[0].is_empty() {
+                    return Err(original_error);
+                }
+
+                let ridge = if self.config.alpha > 0.0 {
+                    self.config.alpha
+                } else {
+                    1e-6
+                };
+
+                #[allow(clippy::needless_range_loop)]
+                for i in 0..regularized.len() {
+                    regularized[i][i] += ridge;
+                }
+
+                match Self::gaussian_elimination(&regularized, b) {
+                    Ok(solution) => Ok(solution),
+                    Err(_) => Err(original_error),
+                }
+            }
+        }
+    }
+
+    fn gaussian_elimination(a: &[Vec<f64>], b: &[f64]) -> Result<Vec<f64>, SklearsError> {
         let n = a.len();
+        if n == 0 || b.len() != n {
+            return Err(SklearsError::InvalidInput(
+                "Matrix dimensions do not align for Gaussian elimination".to_string(),
+            ));
+        }
+
         let mut aug_matrix = vec![vec![0.0; n + 1]; n];
 
         // Create augmented matrix
         for i in 0..n {
+            if a[i].len() != n {
+                return Err(SklearsError::InvalidInput(
+                    "Matrix must be square for Gaussian elimination".to_string(),
+                ));
+            }
+
             for j in 0..n {
                 aug_matrix[i][j] = a[i][j];
             }
@@ -433,7 +479,7 @@ impl IRLSEstimator {
             }
 
             // Check for singularity
-            if aug_matrix[i][i].abs() < 1e-14 {
+            if aug_matrix[i][i].abs() < 1e-12 {
                 return Err(SklearsError::InvalidInput(
                     "Matrix is singular or nearly singular. Add regularization or check for multicollinearity".to_string(),
                 ));
@@ -500,7 +546,7 @@ impl IRLSEstimator {
             }
 
             ScaleEstimator::IQR => {
-                let mut sorted_residuals: Vec<f64> = residuals.iter().cloned().collect();
+                let mut sorted_residuals: Vec<f64> = residuals.to_vec();
                 sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
                 let n = sorted_residuals.len();
                 let q1 = sorted_residuals[n / 4];

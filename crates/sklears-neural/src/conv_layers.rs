@@ -412,6 +412,522 @@ impl Conv2D {
     }
 }
 
+/// Depthwise Separable 2D Convolution Layer
+///
+/// Efficient convolution layer used in MobileNet architectures.
+/// Separates the standard convolution into:
+/// 1. Depthwise convolution: Each input channel is convolved separately
+/// 2. Pointwise convolution: 1x1 convolution to combine channels
+///
+/// This reduces parameters from `in_channels × out_channels × kernel_h × kernel_w`
+/// to `in_channels × depth_multiplier × kernel_h × kernel_w + in_channels × depth_multiplier × out_channels`
+#[derive(Debug, Clone)]
+pub struct DepthwiseSeparableConv2D {
+    /// Number of output filters/channels
+    pub out_channels: usize,
+    /// Kernel size (height, width)
+    pub kernel_size: (usize, usize),
+    /// Stride (height, width)
+    pub stride: (usize, usize),
+    /// Padding strategy
+    pub padding: Padding,
+    /// Dilation rate (height, width)
+    pub dilation: (usize, usize),
+    /// Activation function
+    pub activation: Option<Activation>,
+    /// Whether to use bias
+    pub use_bias: bool,
+    /// Depth multiplier (number of depthwise filters per input channel)
+    pub depth_multiplier: usize,
+
+    // Learnable parameters
+    /// Depthwise weights: (in_channels, depth_multiplier, kernel_height, kernel_width)
+    pub depthwise_weights: Option<Array4<f64>>,
+    /// Pointwise weights: (out_channels, in_channels * depth_multiplier)
+    pub pointwise_weights: Option<Array2<f64>>,
+    /// Biases for depthwise: (in_channels * depth_multiplier,)
+    pub depthwise_biases: Option<Array1<f64>>,
+    /// Biases for pointwise: (out_channels,)
+    pub pointwise_biases: Option<Array1<f64>>,
+
+    // Cached values for backpropagation
+    last_input: Option<Array3<f64>>,
+    last_depthwise_output: Option<Array3<f64>>,
+    last_output: Option<Array3<f64>>,
+}
+
+impl DepthwiseSeparableConv2D {
+    pub fn new(
+        out_channels: usize,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+        padding: Padding,
+        dilation: (usize, usize),
+        activation: Option<Activation>,
+        use_bias: bool,
+        depth_multiplier: usize,
+    ) -> Self {
+        Self {
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            activation,
+            use_bias,
+            depth_multiplier,
+            depthwise_weights: None,
+            pointwise_weights: None,
+            depthwise_biases: None,
+            pointwise_biases: None,
+            last_input: None,
+            last_depthwise_output: None,
+            last_output: None,
+        }
+    }
+
+    /// Initialize weights and biases
+    pub fn initialize(&mut self, in_channels: usize, rng: &mut impl Rng) -> NeuralResult<()> {
+        // He initialization for depthwise weights
+        let fan_in_depthwise = self.kernel_size.0 * self.kernel_size.1;
+        let std_depthwise = (2.0 / fan_in_depthwise as f64).sqrt();
+
+        // Initialize depthwise weights
+        let mut depthwise_weights = Array4::zeros((
+            in_channels,
+            self.depth_multiplier,
+            self.kernel_size.0,
+            self.kernel_size.1,
+        ));
+
+        for weight in depthwise_weights.iter_mut() {
+            let normal_dist = Normal::new(0.0, std_depthwise).unwrap();
+            *weight = rng.sample(normal_dist);
+        }
+        self.depthwise_weights = Some(depthwise_weights);
+
+        // He initialization for pointwise weights
+        let fan_in_pointwise = in_channels * self.depth_multiplier;
+        let std_pointwise = (2.0 / fan_in_pointwise as f64).sqrt();
+
+        // Initialize pointwise weights
+        let mut pointwise_weights =
+            Array2::zeros((self.out_channels, in_channels * self.depth_multiplier));
+
+        for weight in pointwise_weights.iter_mut() {
+            let normal_dist = Normal::new(0.0, std_pointwise).unwrap();
+            *weight = rng.sample(normal_dist);
+        }
+        self.pointwise_weights = Some(pointwise_weights);
+
+        // Initialize biases
+        if self.use_bias {
+            self.depthwise_biases = Some(Array1::zeros(in_channels * self.depth_multiplier));
+            self.pointwise_biases = Some(Array1::zeros(self.out_channels));
+        }
+
+        Ok(())
+    }
+
+    /// Calculate output size given input size
+    pub fn output_size(&self, input_size: (usize, usize)) -> (usize, usize) {
+        let effective_kernel_h = self.dilation.0 * (self.kernel_size.0 - 1) + 1;
+        let effective_kernel_w = self.dilation.1 * (self.kernel_size.1 - 1) + 1;
+
+        let padding_h = match self.padding {
+            Padding::Valid => 0,
+            Padding::Same => (effective_kernel_h - 1) / 2,
+            Padding::Custom(p) => p,
+        };
+
+        let padding_w = match self.padding {
+            Padding::Valid => 0,
+            Padding::Same => (effective_kernel_w - 1) / 2,
+            Padding::Custom(p) => p,
+        };
+
+        let output_h = (input_size.0 + 2 * padding_h - effective_kernel_h) / self.stride.0 + 1;
+        let output_w = (input_size.1 + 2 * padding_w - effective_kernel_w) / self.stride.1 + 1;
+
+        (output_h, output_w)
+    }
+
+    /// Forward pass
+    pub fn forward(&mut self, input: &Array3<f64>) -> NeuralResult<Array3<f64>> {
+        let depthwise_weights =
+            self.depthwise_weights
+                .as_ref()
+                .ok_or_else(|| SklearsError::NotFitted {
+                    operation: "forward".to_string(),
+                })?;
+
+        let pointwise_weights =
+            self.pointwise_weights
+                .as_ref()
+                .ok_or_else(|| SklearsError::NotFitted {
+                    operation: "forward".to_string(),
+                })?;
+
+        let (in_channels, input_h, input_w) = input.dim();
+        let (output_h, output_w) = self.output_size((input_h, input_w));
+
+        // Step 1: Depthwise convolution
+        let depthwise_channels = in_channels * self.depth_multiplier;
+        let mut depthwise_output = Array3::zeros((depthwise_channels, output_h, output_w));
+
+        // Apply padding
+        let padded_input = self.apply_padding_2d(input)?;
+
+        for in_ch in 0..in_channels {
+            for dm in 0..self.depth_multiplier {
+                let out_ch = in_ch * self.depth_multiplier + dm;
+
+                for out_y in 0..output_h {
+                    for out_x in 0..output_w {
+                        let mut sum = 0.0;
+
+                        for ky in 0..self.kernel_size.0 {
+                            for kx in 0..self.kernel_size.1 {
+                                let input_y = out_y * self.stride.0 + ky * self.dilation.0;
+                                let input_x = out_x * self.stride.1 + kx * self.dilation.1;
+
+                                if input_y < padded_input.len_of(Axis(1))
+                                    && input_x < padded_input.len_of(Axis(2))
+                                {
+                                    sum += depthwise_weights[[in_ch, dm, ky, kx]]
+                                        * padded_input[[in_ch, input_y, input_x]];
+                                }
+                            }
+                        }
+
+                        // Add depthwise bias if enabled
+                        if let Some(ref biases) = self.depthwise_biases {
+                            sum += biases[out_ch];
+                        }
+
+                        depthwise_output[[out_ch, out_y, out_x]] = sum;
+                    }
+                }
+            }
+        }
+
+        // Step 2: Pointwise convolution (1x1)
+        let mut output = Array3::zeros((self.out_channels, output_h, output_w));
+
+        for out_ch in 0..self.out_channels {
+            for out_y in 0..output_h {
+                for out_x in 0..output_w {
+                    let mut sum = 0.0;
+
+                    for in_ch in 0..depthwise_channels {
+                        sum += pointwise_weights[[out_ch, in_ch]]
+                            * depthwise_output[[in_ch, out_y, out_x]];
+                    }
+
+                    // Add pointwise bias if enabled
+                    if let Some(ref biases) = self.pointwise_biases {
+                        sum += biases[out_ch];
+                    }
+
+                    output[[out_ch, out_y, out_x]] = sum;
+                }
+            }
+        }
+
+        // Apply activation function
+        if let Some(ref activation) = self.activation {
+            output.mapv_inplace(|x| apply_activation_scalar(activation, x));
+        }
+
+        // Cache for backpropagation
+        self.last_input = Some(input.clone());
+        self.last_depthwise_output = Some(depthwise_output);
+        self.last_output = Some(output.clone());
+
+        Ok(output)
+    }
+
+    /// Apply 2D padding to input
+    fn apply_padding_2d(&self, input: &Array3<f64>) -> NeuralResult<Array3<f64>> {
+        let padding_amount = match self.padding {
+            Padding::Valid => return Ok(input.clone()),
+            Padding::Same => {
+                let effective_kernel_h = self.dilation.0 * (self.kernel_size.0 - 1) + 1;
+                let effective_kernel_w = self.dilation.1 * (self.kernel_size.1 - 1) + 1;
+                ((effective_kernel_h - 1) / 2, (effective_kernel_w - 1) / 2)
+            }
+            Padding::Custom(p) => (p, p),
+        };
+
+        if padding_amount.0 == 0 && padding_amount.1 == 0 {
+            return Ok(input.clone());
+        }
+
+        let (in_channels, input_h, input_w) = input.dim();
+        let padded_h = input_h + 2 * padding_amount.0;
+        let padded_w = input_w + 2 * padding_amount.1;
+        let mut padded = Array3::zeros((in_channels, padded_h, padded_w));
+
+        // Copy original data to center
+        for ch in 0..in_channels {
+            for y in 0..input_h {
+                for x in 0..input_w {
+                    padded[[ch, y + padding_amount.0, x + padding_amount.1]] = input[[ch, y, x]];
+                }
+            }
+        }
+
+        Ok(padded)
+    }
+}
+
+/// Group 2D Convolution Layer
+///
+/// Efficient convolution layer used in ResNeXt and other architectures.
+/// Divides input channels into groups and performs separate convolutions for each group.
+///
+/// This reduces parameters from `in_channels × out_channels × kernel_h × kernel_w`
+/// to `(in_channels / groups) × (out_channels / groups) × kernel_h × kernel_w × groups`
+#[derive(Debug, Clone)]
+pub struct GroupConv2D {
+    /// Number of output filters/channels
+    pub out_channels: usize,
+    /// Kernel size (height, width)
+    pub kernel_size: (usize, usize),
+    /// Stride (height, width)
+    pub stride: (usize, usize),
+    /// Padding strategy
+    pub padding: Padding,
+    /// Dilation rate (height, width)
+    pub dilation: (usize, usize),
+    /// Number of groups
+    pub groups: usize,
+    /// Activation function
+    pub activation: Option<Activation>,
+    /// Whether to use bias
+    pub use_bias: bool,
+
+    // Learnable parameters
+    /// Weights: (out_channels, in_channels/groups, kernel_height, kernel_width)
+    pub weights: Option<Array4<f64>>,
+    /// Biases: (out_channels,)
+    pub biases: Option<Array1<f64>>,
+
+    // Cached values for backpropagation
+    last_input: Option<Array3<f64>>,
+    last_output: Option<Array3<f64>>,
+}
+
+impl GroupConv2D {
+    pub fn new(
+        out_channels: usize,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+        padding: Padding,
+        dilation: (usize, usize),
+        groups: usize,
+        activation: Option<Activation>,
+        use_bias: bool,
+    ) -> Self {
+        // Validate that out_channels is divisible by groups
+        assert!(
+            out_channels % groups == 0,
+            "out_channels must be divisible by groups"
+        );
+
+        Self {
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            groups,
+            activation,
+            use_bias,
+            weights: None,
+            biases: None,
+            last_input: None,
+            last_output: None,
+        }
+    }
+
+    /// Initialize weights and biases
+    pub fn initialize(&mut self, in_channels: usize, rng: &mut impl Rng) -> NeuralResult<()> {
+        // Validate that in_channels is divisible by groups
+        if in_channels % self.groups != 0 {
+            return Err(SklearsError::InvalidInput(format!(
+                "in_channels ({}) must be divisible by groups ({})",
+                in_channels, self.groups
+            )));
+        }
+
+        // He initialization
+        let in_channels_per_group = in_channels / self.groups;
+        let fan_in = in_channels_per_group * self.kernel_size.0 * self.kernel_size.1;
+        let std = (2.0 / fan_in as f64).sqrt();
+
+        // Initialize weights
+        // Shape: (out_channels, in_channels/groups, kernel_height, kernel_width)
+        let mut weights = Array4::zeros((
+            self.out_channels,
+            in_channels_per_group,
+            self.kernel_size.0,
+            self.kernel_size.1,
+        ));
+
+        for weight in weights.iter_mut() {
+            let normal_dist = Normal::new(0.0, std).unwrap();
+            *weight = rng.sample(normal_dist);
+        }
+        self.weights = Some(weights);
+
+        // Initialize biases
+        if self.use_bias {
+            self.biases = Some(Array1::zeros(self.out_channels));
+        }
+
+        Ok(())
+    }
+
+    /// Calculate output size given input size
+    pub fn output_size(&self, input_size: (usize, usize)) -> (usize, usize) {
+        let effective_kernel_h = self.dilation.0 * (self.kernel_size.0 - 1) + 1;
+        let effective_kernel_w = self.dilation.1 * (self.kernel_size.1 - 1) + 1;
+
+        let padding_h = match self.padding {
+            Padding::Valid => 0,
+            Padding::Same => (effective_kernel_h - 1) / 2,
+            Padding::Custom(p) => p,
+        };
+
+        let padding_w = match self.padding {
+            Padding::Valid => 0,
+            Padding::Same => (effective_kernel_w - 1) / 2,
+            Padding::Custom(p) => p,
+        };
+
+        let output_h = (input_size.0 + 2 * padding_h - effective_kernel_h) / self.stride.0 + 1;
+        let output_w = (input_size.1 + 2 * padding_w - effective_kernel_w) / self.stride.1 + 1;
+
+        (output_h, output_w)
+    }
+
+    /// Forward pass
+    pub fn forward(&mut self, input: &Array3<f64>) -> NeuralResult<Array3<f64>> {
+        let weights = self
+            .weights
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "forward".to_string(),
+            })?;
+
+        let (in_channels, input_h, input_w) = input.dim();
+
+        // Validate input channels
+        if in_channels % self.groups != 0 {
+            return Err(SklearsError::InvalidInput(format!(
+                "in_channels ({}) must be divisible by groups ({})",
+                in_channels, self.groups
+            )));
+        }
+
+        let in_channels_per_group = in_channels / self.groups;
+        let out_channels_per_group = self.out_channels / self.groups;
+        let (output_h, output_w) = self.output_size((input_h, input_w));
+        let mut output = Array3::zeros((self.out_channels, output_h, output_w));
+
+        // Apply padding
+        let padded_input = self.apply_padding_2d(input)?;
+
+        // Perform grouped convolution
+        for group in 0..self.groups {
+            let in_ch_start = group * in_channels_per_group;
+            let in_ch_end = (group + 1) * in_channels_per_group;
+            let out_ch_start = group * out_channels_per_group;
+            let out_ch_end = (group + 1) * out_channels_per_group;
+
+            for out_ch_offset in 0..out_channels_per_group {
+                let out_ch = out_ch_start + out_ch_offset;
+
+                for out_y in 0..output_h {
+                    for out_x in 0..output_w {
+                        let mut sum = 0.0;
+
+                        for in_ch_offset in 0..in_channels_per_group {
+                            let in_ch = in_ch_start + in_ch_offset;
+
+                            for ky in 0..self.kernel_size.0 {
+                                for kx in 0..self.kernel_size.1 {
+                                    let input_y = out_y * self.stride.0 + ky * self.dilation.0;
+                                    let input_x = out_x * self.stride.1 + kx * self.dilation.1;
+
+                                    if input_y < padded_input.len_of(Axis(1))
+                                        && input_x < padded_input.len_of(Axis(2))
+                                    {
+                                        sum += weights[[out_ch, in_ch_offset, ky, kx]]
+                                            * padded_input[[in_ch, input_y, input_x]];
+                                    }
+                                }
+                            }
+                        }
+
+                        // Add bias if enabled
+                        if let Some(ref biases) = self.biases {
+                            sum += biases[out_ch];
+                        }
+
+                        output[[out_ch, out_y, out_x]] = sum;
+                    }
+                }
+            }
+        }
+
+        // Apply activation function
+        if let Some(ref activation) = self.activation {
+            output.mapv_inplace(|x| apply_activation_scalar(activation, x));
+        }
+
+        // Cache for backpropagation
+        self.last_input = Some(input.clone());
+        self.last_output = Some(output.clone());
+
+        Ok(output)
+    }
+
+    /// Apply 2D padding to input
+    fn apply_padding_2d(&self, input: &Array3<f64>) -> NeuralResult<Array3<f64>> {
+        let padding_amount = match self.padding {
+            Padding::Valid => return Ok(input.clone()),
+            Padding::Same => {
+                let effective_kernel_h = self.dilation.0 * (self.kernel_size.0 - 1) + 1;
+                let effective_kernel_w = self.dilation.1 * (self.kernel_size.1 - 1) + 1;
+                ((effective_kernel_h - 1) / 2, (effective_kernel_w - 1) / 2)
+            }
+            Padding::Custom(p) => (p, p),
+        };
+
+        if padding_amount.0 == 0 && padding_amount.1 == 0 {
+            return Ok(input.clone());
+        }
+
+        let (in_channels, input_h, input_w) = input.dim();
+        let padded_h = input_h + 2 * padding_amount.0;
+        let padded_w = input_w + 2 * padding_amount.1;
+        let mut padded = Array3::zeros((in_channels, padded_h, padded_w));
+
+        // Copy original data to center
+        for ch in 0..in_channels {
+            for y in 0..input_h {
+                for x in 0..input_w {
+                    padded[[ch, y + padding_amount.0, x + padding_amount.1]] = input[[ch, y, x]];
+                }
+            }
+        }
+
+        Ok(padded)
+    }
+}
+
 /// Pooling operations for dimensionality reduction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PoolingType {
@@ -1202,49 +1718,47 @@ mod tests {
         assert_eq!(output[[0, 0, 0, 0]], 8.0); // Max of [1,2,3,4,5,6,7,8]
     }
 
-    // TODO: Implement DepthwiseSeparableConv2D and uncomment this test
-    // #[test]
-    // fn test_depthwise_separable_conv() {
-    //     let mut rng = ChaCha8Rng::seed_from_u64(42);
-    //     let mut conv = DepthwiseSeparableConv2D::new(
-    //         8, // out_channels
-    //         (3, 3), // kernel_size
-    //         (1, 1), // stride
-    //         Padding::Same,
-    //         (1, 1), // dilation
-    //         Some(Activation::Relu),
-    //         true,
-    //         2, // depth_multiplier
-    //     );
-    //
-    //     conv.initialize(4, &mut rng).unwrap();
-    //
-    //     let input = Array3::zeros((4, 8, 8));
-    //     let output = conv.forward(&input).unwrap();
-    //
-    //     assert_eq!(output.dim(), (8, 8, 8)); // Same spatial size due to padding
-    // }
+    #[test]
+    fn test_depthwise_separable_conv() {
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
+        let mut conv = DepthwiseSeparableConv2D::new(
+            8,      // out_channels
+            (3, 3), // kernel_size
+            (1, 1), // stride
+            Padding::Same,
+            (1, 1), // dilation
+            Some(Activation::Relu),
+            true,
+            2, // depth_multiplier
+        );
 
-    // TODO: Implement GroupConv2D and uncomment this test
-    // #[test]
-    // fn test_group_conv() {
-    //     let mut rng = ChaCha8Rng::seed_from_u64(42);
-    //     let mut conv = GroupConv2D::new(
-    //         8, // out_channels
-    //         (3, 3), // kernel_size
-    //         (1, 1), // stride
-    //         Padding::Same,
-    //         (1, 1), // dilation
-    //         2, // groups
-    //         Some(Activation::Relu),
-    //         true,
-    //     );
-    //
-    //     conv.initialize(4, &mut rng).unwrap();
-    //
-    //     let input = Array3::zeros((4, 8, 8));
-    //     let output = conv.forward(&input).unwrap();
-    //
-    //     assert_eq!(output.dim(), (8, 8, 8)); // Same spatial size due to padding
-    // }
+        conv.initialize(4, &mut rng).unwrap();
+
+        let input = Array3::zeros((4, 8, 8));
+        let output = conv.forward(&input).unwrap();
+
+        assert_eq!(output.dim(), (8, 8, 8)); // Same spatial size due to padding
+    }
+
+    #[test]
+    fn test_group_conv() {
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
+        let mut conv = GroupConv2D::new(
+            8,      // out_channels
+            (3, 3), // kernel_size
+            (1, 1), // stride
+            Padding::Same,
+            (1, 1), // dilation
+            2,      // groups
+            Some(Activation::Relu),
+            true,
+        );
+
+        conv.initialize(4, &mut rng).unwrap();
+
+        let input = Array3::zeros((4, 8, 8));
+        let output = conv.forward(&input).unwrap();
+
+        assert_eq!(output.dim(), (8, 8, 8)); // Same spatial size due to padding
+    }
 }

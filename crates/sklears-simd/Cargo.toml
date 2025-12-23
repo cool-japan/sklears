@@ -15,7 +15,6 @@ description = "High-performance SIMD acceleration primitives for the Sklears mac
 [dependencies]
 # Core dependencies
 sklears-core = { workspace = true }
-numrs2 = { workspace = true }
 
 # ✅ SciRS2 Policy compliance - Use SciRS2 as scientific computing foundation
 scirs2-core = { workspace = true }
@@ -23,7 +22,7 @@ scirs2-autograd = { workspace = true }
 scirs2-linalg = { workspace = true }
 
 # SIMD support - using stable SIMD features
-once_cell = "1.20"
+once_cell = "1.21"
 
 # Complex numbers for quantum computing
 num = "0.4"
@@ -31,7 +30,7 @@ num = "0.4"
 # Optional dependencies
 rayon = { workspace = true, optional = true }
 libm = { version = "0.2", optional = true }
-spin = { version = "0.9", optional = true }
+spin = { version = "0.10", optional = true }
 
 # GPU acceleration dependencies (optional) - Disabled for macOS compatibility
 # cudarc = { version = "0.11", optional = true }
@@ -41,10 +40,12 @@ spin = { version = "0.9", optional = true }
 default = []
 parallel = ["rayon"]
 nightly = []
-# no-std = ["libm", "spin"]  # Temporarily disabled - incomplete implementation
+no-std = ["libm", "spin"]
 
-# Note: std is always available. The no-std feature is disabled until
-# the implementation is complete and all tests pass with it enabled.
+# Note: no-std and std are mutually exclusive by design (see #![cfg_attr(feature = "no-std", no_std)] in lib.rs)
+# Test with: cargo test --features parallel (for std mode with parallelism)
+# Test no-std: cargo test --no-default-features --features no-std
+# DO NOT use --all-features as it enables conflicting no-std and std modes simultaneously
 # cuda = ["cudarc"]  # Disabled for macOS compatibility
 # opencl = ["opencl3"]  # Disabled for macOS compatibility  
 # gpu = ["cuda", "opencl"]  # Disabled for macOS compatibility

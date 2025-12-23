@@ -32,7 +32,7 @@ impl ExperimentId {
             .unwrap_or_default()
             .as_millis();
 
-        let random_suffix = scirs2_core::random::thread_rng().gen::<u32>();
+        let random_suffix = scirs2_core::random::thread_rng().random::<u32>();
         Self(format!("exp_{timestamp}_{random_suffix}"))
     }
 

@@ -9,6 +9,9 @@
 //! - Lock-free data structures for reduced contention
 //! - Cache-friendly memory layouts for improved performance
 //! - SIMD-optimized matrix operations where possible
+//! - Asynchronous updates with bounded staleness
+
+pub mod async_updates;
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
 use sklears_core::error::SklearsError;
@@ -16,6 +19,11 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
+
+pub use async_updates::{
+    async_sgd_simulation, AsyncADMM, AsyncCoordinateDescent, AsyncUpdateConfig, AsyncUpdateResults,
+    BoundedAsyncCoordinator,
+};
 
 /// Work-stealing thread pool for efficient parallel task distribution
 ///
@@ -1396,22 +1404,67 @@ impl ParallelMatrixOps {
         Ok(c)
     }
 
-    /// Parallel transpose
+    /// Parallel transpose with safe shared access
     pub fn transpose(&self, matrix: &Array2<f64>) -> Array2<f64> {
         let (m, n) = matrix.dim();
-        let mut result = Array2::zeros((n, m));
 
-        let chunk_size = (m * n) / self.n_threads + 1;
-
-        // For safety, use sequential implementation for now
-        // TODO: Implement proper parallel transpose using safe shared access
-        for i in 0..m {
-            for j in 0..n {
-                result[[j, i]] = matrix[[i, j]];
-            }
+        // Use sequential implementation for small matrices or single-threaded
+        if m * n < 10000 || self.n_threads == 1 {
+            return matrix.t().to_owned();
         }
 
-        result
+        let block_size = self.block_size;
+
+        // Compute number of blocks in each dimension
+        let m_blocks = (m + block_size - 1) / block_size;
+        let n_blocks = (n + block_size - 1) / block_size;
+
+        // Parallel block-wise transpose using Arc<Mutex> for safe shared access
+        let result = Arc::new(Mutex::new(Array2::zeros((n, m))));
+
+        thread::scope(|s| {
+            let chunks_per_thread = ((m_blocks * n_blocks) + self.n_threads - 1) / self.n_threads;
+
+            for thread_id in 0..self.n_threads {
+                let start_block = thread_id * chunks_per_thread;
+                let end_block = ((thread_id + 1) * chunks_per_thread).min(m_blocks * n_blocks);
+                let result_clone = result.clone();
+
+                s.spawn(move || {
+                    // Compute local blocks then update result in one lock
+                    let mut local_updates = Vec::new();
+
+                    for block_idx in start_block..end_block {
+                        let i_block = block_idx / n_blocks;
+                        let j_block = block_idx % n_blocks;
+
+                        let i_start = i_block * block_size;
+                        let i_end = ((i_block + 1) * block_size).min(m);
+                        let j_start = j_block * block_size;
+                        let j_end = ((j_block + 1) * block_size).min(n);
+
+                        // Transpose this block
+                        for i in i_start..i_end {
+                            for j in j_start..j_end {
+                                local_updates.push((j, i, matrix[[i, j]]));
+                            }
+                        }
+                    }
+
+                    // Apply all updates in a single critical section
+                    let mut result_guard = result_clone.lock().unwrap();
+                    for (row, col, val) in local_updates {
+                        result_guard[[row, col]] = val;
+                    }
+                });
+            }
+        });
+
+        // Extract final result from Arc<Mutex>
+        match Arc::try_unwrap(result) {
+            Ok(mutex) => mutex.into_inner().unwrap(),
+            Err(arc) => arc.lock().unwrap().clone(),
+        }
     }
 }
 

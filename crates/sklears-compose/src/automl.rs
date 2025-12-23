@@ -855,7 +855,7 @@ impl NeuralArchitectureSearch {
     /// Generate a neural architecture
     fn generate_architecture(&self, rng: &mut StdRng) -> SklResult<NeuralArchitecture> {
         let num_layers = match &self.search_space.num_layers {
-            ParameterRange::Integer { min, max } => rng.gen_range(*min..=*max) as usize,
+            ParameterRange::Integer { min, max } => rng.gen_range(*min..*max + 1) as usize,
             _ => 3, // Default
         };
 
@@ -879,7 +879,7 @@ impl NeuralArchitectureSearch {
             layers,
             connection_pattern: ConnectionPattern::Sequential,
             estimated_performance: rng.gen_range(0.5..1.0),
-            parameter_count: rng.gen_range(1000..1000000),
+            parameter_count: rng.gen_range(1000..1_000_000),
             memory_usage_mb: rng.gen_range(10..500),
         })
     }

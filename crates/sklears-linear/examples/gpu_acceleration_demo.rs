@@ -98,7 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Demonstrate GPU memory management
     #[cfg(feature = "gpu")]
     {
-        use sklears_linear::gpu_acceleration::{GpuConfig, GpuLinearOps, GpuMemoryPool};
+        use sklears_linear::gpu_acceleration::{GpuLinearOps, GpuMemoryPool};
 
         println!("\n🧠 GPU Memory Management Demo:");
 

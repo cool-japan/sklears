@@ -556,7 +556,7 @@ mod tests {
         assert_eq!(nb.class_weight, 2.0);
         assert_eq!(nb.max_iter, 200);
         assert_eq!(nb.tol, 1e-6);
-        assert_eq!(nb.verbose, true);
+        assert!(nb.verbose);
     }
 
     #[test]

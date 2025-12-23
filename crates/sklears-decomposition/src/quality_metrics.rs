@@ -892,7 +892,7 @@ mod tests {
         analysis.add_method("ICA".to_string(), 0.8, 0.15, 0.9, 0.3);
         analysis.add_method("NMF".to_string(), 0.85, 0.12, 0.85, 0.25);
 
-        let (best_method, best_score) = analysis.best_method().unwrap();
+        let (_best_method, best_score) = analysis.best_method().unwrap();
         assert!(best_score > 0.0);
 
         let ranking = analysis.method_ranking();

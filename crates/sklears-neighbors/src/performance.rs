@@ -4,7 +4,7 @@
 //! capabilities for neighbor search algorithms, allowing users to profile
 //! different algorithms, compare their performance, and optimize their choices.
 
-use scirs2_core::ndarray::Array2;
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Random;
 use scirs2_core::random::Rng;
 use std::collections::HashMap;
@@ -15,6 +15,9 @@ use crate::knn::{Algorithm, KNeighborsClassifier};
 use crate::NeighborsError;
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::Float;
+
+/// Type alias for synthetic data generation result
+type SyntheticData = Result<(Array2<Float>, Array1<i32>, Array2<Float>), NeighborsError>;
 
 /// Performance metrics for neighbor search operations
 #[derive(Debug, Clone)]
@@ -383,7 +386,7 @@ impl NeighborBenchmark {
         n_samples: usize,
         n_features: usize,
         rng: &mut Random<scirs2_core::random::rngs::StdRng>,
-    ) -> Result<(Array2<Float>, Array1<i32>, Array2<Float>), NeighborsError> {
+    ) -> SyntheticData {
         use scirs2_core::random::RandNormal as Normal;
         let normal = Normal::new(0.0, 1.0).unwrap();
 
@@ -393,13 +396,10 @@ impl NeighborBenchmark {
 
         // Generate simple binary classification targets
         let y_train: Array1<i32> =
-            Array1::from_shape_simple_fn(
-                n_samples,
-                || if rng.random::<f64>() < 0.5 { 0 } else { 1 },
-            );
+            Array1::from_shape_simple_fn(n_samples, || if rng.gen::<f64>() < 0.5 { 0 } else { 1 });
 
         // Generate test data (smaller set)
-        let n_test = (n_samples / 10).max(10).min(100);
+        let n_test = (n_samples / 10).clamp(10, 100);
         let x_test =
             Array2::from_shape_simple_fn((n_test, n_features), || rng.sample(normal) as Float);
 
@@ -558,8 +558,6 @@ impl Default for QuickProfiler {
         Self::new()
     }
 }
-
-use scirs2_core::ndarray::Array1;
 
 #[allow(non_snake_case)]
 #[cfg(test)]

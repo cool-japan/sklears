@@ -132,7 +132,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for PCAImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if self.n_components > n_features {
@@ -160,7 +160,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for PCAImputer<Untrained> {
 
             // Select top components
             let components = eigenvectors.slice(s![.., ..self.n_components]).to_owned();
-            let explained_variance = eigenvalues.slice(s![..self.n_components]).to_owned();
+            let _explained_variance = eigenvalues.slice(s![..self.n_components]).to_owned();
 
             // Project and reconstruct
             let X_transformed = X_centered.dot(&components);
@@ -214,7 +214,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for PCAImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for PCAImputer<PCAImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -312,7 +312,7 @@ impl PCAImputer<Untrained> {
 
         for k in 0..n.min(self.n_components) {
             // Random initialization
-            let mut v = Array1::from_shape_fn(n, |_| rng.gen_range(-1.0..1.0));
+            let mut v = Array1::from_shape_fn(n, |_| rng.random_range(-1.0, 1.0));
 
             // Power iteration
             for _iter in 0..100 {

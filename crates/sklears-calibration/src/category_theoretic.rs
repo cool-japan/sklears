@@ -39,6 +39,9 @@ use std::marker::PhantomData;
 /// Type-level marker for categorical objects
 pub trait CategoryObject {}
 
+// Forward declaration for type alias (defined after ProbabilitySpace)
+// Type alias moved after struct definitions
+
 /// Type-level marker for categorical morphisms
 pub trait CategoryMorphism<A: CategoryObject, B: CategoryObject> {}
 
@@ -192,6 +195,9 @@ pub struct UnitConstraint {
     pub triangle_identity: bool,
 }
 
+/// Type alias for exponential objects in topos (function spaces)
+type ExponentialObject = ProbabilitySpace<fn(f64) -> f64>;
+
 /// Topos structure for calibration logic
 #[derive(Debug)]
 pub struct CalibrationTopos {
@@ -202,7 +208,7 @@ pub struct CalibrationTopos {
     /// Power objects
     pub power_objects: HashMap<String, ProbabilitySpace<Vec<bool>>>,
     /// Exponential objects
-    pub exponentials: HashMap<String, ProbabilitySpace<fn(f64) -> f64>>,
+    pub exponentials: HashMap<String, ExponentialObject>,
 }
 
 /// Sheaf for local-to-global calibration principles
@@ -403,7 +409,7 @@ impl CategoryTheoreticCalibrator {
             // Apply natural transformation
             let natural_component =
                 self.compute_natural_component(&prob_space_pred, &prob_space_target)?;
-            calibrated[i] = natural_component;
+            calibrated[i] = natural_component.clamp(0.0, 1.0); // Ensure valid probability range
         }
 
         Ok(calibrated)
@@ -423,7 +429,7 @@ impl CategoryTheoreticCalibrator {
             probability_measure: ProbabilityMeasure {
                 measure_values: {
                     let mut map = HashMap::new();
-                    map.insert(format!("set_{}", value), value.max(0.0).min(1.0));
+                    map.insert(format!("set_{}", value), value.clamp(0.0, 1.0));
                     map
                 },
                 is_sigma_additive: true,
@@ -452,17 +458,22 @@ impl CategoryTheoreticCalibrator {
             .unwrap_or(&0.5);
 
         // Natural transformation with calibration improvement
-        let calibrated = if source_prob > &0.0 && target_prob > &0.0 {
-            let log_odds_source = (source_prob / (1.0 - source_prob)).ln() as f64;
-            let log_odds_target = (target_prob / (1.0 - target_prob)).ln() as f64;
-            let adjustment = 0.1 * (log_odds_target - log_odds_source);
-            let adjusted_log_odds = log_odds_source + adjustment;
-            adjusted_log_odds.exp() / (1.0 + adjusted_log_odds.exp())
-        } else {
-            *source_prob
-        };
+        // Ensure probabilities are in valid range for log-odds transformation
+        let safe_source = source_prob.clamp(0.01, 0.99);
+        let safe_target = target_prob.clamp(0.01, 0.99);
 
-        Ok(calibrated.max(1e-10).min(1.0 - 1e-10))
+        let calibrated =
+            if safe_source > 0.0 && safe_source < 1.0 && safe_target > 0.0 && safe_target < 1.0 {
+                let log_odds_source = (safe_source / (1.0 - safe_source)).ln();
+                let log_odds_target = (safe_target / (1.0 - safe_target)).ln();
+                let adjustment = 0.1 * (log_odds_target - log_odds_source);
+                let adjusted_log_odds = log_odds_source + adjustment;
+                adjusted_log_odds.exp() / (1.0 + adjusted_log_odds.exp())
+            } else {
+                safe_source
+            };
+
+        Ok(calibrated.clamp(1e-10, 1.0 - 1e-10))
     }
 
     /// Compute categorical limit for ensemble calibration
@@ -486,7 +497,7 @@ impl CategoryTheoreticCalibrator {
             // Universal property: limit commutes with all projections
             let harmonic_mean =
                 values.len() as f64 / values.iter().map(|&x| 1.0 / x.max(1e-10)).sum::<f64>();
-            limit_result[i] = harmonic_mean.max(1e-10).min(1.0 - 1e-10);
+            limit_result[i] = harmonic_mean.clamp(1e-10, 1.0 - 1e-10);
         }
 
         // Register limit construction
@@ -521,12 +532,9 @@ impl CategoryTheoreticCalibrator {
             let values: Vec<f64> = calibrators.iter().map(|cal| cal[i]).collect();
 
             // Co-universal property: colimit commutes with all injections
-            let geometric_mean = values
-                .iter()
-                .map(|&x| (x.max(1e-10) as f64).ln())
-                .sum::<f64>()
-                / values.len() as f64;
-            colimit_result[i] = geometric_mean.exp().max(1e-10).min(1.0 - 1e-10);
+            let geometric_mean =
+                values.iter().map(|&x| x.max(1e-10).ln()).sum::<f64>() / values.len() as f64;
+            colimit_result[i] = geometric_mean.exp().clamp(1e-10, 1.0 - 1e-10);
         }
 
         // Register colimit construction
@@ -648,7 +656,7 @@ impl CategoryTheoreticCalibrator {
                 local_values
                     .iter()
                     .cloned()
-                    .fold(0.0, |acc, x| acc + x * (x as f64).ln().exp())
+                    .fold(0.0, |acc, x| acc + x * x.ln().exp())
                     / local_values.len() as f64
             };
         }
@@ -672,18 +680,18 @@ impl CategoryTheoreticCalibrator {
         let calibrated = self.apply_functor(predictions, targets)?;
 
         // Compute categorical metrics
-        let functorial_quality = 1.0
-            - (predictions - &calibrated)
-                .map(|x| x.abs())
-                .mean()
-                .unwrap_or(1.0);
+        let mean_diff = (predictions - &calibrated)
+            .map(|x| x.abs())
+            .mean()
+            .unwrap_or(1.0);
+        let functorial_quality = (1.0 - mean_diff).clamp(0.0, 1.0);
         let natural_coherence = self.verify_naturality(&calibrated);
         let topos_consistency = self.compute_topos_consistency(predictions, targets)?;
 
         // Categorical entropy (measure of complexity)
         let categorical_entropy = calibrated
             .iter()
-            .map(|&p| if p > 1e-10 { p * (p as f64).ln() } else { 0.0 })
+            .map(|&p| if p > 1e-10 { p * p.ln() } else { 0.0 })
             .sum::<f64>();
 
         // Commutativity index for diagrams
@@ -742,8 +750,13 @@ mod tests {
         let result = calibrator.apply_functor(&predictions, &targets).unwrap();
 
         assert_eq!(result.len(), 4);
-        for &prob in result.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+        for (i, &prob) in result.iter().enumerate() {
+            assert!(
+                prob >= 0.0 && prob <= 1.0,
+                "probability at index {} = {} is outside [0, 1] range",
+                i,
+                prob
+            );
         }
     }
 

@@ -376,7 +376,7 @@ impl LoadBalancer {
                 Ok(least_loaded.id.clone())
             }
             LoadBalancingStrategy::Random => {
-                use scirs2_core::random::{thread_rng, Rng};
+                use scirs2_core::random::thread_rng;
                 let mut rng = thread_rng();
                 let selected = &available_nodes[rng.gen_range(0..available_nodes.len())];
                 Ok(selected.id.clone())

@@ -668,7 +668,7 @@ mod tests {
 
         assert!(compressed.compression_ratio() > 1.0);
 
-        let (u_dec, s_dec, vt_dec) = compressed.decompress().unwrap();
+        let (u_dec, _s_dec, vt_dec) = compressed.decompress().unwrap();
         assert_eq!(u_dec.ncols(), 3);
         assert_eq!(vt_dec.nrows(), 3);
     }

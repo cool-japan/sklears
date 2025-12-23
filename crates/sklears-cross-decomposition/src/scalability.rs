@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::error::SklearsError;
 use std::sync::Arc;
 use std::thread;
@@ -189,8 +189,7 @@ impl MemoryEfficientCCA {
             StdRng::from_rng(&mut entropy_rng)
         };
 
-        use scirs2_core::random::SeedableRng;
-        use scirs2_core::random::{Distribution, RandNormal as Normal};
+        use scirs2_core::random::{Distribution, RandNormal as Normal, Rng, SeedableRng};
 
         let normal = Normal::new(0.0, 0.1).unwrap();
 

@@ -289,6 +289,12 @@ pub struct AutoMLAlgorithmSelector {
     algorithm_catalog: HashMap<TaskType, Vec<AlgorithmSpec>>,
 }
 
+impl Default for AutoMLAlgorithmSelector {
+    fn default() -> Self {
+        Self::new(AutoMLConfig::default())
+    }
+}
+
 impl AutoMLAlgorithmSelector {
     /// Create a new AutoML algorithm selector
     pub fn new(config: AutoMLConfig) -> Self {
@@ -297,11 +303,6 @@ impl AutoMLAlgorithmSelector {
             config,
             algorithm_catalog,
         }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(AutoMLConfig::default())
     }
 
     /// Analyze dataset characteristics
@@ -331,6 +332,7 @@ impl AutoMLAlgorithmSelector {
         let linearity_score = self.estimate_linearity_score(X, y);
         let noise_level = self.estimate_noise_level(X, y);
         let effective_dimensionality = self.estimate_effective_dimensionality(X);
+        let categorical_ratio = self.calculate_categorical_ratio(X);
 
         DatasetCharacteristics {
             n_samples,
@@ -339,7 +341,7 @@ impl AutoMLAlgorithmSelector {
             class_distribution,
             target_stats,
             missing_ratio,
-            categorical_ratio: 0.0, // TODO: Implement categorical detection
+            categorical_ratio,
             correlation_condition_number,
             sparsity,
             effective_dimensionality,
@@ -1161,11 +1163,11 @@ impl AutoMLAlgorithmSelector {
         }
 
         // Add some noise
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         score += rng.gen_range(-0.05..0.05);
 
-        score.max(0.0).min(1.0)
+        score.clamp(0.0, 1.0)
     }
 
     /// Calculate selection probability based on performance
@@ -1202,7 +1204,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     /// Get baseline score for comparison
-    fn get_baseline_score(&self, X: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
+    fn get_baseline_score(&self, _X: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         match self.config.task_type {
             TaskType::Classification => {
                 // Most frequent class accuracy
@@ -1272,9 +1274,48 @@ impl AutoMLAlgorithmSelector {
         zero_count / total_values
     }
 
-    fn calculate_correlation_condition_number(&self, X: &Array2<f64>) -> f64 {
+    fn calculate_categorical_ratio(&self, X: &Array2<f64>) -> f64 {
+        let n_features = X.ncols();
+        if n_features == 0 {
+            return 0.0;
+        }
+
+        let mut categorical_count = 0;
+        for col_idx in 0..n_features {
+            let column = X.column(col_idx);
+
+            // Filter out NaN values
+            let valid_values: Vec<f64> = column.iter().filter(|&&x| !x.is_nan()).copied().collect();
+
+            if valid_values.is_empty() {
+                continue;
+            }
+
+            // Count unique values
+            let mut unique_values = valid_values.clone();
+            unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            unique_values.dedup();
+
+            let n_unique = unique_values.len();
+            let n_total = valid_values.len();
+
+            // Heuristic: Consider categorical if:
+            // 1. Has 10 or fewer unique values, OR
+            // 2. Unique ratio < 5% and all values appear to be integers
+            let unique_ratio = n_unique as f64 / n_total as f64;
+            let all_integers = valid_values.iter().all(|&x| (x - x.round()).abs() < 1e-10);
+
+            if n_unique <= 10 || (unique_ratio < 0.05 && all_integers) {
+                categorical_count += 1;
+            }
+        }
+
+        categorical_count as f64 / n_features as f64
+    }
+
+    fn calculate_correlation_condition_number(&self, _X: &Array2<f64>) -> f64 {
         // Mock implementation - would need actual correlation matrix computation
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         rng.gen_range(1.0..100.0)
     }
@@ -1311,16 +1352,16 @@ impl AutoMLAlgorithmSelector {
         }
     }
 
-    fn estimate_linearity_score(&self, X: &Array2<f64>, y: &Array1<f64>) -> f64 {
+    fn estimate_linearity_score(&self, _X: &Array2<f64>, _y: &Array1<f64>) -> f64 {
         // Mock implementation - would need actual linearity testing
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         rng.gen_range(0.0..1.0)
     }
 
-    fn estimate_noise_level(&self, X: &Array2<f64>, y: &Array1<f64>) -> f64 {
+    fn estimate_noise_level(&self, _X: &Array2<f64>, _y: &Array1<f64>) -> f64 {
         // Mock implementation - would need actual noise estimation
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         rng.gen_range(0.0..0.5)
     }

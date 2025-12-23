@@ -25,8 +25,7 @@
 //!
 //! Distance between clusters is minimum distance between their representatives.
 
-use numrs2::prelude::*;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 use sklears_core::traits::{Fit, Predict};
@@ -342,7 +341,7 @@ impl CURE {
             // Simple random sampling
             let mut indices: Vec<usize> = (0..n_samples).collect();
             for i in (1..n_samples).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 indices.swap(i, j);
             }
             indices.truncate(sample_size);
@@ -635,7 +634,6 @@ impl CUREFitted {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use numrs2::prelude::*;
 
     fn create_sample_data() -> Array2<f64> {
         let data = vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 8.0, 8.0, 1.0, 0.6, 9.0, 11.0];

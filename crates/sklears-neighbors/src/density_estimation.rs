@@ -919,7 +919,7 @@ impl Predict<Features, Array1<i32>> for DensityBasedClustering {
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("No training data".to_string()))?;
 
-        let train_densities = self
+        let _train_densities = self
             .densities
             .as_ref()
             .ok_or_else(|| NeighborsError::InvalidInput("No density estimates".to_string()))?;

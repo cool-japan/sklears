@@ -4,7 +4,6 @@
 //! throughout the clustering validation framework, including distance metrics,
 //! result structures, and configuration types.
 
-use numrs2::prelude::*;
 use std::collections::HashMap;
 
 /// Distance metrics available for clustering validation
@@ -479,7 +478,7 @@ pub struct ExternalValidationMetrics {
 impl ExternalValidationMetrics {
     /// Create a consensus score from multiple external metrics
     pub fn consensus_score(&self) -> f64 {
-        let scores = vec![
+        let scores = [
             self.adjusted_rand_index.max(0.0), // Ensure non-negative for averaging
             self.normalized_mutual_info,
             self.v_measure,

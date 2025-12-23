@@ -8,7 +8,7 @@
 //! - Error metrics integration and monitoring
 
 use serde::{Serialize, Deserialize};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use chrono::Duration;
 
 /// Primary error type for chart building and rendering operations

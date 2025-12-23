@@ -649,7 +649,7 @@ pub fn random_test_vector(size: usize, seed: u64) -> Vec<f32> {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

@@ -153,7 +153,7 @@ impl HigherOrderUncertaintyEstimator {
             });
         }
 
-        let n_samples = probabilities.len();
+        let _n_samples = probabilities.len();
 
         // 1. Epistemic uncertainty via ensemble disagreement
         let epistemic = self.estimate_epistemic_uncertainty(probabilities)?;
@@ -489,7 +489,7 @@ impl HigherOrderUncertaintyEstimator {
             }
         } else {
             // Use historical data for temporal analysis
-            for (i, &prob) in probabilities.iter().enumerate() {
+            for (i, &_prob) in probabilities.iter().enumerate() {
                 let mut historical_values = Vec::new();
 
                 for hist_pred in &self.prediction_history {
@@ -755,7 +755,7 @@ impl HigherOrderUncertaintyEstimator {
         let n_samples = components[0].len();
         let mut regions = Array3::zeros((n_samples, n_components, 2)); // lower, upper bounds
 
-        let alpha = 1.0 - self.config.confidence_level;
+        let _alpha = 1.0 - self.config.confidence_level;
         let z_score = 1.96; // Approximate 95% confidence
 
         for i in 0..n_samples {

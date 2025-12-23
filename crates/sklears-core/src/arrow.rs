@@ -1486,8 +1486,6 @@ mod tests {
     #[cfg(feature = "polars")]
     #[test]
     fn test_arrow_polars_interop() {
-        use polars::prelude::*;
-
         // Create Arrow dataset
         let arrow_dataset = ArrowDataset::builder()
             .add_float64_column("feature1", vec![1.0, 2.0, 3.0])

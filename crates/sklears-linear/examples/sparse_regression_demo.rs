@@ -4,6 +4,12 @@
 //! memory-efficient linear regression on high-dimensional sparse data.
 
 #[cfg(feature = "sparse")]
+use scirs2_autograd::ndarray::{array, s, Array1, Array2};
+
+#[cfg(feature = "sparse")]
+use sklears_core::traits::{Fit, Predict};
+
+#[cfg(feature = "sparse")]
 use sklears_linear::{
     SparseElasticNet, SparseLasso, SparseLinearRegression, SparseMatrix, SparseMatrixCSR,
 };

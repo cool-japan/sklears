@@ -1083,7 +1083,6 @@ impl DefaultTaskScheduler {
                 }
             } else {
                 // Dependency not found - assume it's satisfied
-                continue;
             }
         }
         true

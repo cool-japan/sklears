@@ -377,7 +377,7 @@ mod tests {
         let (distances, indices) = fitted.radius_neighbors(&x, Some(1.5), true).unwrap();
 
         assert!(distances.is_some());
-        let dists = distances.unwrap();
+        let _dists = distances.unwrap();
 
         // First point (1.0) should have neighbors [0, 1] (itself and point at 2.0)
         assert_eq!(indices[0].len(), 2);

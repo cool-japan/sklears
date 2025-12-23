@@ -12,7 +12,7 @@ use std::collections::HashMap;
 ///
 /// Represents a complete machine learning pipeline configuration parsed from
 /// the ml_pipeline! macro. Contains all stages, types, and execution options.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct PipelineConfig {
     /// Name of the pipeline for identification and code generation
     pub name: String,
@@ -38,7 +38,7 @@ pub struct PipelineConfig {
 ///
 /// Represents a single stage in the ML pipeline with its transformations
 /// and configuration options.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct PipelineStage {
     /// Name of the stage for identification
     pub name: String,
@@ -77,37 +77,30 @@ pub enum StageType {
 /// Performance configuration for pipelines
 ///
 /// Configures performance-related options for pipeline execution.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PerformanceConfig {
     /// Maximum number of parallel threads to use
+    #[serde(default)]
     pub max_threads: Option<usize>,
     /// Maximum memory usage in bytes
+    #[serde(default)]
     pub max_memory_bytes: Option<usize>,
     /// Whether to enable GPU acceleration
+    #[serde(default)]
     pub gpu_acceleration: bool,
     /// Batch size for processing large datasets
+    #[serde(default)]
     pub batch_size: Option<usize>,
     /// Timeout for individual stages in seconds
+    #[serde(default)]
     pub stage_timeout_seconds: Option<u64>,
-}
-
-impl Default for PerformanceConfig {
-    fn default() -> Self {
-        Self {
-            max_threads: None,
-            max_memory_bytes: None,
-            gpu_acceleration: false,
-            batch_size: None,
-            stage_timeout_seconds: None,
-        }
-    }
 }
 
 /// Feature engineering configuration
 ///
 /// Represents the configuration for the feature_engineering! macro,
 /// including feature definitions, selection criteria, and validation rules.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct FeatureEngineeringConfig {
     /// Source dataset expression
     pub dataset: syn::Expr,
@@ -124,7 +117,7 @@ pub struct FeatureEngineeringConfig {
 /// Individual feature definition
 ///
 /// Defines how to compute a new feature from existing data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct FeatureDefinition {
     /// Name of the new feature
     pub name: String,
@@ -212,7 +205,7 @@ impl Default for FeatureEngineeringOptions {
 ///
 /// Represents the configuration for hyperparameter optimization from
 /// the hyperparameter_config! macro.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct HyperparameterConfig {
     /// Model type to optimize hyperparameters for
     pub model: syn::Type,
@@ -229,7 +222,7 @@ pub struct HyperparameterConfig {
 /// Parameter definition for hyperparameter optimization
 ///
 /// Defines a single hyperparameter, its search space, and properties.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct ParameterDef {
     /// Name of the hyperparameter
     pub name: String,
@@ -247,7 +240,7 @@ pub struct ParameterDef {
 ///
 /// Defines different types of distributions for sampling parameter values
 /// during hyperparameter optimization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub enum ParameterDistribution {
     /// Uniform distribution over a range [min, max]
     Uniform { min: syn::Expr, max: syn::Expr },
@@ -391,18 +384,27 @@ mod tests {
     #[test]
     fn test_stage_type_equality() {
         assert_eq!(StageType::Preprocess, StageType::Preprocess);
-        assert_eq!(StageType::Custom("test".to_string()), StageType::Custom("test".to_string()));
+        assert_eq!(
+            StageType::Custom("test".to_string()),
+            StageType::Custom("test".to_string())
+        );
         assert_ne!(StageType::Preprocess, StageType::Model);
     }
 
     #[test]
     fn test_optimization_strategy_equality() {
-        assert_eq!(OptimizationStrategy::RandomSearch, OptimizationStrategy::RandomSearch);
+        assert_eq!(
+            OptimizationStrategy::RandomSearch,
+            OptimizationStrategy::RandomSearch
+        );
         assert_eq!(
             OptimizationStrategy::Custom("test".to_string()),
             OptimizationStrategy::Custom("test".to_string())
         );
-        assert_ne!(OptimizationStrategy::RandomSearch, OptimizationStrategy::GridSearch);
+        assert_ne!(
+            OptimizationStrategy::RandomSearch,
+            OptimizationStrategy::GridSearch
+        );
     }
 
     #[test]

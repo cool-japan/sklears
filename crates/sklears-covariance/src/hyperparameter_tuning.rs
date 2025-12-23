@@ -528,7 +528,7 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
                 Ok(ParameterValue::Float(final_value))
             }
             ParameterType::Integer { min, max } => {
-                let value = rng.gen_range(*min..=*max);
+                let value = rng.gen_range(*min..*max + 1);
                 Ok(ParameterValue::Int(value))
             }
             ParameterType::Categorical { choices } => {

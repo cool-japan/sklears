@@ -4,7 +4,6 @@
 //! Mini-batch K-Means, X-Means for automatic cluster selection, and G-Means for
 //! Gaussian cluster detection.
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::{Array2, ArrayView1};
 use scirs2_core::random::{Random, Rng};
 use sklears_core::error::{Result, SklearsError};
@@ -139,7 +138,7 @@ impl KMeans {
             let chosen_idx = if total_distance <= f64::EPSILON {
                 rng.gen_range(0..n_samples)
             } else {
-                let target = rng.gen_range(0.0..total_distance);
+                let target = rng.random_range(0.0..total_distance);
                 let mut cumulative = 0.0;
                 let mut selected = 0;
 

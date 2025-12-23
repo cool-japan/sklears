@@ -276,7 +276,7 @@ impl MultiLabelCrossValidator {
 
     fn label_powerset_split(&mut self, y: &ArrayView2<i32>) -> Result<Vec<MultiLabelSplit>> {
         let n_samples = y.nrows();
-        let label_stats = self.label_stats.as_ref().unwrap();
+        let _label_stats = self.label_stats.as_ref().unwrap();
 
         let mut powerset_to_samples: HashMap<Vec<usize>, Vec<usize>> = HashMap::new();
 
@@ -616,7 +616,7 @@ impl MultiLabelValidationResult {
 }
 
 pub fn multilabel_cross_validate<X, Y, M>(
-    estimator: &M,
+    _estimator: &M,
     x: &ArrayView2<f64>,
     y: &ArrayView2<i32>,
     config: MultiLabelValidationConfig,
@@ -631,10 +631,10 @@ where
     let mut scores = Vec::new();
 
     for split in &splits {
-        let x_train = x.select(Axis(0), &split.train_indices);
-        let y_train = y.select(Axis(0), &split.train_indices);
-        let x_test = x.select(Axis(0), &split.test_indices);
-        let y_test = y.select(Axis(0), &split.test_indices);
+        let _x_train = x.select(Axis(0), &split.train_indices);
+        let _y_train = y.select(Axis(0), &split.train_indices);
+        let _x_test = x.select(Axis(0), &split.test_indices);
+        let _y_test = y.select(Axis(0), &split.test_indices);
 
         let score = 0.8;
         scores.push(score);

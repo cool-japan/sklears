@@ -25,7 +25,7 @@ use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, ArrayView1, ArrayView
 use scirs2_core::ndarray;
 use scirs2_core::random::Rng;
 
-// Note: SIMD functionality can be added when portable_simd is stabilized
+// Note: SIMD optimizations delegated to scirs2-core's ndarray backend
 
 use sklears_core::error::SklearsError as SklResult;
 

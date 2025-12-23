@@ -599,7 +599,7 @@ mod tests {
         let total_distance = distance1 + distance2;
         assert_eq!(*total_distance.value(), 15.0);
 
-        let time = Measurement::<f64, Seconds>::new(2.0);
+        let _time = Measurement::<f64, Seconds>::new(2.0);
         // This would not compile: distance1 + time (different units)
     }
 

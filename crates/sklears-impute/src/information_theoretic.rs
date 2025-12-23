@@ -250,7 +250,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MutualInformationImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -319,7 +319,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -584,7 +584,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for EntropyImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -639,7 +639,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for EntropyImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for EntropyImputer<EntropyImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -997,7 +997,7 @@ fn sample_from_distribution(
         })
         .collect();
 
-    let random_val = rng.gen::<f64>();
+    let random_val = rng.gen();
 
     let bin_idx = cumsum
         .iter()
@@ -1172,7 +1172,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for InformationGainImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -1265,7 +1265,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -1524,7 +1524,7 @@ fn build_tree_recursive(
     min_samples_split: usize,
     max_depth: usize,
     current_depth: usize,
-    rng: &mut impl Rng,
+    _rng: &mut impl Rng,
 ) -> SklResult<DecisionNode> {
     // Base case: create leaf node
     if samples.len() < min_samples_split || current_depth >= max_depth || samples.is_empty() {
@@ -1549,7 +1549,7 @@ fn build_tree_recursive(
     let mut best_feature = 0;
     let mut best_threshold = 0.0;
 
-    for (feat_idx, &global_feat_idx) in feature_indices.iter().enumerate() {
+    for (feat_idx, &_global_feat_idx) in feature_indices.iter().enumerate() {
         // Try multiple thresholds
         let feature_values: Vec<f64> = samples
             .iter()
@@ -1601,7 +1601,7 @@ fn build_tree_recursive(
         min_samples_split,
         max_depth,
         current_depth + 1,
-        rng,
+        _rng,
     )?;
     let right_child = build_tree_recursive(
         &right_samples_owned,
@@ -1609,7 +1609,7 @@ fn build_tree_recursive(
         min_samples_split,
         max_depth,
         current_depth + 1,
-        rng,
+        _rng,
     )?;
 
     Ok(DecisionNode {
@@ -1684,10 +1684,8 @@ fn predict_with_tree(tree: &DecisionNode, features: &Array1<f64>) -> SklResult<f
                 if let Some(ref left) = tree.left {
                     return predict_with_tree(left, features);
                 }
-            } else {
-                if let Some(ref right) = tree.right {
-                    return predict_with_tree(right, features);
-                }
+            } else if let Some(ref right) = tree.right {
+                return predict_with_tree(right, features);
             }
         }
     }

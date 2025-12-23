@@ -58,6 +58,12 @@ pub struct ParallelKNNImputerTrained {
     parallel_config: ParallelConfig,
 }
 
+impl Default for ParallelKNNImputer<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParallelKNNImputer<Untrained> {
     pub fn new() -> Self {
         Self {
@@ -119,7 +125,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ParallelKNNImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         Ok(ParallelKNNImputer {
@@ -142,8 +148,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
             return Err(SklearsError::InvalidInput(format!(
@@ -337,6 +343,12 @@ pub struct ParallelIterativeImputerTrained {
     random_state: Option<u64>,
 }
 
+impl Default for ParallelIterativeImputer<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParallelIterativeImputer<Untrained> {
     pub fn new() -> Self {
         Self {
@@ -385,7 +397,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ParallelIterativeImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         // Create missing mask
@@ -412,8 +424,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
             return Err(SklearsError::InvalidInput(format!(
@@ -427,7 +439,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
         let missing_mask = X.mapv(|x| x.is_nan());
 
         // Iterative imputation with parallel feature processing
-        for iteration in 0..self.max_iter {
+        for _iteration in 0..self.max_iter {
             let X_prev = X_imputed.clone();
 
             // Process features in parallel
@@ -480,7 +492,7 @@ impl ParallelIterativeImputer<ParallelIterativeImputerTrained> {
             .collect();
 
         // Fill missing values with means
-        for ((i, j), value) in X_imputed.indexed_iter_mut() {
+        for ((_i, j), value) in X_imputed.indexed_iter_mut() {
             if value.is_nan() {
                 *value = column_means[j];
             }
@@ -686,6 +698,12 @@ pub struct StreamingImputer {
     missing_values: f64,
 }
 
+impl Default for StreamingImputer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StreamingImputer {
     pub fn new() -> Self {
         Self {
@@ -798,6 +816,12 @@ pub struct OnlineStatistics {
     n_features: usize,
 }
 
+impl Default for OnlineStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OnlineStatistics {
     pub fn new() -> Self {
         Self {
@@ -888,6 +912,12 @@ pub struct AdaptiveStreamingImputer {
     statistics: OnlineStatistics,
 }
 
+impl Default for AdaptiveStreamingImputer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdaptiveStreamingImputer {
     pub fn new() -> Self {
         Self {
@@ -967,8 +997,10 @@ mod tests {
         )
         .unwrap();
 
-        let mut config = ParallelConfig::default();
-        config.max_threads = Some(2);
+        let config = ParallelConfig {
+            max_threads: Some(2),
+            ..Default::default()
+        };
 
         let imputer = ParallelKNNImputer::new()
             .n_neighbors(2)
@@ -978,12 +1010,12 @@ mod tests {
         let result = fitted.transform(&data.view()).unwrap();
 
         // Should have no missing values
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Non-missing values should be preserved
-        assert_abs_diff_eq!(result[[0, 0]] as f64, 1.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 1]] as f64, 2.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 2]] as f64, 3.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 1]], 2.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 2]], 3.0, epsilon = 1e-10);
     }
 
     #[test]
@@ -1010,8 +1042,10 @@ mod tests {
         )
         .unwrap();
 
-        let mut config = ParallelConfig::default();
-        config.max_threads = Some(2);
+        let config = ParallelConfig {
+            max_threads: Some(2),
+            ..Default::default()
+        };
 
         let imputer = ParallelIterativeImputer::new()
             .max_iter(5)
@@ -1022,12 +1056,12 @@ mod tests {
         let result = fitted.transform(&data.view()).unwrap();
 
         // Should have no missing values
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Non-missing values should be preserved
-        assert_abs_diff_eq!(result[[0, 0]] as f64, 1.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 1]] as f64, 2.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 2]] as f64, 3.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 1]], 2.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 2]], 3.0, epsilon = 1e-10);
     }
 
     #[test]
@@ -1114,7 +1148,7 @@ mod tests {
             Array1::from_vec(vec![13.0, 14.0, f64::NAN]),
         ];
 
-        let data_stream = data_rows.into_iter().map(|row| Ok(row));
+        let data_stream = data_rows.into_iter().map(Ok);
 
         let imputer = StreamingImputer::new()
             .buffer_size(3)

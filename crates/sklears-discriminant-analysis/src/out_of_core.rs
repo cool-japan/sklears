@@ -20,7 +20,7 @@ use rayon::prelude::*;
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
-    traits::{Estimator, Fit, Predict, PredictProba, Trained},
+    traits::{Fit, Predict, PredictProba, Trained},
     types::Float,
 };
 use std::{
@@ -187,9 +187,10 @@ impl OutOfCoreDataManager {
         if let Some(max_memory) = self.config.max_memory_usage {
             let bytes_per_sample = n_features * std::mem::size_of::<Float>();
             let max_samples = max_memory / bytes_per_sample;
-            Ok(max_samples.min(self.config.chunk_size).max(1))
+            let capped = max_samples.min(self.config.chunk_size).max(1);
+            Ok(capped.min(n_samples.max(1)))
         } else {
-            Ok(self.config.chunk_size)
+            Ok(self.config.chunk_size.min(n_samples.max(1)))
         }
     }
 
@@ -411,6 +412,8 @@ pub struct OutOfCoreLDA {
     lda_config: LinearDiscriminantAnalysisConfig,
     data_manager: Option<OutOfCoreDataManager>,
     trained_model: Option<LinearDiscriminantAnalysis<Trained>>,
+    cached_mean: Option<Array1<Float>>,
+    cached_covariance: Option<Array2<Float>>,
 }
 
 impl Default for OutOfCoreLDA {
@@ -427,6 +430,8 @@ impl OutOfCoreLDA {
             lda_config: LinearDiscriminantAnalysisConfig::default(),
             data_manager: None,
             trained_model: None,
+            cached_mean: None,
+            cached_covariance: None,
         }
     }
 
@@ -440,6 +445,8 @@ impl OutOfCoreLDA {
             lda_config,
             data_manager: None,
             trained_model: None,
+            cached_mean: None,
+            cached_covariance: None,
         }
     }
 
@@ -451,6 +458,8 @@ impl OutOfCoreLDA {
 
         // Compute statistics incrementally
         let (mean, covariance) = self.compute_incremental_statistics(&data_manager)?;
+        self.cached_mean = Some(mean.clone());
+        self.cached_covariance = Some(covariance.clone());
 
         // Train LDA model with computed statistics
         let lda = LinearDiscriminantAnalysis::new();
@@ -730,7 +739,7 @@ mod tests {
 
         // Buffer should trigger training
         let test_data = array![[2.0, 3.0]];
-        let predictions = stream.predict(&test_data);
+        let _predictions = stream.predict(&test_data);
         // May fail if model not trained yet, which is expected
     }
 

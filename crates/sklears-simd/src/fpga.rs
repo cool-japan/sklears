@@ -547,9 +547,17 @@ fn quicksort_fallback(data: &mut [f32]) -> Result<(), SimdError> {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        boxed::Box,
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_fpga_runtime_creation() {

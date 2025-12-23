@@ -439,7 +439,7 @@ impl PenalizedDiscriminantAnalysis {
 
             // Add penalty to loss for monitoring
             let penalty = self.compute_penalty(&w);
-            let total_loss = loss + penalty;
+            let _total_loss = loss + penalty;
 
             // Line search if enabled
             if self.config.line_search {
@@ -650,7 +650,7 @@ impl Fit<Array2<Float>, Array1<i32>> for PenalizedDiscriminantAnalysis {
 
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         if n_samples != y.len() {
             return Err(SklearsError::InvalidData {

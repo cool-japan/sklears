@@ -229,7 +229,7 @@ impl ParafacDecomposition<Untrained> {
                     let mut factor = Array2::zeros((shape[mode], self.n_factors));
                     for i in 0..shape[mode] {
                         for j in 0..self.n_factors {
-                            factor[[i, j]] = thread_rng().gen::<Float>();
+                            factor[[i, j]] = thread_rng().random::<Float>();
                         }
                     }
                     // Normalize columns
@@ -337,7 +337,7 @@ impl ParafacDecomposition<Untrained> {
 
             // Simplified update rule
             for i in 0..shape[mode] {
-                factor_col[i] = thread_rng().gen::<Float>();
+                factor_col[i] = thread_rng().random::<Float>();
             }
 
             // Normalize

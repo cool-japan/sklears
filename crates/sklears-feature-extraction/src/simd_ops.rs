@@ -3,7 +3,7 @@
 //! This module provides SIMD-optimized implementations of common mathematical
 //! operations used in feature extraction to improve performance.
 
-use crate::*;
+// use crate::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 
@@ -20,7 +20,7 @@ impl SimdOps {
 
         // Process 4 elements at a time for SIMD-like operations
         let chunks = len / 4;
-        let remainder = len % 4;
+        let _remainder = len % 4;
 
         // Unrolled loop for better performance
         for i in 0..chunks {
@@ -123,7 +123,7 @@ impl SimdOps {
         );
 
         let rows = matrix.nrows();
-        let cols = matrix.ncols();
+        let _cols = matrix.ncols();
         let mut result = Array1::zeros(rows);
 
         for row in 0..rows {

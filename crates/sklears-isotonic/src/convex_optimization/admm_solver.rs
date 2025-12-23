@@ -4,7 +4,7 @@
 //! providing a robust and efficient optimization approach that decomposes
 //! the problem into simpler subproblems with excellent convergence properties.
 
-use scirs2_core::ndarray::{Array1};
+use scirs2_core::ndarray::Array1;
 use sklears_core::{prelude::SklearsError, types::Float};
 
 /// Alternating Direction Method of Multipliers (ADMM) for isotonic regression
@@ -214,7 +214,7 @@ impl AdmmIsotonicRegression {
     ///
     /// Projects x + u onto the isotonic constraint set using the
     /// Pool Adjacent Violators Algorithm (PAVA).
-    fn z_update(&self, x: &Array1<Float>, u: &Array1<Float>, rho: Float) -> Array1<Float> {
+    fn z_update(&self, x: &Array1<Float>, u: &Array1<Float>, _rho: Float) -> Array1<Float> {
         // Project x + u onto the isotonic constraint set
         let target = x + u;
 

@@ -1,16 +1,22 @@
 //! Information Theory Approaches for Cross-Decomposition
 //!
 //! This module provides information-theoretic methods for canonical correlation analysis
-//! and cross-decomposition, including advanced higher-order statistics methods.
+//! and cross-decomposition, including advanced higher-order statistics methods and
+//! distance-based canonical analysis.
 
+pub mod distance_based_analysis;
 pub mod higher_order_statistics;
 
 use scirs2_core::ndarray::{Array, Array1, Array2, Axis};
 use scirs2_core::numeric::Float as FloatTrait;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::types::Float;
 use std::fmt;
 
+pub use distance_based_analysis::{
+    DistanceBasedConfig, DistanceBasedResults, DistanceCCA, DistanceCovariance,
+    DistanceMetric as DistanceBasedMetric, HSIC,
+};
 pub use higher_order_statistics::{
     HigherOrderAnalyzer, HigherOrderConfig, HigherOrderResults, NonGaussianComponentAnalysis,
     NonGaussianResults, PolyspectralCCA, PolyspectralResults,

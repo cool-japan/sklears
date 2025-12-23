@@ -96,7 +96,7 @@ impl NeuralCalibrationLayer {
 
     /// Initialize weights and biases
     fn initialize_parameters(&mut self) {
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         // Build layer dimensions
         let mut layer_dims = vec![self.input_dim];
@@ -112,7 +112,7 @@ impl NeuralCalibrationLayer {
             let output_size = layer_dims[i + 1];
 
             // Xavier/Glorot initialization
-            let limit = (6.0 / (input_size + output_size) as Float).sqrt();
+            let _limit = (6.0 / (input_size + output_size) as Float).sqrt();
 
             let mut weight_matrix = Array2::zeros((output_size, input_size));
             for element in weight_matrix.iter_mut() {
@@ -196,7 +196,7 @@ impl NeuralCalibrationLayer {
         // Backpropagate through layers
         for i in (0..num_layers).rev() {
             let current_activation = &activations[i];
-            let next_activation = &activations[i + 1];
+            let _next_activation = &activations[i + 1];
 
             // Compute gradients
             let weight_gradient = error
@@ -344,8 +344,8 @@ impl MixupCalibrator {
         probabilities: &Array1<Float>,
         targets: &Array1<i32>,
     ) -> (Array1<Float>, Array1<i32>) {
-        let rng_instance = thread_rng();
-        let n = probabilities.len();
+        let _rng_instance = thread_rng();
+        let _n = probabilities.len();
 
         let mut mixed_probabilities = Vec::new();
         let mut mixed_targets = Vec::new();
@@ -460,7 +460,7 @@ impl DropoutCalibrator {
 
     /// Apply dropout mask
     fn apply_dropout(&self, activations: &Array1<Float>) -> Array1<Float> {
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
         let scale = 1.0 / (1.0 - self.dropout_prob);
 
         activations.mapv(|x| {
@@ -501,8 +501,8 @@ impl CalibrationEstimator for DropoutCalibrator {
                     .predict_proba(&Array1::from(vec![probabilities[i]]))?;
 
                 // Apply dropout-like noise (simplified)
-                let rng_instance = thread_rng();
-                let noise = 0;
+                let _rng_instance = thread_rng();
+                let _noise = 0;
                 let pred_with_uncertainty = (base_pred[0] + 0.0).clamp(0.0, 1.0);
 
                 sample_predictions.push(pred_with_uncertainty);

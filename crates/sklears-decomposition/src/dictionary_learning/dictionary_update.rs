@@ -59,8 +59,8 @@ impl DictionaryUpdater {
     pub fn update(
         &self,
         dictionary: &Array2<Float>,
-        data: &Array2<Float>,
-        codes: &Array2<Float>,
+        _data: &Array2<Float>,
+        _codes: &Array2<Float>,
     ) -> Result<DictionaryUpdateResult> {
         let updated_dictionary = dictionary.clone();
         let convergence_error = 0.0;

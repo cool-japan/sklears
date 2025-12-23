@@ -6,12 +6,15 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
-    traits::{Estimator, Fit, Transform},
+    traits::{Fit, Transform},
     types::Float,
 };
 use std::collections::HashMap;
 
 use crate::{parallel::ParallelConfig, KNNImputer, ParallelKNNImputer, SimpleImputer};
+
+/// Type alias for preprocessing/postprocessing results (means and stds)
+type PreprocessingResult = SklResult<(Option<Array1<Float>>, Option<Array1<Float>>)>;
 
 /// Fluent API builder for imputation pipelines
 #[derive(Debug, Clone)]
@@ -832,10 +835,14 @@ impl ImputationPipeline {
 
     /// Fit and transform in one step
     pub fn fit_transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        // TODO: Implement the complete pipeline with preprocessing, imputation, and postprocessing
-        // This is a simplified implementation for now
+        // Complete pipeline with preprocessing, imputation, and postprocessing
 
-        match &self.method {
+        // Step 1: Preprocessing
+        let X_preprocessed = X.to_owned();
+        let (means, stds) = self.apply_preprocessing(&X_preprocessed)?;
+
+        // Step 2: Imputation
+        let X_imputed = match &self.method {
             ImputationMethod::Simple(config) => {
                 let imputer = SimpleImputer::new().strategy(config.strategy.clone());
                 let fitted = imputer.fit(X, &())?;
@@ -862,10 +869,98 @@ impl ImputationPipeline {
             _ => {
                 // For other methods, fall back to simple imputation for now
                 let imputer = SimpleImputer::new().strategy("mean".to_string());
-                let fitted = imputer.fit(X, &())?;
-                fitted.transform(X)
+                let fitted = imputer.fit(&X_preprocessed.view(), &())?;
+                fitted.transform(&X_preprocessed.view())
+            }
+        }?;
+
+        // Step 3: Postprocessing
+        let X_final = self.apply_postprocessing(X_imputed, &means, &stds)?;
+
+        Ok(X_final)
+    }
+
+    /// Apply preprocessing transformations
+    fn apply_preprocessing(&self, X: &Array2<Float>) -> PreprocessingResult {
+        let mut X_proc = X.clone();
+        let mut means = None;
+        let mut stds = None;
+
+        // Normalize or scale if requested
+        if self.preprocessing.normalize || self.preprocessing.scale {
+            let (n_samples, n_features) = X_proc.dim();
+            let mut feature_means = Array1::zeros(n_features);
+            let mut feature_stds = Array1::ones(n_features);
+
+            for j in 0..n_features {
+                let col = X_proc.column(j);
+                let valid_values: Vec<Float> =
+                    col.iter().filter(|x| x.is_finite()).copied().collect();
+
+                if !valid_values.is_empty() {
+                    let mean = valid_values.iter().sum::<Float>() / valid_values.len() as Float;
+                    feature_means[j] = mean;
+
+                    if self.preprocessing.scale {
+                        let variance = valid_values
+                            .iter()
+                            .map(|x| (x - mean).powi(2))
+                            .sum::<Float>()
+                            / valid_values.len() as Float;
+                        feature_stds[j] = variance.sqrt().max(1e-8);
+                    }
+                }
+            }
+
+            // Apply normalization/scaling
+            for j in 0..n_features {
+                for i in 0..n_samples {
+                    if X_proc[[i, j]].is_finite() {
+                        X_proc[[i, j]] = (X_proc[[i, j]] - feature_means[j]) / feature_stds[j];
+                    }
+                }
+            }
+
+            means = Some(feature_means);
+            stds = Some(feature_stds);
+        }
+
+        Ok((means, stds))
+    }
+
+    /// Apply postprocessing transformations
+    fn apply_postprocessing(
+        &self,
+        mut X: Array2<Float>,
+        means: &Option<Array1<Float>>,
+        stds: &Option<Array1<Float>>,
+    ) -> SklResult<Array2<Float>> {
+        let (n_samples, n_features) = X.dim();
+
+        // Reverse normalization/scaling if it was applied
+        if let (Some(means_arr), Some(stds_arr)) = (means, stds) {
+            for j in 0..n_features {
+                for i in 0..n_samples {
+                    X[[i, j]] = X[[i, j]] * stds_arr[j] + means_arr[j];
+                }
             }
         }
+
+        // Clip values if requested
+        if let Some((min_val, max_val)) = self.postprocessing.clip_values {
+            for value in X.iter_mut() {
+                *value = value.clamp(min_val, max_val);
+            }
+        }
+
+        // Round to integers if requested
+        if self.postprocessing.round_integers {
+            for value in X.iter_mut() {
+                *value = value.round();
+            }
+        }
+
+        Ok(X)
     }
 
     /// Get configuration as JSON
@@ -902,7 +997,7 @@ impl ImputationPipeline {
     }
 
     /// Load configuration from JSON
-    pub fn from_json(json: &str) -> SklResult<Self> {
+    pub fn from_json(_json: &str) -> SklResult<Self> {
         // This would need a proper deserialization implementation
         Err(SklearsError::NotImplemented(
             "from_json not yet implemented".to_string(),
@@ -1033,7 +1128,7 @@ pub mod pluggable {
         }
 
         /// Partial fit for streaming data
-        fn partial_fit(&mut self, X: &ArrayView2<Float>) -> SklResult<()> {
+        fn partial_fit(&mut self, _X: &ArrayView2<Float>) -> SklResult<()> {
             Err(SklearsError::NotImplemented(
                 "Partial fit not supported".to_string(),
             ))
@@ -1197,6 +1292,12 @@ pub mod pluggable {
         aliases: HashMap<String, String>,
     }
 
+    impl Default for ModuleRegistry {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl ModuleRegistry {
         pub fn new() -> Self {
             Self {
@@ -1257,7 +1358,7 @@ pub mod pluggable {
                 .collect();
 
             // Sort by priority (descending)
-            suitable.sort_by(|a, b| b.priority().cmp(&a.priority()));
+            suitable.sort_by_key(|b| std::cmp::Reverse(b.priority()));
             suitable
         }
 
@@ -1377,7 +1478,7 @@ pub mod pluggable {
 
         fn analyze_data(&self, X: &ArrayView2<Float>) -> SklResult<DataCharacteristics> {
             let (n_samples, n_features) = X.dim();
-            let missing_count = X.iter().filter(|&&x| (x as f64).is_nan()).count();
+            let missing_count = X.iter().filter(|&&x| (x).is_nan()).count();
             let missing_rate = missing_count as f64 / (n_samples * n_features) as f64;
 
             Ok(DataCharacteristics {
@@ -1436,19 +1537,17 @@ pub mod pluggable {
 
     impl ImputationMiddleware for ValidationMiddleware {
         fn after_imputation(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-            if self.validate_completeness {
-                if X.iter().any(|&x| (x as f64).is_nan()) {
-                    return Err(SklearsError::InvalidInput(
-                        "Imputation failed: missing values remain".to_string(),
-                    ));
-                }
+            if self.validate_completeness && X.iter().any(|&x| (x).is_nan()) {
+                return Err(SklearsError::InvalidInput(
+                    "Imputation failed: missing values remain".to_string(),
+                ));
             }
 
             if self.validate_ranges {
                 if let Some(ranges) = &self.expected_ranges {
                     for ((_, j), &value) in X.indexed_iter() {
                         if let Some((min_val, max_val)) = ranges.get(&j) {
-                            let val = value as f64;
+                            let val = value;
                             if val < *min_val || val > *max_val {
                                 return Err(SklearsError::InvalidInput(
                                     format!("Imputed value {} out of expected range [{}, {}] for feature {}", 
@@ -1487,7 +1586,7 @@ pub mod pluggable {
     impl ImputationMiddleware for LoggingMiddleware {
         fn before_imputation(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
             if matches!(self.log_level, LogLevel::Debug | LogLevel::Info) {
-                let missing_count = X.iter().filter(|&&x| (x as f64).is_nan()).count();
+                let missing_count = X.iter().filter(|&&x| (x).is_nan()).count();
                 println!(
                     "Starting imputation: {} missing values in {}x{} matrix",
                     missing_count,
@@ -1500,7 +1599,7 @@ pub mod pluggable {
 
         fn after_imputation(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
             if matches!(self.log_level, LogLevel::Debug | LogLevel::Info) {
-                let remaining_missing = X.iter().filter(|&&x| (x as f64).is_nan()).count();
+                let remaining_missing = X.iter().filter(|&&x| (x).is_nan()).count();
                 println!(
                     "Imputation completed: {} missing values remaining",
                     remaining_missing
@@ -1531,11 +1630,11 @@ mod tests {
         let result = pipeline.fit_transform(&data.view()).unwrap();
 
         // Should have no missing values
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Non-missing values should be preserved
-        assert_abs_diff_eq!(result[[0, 0]] as f64, 1.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[[0, 1]] as f64, 2.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[[0, 1]], 2.0, epsilon = 1e-10);
     }
 
     #[test]
@@ -1555,7 +1654,7 @@ mod tests {
         let result = pipeline.fit_transform(&data.view()).unwrap();
 
         // Should have no missing values
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
     }
 
     #[test]
@@ -1569,7 +1668,7 @@ mod tests {
             .unwrap();
 
         let result = pipeline.fit_transform(&data.view()).unwrap();
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Test balanced preset
         let pipeline = ImputationBuilder::new()
@@ -1578,7 +1677,7 @@ mod tests {
             .unwrap();
 
         let result = pipeline.fit_transform(&data.view()).unwrap();
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
     }
 
     #[test]
@@ -1587,11 +1686,11 @@ mod tests {
 
         // Test quick mean imputation
         let result = quick::mean_impute(&data.view()).unwrap();
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Test quick KNN imputation
         let result = quick::knn_impute(&data.view(), 2).unwrap();
-        assert!(!result.iter().any(|&x| (x as f64).is_nan()));
+        assert!(!result.iter().any(|&x| (x).is_nan()));
     }
 
     #[test]

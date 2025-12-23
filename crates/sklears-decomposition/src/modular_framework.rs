@@ -43,7 +43,7 @@ pub trait DecompositionAlgorithm: Send + Sync {
     fn transform(&self, data: &Array2<Float>) -> Result<Array2<Float>>;
 
     /// Inverse transform if supported
-    fn inverse_transform(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
+    fn inverse_transform(&self, _data: &Array2<Float>) -> Result<Array2<Float>> {
         Err(SklearsError::InvalidInput(
             "Inverse transform not supported by this algorithm".to_string(),
         ))
@@ -180,7 +180,7 @@ pub trait PreprocessingStep: Send + Sync {
     fn process(&mut self, data: &Array2<Float>) -> Result<Array2<Float>>;
 
     /// Inverse process if applicable
-    fn inverse_process(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
+    fn inverse_process(&self, _data: &Array2<Float>) -> Result<Array2<Float>> {
         Err(SklearsError::InvalidInput(
             "Inverse processing not supported".to_string(),
         ))

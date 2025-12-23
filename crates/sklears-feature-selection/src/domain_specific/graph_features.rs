@@ -458,7 +458,7 @@ impl Transform<Array2<Float>> for GraphFeatureSelector<Trained> {
             SklearsError::InvalidState("Selector must be fitted before transforming".to_string())
         })?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != trained.n_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -648,7 +648,7 @@ fn compute_feature_centrality_scores(
     x: &Array2<Float>,
     centrality_scores: &HashMap<String, Array1<Float>>,
 ) -> Result<Array1<Float>> {
-    let (n_samples, n_features) = x.dim();
+    let (_n_samples, n_features) = x.dim();
     let mut feature_scores = Array1::zeros(n_features);
 
     for j in 0..n_features {
@@ -685,7 +685,7 @@ fn compute_community_feature_scores(
     communities: &Array1<usize>,
     weight: Float,
 ) -> Result<Array1<Float>> {
-    let (n_samples, n_features) = x.dim();
+    let (_n_samples, n_features) = x.dim();
     let mut feature_scores = Array1::zeros(n_features);
 
     // Find unique communities
@@ -729,7 +729,7 @@ fn compute_structural_feature_scores(
     adjacency: &ArrayView2<Float>,
     weight: Float,
 ) -> Result<Array1<Float>> {
-    let (n_samples, n_features) = x.dim();
+    let (_n_samples, n_features) = x.dim();
     let mut feature_scores = Array1::zeros(n_features);
 
     // Compute clustering coefficients

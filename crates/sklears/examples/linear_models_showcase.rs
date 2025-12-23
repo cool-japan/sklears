@@ -5,6 +5,8 @@
 //! - ElasticNet regression
 //! - Logistic regression with L-BFGS, SAG, and SAGA solvers
 
+#![allow(unexpected_cfgs)]
+
 use scirs2_core::ndarray::Array2;
 use sklears::linear::LinearRegression;
 #[cfg(feature = "logistic-regression")]

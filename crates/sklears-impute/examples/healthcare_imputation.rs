@@ -29,7 +29,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct HealthcareImputationFramework {
     /// Patient demographic stratification for targeted imputation
-    demographic_strata: HashMap<String, Vec<usize>>,
+    _demographic_strata: HashMap<String, Vec<usize>>,
     /// Clinical domain knowledge for constraint-based imputation
     clinical_constraints: ClinicalConstraints,
     /// Regulatory compliance settings
@@ -44,11 +44,11 @@ pub struct ClinicalConstraints {
     /// Physiological ranges for vital signs
     vital_sign_ranges: HashMap<String, (f64, f64)>,
     /// Lab value reference ranges by age/gender
-    lab_reference_ranges: HashMap<String, HashMap<String, (f64, f64)>>,
+    _lab_reference_ranges: HashMap<String, HashMap<String, (f64, f64)>>,
     /// Medication interaction constraints
-    drug_interactions: Vec<DrugInteraction>,
+    _drug_interactions: Vec<DrugInteraction>,
     /// Temporal constraints (e.g., before/after treatment)
-    temporal_constraints: Vec<TemporalConstraint>,
+    _temporal_constraints: Vec<TemporalConstraint>,
 }
 
 /// Regulatory compliance configuration
@@ -340,7 +340,7 @@ impl HealthcareImputationFramework {
     /// Create a new healthcare imputation framework
     pub fn new() -> Self {
         Self {
-            demographic_strata: HashMap::new(),
+            _demographic_strata: HashMap::new(),
             clinical_constraints: ClinicalConstraints::default(),
             regulatory_config: RegulatoryConfig::default(),
             missing_pattern_analysis: None,
@@ -498,17 +498,17 @@ impl HealthcareImputationFramework {
     }
 
     /// Simplified Little's MCAR test
-    fn little_mcar_test(&self, data: &ArrayView2<f64>) -> SklResult<f64> {
+    fn little_mcar_test(&self, _data: &ArrayView2<f64>) -> SklResult<f64> {
         // Simplified implementation - would need proper statistical test
         let mut rng = thread_rng();
-        Ok(rng.gen_range(0.0..1.0)) // Placeholder
+        Ok(rng.random_range(0.0..1.0)) // Placeholder
     }
 
     /// Identify covariates associated with missingness (MAR)
     fn identify_mar_covariates(
         &self,
-        data: &ArrayView2<f64>,
-        variable_names: &[String],
+        _data: &ArrayView2<f64>,
+        _variable_names: &[String],
     ) -> SklResult<Vec<String>> {
         // Simplified implementation - would use logistic regression
         // to test association between missingness and observed variables
@@ -519,7 +519,7 @@ impl HealthcareImputationFramework {
     fn determine_mnar_mechanism(
         &self,
         variable_names: &[String],
-        clinical_context: &ClinicalContext,
+        _clinical_context: &ClinicalContext,
     ) -> MNARMechanism {
         // Use clinical domain knowledge to classify MNAR mechanism
         for var_name in variable_names {
@@ -534,7 +534,7 @@ impl HealthcareImputationFramework {
     }
 
     /// Check if missing data follows monotone pattern
-    fn check_monotone_pattern(&self, patterns: &[Vec<bool>]) -> bool {
+    fn check_monotone_pattern(&self, _patterns: &[Vec<bool>]) -> bool {
         // Simplified check for monotone missingness
         // In practice, would implement proper monotone pattern detection
         false // Placeholder
@@ -543,14 +543,14 @@ impl HealthcareImputationFramework {
     /// Identify variables with informative missingness
     fn identify_informative_missing(
         &self,
-        data: &ArrayView2<f64>,
+        _data: &ArrayView2<f64>,
         variable_names: &[String],
         clinical_context: &ClinicalContext,
     ) -> SklResult<Vec<String>> {
         // Use clinical knowledge to identify potentially informative missing variables
         let mut informative = Vec::new();
 
-        for (i, var_name) in variable_names.iter().enumerate() {
+        for (_i, var_name) in variable_names.iter().enumerate() {
             if self.is_informative_missing(var_name, clinical_context) {
                 informative.push(var_name.clone());
             }
@@ -560,7 +560,7 @@ impl HealthcareImputationFramework {
     }
 
     /// Check if variable has informative missingness based on clinical context
-    fn is_informative_missing(&self, var_name: &str, clinical_context: &ClinicalContext) -> bool {
+    fn is_informative_missing(&self, var_name: &str, _clinical_context: &ClinicalContext) -> bool {
         // Clinical rules for informative missingness
         var_name.contains("outcome")
             || var_name.contains("adverse_event")
@@ -647,8 +647,8 @@ impl HealthcareImputationFramework {
         imputed_data: &mut Array2<f64>,
         uncertainty_measures: &mut Array2<f64>,
         group: &PatternGroup,
-        variable_names: &[String],
-        clinical_context: &ClinicalContext,
+        _variable_names: &[String],
+        _clinical_context: &ClinicalContext,
     ) -> SklResult<()> {
         match &group.imputation_strategy {
             ImputationStrategy::ClinicalKnowledge {
@@ -711,7 +711,7 @@ impl HealthcareImputationFramework {
         uncertainty_measures: &mut Array2<f64>,
         group: &PatternGroup,
         use_reference_ranges: bool,
-        use_expert_rules: bool,
+        _use_expert_rules: bool,
     ) -> SklResult<()> {
         // Simplified implementation - would use actual clinical knowledge base
         for &sample_idx in &group.sample_indices {
@@ -756,7 +756,7 @@ impl HealthcareImputationFramework {
         imputed_data: &mut Array2<f64>,
         uncertainty_measures: &mut Array2<f64>,
         group: &PatternGroup,
-        similarity_metric: &SimilarityMetric,
+        _similarity_metric: &SimilarityMetric,
         k_neighbors: usize,
     ) -> SklResult<()> {
         // Simplified K-NN imputation with clinical similarity
@@ -802,7 +802,7 @@ impl HealthcareImputationFramework {
         target_idx: usize,
         k: usize,
     ) -> SklResult<Vec<usize>> {
-        let (n_samples, n_features) = data.dim();
+        let (n_samples, _n_features) = data.dim();
         let mut distances = Vec::new();
 
         for i in 0..n_samples {
@@ -846,7 +846,7 @@ impl HealthcareImputationFramework {
         uncertainty_measures: &mut Array2<f64>,
         group: &PatternGroup,
         method: &LongitudinalMethod,
-        time_windows: &[f64],
+        _time_windows: &[f64],
     ) -> SklResult<()> {
         // Simplified longitudinal imputation
         // In practice, would implement proper time series methods
@@ -1001,7 +1001,7 @@ impl HealthcareImputationFramework {
                 if !is_observed {
                     // Simple random imputation with clinical constraints
                     let imputed_value =
-                        self.get_reference_range_midpoint(var_idx) + rng.gen_range(-10.0..10.0); // Add some random variation
+                        self.get_reference_range_midpoint(var_idx) + rng.random_range(-10.0..10.0); // Add some random variation
                     imputation[[sample_idx, var_idx]] = imputed_value;
                 }
             }
@@ -1019,7 +1019,7 @@ impl HealthcareImputationFramework {
         group: &PatternGroup,
         pooling_method: &PoolingMethod,
     ) -> SklResult<()> {
-        let n_imputations = all_imputations.len();
+        let _n_imputations = all_imputations.len();
 
         for &sample_idx in &group.sample_indices {
             for (var_idx, &is_observed) in group.pattern.iter().enumerate() {
@@ -1077,9 +1077,9 @@ impl HealthcareImputationFramework {
         &self,
         imputed_data: &Array2<f64>,
         variable_names: &[String],
-        clinical_context: &ClinicalContext,
+        _clinical_context: &ClinicalContext,
     ) -> SklResult<ClinicalValidityAssessment> {
-        let (n_samples, n_features) = imputed_data.dim();
+        let (n_samples, _n_features) = imputed_data.dim();
         let mut violations = Vec::new();
         let mut within_range_count = 0;
         let mut total_values = 0;
@@ -1138,8 +1138,8 @@ impl HealthcareImputationFramework {
     /// Calculate clinical plausibility score
     fn calculate_plausibility_score(
         &self,
-        imputed_data: &Array2<f64>,
-        variable_names: &[String],
+        _imputed_data: &Array2<f64>,
+        _variable_names: &[String],
     ) -> f64 {
         // Simplified plausibility scoring
         // In practice, would use complex clinical reasoning
@@ -1239,10 +1239,10 @@ impl HealthcareImputationFramework {
     /// Perform sensitivity analysis for missing data
     fn perform_sensitivity_analysis(
         &self,
-        original_data: &ArrayView2<f64>,
+        _original_data: &ArrayView2<f64>,
         imputed_data: &Array2<f64>,
-        variable_names: &[String],
-        clinical_context: &ClinicalContext,
+        _variable_names: &[String],
+        _clinical_context: &ClinicalContext,
     ) -> SklResult<SensitivityAnalysisResults> {
         // Simplified sensitivity analysis implementation
         let mut mechanism_sensitivity = HashMap::new();
@@ -1425,9 +1425,9 @@ impl Default for ClinicalConstraints {
 
         Self {
             vital_sign_ranges,
-            lab_reference_ranges: HashMap::new(),
-            drug_interactions: Vec::new(),
-            temporal_constraints: Vec::new(),
+            _lab_reference_ranges: HashMap::new(),
+            _drug_interactions: Vec::new(),
+            _temporal_constraints: Vec::new(),
         }
     }
 }
@@ -1514,14 +1514,14 @@ fn create_synthetic_healthcare_data() -> SklResult<(Array2<f64>, Vec<String>, Cl
 
     for i in 0..n_patients {
         // Demographic variables (rarely missing)
-        data[[i, 0]] = rng.gen_range(18.0..85.0); // Age
-        data[[i, 1]] = if rng.gen::<f64>() < 0.5 { 0.0 } else { 1.0 }; // Gender (0=F, 1=M)
+        data[[i, 0]] = rng.random_range(18.0..85.0); // Age
+        data[[i, 1]] = if rng.random::<f64>() < 0.5 { 0.0 } else { 1.0 }; // Gender (0=F, 1=M)
 
         // Vital signs (occasionally missing)
-        if rng.gen::<f64>() > 0.05 {
-            data[[i, 2]] = rng.gen_range(90.0..160.0); // Systolic BP
-            data[[i, 3]] = rng.gen_range(60.0..100.0); // Diastolic BP
-            data[[i, 4]] = rng.gen_range(60.0..100.0); // Heart rate
+        if rng.random::<f64>() > 0.05 {
+            data[[i, 2]] = rng.random_range(90.0..160.0); // Systolic BP
+            data[[i, 3]] = rng.random_range(60.0..100.0); // Diastolic BP
+            data[[i, 4]] = rng.random_range(60.0..100.0); // Heart rate
         } else {
             data[[i, 2]] = f64::NAN;
             data[[i, 3]] = f64::NAN;
@@ -1531,10 +1531,10 @@ fn create_synthetic_healthcare_data() -> SklResult<(Array2<f64>, Vec<String>, Cl
         // Lab values (frequently missing, especially in sicker patients)
         let missing_prob = if data[[i, 0]] > 70.0 { 0.3 } else { 0.1 }; // Higher missing rate in elderly
 
-        if rng.gen::<f64>() > missing_prob {
-            data[[i, 5]] = rng.gen_range(3.5..5.5); // Hemoglobin
-            data[[i, 6]] = rng.gen_range(0.8..1.2); // Creatinine
-            data[[i, 7]] = rng.gen_range(135.0..145.0); // Sodium
+        if rng.random::<f64>() > missing_prob {
+            data[[i, 5]] = rng.random_range(3.5..5.5); // Hemoglobin
+            data[[i, 6]] = rng.random_range(0.8..1.2); // Creatinine
+            data[[i, 7]] = rng.random_range(135.0..145.0); // Sodium
         } else {
             data[[i, 5]] = f64::NAN;
             data[[i, 6]] = f64::NAN;
@@ -1547,9 +1547,9 @@ fn create_synthetic_healthcare_data() -> SklResult<(Array2<f64>, Vec<String>, Cl
         } else {
             0.05
         };
-        if rng.gen::<f64>() > dropout_prob {
-            data[[i, 8]] = rng.gen_range(0.0..100.0); // Quality of life score
-            data[[i, 9]] = if rng.gen::<f64>() < 0.1 { 1.0 } else { 0.0 }; // Adverse event
+        if rng.random::<f64>() > dropout_prob {
+            data[[i, 8]] = rng.random_range(0.0..100.0); // Quality of life score
+            data[[i, 9]] = if rng.random::<f64>() < 0.1 { 1.0 } else { 0.0 }; // Adverse event
         } else {
             data[[i, 8]] = f64::NAN;
             data[[i, 9]] = f64::NAN;
@@ -1623,7 +1623,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create synthetic healthcare data
     println!("\n📊 Generating synthetic clinical trial data...");
-    let (data, variable_names, clinical_context) = create_synthetic_healthcare_data()?;
+    let (data, _variable_names, clinical_context) = create_synthetic_healthcare_data()?;
 
     println!("  - Patients: {}", data.nrows());
     println!("  - Variables: {}", data.ncols());

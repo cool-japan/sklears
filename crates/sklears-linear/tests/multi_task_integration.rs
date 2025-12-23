@@ -1,5 +1,11 @@
 //! Integration tests for multi-task linear models
 
+#[cfg(any(feature = "multi-task-lasso", feature = "multi-task-elastic-net"))]
+use scirs2_autograd::ndarray::{array, s, Array2};
+
+#[cfg(any(feature = "multi-task-lasso", feature = "multi-task-elastic-net"))]
+use sklears_core::traits::{Fit, Predict};
+
 #[cfg(feature = "multi-task-elastic-net")]
 use sklears_linear::MultiTaskElasticNet;
 #[cfg(feature = "multi-task-lasso")]

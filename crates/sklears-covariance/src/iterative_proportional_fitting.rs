@@ -1133,7 +1133,7 @@ mod tests {
         let history = fitted.get_convergence_history();
         let violations = fitted.get_constraint_violations();
 
-        assert!(history.len() > 0);
+        assert!(!history.is_empty());
         assert_eq!(history.len(), violations.len());
 
         // Convergence should generally decrease

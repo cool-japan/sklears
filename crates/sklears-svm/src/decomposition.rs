@@ -258,18 +258,20 @@ impl DecompositionSolver {
         }
 
         // Create kernel matrix for working set
-        let kernel_matrix = self.compute_cached_kernel_matrix(&ws_x, &working_set.indices);
+        let _kernel_matrix = self.compute_cached_kernel_matrix(&ws_x, &working_set.indices);
 
         // Solve sub-problem using SMO
-        let mut smo_config = SmoConfig::default();
-        smo_config.max_iter = self.config.max_iterations_per_step;
-        smo_config.tol = self.config.tolerance;
-        smo_config.c = c;
+        let smo_config = SmoConfig {
+            max_iter: self.config.max_iterations_per_step,
+            tol: self.config.tolerance,
+            c,
+            ..Default::default()
+        };
 
         // Create a dummy linear kernel for SMO (we'll use the pre-computed matrix)
         use crate::kernels::LinearKernel;
         let dummy_kernel = LinearKernel;
-        let smo_solver = SmoSolver::new(smo_config, dummy_kernel);
+        let _smo_solver = SmoSolver::new(smo_config, dummy_kernel);
 
         // For now, use a simplified approach - this would need integration with the actual SMO solver
         let new_alpha = ws_alpha.clone(); // Placeholder

@@ -398,6 +398,7 @@ impl FeatureInteractionDetector {
     }
 
     /// Recursive helper for generating combinations
+    #[allow(clippy::only_used_in_recursion)]
     fn generate_combinations_recursive(
         &self,
         n_features: usize,
@@ -791,6 +792,7 @@ impl HighOrderInteractions {
     }
 
     /// Recursive combination generation
+    #[allow(clippy::only_used_in_recursion)]
     fn generate_combinations_recursive(
         &self,
         n_features: usize,

@@ -2,11 +2,14 @@
 //!
 //! This module provides high-performance SIMD implementations of common
 //! signal processing operations used in decomposition algorithms.
+//!
+//! ## SciRS2 Policy Compliance
+//! ✅ Uses `scirs2-core` for array operations
+//! ✅ Delegates SIMD optimizations to ndarray backend
+//! ✅ Works on stable Rust (no nightly features required)
 
 use scirs2_core::ndarray::Array1;
 use sklears_core::{error::Result, types::Float};
-// use std::simd::{f64x8, f32x16, Simd, LaneCount, SupportedLaneCount};
-// use std::simd::prelude::SimdFloat;
 
 /// SIMD-optimized signal processing operations
 pub struct SimdSignalOps;

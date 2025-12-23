@@ -191,7 +191,7 @@ pub mod creation {
         use scirs2_core::random::{thread_rng, Rng};
         let mut rng = thread_rng();
         Array2::from_shape_fn(shape, |_| {
-            let random_f64: f64 = rng.random();
+            let random_f64: f64 = rng.gen();
             T::from_f64(random_f64).unwrap_or_else(|| T::zero())
         })
     }

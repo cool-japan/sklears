@@ -35,6 +35,39 @@ pub mod regularized;
 // Advanced optimization algorithms
 pub mod optimization;
 
+// Convex optimization methods (semidefinite programming, cone programming, ADMM, etc.)
+pub mod convex_optimization;
+
+// Differential equations module (isotonic differential equations, boundary value problems, etc.)
+pub mod differential_equations;
+
+// Engineering applications module (stress-strain, fatigue, reliability, control, signal processing)
+pub mod engineering_applications;
+
+// Environmental science module (dose-response, threshold estimation, climate, pollution, ecosystem)
+pub mod environmental_science;
+
+// Machine learning integration module (neural networks, deep learning, ensemble methods, transfer learning)
+pub mod ml_integration;
+
+// Advanced Bayesian methods module (nonparametric Bayesian, GP constraints, variational inference, MCMC)
+pub mod advanced_bayesian;
+
+// Advanced graph methods module (spectral, random walk, network-constrained, GNN integration)
+pub mod graph_methods;
+
+// Middleware for constraint pipelines
+pub mod middleware;
+
+// Real-world case studies and examples
+pub mod case_studies;
+
+// Unsafe optimizations for performance-critical paths
+pub mod unsafe_optimizations;
+
+// Advanced benchmarking suite
+pub mod advanced_benchmarks;
+
 // Compatibility layer (for backward compatibility with existing modules)
 mod isotonic;
 
@@ -106,3 +139,33 @@ pub use optimization::{
     // Sparse
     SparseIsotonicRegression,
 };
+
+// Re-export differential equations functionality
+pub use differential_equations::*;
+
+// Re-export engineering applications functionality
+pub use engineering_applications::*;
+
+// Re-export environmental science functionality
+pub use environmental_science::*;
+
+// Re-export ML integration functionality
+pub use ml_integration::*;
+
+// Re-export advanced Bayesian functionality
+pub use advanced_bayesian::*;
+
+// Re-export graph methods functionality
+pub use graph_methods::*;
+
+// Re-export middleware functionality
+pub use middleware::*;
+
+// Re-export case studies
+pub use case_studies::*;
+
+// Re-export unsafe optimizations
+pub use unsafe_optimizations::*;
+
+// Re-export advanced benchmarks
+pub use advanced_benchmarks::*;

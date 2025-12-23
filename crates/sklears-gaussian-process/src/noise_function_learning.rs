@@ -39,9 +39,8 @@
 use crate::heteroscedastic::{LearnableNoiseFunction, NoiseFunction};
 use crate::kernels::Kernel;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Random}; // SciRS2 Policy
+// SciRS2 Policy
 use sklears_core::error::{Result as SklResult, SklearsError};
-use std::collections::HashMap;
 
 /// Information criteria for model selection
 #[derive(Debug, Clone, Copy)]
@@ -521,7 +520,7 @@ impl EnsembleNoiseFunction {
                     let mut weighted_sum = 0.0;
                     let mut weight_sum = 0.0;
 
-                    for (j, pred) in predictions.iter().enumerate() {
+                    for (_j, pred) in predictions.iter().enumerate() {
                         let variance = pred[i].max(1e-12);
                         let inv_var_weight = 1.0 / variance;
                         weighted_sum += inv_var_weight * pred[i];
@@ -684,7 +683,7 @@ impl AdaptiveRegularization {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kernels::RBF;
+
     use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
 

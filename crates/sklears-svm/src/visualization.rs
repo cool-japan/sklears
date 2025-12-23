@@ -13,6 +13,9 @@
 use crate::errors::{SVMError, SVMResult};
 use scirs2_core::ndarray::{Array1, Array2};
 
+/// Type alias for margin boundaries (positive, negative)
+pub type MarginBoundaries = (Vec<(f64, f64)>, Vec<(f64, f64)>);
+
 /// Color palette for visualizations
 #[derive(Debug, Clone)]
 pub enum ColorPalette {
@@ -139,7 +142,7 @@ pub enum MarginType {
 pub struct Plot2D {
     pub points: Vec<PlotPoint>,
     pub decision_boundary: Option<Vec<(f64, f64)>>,
-    pub margin_boundaries: Option<(Vec<(f64, f64)>, Vec<(f64, f64)>)>, // positive, negative margins
+    pub margin_boundaries: Option<MarginBoundaries>, // positive, negative margins
     pub config: VisualizationConfig,
     pub x_range: (f64, f64),
     pub y_range: (f64, f64),
@@ -589,6 +592,7 @@ impl KernelMatrixPlot {
         svg
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn add_colorbar_to_svg(
         &self,
         svg: &mut String,
@@ -776,15 +780,16 @@ pub struct SVMVisualizer {
     config: VisualizationConfig,
 }
 
+impl Default for SVMVisualizer {
+    fn default() -> Self {
+        Self::new(VisualizationConfig::default())
+    }
+}
+
 impl SVMVisualizer {
     /// Create a new SVM visualizer
     pub fn new(config: VisualizationConfig) -> Self {
         Self { config }
-    }
-
-    /// Create a new visualizer with default configuration
-    pub fn default() -> Self {
-        Self::new(VisualizationConfig::default())
     }
 
     /// Visualize 2D SVM classification
@@ -843,9 +848,9 @@ impl SVMVisualizer {
     }
 
     /// Create interactive HTML visualization
-    pub fn create_interactive_html(&self, plot_data: &Plot2D, include_controls: bool) -> String {
+    pub fn create_interactive_html(&self, _plot_data: &Plot2D, include_controls: bool) -> String {
         #[cfg(feature = "visualization")]
-        let json_data = plot_data.to_json();
+        let json_data = _plot_data.to_json();
         #[cfg(not(feature = "visualization"))]
         let json_data = "{}".to_string();
 

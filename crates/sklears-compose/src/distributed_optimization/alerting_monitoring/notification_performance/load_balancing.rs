@@ -532,12 +532,57 @@ impl PerformanceLoadBalancer {
     }
 
     fn predict_performance(&self, target: &LoadBalancingTarget, _characteristics: &RequestCharacteristics) -> PredictedPerformance {
+        // Calculate prediction confidence based on:
+        // 1. Historical stability (variance in load history)
+        // 2. Health score (unhealthy targets have lower confidence)
+        // 3. Amount of historical data available
+        let confidence = self.calculate_prediction_confidence(target);
+
         PredictedPerformance {
             response_time: target.performance.avg_response_time,
             success_probability: target.performance.success_rate,
             resource_utilization: target.performance.resource_utilization,
-            confidence: 0.8, // TODO: Implement proper prediction confidence
+            confidence,
         }
+    }
+
+    fn calculate_prediction_confidence(&self, target: &LoadBalancingTarget) -> f64 {
+        let mut confidence = 1.0;
+
+        // Factor 1: Historical stability (lower variance = higher confidence)
+        if let Some(history) = self.distribution.load_history.get(&target.target_id) {
+            if history.len() > 1 {
+                let history_vec: Vec<f64> = history.iter().copied().collect();
+                let avg = history_vec.iter().sum::<f64>() / history_vec.len() as f64;
+                let variance = history_vec.iter()
+                    .map(|&x| (x - avg).powi(2))
+                    .sum::<f64>() / history_vec.len() as f64;
+
+                // Normalize variance contribution (higher variance = lower confidence)
+                let stability_factor = if variance > 0.0 {
+                    1.0 / (1.0 + variance)
+                } else {
+                    1.0
+                };
+                confidence *= stability_factor;
+
+                // Factor 2: Data availability (more history = higher confidence)
+                let data_factor = (history.len() as f64 / 10.0).min(1.0);
+                confidence *= 0.7 + 0.3 * data_factor;
+            } else {
+                // Very little history available
+                confidence *= 0.6;
+            }
+        } else {
+            // No history available
+            confidence *= 0.5;
+        }
+
+        // Factor 3: Health score (unhealthy targets have lower prediction confidence)
+        confidence *= target.health.health_score;
+
+        // Ensure confidence is in valid range [0.0, 1.0]
+        confidence.clamp(0.0, 1.0)
     }
 
     fn calculate_load_variance(&self) -> f64 {
@@ -562,8 +607,80 @@ impl PerformanceLoadBalancer {
     }
 
     fn perform_rebalancing(&mut self) -> Result<Vec<RebalancingAction>, String> {
-        // TODO: Implement actual rebalancing logic
-        Ok(Vec::new())
+        let mut actions = Vec::new();
+
+        // Calculate average load
+        let loads: Vec<(String, f64)> = self.distribution.current_loads
+            .iter()
+            .map(|(k, &v)| (k.clone(), v))
+            .collect();
+
+        if loads.is_empty() {
+            return Ok(actions);
+        }
+
+        let avg_load = loads.iter().map(|(_, load)| load).sum::<f64>() / loads.len() as f64;
+
+        // Identify overloaded and underloaded targets
+        let mut overloaded: Vec<(String, f64)> = loads.iter()
+            .filter(|(_, load)| *load > avg_load * (1.0 + self.config.rebalancing_threshold))
+            .map(|(id, load)| (id.clone(), *load))
+            .collect();
+
+        let mut underloaded: Vec<(String, f64)> = loads.iter()
+            .filter(|(_, load)| *load < avg_load * (1.0 - self.config.rebalancing_threshold))
+            .map(|(id, load)| (id.clone(), *load))
+            .collect();
+
+        // Sort by load difference from average (descending for overloaded, ascending for underloaded)
+        overloaded.sort_by(|a, b| (b.1 - avg_load).partial_cmp(&(a.1 - avg_load)).unwrap());
+        underloaded.sort_by(|a, b| (avg_load - a.1).partial_cmp(&(avg_load - b.1)).unwrap());
+
+        // Create rebalancing actions by moving load from overloaded to underloaded targets
+        for (source_id, source_load) in &overloaded {
+            if underloaded.is_empty() {
+                break;
+            }
+
+            let excess_load = source_load - avg_load;
+            let (dest_id, dest_load) = underloaded.first().unwrap();
+            let deficit_load = avg_load - dest_load;
+
+            // Move the minimum of excess and deficit
+            let load_to_move = excess_load.min(deficit_load);
+
+            if load_to_move > 0.0 {
+                // Determine priority based on magnitude of imbalance
+                let priority = if load_to_move > avg_load * 0.5 {
+                    ActionPriority::Urgent
+                } else if load_to_move > avg_load * 0.3 {
+                    ActionPriority::High
+                } else if load_to_move > avg_load * 0.1 {
+                    ActionPriority::Normal
+                } else {
+                    ActionPriority::Low
+                };
+
+                actions.push(RebalancingAction {
+                    action_type: RebalancingActionType::MoveLoad,
+                    source_target: source_id.clone(),
+                    destination_target: dest_id.clone(),
+                    load_amount: load_to_move,
+                    priority,
+                });
+
+                // Update loads for next iteration
+                if deficit_load <= excess_load {
+                    // Underloaded target is now balanced, remove it
+                    underloaded.remove(0);
+                } else {
+                    // Still underloaded, update its load
+                    underloaded[0].1 += load_to_move;
+                }
+            }
+        }
+
+        Ok(actions)
     }
 }
 

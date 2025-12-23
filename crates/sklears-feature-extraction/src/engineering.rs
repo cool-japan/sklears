@@ -1,9 +1,10 @@
 //! Feature engineering utilities
 
-use crate::*;
+use crate::{Float, SklResult};
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use sklears_core::prelude::{Fit, SklearsError, Transform};
+use sklears_core::traits::{Estimator, Untrained};
 
 // Re-export basic feature engineering methods
 pub use crate::basic_features::*;

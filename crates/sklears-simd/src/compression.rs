@@ -3,13 +3,11 @@
 //! This module provides SIMD-accelerated implementations of common compression algorithms
 //! including run-length encoding, LZ77, and dictionary-based compression.
 
-#![cfg_attr(feature = "no-std", no_std)]
-
 #[cfg(feature = "no-std")]
 extern crate alloc;
 
 #[cfg(feature = "no-std")]
-use alloc::{collections::BTreeMap as HashMap, format, vec, vec::Vec};
+use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
 #[cfg(not(feature = "no-std"))]
 use std::collections::HashMap;
 
@@ -301,9 +299,12 @@ pub fn compression_ratio(original_size: usize, compressed_size: usize) -> f64 {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_run_length_encode() {

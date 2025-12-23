@@ -7,9 +7,12 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 use thiserror::Error;
+
+/// Type alias for fold indices: Vec<(train_indices, test_indices)>
+type FoldIndices = Vec<(Vec<usize>, Vec<usize>)>;
 
 #[derive(Error, Debug)]
 pub enum ValidationError {
@@ -318,7 +321,7 @@ impl ProbabilisticValidator {
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, ValidationError> {
+    ) -> Result<FoldIndices, ValidationError> {
         let n_samples = X.nrows();
 
         match &self.strategy {
@@ -346,7 +349,7 @@ impl ProbabilisticValidator {
         &self,
         n_samples: usize,
         k: usize,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, ValidationError> {
+    ) -> Result<FoldIndices, ValidationError> {
         let mut folds = Vec::new();
         let fold_size = n_samples / k;
         let remainder = n_samples % k;
@@ -370,7 +373,7 @@ impl ProbabilisticValidator {
         &self,
         y: &Array1<i32>,
         k: usize,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, ValidationError> {
+    ) -> Result<FoldIndices, ValidationError> {
         // Group indices by class
         let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
         for (idx, &label) in y.iter().enumerate() {
@@ -384,11 +387,11 @@ impl ProbabilisticValidator {
             let fold_size = indices.len() / k;
             let remainder = indices.len() % k;
 
-            for i in 0..k {
+            for (i, fold) in folds.iter_mut().enumerate().take(k) {
                 let start = i * fold_size + (i.min(remainder));
                 let end = start + fold_size + if i < remainder { 1 } else { 0 };
 
-                folds[i].1.extend_from_slice(&indices[start..end]);
+                fold.1.extend_from_slice(&indices[start..end]);
             }
         }
 
@@ -408,7 +411,7 @@ impl ProbabilisticValidator {
     fn generate_leave_one_out_indices(
         &self,
         n_samples: usize,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, ValidationError> {
+    ) -> Result<FoldIndices, ValidationError> {
         let mut folds = Vec::new();
 
         for i in 0..n_samples {
@@ -424,7 +427,7 @@ impl ProbabilisticValidator {
         &self,
         n_samples: usize,
         n_splits: usize,
-    ) -> Result<Vec<(Vec<usize>, Vec<usize>)>, ValidationError> {
+    ) -> Result<FoldIndices, ValidationError> {
         let mut folds = Vec::new();
         let min_train_size = n_samples / (n_splits + 1);
 

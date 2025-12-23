@@ -83,6 +83,7 @@ impl MemoryMappedKernelMatrix {
         } else {
             OpenOptions::new()
                 .create(true)
+                .truncate(true)
                 .read(true)
                 .write(true)
                 .open(&config.file_path)?

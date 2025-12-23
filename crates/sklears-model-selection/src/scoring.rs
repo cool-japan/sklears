@@ -1,10 +1,12 @@
 //! Enhanced scoring utilities for model selection
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::Score,
+    // traits::Score,
     types::Float,
 };
 use sklears_metrics::{
@@ -233,10 +235,7 @@ pub struct ScoringResult {
 impl ScoringResult {
     /// Get the primary metric mean score
     pub fn primary_mean(&self) -> f64 {
-        self.mean_scores
-            .get(&"primary".to_string())
-            .copied()
-            .unwrap_or(0.0)
+        self.mean_scores.get("primary").copied().unwrap_or(0.0)
     }
 
     /// Get mean score for a specific metric

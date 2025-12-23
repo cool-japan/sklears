@@ -8,7 +8,6 @@
 use crate::kernels::{Kernel, KernelType};
 use crate::robust_svm::RobustLoss;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Predict, Trained, Untrained},
@@ -228,20 +227,21 @@ impl OutlierDetectionMethod {
     /// Compute outlier scores for the given data
     pub fn compute_outlier_scores(&self, x: &Array2<Float>, y: &Array1<Float>) -> Array1<Float> {
         match self {
-            OutlierDetectionMethod::ZScore { threshold } => self.compute_z_score_outliers(x, y),
-            OutlierDetectionMethod::IQR { multiplier } => self.compute_iqr_outliers(x, y),
-            OutlierDetectionMethod::ModifiedZScore { threshold } => {
+            OutlierDetectionMethod::ZScore { threshold: _ } => self.compute_z_score_outliers(x, y),
+            OutlierDetectionMethod::IQR { multiplier: _ } => self.compute_iqr_outliers(x, y),
+            OutlierDetectionMethod::ModifiedZScore { threshold: _ } => {
                 self.compute_modified_z_score_outliers(x, y)
             }
-            OutlierDetectionMethod::DistanceBased { k, threshold } => {
+            OutlierDetectionMethod::DistanceBased { k, threshold: _ } => {
                 self.compute_distance_based_outliers(x, *k)
             }
-            OutlierDetectionMethod::LocalOutlierFactor { k, threshold } => {
+            OutlierDetectionMethod::LocalOutlierFactor { k, threshold: _ } => {
                 self.compute_lof_outliers(x, *k)
             }
-            OutlierDetectionMethod::IsolationForest { n_trees, threshold } => {
-                self.compute_isolation_forest_outliers(x, *n_trees)
-            }
+            OutlierDetectionMethod::IsolationForest {
+                n_trees,
+                threshold: _,
+            } => self.compute_isolation_forest_outliers(x, *n_trees),
         }
     }
 
@@ -279,7 +279,7 @@ impl OutlierDetectionMethod {
     fn compute_modified_z_score_outliers(
         &self,
         x: &Array2<Float>,
-        y: &Array1<Float>,
+        _y: &Array1<Float>,
     ) -> Array1<Float> {
         let mut scores = Array1::<Float>::zeros(x.nrows());
 
@@ -316,7 +316,7 @@ impl OutlierDetectionMethod {
         scores
     }
 
-    fn compute_iqr_outliers(&self, x: &Array2<Float>, y: &Array1<Float>) -> Array1<Float> {
+    fn compute_iqr_outliers(&self, x: &Array2<Float>, _y: &Array1<Float>) -> Array1<Float> {
         let mut scores = Array1::<Float>::zeros(x.nrows());
 
         for j in 0..x.ncols() {
@@ -420,7 +420,7 @@ impl OutlierDetectionMethod {
 
                 // Approximate local outlier factor
                 let mut neighbor_densities = 0.0;
-                for &(_, neighbor_idx) in distances[..k_actual].iter() {
+                for &(_, _neighbor_idx) in distances[..k_actual].iter() {
                     // Simplified density estimation for neighbor
                     neighbor_densities += 1.0;
                 }

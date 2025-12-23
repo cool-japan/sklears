@@ -7,6 +7,9 @@ use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::types::Float;
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
+#[cfg(feature = "oblique")]
+use sklears_core::error::Result;
+
 // Import types from criteria module
 use crate::criteria::SplitCriterion;
 
@@ -341,7 +344,7 @@ pub fn ndarray_to_dense_matrix(arr: &Array2<f64>) -> DenseMatrix<f64> {
     for row in arr.outer_iter() {
         data.push(row.to_vec());
     }
-    DenseMatrix::from_2d_vec(&data)
+    DenseMatrix::from_2d_vec(&data).expect("Failed to convert ndarray to DenseMatrix")
 }
 
 /// Simple Gauss-Jordan elimination for matrix inversion

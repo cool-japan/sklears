@@ -7,8 +7,8 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -864,6 +864,12 @@ pub struct GpuProfiler {
     pub transfer_times: Vec<(String, f64)>,
 }
 
+impl Default for GpuProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpuProfiler {
     pub fn new() -> Self {
         Self {
@@ -999,7 +1005,7 @@ impl FittedGpuNystroem {
         &self,
         x: &Array2<f64>,
         y: &Array2<f64>,
-        ctx: &GpuContext,
+        _ctx: &GpuContext,
     ) -> Result<Array2<f64>> {
         let n_x = x.nrows();
         let n_y = y.nrows();

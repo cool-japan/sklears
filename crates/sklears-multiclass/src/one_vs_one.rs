@@ -182,7 +182,7 @@ where
         // Validate inputs
         validate::check_consistent_length(x, y)?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Get unique classes
         let mut classes: Vec<i32> = y
@@ -450,17 +450,132 @@ where
     }
 
     /// Predict using rank-based voting
+    ///
+    /// Rank-based voting weights each vote by the confidence of the prediction,
+    /// measured by the distance from the decision boundary (|score - 0.5|).
     fn predict_rank_voting(&self, x: &Array2<Float>) -> SklResult<Array1<i32>> {
-        // For now, use majority voting as a simple implementation
-        // TODO: Implement proper rank-based voting
-        self.predict_majority_voting(x)
+        let (n_samples, n_features) = x.dim();
+
+        if n_features != self.base_estimator.n_features {
+            return Err(SklearsError::InvalidInput(
+                "Number of features doesn't match training data".to_string(),
+            ));
+        }
+
+        let n_classes = self.base_estimator.classes.len();
+        let mut predictions = Array1::zeros(n_samples);
+
+        for sample_idx in 0..n_samples {
+            let mut weighted_votes = Array1::zeros(n_classes);
+            let sample = x.row(sample_idx);
+            let sample_matrix = sample.insert_axis(Axis(0));
+
+            // Get weighted votes from each pairwise classifier
+            for (pair_idx, &(class_i, class_j)) in
+                self.base_estimator.class_pairs.iter().enumerate()
+            {
+                if let Some(estimator) = self.base_estimator.estimators.get(pair_idx) {
+                    let prediction = estimator.predict(&sample_matrix.to_owned())?;
+                    let score = prediction[0];
+
+                    let class_i_idx = self
+                        .base_estimator
+                        .classes
+                        .iter()
+                        .position(|&c| c == class_i)
+                        .unwrap();
+                    let class_j_idx = self
+                        .base_estimator
+                        .classes
+                        .iter()
+                        .position(|&c| c == class_j)
+                        .unwrap();
+
+                    // Weight = confidence = distance from decision boundary
+                    let confidence = (score - 0.5).abs();
+
+                    if score > 0.5 {
+                        weighted_votes[class_i_idx] += confidence;
+                    } else {
+                        weighted_votes[class_j_idx] += confidence;
+                    }
+                }
+            }
+
+            // Predict class with highest weighted vote
+            let max_idx = weighted_votes
+                .iter()
+                .enumerate()
+                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).unwrap())
+                .map(|(idx, _)| idx)
+                .unwrap_or(0);
+
+            predictions[sample_idx] = self.base_estimator.classes[max_idx];
+        }
+
+        Ok(predictions)
     }
 
     /// Predict using distance-based voting
+    ///
+    /// Distance-based voting accumulates prediction scores directly.
+    /// Higher scores indicate stronger belief in a class.
     fn predict_distance_voting(&self, x: &Array2<Float>) -> SklResult<Array1<i32>> {
-        // For now, use majority voting as a simple implementation
-        // TODO: Implement proper distance-based voting
-        self.predict_majority_voting(x)
+        let (n_samples, n_features) = x.dim();
+
+        if n_features != self.base_estimator.n_features {
+            return Err(SklearsError::InvalidInput(
+                "Number of features doesn't match training data".to_string(),
+            ));
+        }
+
+        let n_classes = self.base_estimator.classes.len();
+        let mut predictions = Array1::zeros(n_samples);
+
+        for sample_idx in 0..n_samples {
+            let mut distance_scores = Array1::zeros(n_classes);
+            let sample = x.row(sample_idx);
+            let sample_matrix = sample.insert_axis(Axis(0));
+
+            // Accumulate distance scores from each pairwise classifier
+            for (pair_idx, &(class_i, class_j)) in
+                self.base_estimator.class_pairs.iter().enumerate()
+            {
+                if let Some(estimator) = self.base_estimator.estimators.get(pair_idx) {
+                    let prediction = estimator.predict(&sample_matrix.to_owned())?;
+                    let score = prediction[0];
+
+                    let class_i_idx = self
+                        .base_estimator
+                        .classes
+                        .iter()
+                        .position(|&c| c == class_i)
+                        .unwrap();
+                    let class_j_idx = self
+                        .base_estimator
+                        .classes
+                        .iter()
+                        .position(|&c| c == class_j)
+                        .unwrap();
+
+                    // Accumulate scores: higher score = more evidence for class
+                    distance_scores[class_i_idx] += score;
+                    distance_scores[class_j_idx] += 1.0 - score;
+                }
+            }
+
+            // Predict class with highest accumulated score
+            let max_idx = distance_scores
+                .iter()
+                .enumerate()
+                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).unwrap())
+                .map(|(idx, _)| idx)
+                .unwrap_or(0);
+
+            predictions[sample_idx] = self.base_estimator.classes[max_idx];
+        }
+
+        Ok(predictions)
     }
 
     /// Get voting decision scores for each class
@@ -655,7 +770,7 @@ where
         config: &ConsensusConfig,
     ) -> SklResult<ConsensusResult> {
         let (n_samples, _) = x.dim();
-        let n_classes = self.base_estimator.classes.len();
+        let _n_classes = self.base_estimator.classes.len();
 
         // Collect predictions and scores from all strategies
         let mut strategy_votes = Vec::new();
@@ -712,7 +827,7 @@ where
         &self,
         strategy_scores: &[Array2<f64>],
         strategy_votes: &[Array1<i32>],
-        method: &ConsensusMethod,
+        _method: &ConsensusMethod,
         agreement_threshold: f64,
     ) -> SklResult<(Array2<f64>, Array1<f64>)> {
         let n_samples = strategy_scores[0].nrows();
@@ -726,8 +841,8 @@ where
         for sample_idx in 0..n_samples {
             for class_idx in 0..n_classes {
                 let mut sum = 0.0;
-                for strategy_idx in 0..n_strategies {
-                    sum += strategy_scores[strategy_idx][[sample_idx, class_idx]];
+                for scores in strategy_scores.iter().take(n_strategies) {
+                    sum += scores[[sample_idx, class_idx]];
                 }
                 combined_scores[[sample_idx, class_idx]] = sum / (n_strategies as f64);
             }

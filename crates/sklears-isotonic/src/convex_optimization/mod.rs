@@ -113,58 +113,40 @@
 //! ```
 
 // Module declarations
-pub mod simd_operations;
-pub mod semidefinite_programming;
+pub mod admm_solver;
 pub mod cone_programming;
 pub mod disciplined_convex;
-pub mod admm_solver;
 pub mod proximal_gradient;
+pub mod semidefinite_programming;
+pub mod simd_operations;
 
 // Re-export SIMD operations
 pub use simd_operations::{
-    simd_quadratic_form,
-    simd_gradient_computation,
-    simd_barrier_method_step,
-    simd_sdp_matrix_operations,
-    simd_cone_projection,
-    simd_backtracking_line_search,
-    simd_dot_product,
-    simd_vector_norm,
-    simd_constraint_violation,
+    simd_backtracking_line_search, simd_barrier_method_step, simd_cone_projection,
+    simd_constraint_violation, simd_dot_product, simd_gradient_computation, simd_quadratic_form,
+    simd_sdp_matrix_operations, simd_vector_norm,
 };
 
 // Re-export semidefinite programming
-pub use semidefinite_programming::{
-    SemidefiniteIsotonicRegression,
-    sdp_isotonic_regression,
-};
+pub use semidefinite_programming::{sdp_isotonic_regression, SemidefiniteIsotonicRegression};
 
 // Re-export cone programming
 pub use cone_programming::{
-    ConeProgrammingIsotonicRegression,
-    ConeType,
-    cone_programming_isotonic_regression,
+    cone_programming_isotonic_regression, ConeProgrammingIsotonicRegression, ConeType,
 };
 
 // Re-export disciplined convex programming
 pub use disciplined_convex::{
+    disciplined_convex_isotonic_regression, ConvexConstraint, ConvexObjective,
     DisciplinedConvexIsotonicRegression,
-    ConvexObjective,
-    ConvexConstraint,
-    disciplined_convex_isotonic_regression,
 };
 
 // Re-export ADMM solver
-pub use admm_solver::{
-    AdmmIsotonicRegression,
-    admm_isotonic_regression,
-};
+pub use admm_solver::{admm_isotonic_regression, AdmmIsotonicRegression};
 
 // Re-export proximal gradient methods
 pub use proximal_gradient::{
-    ProximalGradientIsotonicRegression,
-    RegularizationType,
-    proximal_gradient_isotonic_regression,
+    proximal_gradient_isotonic_regression, ProximalGradientIsotonicRegression, RegularizationType,
 };
 
 /// Prelude module for convenient imports
@@ -172,20 +154,20 @@ pub use proximal_gradient::{
 /// This module re-exports the most commonly used types and functions
 /// for convex optimization in isotonic regression.
 pub mod prelude {
-    pub use super::simd_operations::{simd_dot_product, simd_vector_norm};
-    pub use super::semidefinite_programming::SemidefiniteIsotonicRegression;
+    pub use super::admm_solver::AdmmIsotonicRegression;
     pub use super::cone_programming::{ConeProgrammingIsotonicRegression, ConeType};
     pub use super::disciplined_convex::{
-        DisciplinedConvexIsotonicRegression, ConvexObjective, ConvexConstraint
+        ConvexConstraint, ConvexObjective, DisciplinedConvexIsotonicRegression,
     };
-    pub use super::admm_solver::AdmmIsotonicRegression;
     pub use super::proximal_gradient::{ProximalGradientIsotonicRegression, RegularizationType};
+    pub use super::semidefinite_programming::SemidefiniteIsotonicRegression;
+    pub use super::simd_operations::{simd_dot_product, simd_vector_norm};
 }
 
 /// Utility functions for convex optimization
 pub mod utils {
     use super::*;
-    use scirs2_core::ndarray::{Array1};
+    use scirs2_core::ndarray::Array1;
     use sklears_core::{prelude::SklearsError, types::Float};
 
     /// Create a semidefinite programming model with default settings
@@ -219,10 +201,7 @@ pub mod utils {
     }
 
     /// Create an ADMM model with adaptive parameter adjustment
-    pub fn create_admm_adaptive_model(
-        increasing: bool,
-        rho: Float,
-    ) -> AdmmIsotonicRegression {
+    pub fn create_admm_adaptive_model(increasing: bool, rho: Float) -> AdmmIsotonicRegression {
         AdmmIsotonicRegression::new()
             .increasing(increasing)
             .rho(rho)
@@ -359,7 +338,12 @@ pub mod utils {
         requires_sparsity: bool,
         numerical_precision: bool,
     ) -> &'static str {
-        match (n_samples, has_outliers, requires_sparsity, numerical_precision) {
+        match (
+            n_samples,
+            has_outliers,
+            requires_sparsity,
+            numerical_precision,
+        ) {
             // Large problems - use SIMD-accelerated methods
             (n, _, _, _) if n > 10000 => "SIMD + Proximal Gradient",
 
@@ -382,7 +366,8 @@ pub mod utils {
 #[cfg(feature = "benchmarks")]
 pub mod benchmarks {
     use super::*;
-    use scirs2_core::ndarray::{Array1};
+    use scirs2_core::ndarray::Array1;
+    use sklears_core::prelude::{Float, SklearsError};
     use std::time::Instant;
 
     /// Benchmark results structure
@@ -568,14 +553,27 @@ mod tests {
 
         // Test convenience functions
         assert!(sdp_isotonic_regression(&x, &y, true, 1e-4).is_ok());
-        assert!(cone_programming_isotonic_regression(&x, &y, true, ConeType::NonNegative, 1e-4).is_ok());
+        assert!(
+            cone_programming_isotonic_regression(&x, &y, true, ConeType::NonNegative, 1e-4).is_ok()
+        );
         assert!(disciplined_convex_isotonic_regression(
-            &x, &y, true, ConvexObjective::LeastSquares, vec![]
-        ).is_ok());
+            &x,
+            &y,
+            true,
+            ConvexObjective::LeastSquares,
+            vec![]
+        )
+        .is_ok());
         assert!(admm_isotonic_regression(&x, &y, true, None).is_ok());
         assert!(proximal_gradient_isotonic_regression(
-            &x, &y, true, 0.1, RegularizationType::L1, None
-        ).is_ok());
+            &x,
+            &y,
+            true,
+            0.1,
+            RegularizationType::L1,
+            None
+        )
+        .is_ok());
     }
 
     #[test]
@@ -622,14 +620,19 @@ mod tests {
         assert!(matches!(cone_model.get_cone_type(), ConeType::SecondOrder));
 
         let dcp_model = utils::create_dcp_huber_model(true, 1.0);
-        assert!(matches!(dcp_model.get_objective(), ConvexObjective::Huber { delta } if *delta == 1.0));
+        assert!(
+            matches!(dcp_model.get_objective(), ConvexObjective::Huber { delta } if *delta == 1.0)
+        );
 
         let admm_model = utils::create_admm_adaptive_model(true, 2.0);
         assert!(admm_model.is_adaptive_rho());
         assert_eq!(admm_model.get_rho(), 2.0);
 
         let prox_model = utils::create_proximal_l1_model(true, 0.1);
-        assert!(matches!(prox_model.get_regularization_type(), RegularizationType::L1));
+        assert!(matches!(
+            prox_model.get_regularization_type(),
+            RegularizationType::L1
+        ));
 
         let elastic_model = utils::create_proximal_elastic_net_model(true, 0.1, 0.7);
         assert!(matches!(

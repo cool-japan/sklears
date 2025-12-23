@@ -387,7 +387,7 @@ impl<X, Y> IncrementalDBSCAN<X, Y> {
             // Probabilistic forgetting
             let mut points_to_remove = Vec::new();
             for i in 0..self.points.nrows() {
-                if thread_rng().gen::<Float>() < self.config.forgetting_factor {
+                if thread_rng().random::<Float>() < self.config.forgetting_factor {
                     points_to_remove.push(i);
                 }
             }

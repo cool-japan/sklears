@@ -79,7 +79,7 @@ impl LSHHashFunction {
                 // Generate random Gaussian vector
                 let mut vec = Array1::zeros(input_dim);
                 for i in 0..input_dim {
-                    vec[i] = rng.gen::<Float>() * 2.0 - 1.0; // Uniform [-1, 1] approximation
+                    vec[i] = rng.random::<Float>() * 2.0 - 1.0; // Uniform [-1, 1] approximation
                 }
                 vec
             }
@@ -87,14 +87,14 @@ impl LSHHashFunction {
                 // Generate random permutation indices (simplified)
                 let mut vec = Array1::zeros(input_dim);
                 for i in 0..input_dim {
-                    vec[i] = rng.gen::<Float>();
+                    vec[i] = rng.random::<Float>();
                 }
                 vec
             }
         };
 
         let bias = match family {
-            LSHFamily::RandomProjection => rng.gen::<Float>() * 2.0 - 1.0,
+            LSHFamily::RandomProjection => rng.random::<Float>() * 2.0 - 1.0,
             _ => 0.0,
         };
 

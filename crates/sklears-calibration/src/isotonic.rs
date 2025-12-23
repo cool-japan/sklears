@@ -96,9 +96,7 @@ impl IsotonicCalibrator {
                     y_pooled.remove(i);
                     weights.remove(i);
 
-                    if i > 0 {
-                        i -= 1;
-                    }
+                    i = i.saturating_sub(1);
                 } else {
                     break;
                 }

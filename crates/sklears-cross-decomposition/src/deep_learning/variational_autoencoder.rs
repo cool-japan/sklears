@@ -10,9 +10,7 @@
 //! - Cross-modal retrieval and generation
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Distribution, Random, Rng};
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -495,7 +493,7 @@ impl CrossModalVAE {
         let std = logvar.mapv(|x| (0.5 * x).exp());
         let mut rng = thread_rng();
         let epsilon = Array2::<Float>::from_shape_fn(mean.dim(), |_| {
-            use scirs2_core::random::{Distribution, RandNormal as Normal};
+            use scirs2_core::random::{Distribution, RandNormal as Normal, Rng};
             Normal::new(0.0, 1.0).unwrap().sample(&mut rng)
         });
         mean + &std * &epsilon

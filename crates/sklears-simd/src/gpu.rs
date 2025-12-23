@@ -624,9 +624,16 @@ pub fn get_gpu_devices() -> Vec<GpuDevice> {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_gpu_manager_creation() {
@@ -710,7 +717,7 @@ mod tests {
     #[test]
     fn test_get_devices() {
         // This should not panic and return a list (possibly empty)
-        let devices = get_gpu_devices();
+        let _devices = get_gpu_devices();
         // Should be a valid Vec, even if empty (no need to assert len >= 0 as it's always true)
     }
 }

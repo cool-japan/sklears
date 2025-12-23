@@ -122,11 +122,10 @@ impl ApproximateKNN {
 
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-            for k in 0..self.k_neighbors.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = (-distances[k].0.powi(2) / 2.0).exp();
-                graph[[i, j]] = weight;
-                graph[[j, i]] = weight; // Make symmetric
+            for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
+                let weight = (-dist.powi(2) / 2.0).exp();
+                graph[[i, *j]] = weight;
+                graph[[*j, i]] = weight; // Make symmetric
             }
         }
 
@@ -165,11 +164,10 @@ impl ApproximateKNN {
 
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-            for k in 0..self.k_neighbors.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = (-distances[k].0.powi(2) / 2.0).exp();
-                graph[[i, j]] = weight;
-                graph[[j, i]] = weight; // Make symmetric
+            for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
+                let weight = (-dist.powi(2) / 2.0).exp();
+                graph[[i, *j]] = weight;
+                graph[[*j, i]] = weight; // Make symmetric
             }
         }
 
@@ -193,7 +191,7 @@ impl ApproximateKNN {
         for _ in 0..self.n_projections {
             let mut vec = Array1::<f64>::zeros(n_features);
             for j in 0..n_features {
-                vec[j] = rng.gen_range(-1.0..1.0);
+                vec[j] = rng.random_range(-1.0, 1.0);
             }
             // Normalize
             let norm = vec.iter().map(|x| x * x).sum::<f64>().sqrt();
@@ -208,6 +206,7 @@ impl ApproximateKNN {
             vec![HashMap::new(); self.n_tables];
 
         for i in 0..n_samples {
+            #[allow(clippy::needless_range_loop)]
             for table_idx in 0..self.n_tables {
                 let mut hash_key = Vec::new();
                 let start_proj = (table_idx * self.n_projections) / self.n_tables;
@@ -231,6 +230,7 @@ impl ApproximateKNN {
             let mut candidates = HashSet::new();
 
             // Collect candidates from all hash tables
+            #[allow(clippy::needless_range_loop)]
             for table_idx in 0..self.n_tables {
                 let mut hash_key = Vec::new();
                 let start_proj = (table_idx * self.n_projections) / self.n_tables;
@@ -276,11 +276,10 @@ impl ApproximateKNN {
 
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-            for k in 0..self.k_neighbors.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = (-distances[k].0.powi(2) / 2.0).exp();
-                graph[[i, j]] = weight;
-                graph[[j, i]] = weight; // Make symmetric
+            for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
+                let weight = (-dist.powi(2) / 2.0).exp();
+                graph[[i, *j]] = weight;
+                graph[[*j, i]] = weight; // Make symmetric
             }
         }
 
@@ -458,7 +457,7 @@ impl ApproximateSpectralClustering {
         let mut omega = Array2::<f64>::zeros((n, k));
         for i in 0..n {
             for j in 0..k {
-                omega[[i, j]] = rng.gen_range(-1.0..1.0);
+                omega[[i, j]] = rng.random_range(-1.0, 1.0);
             }
         }
 
@@ -535,7 +534,7 @@ impl ApproximateSpectralClustering {
             // Random initial vector
             let mut v = Array1::<f64>::zeros(n);
             for i in 0..n {
-                v[i] = rng.gen_range(-1.0..1.0);
+                v[i] = rng.random_range(-1.0, 1.0);
             }
 
             // Power iteration

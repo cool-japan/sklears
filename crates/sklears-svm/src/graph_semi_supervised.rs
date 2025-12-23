@@ -307,7 +307,7 @@ impl GraphSemiSupervisedSVM {
             labels[idx] = y_labeled[i];
         }
 
-        let laplacian = self.compute_laplacian(graph);
+        let _laplacian = self.compute_laplacian(graph);
 
         // Iterative label propagation
         for iteration in 0..self.max_iter {

@@ -6,8 +6,8 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
@@ -940,13 +940,13 @@ impl DocumentKernelApproximation {
 
         if self.use_readability_features {
             // Readability features
-            let avg_sentence_length = if sentences.len() > 0 {
+            let avg_sentence_length = if !sentences.is_empty() {
                 words.len() as f64 / sentences.len() as f64
             } else {
                 0.0
             };
 
-            let avg_word_length = if words.len() > 0 {
+            let avg_word_length = if !words.is_empty() {
                 characters.len() as f64 / words.len() as f64
             } else {
                 0.0
@@ -973,7 +973,7 @@ impl DocumentKernelApproximation {
 
             // Type-token ratio
             let unique_words: HashSet<&str> = words.iter().cloned().collect();
-            let ttr = if words.len() > 0 {
+            let ttr = if !words.is_empty() {
                 unique_words.len() as f64 / words.len() as f64
             } else {
                 0.0
@@ -1059,13 +1059,13 @@ impl FittedDocumentKernelApproximation {
 
         if self.use_readability_features {
             // Readability features
-            let avg_sentence_length = if sentences.len() > 0 {
+            let avg_sentence_length = if !sentences.is_empty() {
                 words.len() as f64 / sentences.len() as f64
             } else {
                 0.0
             };
 
-            let avg_word_length = if words.len() > 0 {
+            let avg_word_length = if !words.is_empty() {
                 characters.len() as f64 / words.len() as f64
             } else {
                 0.0
@@ -1092,7 +1092,7 @@ impl FittedDocumentKernelApproximation {
 
             // Type-token ratio
             let unique_words: HashSet<&str> = words.iter().cloned().collect();
-            let ttr = if words.len() > 0 {
+            let ttr = if !words.is_empty() {
                 unique_words.len() as f64 / words.len() as f64
             } else {
                 0.0

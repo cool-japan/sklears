@@ -449,13 +449,13 @@ impl NSGA2Optimizer<Untrained> {
     ) -> SklResult<ParetoSolution> {
         let mut child_params = parent1.parameters.clone();
 
-        if rng.gen::<Float>() <= self.config.crossover_prob {
+        if rng.random::<Float>() <= self.config.crossover_prob {
             for i in 0..child_params.len() {
                 let p1 = parent1.parameters[i];
                 let p2 = parent2.parameters[i];
 
-                if rng.gen::<Float>() <= 0.5 {
-                    let u = rng.gen::<Float>();
+                if rng.random::<Float>() <= 0.5 {
+                    let u = rng.random::<Float>();
                     let beta = if u <= 0.5 {
                         (2.0 * u).powf(1.0 / (self.config.eta_c + 1.0))
                     } else {
@@ -483,8 +483,8 @@ impl NSGA2Optimizer<Untrained> {
         rng: &mut R,
     ) -> SklResult<()> {
         for i in 0..solution.parameters.len() {
-            if rng.gen::<Float>() <= self.config.mutation_prob {
-                let u = rng.gen::<Float>();
+            if rng.random::<Float>() <= self.config.mutation_prob {
+                let u = rng.random::<Float>();
                 let delta = if u < 0.5 {
                     (2.0 * u).powf(1.0 / (self.config.eta_m + 1.0)) - 1.0
                 } else {
@@ -602,9 +602,9 @@ impl NSGA2Optimizer<Untrained> {
     ) -> SklResult<ParetoSolution> {
         let mut child_params = parent1.parameters.clone();
 
-        if rng.gen::<Float>() <= self.config.crossover_prob {
+        if rng.random::<Float>() <= self.config.crossover_prob {
             for i in 0..child_params.len() {
-                if rng.gen::<Float>() <= 0.5 {
+                if rng.random::<Float>() <= 0.5 {
                     child_params[i] = parent2.parameters[i];
                 }
             }
@@ -625,7 +625,7 @@ impl NSGA2Optimizer<Untrained> {
         rng: &mut R,
     ) -> SklResult<()> {
         for i in 0..solution.parameters.len() {
-            if rng.gen::<Float>() <= self.config.mutation_prob {
+            if rng.random::<Float>() <= self.config.mutation_prob {
                 let normal = RandNormal::new(0.0, 0.1).map_err(|e| {
                     SklearsError::InvalidInput(format!(
                         "Failed to create normal distribution: {}",

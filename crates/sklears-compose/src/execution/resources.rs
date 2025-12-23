@@ -26,6 +26,18 @@ pub struct ResourceUtilization {
     pub queue_percent: f64,
 }
 
+impl Default for ResourceUtilization {
+    fn default() -> Self {
+        Self {
+            cpu_percent: 0.0,
+            memory_percent: 0.0,
+            io_percent: 0.0,
+            network_percent: 0.0,
+            queue_percent: 0.0,
+        }
+    }
+}
+
 /// Resource manager for execution engines
 pub struct ResourceManager {
     /// Available resources
@@ -47,6 +59,7 @@ impl ResourceManager {
             available_memory: detect_available_memory(),
             io_bandwidth: detect_io_bandwidth(),
             network_bandwidth: detect_network_bandwidth(),
+            available_disk_space: detect_available_disk_space(),
             gpu_info: detect_gpu_info(),
         };
 
@@ -81,8 +94,11 @@ impl ResourceManager {
         }
 
         // Check disk space
-        if requirements.disk_bytes > 0 {
-            // TODO: Add disk space checking
+        if requirements.disk_bytes > 0 && requirements.disk_bytes > resources.available_disk_space {
+            return Err(SklearsError::InvalidInput(format!(
+                "Insufficient disk space: required {} bytes, available {} bytes",
+                requirements.disk_bytes, resources.available_disk_space
+            )));
         }
 
         // Check network bandwidth
@@ -166,15 +182,36 @@ impl ResourceManager {
             .filter_map(|alloc| alloc.memory_range.map(|(_, size)| size))
             .sum();
 
+        let allocated_io: u64 = allocations
+            .values()
+            .filter_map(|alloc| alloc.io_bandwidth)
+            .sum();
+
         let cpu_percent = (allocated_cores as f64 / resources.cpu_cores as f64) * 100.0;
         let memory_percent = (allocated_memory as f64 / resources.total_memory as f64) * 100.0;
+
+        let io_percent = if resources.io_bandwidth > 0 {
+            (allocated_io as f64 / resources.io_bandwidth as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        // Network utilization: sum of all allocated network bandwidth requirements
+        // Note: Allocations don't currently track network bandwidth separately,
+        // so we estimate based on task requirements if available
+        let network_percent = 0.0; // Conservative estimate until network tracking is added to allocations
+
+        // Queue utilization: percentage of active allocations vs some maximum
+        // We use a heuristic of max 1000 concurrent tasks
+        let max_concurrent_tasks = 1000;
+        let queue_percent = (allocations.len() as f64 / max_concurrent_tasks as f64) * 100.0;
 
         Ok(ResourceUtilization {
             cpu_percent,
             memory_percent,
-            io_percent: 0.0,      // TODO: Implement I/O utilization tracking
-            network_percent: 0.0, // TODO: Implement network utilization tracking
-            queue_percent: 0.0,   // TODO: Implement queue utilization tracking
+            io_percent,
+            network_percent,
+            queue_percent,
         })
     }
 
@@ -295,6 +332,8 @@ pub struct AvailableResources {
     pub io_bandwidth: u64,
     /// Network bandwidth (bytes/sec)
     pub network_bandwidth: u64,
+    /// Available disk space (bytes)
+    pub available_disk_space: u64,
     /// GPU information
     pub gpu_info: Vec<GpuInfo>,
 }
@@ -725,6 +764,42 @@ fn detect_network_bandwidth() -> u64 {
 fn detect_gpu_info() -> Vec<GpuInfo> {
     // Placeholder: Empty GPU info
     Vec::new()
+}
+
+fn detect_available_disk_space() -> u64 {
+    // Attempt to detect available disk space on the current directory
+    // Falls back to a conservative placeholder if detection fails
+    #[cfg(unix)]
+    {
+        use std::ffi::CString;
+        use std::mem;
+        use std::os::raw::{c_char, c_ulong};
+
+        #[repr(C)]
+        struct StatVfs {
+            f_bsize: c_ulong,
+            f_frsize: c_ulong,
+            f_blocks: c_ulong,
+            f_bfree: c_ulong,
+            f_bavail: c_ulong,
+            // ... other fields omitted for brevity
+        }
+
+        extern "C" {
+            fn statvfs(path: *const c_char, buf: *mut StatVfs) -> i32;
+        }
+
+        let path = CString::new(".").unwrap();
+        let mut stat: StatVfs = unsafe { mem::zeroed() };
+
+        if unsafe { statvfs(path.as_ptr(), &mut stat) } == 0 {
+            // Available space = f_bavail * f_frsize (blocks available to non-root * fragment size)
+            return stat.f_bavail.saturating_mul(stat.f_frsize);
+        }
+    }
+
+    // Placeholder fallback: 100GB
+    100 * 1024 * 1024 * 1024
 }
 
 fn collect_cpu_metrics() -> CpuMetrics {

@@ -738,7 +738,7 @@ impl NestedCVResults {
             self.n_outer_folds, self.n_inner_folds
         ));
 
-        report.push_str(&"Outer CV Performance:\n".to_string());
+        report.push_str("Outer CV Performance:\n");
         report.push_str(&format!(
             "  Mean Score: {:.4} ± {:.4}\n",
             self.outer_mean_score, self.outer_std_score
@@ -751,7 +751,7 @@ impl NestedCVResults {
                 .collect::<Vec<_>>()
         ));
 
-        report.push_str(&"Inner CV Performance:\n".to_string());
+        report.push_str("Inner CV Performance:\n");
         report.push_str(&format!("  Mean Score: {:.4}\n", self.inner_mean_score));
 
         for (i, inner_result) in self.inner_cv_results.iter().enumerate() {
@@ -763,7 +763,7 @@ impl NestedCVResults {
             ));
         }
 
-        report.push_str(&"\nFeature Selection Stability:\n".to_string());
+        report.push_str("\nFeature Selection Stability:\n");
         report.push_str(&format!(
             "  Jaccard Similarity: {:.4}\n",
             self.feature_stability.jaccard_similarity
@@ -782,7 +782,7 @@ impl NestedCVResults {
         ));
 
         if !self.feature_stability.feature_frequencies.is_empty() {
-            report.push_str(&"\nTop 10 Most Frequent Features:\n".to_string());
+            report.push_str("\nTop 10 Most Frequent Features:\n");
             for (feature, frequency) in self.feature_stability.feature_frequencies.iter().take(10) {
                 report.push_str(&format!(
                     "  Feature {}: {:.1}%\n",

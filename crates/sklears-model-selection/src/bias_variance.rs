@@ -178,7 +178,7 @@ impl BiasVarianceAnalyzer {
 
         let mut rng = self.get_rng();
         let n_train = x_train.len();
-        let n_test = x_test.len();
+        let _n_test = x_test.len();
         let sample_size = (n_train as f64 * self.config.sample_fraction) as usize;
 
         // Convert y_test to f64 values
@@ -431,10 +431,9 @@ mod tests {
 
     impl Predict<Vec<f64>, Vec<f64>> for MockTrained {
         fn predict(&self, x: &Vec<f64>) -> Result<Vec<f64>> {
-            use scirs2_core::random::Rng;
             let mut rng = scirs2_core::random::thread_rng();
             Ok(x.iter()
-                .map(|&xi| xi + rng.random_range(-self.noise_level..self.noise_level))
+                .map(|&xi| xi + rng.gen_range(-self.noise_level..self.noise_level))
                 .collect())
         }
     }
@@ -522,5 +521,5 @@ mod tests {
 
 // Add additional imports that might be needed
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Rng, SeedableRng};
-use scirs2_core::SliceRandomExt;
+// use scirs2_core::random::{SeedableRng};
+// use scirs2_core::SliceRandomExt;

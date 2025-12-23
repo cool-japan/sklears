@@ -1428,7 +1428,10 @@ mod tests {
             }
             if n_features > 2 {
                 let sample: f64 = StandardNormal.sample(&mut rng);
-                data[[i, 2]] = (base as f64 * 2.0).sin() + 0.3 * sample;
+                #[allow(clippy::unnecessary_cast)]
+                {
+                    data[[i, 2]] = ((base * 2.0) as f64).sin() + 0.3 * sample;
+                }
             }
         }
 

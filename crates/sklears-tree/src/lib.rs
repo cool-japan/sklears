@@ -20,7 +20,10 @@ pub mod node;
 pub mod splits;
 
 // Extended modules
+pub mod extra_trees_enhanced;
 // pub mod incremental; // Temporarily disabled due to advanced features
+pub mod isolation_forest;
+pub mod model_tree;
 pub mod parallel;
 pub mod random_forest;
 // pub mod shap; // Temporarily disabled
@@ -31,6 +34,14 @@ pub use criteria::{ConditionalTestType, FeatureType, MonotonicConstraint, SplitC
 pub use decision_tree::{
     DecisionTree, DecisionTreeBuilder, DecisionTreeClassifier, DecisionTreeRegressor, TreeValidator,
 };
+pub use extra_trees_enhanced::{
+    BinningStrategy, FeatureBinning, RandomizationStrategy, SparseCompression, SparseConfig,
+    SparseFeature,
+};
+pub use isolation_forest::{
+    IsolationForest, IsolationForestConfig, MaxSamples, StreamingIsolationForest,
+};
+pub use model_tree::{LeafModelType, ModelTree, ModelTreeConfig, ModelTreeNode};
 pub use node::{CompactTreeNode, CustomSplit, SurrogateSplit, TreeNode};
 pub use random_forest::RandomForestClassifier;
 pub use sklears_core::traits::{Trained, Untrained};
@@ -41,4 +52,9 @@ pub mod prelude {
     pub use crate::config::DecisionTreeConfig;
     pub use crate::criteria::SplitCriterion;
     pub use crate::decision_tree::{DecisionTree, DecisionTreeClassifier, DecisionTreeRegressor};
+    pub use crate::extra_trees_enhanced::{BinningStrategy, FeatureBinning, RandomizationStrategy};
+    pub use crate::isolation_forest::{
+        IsolationForest, IsolationForestConfig, StreamingIsolationForest,
+    };
+    pub use crate::model_tree::{LeafModelType, ModelTree, ModelTreeConfig};
 }

@@ -246,7 +246,7 @@ impl MultiViewCCA<Untrained> {
             // Initialize weights randomly for this component
             for (view_idx, view) in scaled_views.iter().enumerate() {
                 let mut weight =
-                    Array1::from_iter((0..view.ncols()).map(|_| thread_rng().gen::<Float>()));
+                    Array1::from_iter((0..view.ncols()).map(|_| thread_rng().random::<Float>()));
                 let norm = (weight.dot(&weight)).sqrt();
                 if norm > 0.0 {
                     weight /= norm;

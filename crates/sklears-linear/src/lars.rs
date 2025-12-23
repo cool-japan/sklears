@@ -387,7 +387,7 @@ mod tests {
             .unwrap();
 
         // Just check that we get reasonable predictions
-        let predictions = model.predict(&x).unwrap();
+        let _predictions = model.predict(&x).unwrap();
         let r2 = model.score(&x, &y).unwrap();
         assert!(
             r2 > 0.99,

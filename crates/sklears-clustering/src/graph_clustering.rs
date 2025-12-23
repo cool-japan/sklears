@@ -30,7 +30,6 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use numrs2::prelude::*;
 use scirs2_core::rand_prelude::{Distribution, SliceRandom};
 // Normal distribution via scirs2_core::random::RandNormal
 use scirs2_core::random::{thread_rng, Random, Rng};
@@ -241,7 +240,7 @@ impl ModularityClustering {
             let mut node_order: Vec<usize> = (0..graph.n_nodes).collect();
             // Fisher-Yates shuffle
             for i in (1..node_order.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 node_order.swap(i, j);
             }
 
@@ -550,7 +549,7 @@ impl LabelPropagationClustering {
             let mut node_order: Vec<usize> = (0..graph.n_nodes).collect();
             // Fisher-Yates shuffle
             for i in (1..node_order.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 node_order.swap(i, j);
             }
 

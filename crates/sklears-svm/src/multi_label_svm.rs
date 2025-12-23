@@ -161,7 +161,7 @@ impl BinaryRelevanceSVM {
                     .poly(*degree, *gamma, *coef0)
                     .tol(self.tolerance)
                     .max_iter(self.max_iter),
-                crate::svc::SvcKernel::Sigmoid { gamma, coef0 } => {
+                crate::svc::SvcKernel::Sigmoid { gamma, coef0: _ } => {
                     crate::svc::SVC::new()
                         .c(self.c)
                         .rbf(*gamma) // Using RBF as placeholder since sigmoid not directly available
@@ -427,7 +427,7 @@ impl ClassifierChainsSVM {
                     .poly(*degree, *gamma, *coef0)
                     .tol(self.tolerance)
                     .max_iter(self.max_iter),
-                crate::svc::SvcKernel::Sigmoid { gamma, coef0 } => {
+                crate::svc::SvcKernel::Sigmoid { gamma, coef0: _ } => {
                     crate::svc::SVC::new()
                         .c(self.c)
                         .rbf(*gamma) // Using RBF as placeholder
@@ -783,9 +783,7 @@ impl LabelPowersetSVM {
 
         if let Some(class_id) = self.single_class_id {
             predicted_classes.resize(n_samples, class_id);
-            for margin in &mut decision_margins {
-                *margin = 1.0;
-            }
+            decision_margins.fill(1.0);
         } else if let Some((negative_class, positive_class)) = self.binary_class_mapping {
             let classifier = self.classifier.as_ref().ok_or_else(|| {
                 MultiLabelError::PredictionError(
@@ -891,7 +889,6 @@ impl LabelPowersetSVM {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use numrs2::prelude::*;
 
     fn create_test_data() -> (Array2<f64>, Array2<f64>) {
         // Create simple multi-label test data

@@ -11,6 +11,7 @@ use sklears_linear::LinearRegression;
 use std::time::Instant;
 
 /// Generate simple synthetic regression data
+#[allow(non_snake_case)]
 fn generate_synthetic_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
     let mut rng = seeded_rng(42);
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -22,7 +23,7 @@ fn generate_synthetic_data(n_samples: usize, n_features: usize) -> (Array2<f64>,
     let true_coefs: Array1<f64> = (0..n_features)
         .map(|i| {
             if i % 3 == 0 {
-                rng.gen_range(-2.0..2.0)
+                rng.random_range(-2.0..2.0)
             } else {
                 0.0
             }
@@ -57,6 +58,7 @@ fn r2_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> f64 {
     1.0 - (ss_res / ss_tot)
 }
 
+#[allow(non_snake_case)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Getting Started with Sklears Linear Models");
     println!("=============================================");

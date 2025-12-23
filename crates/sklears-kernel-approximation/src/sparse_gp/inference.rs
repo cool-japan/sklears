@@ -10,8 +10,7 @@ use scirs2_core::ndarray::ndarray_linalg::SVD;
 use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Uniform as RandUniform;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
 
 /// Scalable inference method implementations
@@ -141,7 +140,7 @@ impl PreconditionedCG {
         let mut p = z.clone();
         let mut rsold = r.dot(&z);
 
-        for iter in 0..max_iter {
+        for _iter in 0..max_iter {
             let ap = a.dot(&p);
             let alpha = rsold / p.dot(&ap);
 
@@ -259,8 +258,9 @@ impl LanczosMethod {
         for i in 0..n {
             q_0[i] = rng.sample(uniform);
         }
+        #[allow(clippy::unnecessary_cast)]
         let q_0_norm = (q_0.mapv(|x| x * x).sum() as f64).sqrt();
-        q_0 = q_0 / q_0_norm;
+        q_0 /= q_0_norm;
         q_matrix.column_mut(0).assign(&q_0);
 
         let mut beta = 0.0;

@@ -8,9 +8,6 @@ use crate::half_precision::{BF16, F16};
 #[cfg(feature = "no-std")]
 extern crate alloc;
 
-#[cfg(feature = "no-std")]
-use alloc::{format, vec::Vec};
-
 /// Batch normalization operation
 pub struct BatchNorm {
     epsilon: f32,
@@ -602,9 +599,12 @@ pub mod convolution {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_batch_norm() {

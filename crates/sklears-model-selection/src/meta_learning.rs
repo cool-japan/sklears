@@ -5,7 +5,8 @@
 //! It learns from past optimization experiences to provide better starting points for new optimization tasks.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use serde::{Deserialize, Serialize};
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -497,7 +498,7 @@ impl MetaLearningEngine {
     /// Gradient-based meta-learning recommendation
     fn gradient_based_recommendation(
         &mut self,
-        dataset_characteristics: &DatasetCharacteristics,
+        _dataset_characteristics: &DatasetCharacteristics,
         algorithm_name: &str,
     ) -> Result<MetaLearningRecommendation, Box<dyn std::error::Error>> {
         // Simplified gradient-based meta-learning
@@ -546,7 +547,7 @@ impl MetaLearningEngine {
     /// Bayesian meta-learning recommendation
     fn bayesian_meta_recommendation(
         &mut self,
-        dataset_characteristics: &DatasetCharacteristics,
+        _dataset_characteristics: &DatasetCharacteristics,
         algorithm_name: &str,
     ) -> Result<MetaLearningRecommendation, Box<dyn std::error::Error>> {
         // Simplified Bayesian meta-learning
@@ -956,7 +957,7 @@ impl RandomForestSurrogate {
 impl SurrogateModelTrait for RandomForestSurrogate {
     fn fit(
         &mut self,
-        features: &Array2<Float>,
+        _features: &Array2<Float>,
         targets: &Array1<Float>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.models.clear();

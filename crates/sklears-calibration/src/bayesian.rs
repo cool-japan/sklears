@@ -74,14 +74,14 @@ impl BayesianModelAveragingCalibrator {
 
         // Log-likelihood under the model
         let mut log_likelihood = 0.0;
-        for (i, (&prob, &y)) in probabilities.iter().zip(y_true.iter()).enumerate() {
+        for (&prob, &y) in probabilities.iter().zip(y_true.iter()) {
             let model_prob = self.models[model_idx].predict_proba(&Array1::from(vec![prob]))?[0];
             let safe_prob = model_prob.clamp(1e-15 as Float, 1.0 as Float - 1e-15 as Float);
 
             if y == 1 {
-                log_likelihood += (safe_prob as f64).ln() as Float;
+                log_likelihood += safe_prob.ln();
             } else {
-                log_likelihood += ((1.0 - safe_prob) as f64).ln() as Float;
+                log_likelihood += (1.0 - safe_prob).ln();
             }
         }
 
@@ -103,7 +103,7 @@ impl BayesianModelAveragingCalibrator {
         // Compute evidence for each model
         for i in 0..self.models.len() {
             let log_evidence = self.compute_model_evidence(i, probabilities, y_true)?;
-            let log_prior = (self.prior_weights[i] as f64).ln() as Float;
+            let log_prior = self.prior_weights[i].ln();
             log_evidences.push(log_evidence + log_prior);
         }
 
@@ -209,7 +209,7 @@ impl VariationalInferenceCalibrator {
     fn sample_parameters(&self) -> Result<Array1<Float>> {
         let mut params = Array1::zeros(self.n_params);
 
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
         for i in 0..self.n_params {
             let sigma = (0.5 * self.log_sigma_sq[i]).exp();
             // Simple normal approximation using Box-Muller transform
@@ -238,14 +238,14 @@ impl VariationalInferenceCalibrator {
     ) -> Float {
         let mut log_lik = 0.0;
 
-        for (i, (&prob, &y)) in probabilities.iter().zip(y_true.iter()).enumerate() {
+        for (&prob, &y) in probabilities.iter().zip(y_true.iter()) {
             let p_calibrated = self.sigmoid(prob, params);
             let safe_p = p_calibrated.clamp(1e-15 as Float, 1.0 as Float - 1e-15 as Float);
 
             if y == 1 {
-                log_lik += (safe_p as f64).ln() as Float;
+                log_lik += safe_p.ln();
             } else {
-                log_lik += ((1.0 - safe_p) as f64).ln() as Float;
+                log_lik += (1.0 - safe_p).ln();
             }
         }
 
@@ -273,7 +273,7 @@ impl VariationalInferenceCalibrator {
         probabilities: &Array1<Float>,
         y_true: &Array1<i32>,
     ) -> Result<()> {
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         for _iter in 0..self.max_iter {
             // Monte Carlo gradient estimation
@@ -407,15 +407,15 @@ impl MCMCCalibrator {
     ) -> Float {
         // Log likelihood
         let mut log_lik = 0.0;
-        for (i, (&prob, &y)) in probabilities.iter().zip(y_true.iter()).enumerate() {
+        for (&prob, &y) in probabilities.iter().zip(y_true.iter()) {
             let z = params[0] * prob + params[1];
             let p_calibrated = 1.0 / (1.0 + (-z).exp());
             let safe_p = p_calibrated.clamp(1e-15 as Float, 1.0 as Float - 1e-15 as Float);
 
             if y == 1 {
-                log_lik += (safe_p as f64).ln() as Float;
+                log_lik += safe_p.ln();
             } else {
-                log_lik += ((1.0 - safe_p) as f64).ln() as Float;
+                log_lik += (1.0 - safe_p).ln();
             }
         }
 
@@ -430,7 +430,7 @@ impl MCMCCalibrator {
 
     /// Metropolis-Hastings sampling
     fn sample_mcmc(&mut self, probabilities: &Array1<Float>, y_true: &Array1<i32>) -> Result<()> {
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         // Initialize chain
         let mut current_params = Array1::zeros(self.n_params);
@@ -456,7 +456,7 @@ impl MCMCCalibrator {
             let log_alpha = proposed_log_posterior - current_log_posterior;
 
             // Accept or reject
-            if log_alpha > 0.0 || 0.5 < (log_alpha as f64).exp() {
+            if log_alpha > 0.0 || 0.5 < log_alpha.exp() {
                 current_params = proposed_params;
                 current_log_posterior = proposed_log_posterior;
                 accepted += 1;
@@ -656,7 +656,7 @@ impl CalibrationEstimator for HierarchicalBayesianCalibrator {
             // Use average of all group parameters
             let mut avg_params = Array1::zeros(2);
             for params in self.group_params.values() {
-                avg_params = avg_params + params;
+                avg_params += params;
             }
             avg_params / self.group_params.len() as Float
         } else {
@@ -809,6 +809,12 @@ pub struct DirichletProcessCalibrator {
     is_fitted: bool,
 }
 
+impl Default for DirichletProcessCalibrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DirichletProcessCalibrator {
     /// Create a new Dirichlet Process calibrator
     pub fn new() -> Self {
@@ -842,7 +848,7 @@ impl DirichletProcessCalibrator {
         let mut weights = Vec::with_capacity(n_clusters);
         let mut remaining_weight = 1.0;
 
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         for _ in 0..n_clusters {
             // Simple beta approximation: uniform for simplicity
@@ -874,7 +880,7 @@ impl DirichletProcessCalibrator {
         let mut cluster_centers = Vec::new();
         let mut cluster_counts = Vec::new();
 
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
         let base_std = self.base_variance.sqrt();
 
         for &prob in probabilities.iter() {
@@ -1063,6 +1069,12 @@ pub enum GPKernelType {
     Compositional,
 }
 
+impl Default for NonParametricGPCalibrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NonParametricGPCalibrator {
     /// Create a new non-parametric GP calibrator
     pub fn new() -> Self {
@@ -1110,8 +1122,7 @@ impl NonParametricGPCalibrator {
                     let length = self.kernel_params.get(&length_key).unwrap_or(&1.0);
 
                     let diff = (x1 - x2).abs();
-                    let periodic_term =
-                        (2.0 * std::f64::consts::PI * freq * diff as f64).cos() as Float;
+                    let periodic_term = (2.0 * std::f64::consts::PI * freq * diff).cos();
                     let decay_term = (-0.5 * diff * diff / (length * length)).exp();
 
                     result += weight * periodic_term * decay_term;
@@ -1137,7 +1148,7 @@ impl NonParametricGPCalibrator {
                 let length_scale = self.kernel_params.get("length_scale").unwrap_or(&1.0);
 
                 let diff = (x1 - x2).abs();
-                let sin_term = (std::f64::consts::PI * diff as f64 / *period as f64).sin() as Float;
+                let sin_term = (std::f64::consts::PI * diff / *period).sin();
                 (-2.0 * sin_term * sin_term / (length_scale * length_scale)).exp()
             }
             GPKernelType::Compositional => {
@@ -1162,7 +1173,7 @@ impl NonParametricGPCalibrator {
         }
 
         // Simple k-means for inducing point selection
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
         let min_x = inputs.iter().fold(Float::INFINITY, |a, &b| a.min(b));
         let max_x = inputs.iter().fold(Float::NEG_INFINITY, |a, &b| a.max(b));
 
@@ -1202,7 +1213,7 @@ impl NonParametricGPCalibrator {
 
     /// Initialize kernel hyperparameters
     fn initialize_hyperparameters(&mut self) {
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         match self.kernel_type {
             GPKernelType::SpectralMixture => {

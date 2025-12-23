@@ -106,9 +106,10 @@ impl HuberLoss {
     pub fn new(delta: Float) -> Self {
         Self { delta }
     }
+}
 
-    /// Create a Huber loss with default delta = 1.0
-    pub fn default() -> Self {
+impl Default for HuberLoss {
+    fn default() -> Self {
         Self::new(1.0)
     }
 }

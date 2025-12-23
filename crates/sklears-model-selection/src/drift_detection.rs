@@ -3,7 +3,6 @@
 //! This module provides methods to detect distribution changes in data
 //! that can affect model performance over time.
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::SliceRandomExt;
 use sklears_core::error::{Result, SklearsError};
@@ -597,7 +596,7 @@ impl DriftDetector {
     fn eddm_test(&self, current: &Array2<f64>) -> Result<DriftDetectionResult> {
         // Simplified EDDM implementation
         let avg_performance = self.calculate_average_performance(current);
-        let distance_between_errors = 1.0 / (1.0 - avg_performance + 1e-8);
+        let _distance_between_errors = 1.0 / (1.0 - avg_performance + 1e-8);
 
         let threshold = 0.95;
         let drift_detected = avg_performance < threshold;
@@ -652,7 +651,7 @@ impl DriftDetector {
         let lambda = en * ks_statistic;
         let p_value = 2.0 * (-2.0 * lambda * lambda).exp();
 
-        (ks_statistic, p_value.max(0.0).min(1.0))
+        (ks_statistic, p_value.clamp(0.0, 1.0))
     }
 
     /// Anderson-Darling statistic calculation
@@ -667,7 +666,7 @@ impl DriftDetector {
 
         let mut h = 0.0;
         let mut prev_val = f64::NEG_INFINITY;
-        let i = 0.0;
+        let _i = 0.0;
 
         for &val in &combined {
             if val != prev_val {
@@ -687,9 +686,8 @@ impl DriftDetector {
 
     /// Mann-Whitney U test implementation
     fn mann_whitney_u_test(&self, sample1: &[f64], sample2: &[f64]) -> (f64, f64) {
-        let mut combined: Vec<(f64, usize)> =
-            sample1.iter().enumerate().map(|(i, &x)| (x, 0)).collect();
-        combined.extend(sample2.iter().enumerate().map(|(i, &x)| (x, 1)));
+        let mut combined: Vec<(f64, usize)> = sample1.iter().map(|&x| (x, 0)).collect();
+        combined.extend(sample2.iter().map(|&x| (x, 1)));
         combined.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
 
         let mut rank_sum1 = 0.0;
@@ -711,7 +709,7 @@ impl DriftDetector {
         let z = (u_statistic - mu).abs() / sigma;
         let p_value = 2.0 * (1.0 - self.normal_cdf(z));
 
-        (u_statistic, p_value.max(0.0).min(1.0))
+        (u_statistic, p_value.clamp(0.0, 1.0))
     }
 
     /// Calculate permutation test statistic
@@ -755,7 +753,8 @@ impl DriftDetector {
         data: &Array2<f64>,
         n_first: usize,
     ) -> (Array2<f64>, Array2<f64>) {
-        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
 
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -825,10 +824,7 @@ impl DriftDetector {
 
         for &value in data {
             for i in 0..n_bins {
-                if value >= bin_edges[i] && value < bin_edges[i + 1] {
-                    counts[i] += 1.0;
-                    break;
-                } else if i == n_bins - 1 && value >= bin_edges[i] {
+                if (i == n_bins - 1 || value < bin_edges[i + 1]) && value >= bin_edges[i] {
                     counts[i] += 1.0;
                     break;
                 }

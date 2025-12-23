@@ -39,7 +39,7 @@ pub fn make_spatial_point_process(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let mut points = Array2::zeros((n_points, 2));
@@ -139,7 +139,7 @@ pub fn make_geostatistical_data(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let (x_min, x_max, y_min, y_max) = region_bounds;
@@ -253,7 +253,7 @@ pub fn make_geographic_information_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate coordinates
@@ -378,7 +378,7 @@ pub fn make_geographic_information_dataset(
     }
 
     // Generate demographic features if requested
-    let demographics_features = if include_demographics {
+    let _demographics_features = if include_demographics {
         let mut demographics = Array2::zeros((n_locations, 5)); // age_median, income_median, education_level, employment_rate, housing_density
 
         for i in 0..n_locations {
@@ -451,7 +451,7 @@ pub fn make_spatial_clustering_dataset(
         ));
     }
 
-    if noise_ratio < 0.0 || noise_ratio > 1.0 {
+    if !(0.0..=1.0).contains(&noise_ratio) {
         return Err(SklearsError::InvalidInput(
             "noise_ratio must be in [0, 1]".to_string(),
         ));
@@ -460,7 +460,7 @@ pub fn make_spatial_clustering_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let (x_min, x_max, y_min, y_max) = region_bounds;
@@ -482,7 +482,7 @@ pub fn make_spatial_clustering_dataset(
 
     // Generate cluster centers with minimum separation
     let mut cluster_centers: Vec<(f64, f64)> = Vec::new();
-    for i in 0..n_clusters {
+    for _i in 0..n_clusters {
         let mut attempts = 0;
         loop {
             let center_x = rng.gen_range(x_min..x_max);
@@ -508,7 +508,7 @@ pub fn make_spatial_clustering_dataset(
         }
     }
 
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let _normal = Normal::new(0.0, 1.0).unwrap();
     let mut point_idx = 0;
 
     // Generate points for each cluster

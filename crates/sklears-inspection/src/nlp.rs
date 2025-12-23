@@ -403,7 +403,7 @@ fn generate_text_perturbation(tokens: &[Token], mask_probability: Float) -> SklR
     let mut perturbed = tokens.to_vec();
 
     for token in &mut perturbed {
-        if scirs2_core::random::thread_rng().gen::<Float>() < mask_probability {
+        if scirs2_core::random::thread_rng().random::<Float>() < mask_probability {
             token.text = "[MASK]".to_string();
         }
     }

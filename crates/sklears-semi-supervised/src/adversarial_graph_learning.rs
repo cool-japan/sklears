@@ -251,7 +251,7 @@ impl AdversarialGraphLearning {
             // Add small random perturbations
             for i in 0..n_samples {
                 for j in 0..features.ncols() {
-                    let noise = rng.gen_range(-self.max_perturbation..self.max_perturbation);
+                    let noise = rng.random_range(-self.max_perturbation, self.max_perturbation);
                     perturbed_features[[i, j]] += noise;
                 }
             }
@@ -338,7 +338,7 @@ impl AdversarialGraphLearning {
                     for feature_idx in 0..features.ncols() {
                         let perturbation = match attack.perturbation_strategy.as_str() {
                             "random" => {
-                                rng.gen_range(-attack.attack_strength..attack.attack_strength)
+                                rng.random_range(-attack.attack_strength, attack.attack_strength)
                             }
                             "gradient" => {
                                 self.compute_gradient_perturbation(features, node_idx, feature_idx)?
@@ -348,7 +348,7 @@ impl AdversarialGraphLearning {
                                 self.compute_targeted_perturbation(features, node_idx, feature_idx)?
                                     * attack.attack_strength
                             }
-                            _ => rng.gen_range(-attack.attack_strength..attack.attack_strength),
+                            _ => rng.random_range(-attack.attack_strength, attack.attack_strength),
                         };
 
                         attacked_features[[node_idx, feature_idx]] += perturbation;

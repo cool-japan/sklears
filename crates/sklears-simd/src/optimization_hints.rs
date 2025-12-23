@@ -4,7 +4,7 @@
 //! optimize SIMD operations more effectively.
 
 #[cfg(feature = "no-std")]
-use core::{hint, mem::size_of, slice};
+use core::{hint, mem::size_of};
 #[cfg(not(feature = "no-std"))]
 use std::{hint, mem::size_of};
 
@@ -19,7 +19,7 @@ impl OptimizationHints {
         #[cfg(target_arch = "x86_64")]
         {
             if b {
-                unsafe { std::arch::x86_64::_mm_prefetch::<0>(std::ptr::null::<i8>()) };
+                unsafe { core::arch::x86_64::_mm_prefetch::<0>(core::ptr::null::<i8>()) };
             }
         }
         b
@@ -100,38 +100,38 @@ impl OptimizationHints {
 
     /// Hint that data is hot (frequently accessed)
     #[inline(always)]
-    pub fn prefetch_read<T>(ptr: *const T) {
+    pub fn prefetch_read<T>(_ptr: *const T) {
         #[cfg(target_arch = "x86_64")]
         {
-            unsafe { std::arch::x86_64::_mm_prefetch::<3>(ptr as *const i8) };
+            unsafe { core::arch::x86_64::_mm_prefetch::<3>(_ptr as *const i8) };
         }
         // AArch64 prefetch requires unstable features - disabled for stable Rust
         // #[cfg(all(target_arch = "aarch64", feature = "nightly"))]
         // {
-        //     unsafe { std::arch::aarch64::_prefetch(ptr as *const i8, 0, 3) };
+        //     unsafe { std::arch::aarch64::_prefetch(_ptr as *const i8, 0, 3) };
         // }
     }
 
     /// Hint that data will be written to (for write prefetching)
     #[inline(always)]
-    pub fn prefetch_write<T>(ptr: *const T) {
+    pub fn prefetch_write<T>(_ptr: *const T) {
         #[cfg(target_arch = "x86_64")]
         {
-            unsafe { std::arch::x86_64::_mm_prefetch::<1>(ptr as *const i8) };
+            unsafe { core::arch::x86_64::_mm_prefetch::<1>(_ptr as *const i8) };
         }
         // AArch64 prefetch requires unstable features - disabled for stable Rust
         // #[cfg(all(target_arch = "aarch64", feature = "nightly"))]
         // {
-        //     unsafe { std::arch::aarch64::_prefetch(ptr as *const i8, 1, 3) };
+        //     unsafe { std::arch::aarch64::_prefetch(_ptr as *const i8, 1, 3) };
         // }
     }
 
     /// Hint that memory access will be non-temporal
     #[inline(always)]
-    pub fn prefetch_nta<T>(ptr: *const T) {
+    pub fn prefetch_nta<T>(_ptr: *const T) {
         #[cfg(target_arch = "x86_64")]
         {
-            unsafe { std::arch::x86_64::_mm_prefetch::<0>(ptr as *const i8) };
+            unsafe { core::arch::x86_64::_mm_prefetch::<0>(_ptr as *const i8) };
         }
     }
 
@@ -267,7 +267,7 @@ pub mod simd_hints {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

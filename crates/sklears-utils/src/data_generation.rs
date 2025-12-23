@@ -47,7 +47,7 @@ pub fn make_classification(
 
     // Shuffle class labels
     for i in (1..n_samples).rev() {
-        let j = rng.random_range(0..=i);
+        let j = rng.gen_range(0..=i);
         y.swap(i, j);
     }
 
@@ -71,7 +71,7 @@ pub fn make_classification(
     for j in 0..n_redundant {
         let feat_idx = n_informative + j;
         let base_feat = j % n_informative;
-        let coeff = rng.random_range(-1.0..1.0);
+        let coeff = rng.gen_range(-1.0..1.0);
 
         for i in 0..n_samples {
             x[[i, feat_idx]] =
@@ -90,8 +90,8 @@ pub fn make_classification(
     if flip_y > 0.0 {
         let n_flip = (n_samples as f64 * flip_y) as usize;
         for _ in 0..n_flip {
-            let idx = rng.random_range(0..n_samples);
-            y[idx] = rng.random_range(0..n_classes as i32);
+            let idx = rng.gen_range(0..n_samples);
+            y[idx] = rng.gen_range(0..n_classes as i32);
         }
     }
 
@@ -171,7 +171,7 @@ pub fn make_blobs(
     let mut cluster_centers = Array2::<f64>::zeros((n_centers, n_features));
     for i in 0..n_centers {
         for j in 0..n_features {
-            cluster_centers[[i, j]] = rng.random_range(center_box.0..center_box.1);
+            cluster_centers[[i, j]] = rng.gen_range(center_box.0..center_box.1);
         }
     }
 
@@ -201,7 +201,7 @@ pub fn make_blobs(
 
     // Shuffle the samples
     for i in (1..n_samples).rev() {
-        let j = rng.random_range(0..=i);
+        let j = rng.gen_range(0..=i);
 
         // Swap labels
         y.swap(i, j);
@@ -242,7 +242,7 @@ pub fn make_circles(
 
     // Generate outer circle
     for i in 0..n_outer {
-        let angle = 2.0 * std::f64::consts::PI * rng.random::<f64>();
+        let angle = 2.0 * std::f64::consts::PI * rng.gen::<f64>();
         x[[i, 0]] = angle.cos() + rng.sample::<f64, _>(StandardNormal) * noise;
         x[[i, 1]] = angle.sin() + rng.sample::<f64, _>(StandardNormal) * noise;
         y[i] = 0;
@@ -251,7 +251,7 @@ pub fn make_circles(
     // Generate inner circle
     for i in 0..n_inner {
         let idx = n_outer + i;
-        let angle = 2.0 * std::f64::consts::PI * rng.random::<f64>();
+        let angle = 2.0 * std::f64::consts::PI * rng.gen::<f64>();
         x[[idx, 0]] = factor * angle.cos() + rng.sample::<f64, _>(StandardNormal) * noise;
         x[[idx, 1]] = factor * angle.sin() + rng.sample::<f64, _>(StandardNormal) * noise;
         y[idx] = 1;
@@ -280,8 +280,8 @@ pub fn make_moons(
     // Generate first moon (upper moon)
     for i in 0..n_samples_per_class + remainder {
         let angle = std::f64::consts::PI * (i as f64) / (n_samples_per_class as f64);
-        x[[i, 0]] = angle.cos() + noise * rng.random::<f64>() * 2.0 - noise;
-        x[[i, 1]] = angle.sin() + noise * rng.random::<f64>() * 2.0 - noise;
+        x[[i, 0]] = angle.cos() + noise * rng.gen::<f64>() * 2.0 - noise;
+        x[[i, 1]] = angle.sin() + noise * rng.gen::<f64>() * 2.0 - noise;
         y[i] = 0;
     }
 
@@ -289,8 +289,8 @@ pub fn make_moons(
     for i in 0..n_samples_per_class {
         let idx = i + n_samples_per_class + remainder;
         let angle = std::f64::consts::PI * (i as f64) / (n_samples_per_class as f64);
-        x[[idx, 0]] = 1.0 - angle.cos() + noise * rng.random::<f64>() * 2.0 - noise;
-        x[[idx, 1]] = 1.0 - angle.sin() - 0.5 + noise * rng.random::<f64>() * 2.0 - noise;
+        x[[idx, 0]] = 1.0 - angle.cos() + noise * rng.gen::<f64>() * 2.0 - noise;
+        x[[idx, 1]] = 1.0 - angle.sin() - 0.5 + noise * rng.gen::<f64>() * 2.0 - noise;
         y[idx] = 1;
     }
 
@@ -334,8 +334,8 @@ pub fn make_sparse_classification(
     let n_zeros = (total_elements as f64 * sparsity) as usize;
 
     for _ in 0..n_zeros {
-        let row = rng.random_range(0..n_samples);
-        let col = rng.random_range(0..n_features);
+        let row = rng.gen_range(0..n_samples);
+        let col = rng.gen_range(0..n_features);
         x[[row, col]] = 0.0;
     }
 
@@ -379,7 +379,7 @@ pub fn make_multilabel_classification(
             if available_labels.is_empty() {
                 break;
             }
-            let idx = rng.random_range(0..available_labels.len());
+            let idx = rng.gen_range(0..available_labels.len());
             let label = available_labels.remove(idx);
             y[[i, label]] = 1;
         }

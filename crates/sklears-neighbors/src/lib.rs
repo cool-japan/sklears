@@ -2,6 +2,16 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::iter_kv_map)]
+#![allow(clippy::enum_variant_names)]
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::explicit_counter_loop)]
+#![allow(clippy::unused_enumerate_index)]
+#![allow(clippy::manual_map)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::manual_unwrap_or_default)]
 //! Neighbor-based algorithms for machine learning
 //!
 //! This crate provides k-nearest neighbors (k-NN) and related algorithms for
@@ -61,9 +71,11 @@ pub mod mapreduce_neighbors;
 pub mod memory_constrained;
 pub mod memory_mapped;
 pub mod metric_learning;
+pub mod multi_view_learning;
 pub mod nearest_centroid;
 pub mod nearest_neighbors;
 pub mod nlp;
+pub mod online_learning;
 pub mod parallel_tree;
 pub mod performance;
 pub mod radius_neighbors;
@@ -75,6 +87,7 @@ pub mod streaming;
 pub mod time_series_neighbors;
 pub mod transformers;
 pub mod tree;
+pub mod validation;
 
 #[allow(non_snake_case)]
 #[cfg(test)]
@@ -99,7 +112,7 @@ pub use batch_processing::{
 };
 pub use bayesian_neighbors::{
     BayesianKNeighborsClassifier, BayesianKNeighborsRegressor, BayesianPrediction,
-    BayesianRegressionPrediction, UncertaintyMethod,
+    BayesianRegressionPrediction, CredibleNeighborSet, UncertaintyMethod,
 };
 pub use bioinformatics::{
     BioSearchConfig, GeneExpressionNeighbors, GeneExpressionResult, GeneMetadata, KmerIndex,
@@ -159,7 +172,11 @@ pub use memory_constrained::{
 pub use memory_mapped::{MmapNeighborIndex, MmapNeighborIndexBuilder};
 pub use metric_learning::{
     EnhancedLMNN, InformationTheoreticMetricLearning, LargeMarginNearestNeighbor,
-    NeighborhoodComponentsAnalysis,
+    NeighborhoodComponentsAnalysis, OnlineMetricLearning,
+};
+pub use multi_view_learning::{
+    ConsensusAnalysis, FusionStrategy, MultiViewKNeighborsClassifier, MultiViewKNeighborsRegressor,
+    RegressionFusionStrategy, ViewConfig,
 };
 pub use nearest_centroid::{CentroidType, ClassConfig, NearestCentroid};
 pub use nearest_neighbors::{kneighbors_graph, radius_neighbors_graph, NearestNeighbors};
@@ -167,6 +184,9 @@ pub use nlp::{
     DocumentFeatureExtractor, DocumentMetadata, DocumentSearchResult, DocumentSimilaritySearch,
     NlpSearchConfig, SentenceSimilaritySearch, TextFeatureType, TextPreprocessor, TfIdfExtractor,
     WordEmbeddingSearch,
+};
+pub use online_learning::{
+    AdaptiveKNeighborsClassifier, DriftDetectionMethod, DriftDetector, StreamingOutlierDetector,
 };
 pub use parallel_tree::{ParallelBuildStrategy, ParallelTreeBuilder, ParallelTreeIndex, WorkUnit};
 pub use performance::{
@@ -195,6 +215,15 @@ pub use time_series_neighbors::{
     SubsequenceSearch, TemporalNeighborSearch,
 };
 pub use transformers::{KNeighborsTransformer, RadiusNeighborsTransformer};
+pub use type_safe_distance::{
+    ChebyshevMetric, ComputeDistance, CosineMetric, EuclideanMetric, ManhattanMetric,
+    MetricDistance, MinkowskiMetric, NonMetricDistance, NormalizedDistance, TypeSafeDistance,
+    TypeSafeKnnConfig,
+};
+pub use validation::{
+    BootstrapResult, BootstrapValidator, ClassificationMetric, CrossValidationResult, GridSearchCV,
+    GridSearchResult, KFoldValidator, RegressionMetric,
+};
 
 use sklears_core::types::Float;
 
@@ -238,3 +267,4 @@ impl From<scirs2_core::ndarray::ShapeError> for NeighborsError {
 
 /// Type alias for neighbors results
 pub type NeighborsResult<T> = std::result::Result<T, NeighborsError>;
+pub mod type_safe_distance;

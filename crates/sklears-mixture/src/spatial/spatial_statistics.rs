@@ -330,14 +330,14 @@ impl SpatialAutocorrelationAnalyzer {
     }
 
     /// Helper functions
-    fn compute_morans_i_variance(&self, n: f64, w_sum: f64) -> SklResult<f64> {
+    fn compute_morans_i_variance(&self, n: f64, _w_sum: f64) -> SklResult<f64> {
         // Simplified variance calculation
         // In a full implementation, this would include more complex terms
         let variance = 1.0 / (n - 1.0) * (1.0 - 1.0 / n);
         Ok(variance.max(1e-8))
     }
 
-    fn compute_gearys_c_variance(&self, n: f64, w_sum: f64) -> SklResult<f64> {
+    fn compute_gearys_c_variance(&self, n: f64, _w_sum: f64) -> SklResult<f64> {
         // Simplified variance calculation
         let variance = 1.0 / (2.0 * (n - 1.0)) * (1.0 - 1.0 / n);
         Ok(variance.max(1e-8))

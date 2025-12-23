@@ -6,7 +6,9 @@
 //! maintaining randomness in the splits.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use scirs2_core::SliceRandomExt;
 use std::collections::HashMap;
 
@@ -490,7 +492,7 @@ mod tests {
 
         assert_eq!(splits.len(), 2);
 
-        for (train, test) in &splits {
+        for (_train, test) in &splits {
             // Check stratification in test set
             let mut class_counts = HashMap::new();
             for &idx in test {

@@ -308,7 +308,7 @@ impl AdditiveIsotonicRegression<Untrained> {
         &self,
         x: &Array1<Float>,
         y: &Array1<Float>,
-        sample_weights: Option<&Array1<Float>>,
+        _sample_weights: Option<&Array1<Float>>,
         increasing: bool,
     ) -> Result<Array1<Float>> {
         match self.loss {

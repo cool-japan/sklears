@@ -57,7 +57,7 @@ pub struct ModelMetadata {
 }
 
 /// Dataset metadata for serialization
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DatasetMetadata {
     /// Number of samples
     pub num_samples: usize,
@@ -450,19 +450,6 @@ impl Default for ModelMetadata {
     }
 }
 
-impl Default for DatasetMetadata {
-    fn default() -> Self {
-        Self {
-            num_samples: 0,
-            num_features: 0,
-            name: None,
-            feature_types: None,
-            target_info: None,
-            statistics: None,
-        }
-    }
-}
-
 impl Default for ExplanationConfiguration {
     fn default() -> Self {
         Self {
@@ -483,6 +470,12 @@ pub struct ExplanationBatch {
     pub metadata: HashMap<String, String>,
     /// Creation timestamp
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl Default for ExplanationBatch {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExplanationBatch {

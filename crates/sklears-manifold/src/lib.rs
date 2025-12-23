@@ -241,7 +241,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseCoding<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         // Initialize dictionary with random normalized vectors
@@ -719,3 +719,28 @@ pub mod continuous_normalizing_flows;
 
 /// Re-export continuous normalizing flows utilities for convenience
 pub use continuous_normalizing_flows::*;
+
+/// Natural Language Processing manifold learning module
+pub mod nlp;
+
+/// Re-export NLP manifold learning utilities for convenience
+pub use nlp::*;
+
+/// Quantum methods for manifold learning module
+pub mod quantum;
+
+/// Re-export quantum methods for convenience
+pub use quantum::*;
+
+/// Causal inference on manifolds module
+pub mod causal;
+
+/// Re-export causal inference methods for convenience
+pub use causal::*;
+
+/// Bioinformatics applications for manifold learning including genomic analysis,
+/// protein structures, phylogenetics, single-cell trajectories, and metabolic pathways
+pub mod bioinformatics;
+
+/// Re-export bioinformatics utilities for convenience
+pub use bioinformatics::*;

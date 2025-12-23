@@ -3,6 +3,7 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::Distribution;
+use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -10,7 +11,7 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, SeedableRng};
 /// Trait for defining custom kernel functions
 pub trait KernelFunction: Clone + Send + Sync {
     /// Compute the kernel value between two vectors
@@ -384,7 +385,7 @@ where
     K: KernelFunction,
 {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let weights = self.random_weights_.as_ref().unwrap();
         let offset = self.random_offset_.as_ref().unwrap();
 
@@ -397,7 +398,7 @@ where
         }
 
         // Compute projection: X @ weights + offset
-        let projection = x.dot(weights) + &offset.view().insert_axis(Axis(0));
+        let projection = x.dot(weights) + offset.view().insert_axis(Axis(0));
 
         // Apply cosine and normalize: sqrt(2/n_components) * cos(projection)
         let normalization = (2.0 / self.n_components as Float).sqrt();

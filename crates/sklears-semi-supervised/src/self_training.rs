@@ -200,7 +200,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EnhancedSelfTraining<Un
                     distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
                     // Compute class probabilities based on k-NN
-                    let k = (labeled_indices.len().min(7)).max(1);
+                    let k = labeled_indices.len().clamp(1, 7);
                     let mut class_probs = vec![0.0; n_classes];
                     let mut total_weight = 0.0;
 

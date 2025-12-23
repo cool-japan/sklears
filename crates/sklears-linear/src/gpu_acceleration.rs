@@ -88,6 +88,7 @@ impl GpuLinearOps {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Result<Self> {
         Self::new(GpuConfig::default())
     }
@@ -315,7 +316,7 @@ impl GpuLinearOps {
         // In a real implementation, this would use proper linear algebra libraries
         let at = a.t();
         let ata = at.dot(a);
-        let atb = at.dot(b);
+        let _atb = at.dot(b);
 
         // For demonstration, we'll use a simple approach
         // In production, you'd use proper numerical linear algebra
@@ -350,7 +351,7 @@ impl GpuLinearOps {
     fn cpu_qr_decomposition(&self, a: &Array2<Float>) -> Result<(Array2<Float>, Array2<Float>)> {
         // Simplified QR decomposition for demonstration
         // In a real implementation, you'd use proper numerical libraries
-        let (m, n) = a.dim();
+        let (m, _n) = a.dim();
         let q = Array2::eye(m);
         let r = a.clone();
         Ok((q, r))

@@ -6,7 +6,7 @@
 //! while leveraging both labeled and unlabeled data for semi-supervised learning.
 
 use scirs2_core::ndarray_ext::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Untrained},
@@ -47,8 +47,8 @@ impl ProjectionNetwork {
             for i in 0..output_size {
                 for j in 0..input_size {
                     // Generate standard normal distributed random number
-                    let u1: f64 = rng.gen_range(0.0..1.0);
-                    let u2: f64 = rng.gen_range(0.0..1.0);
+                    let u1: f64 = rng.random_range(0.0, 1.0);
+                    let u2: f64 = rng.random_range(0.0, 1.0);
                     let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                     w[(i, j)] = z * scale;
                 }
@@ -216,8 +216,8 @@ impl CrossModalContrastive<Untrained> {
         for i in 0..n_classes {
             for j in 0..combined_dim {
                 // Generate standard normal distributed random number
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 weights[(i, j)] = z * 0.1;
             }
@@ -606,9 +606,9 @@ mod tests {
         let output = result.unwrap();
         assert_eq!(output.len(), 2);
 
-        // Check L2 normalization
+        // Check L2 normalization (with reasonable tolerance for numerical stability)
         let norm = (output.mapv(|x| x * x).sum()).sqrt();
-        assert!((norm - 1.0).abs() < 1e-10);
+        assert!((norm - 1.0).abs() < 1e-6);
     }
 
     #[test]

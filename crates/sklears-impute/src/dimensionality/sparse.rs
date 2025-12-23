@@ -114,7 +114,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         // Simplified implementation - in practice would implement sparse coding
@@ -143,7 +143,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for SparseImputer<SparseImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -233,7 +233,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for CompressedSensingImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         // Create a simple measurement matrix (stub implementation)
@@ -258,8 +258,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
             return Err(SklearsError::InvalidInput(format!(

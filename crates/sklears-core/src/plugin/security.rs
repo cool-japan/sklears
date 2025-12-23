@@ -323,7 +323,7 @@ impl Default for SecurityPolicy {
 /// // Custom permission
 /// let custom_perm = Permission::Custom("database_access".to_string());
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Permission {
     /// Read access to file system
     FileSystemRead,
@@ -460,7 +460,7 @@ impl Permission {
 ///     signer_certificate: Some("-----BEGIN CERTIFICATE-----\n...".to_string()),
 /// };
 /// ```
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DigitalSignature {
     /// Signature algorithm used (e.g., "RSA-SHA256", "ECDSA-P256", "Ed25519")
     pub algorithm: String,
@@ -748,7 +748,7 @@ impl Default for TrustStore {
 }
 
 /// Information about a publisher
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublisherInfo {
     /// Publisher name
     pub name: String,

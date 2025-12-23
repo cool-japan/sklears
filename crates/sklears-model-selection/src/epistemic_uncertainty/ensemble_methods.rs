@@ -1,5 +1,5 @@
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Float;
 use scirs2_core::rand_prelude::StdRng;
 use scirs2_core::random::Random;
 
@@ -135,7 +135,7 @@ fn generate_bootstrap_indices(
 }
 
 fn simulate_model_prediction<E>(
-    model: &E,
+    _model: &E,
     input: &Array1<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>>
 where
@@ -146,7 +146,7 @@ where
 }
 
 fn gp_prediction_with_uncertainty<E>(
-    model: &E,
+    _model: &E,
     input: &Array1<f64>,
     kernel_type: &str,
 ) -> Result<(f64, f64), Box<dyn std::error::Error>>

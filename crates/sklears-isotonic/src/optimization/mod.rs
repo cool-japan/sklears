@@ -339,7 +339,7 @@ impl OptimizationConfig {
     pub fn for_problem_size(n_samples: usize) -> Self {
         let algorithm = OptimizationAlgorithm::recommend(n_samples, false, false);
         let block_size = if n_samples > 1000 {
-            Some((n_samples / 10).max(100).min(1000))
+            Some((n_samples / 10).clamp(100, 1000))
         } else {
             None
         };
@@ -382,7 +382,7 @@ impl OptimizationConfig {
             max_iterations: if is_very_sparse { 500 } else { 1000 },
             tolerance: 1e-6,
             enable_simd: true,
-            block_size: Some((n_samples / 20).max(50).min(500)),
+            block_size: Some((n_samples / 20).clamp(50, 500)),
             regularization: 0.0,
         }
     }

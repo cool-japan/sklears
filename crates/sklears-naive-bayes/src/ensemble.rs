@@ -109,7 +109,7 @@ where
         } else {
             let mut indices: Vec<usize> = (0..n_samples).collect();
             for i in (1..indices.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 indices.swap(i, j);
             }
             indices.truncate(sample_size);
@@ -582,7 +582,7 @@ impl AdaBoostNaiveBayes {
             }
 
             // Avoid division by zero and perfect classifiers
-            weighted_error = weighted_error.max(1e-10).min(1.0 - 1e-10);
+            weighted_error = weighted_error.clamp(1e-10, 1.0 - 1e-10);
 
             // Calculate estimator weight (alpha)
             let alpha = self.learning_rate * 0.5 * ((1.0 - weighted_error) / weighted_error).ln();
@@ -704,7 +704,7 @@ impl AdaBoostNaiveBayes {
 
             // Gentle update: h(x) = log(p / (1-p))
             let h_values: Array1<f64> = positive_probs.mapv(|p| {
-                let p_safe = p.max(1e-10).min(1.0 - 1e-10);
+                let p_safe = p.clamp(1e-10, 1.0 - 1e-10);
                 (p_safe / (1.0 - p_safe)).ln()
             });
 

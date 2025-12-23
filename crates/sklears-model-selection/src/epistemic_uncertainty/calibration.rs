@@ -1,5 +1,5 @@
 use scirs2_core::ndarray::Array1;
-use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Float;
 
 #[derive(Debug, Clone)]
 pub enum CalibrationMethod {
@@ -79,7 +79,7 @@ pub fn platt_scaling(
         let mut hessian_ab = 0.0;
         let mut hessian_bb = 0.0;
 
-        for (i, (&score, &label)) in scores.iter().zip(labels.iter()).enumerate() {
+        for (&score, &label) in scores.iter().zip(labels.iter()) {
             let z = a * score + b;
             let p = 1.0 / (1.0 + (-z).exp());
 

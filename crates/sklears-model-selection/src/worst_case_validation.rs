@@ -6,7 +6,9 @@
 //! extreme data conditions.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use scirs2_core::SliceRandomExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -460,7 +462,7 @@ impl WorstCaseScenarioGenerator {
                 // Random noise attack
                 for mut row in adv_x.axis_iter_mut(Axis(0)) {
                     for val in row.iter_mut() {
-                        let noise = self.rng.gen_range(-epsilon..=epsilon);
+                        let noise = self.rng.gen_range(-epsilon..epsilon + 1.0);
                         *val += noise;
                     }
                 }
@@ -469,7 +471,7 @@ impl WorstCaseScenarioGenerator {
                 // Simplified implementation for C&W and Boundary Attack
                 for mut row in adv_x.axis_iter_mut(Axis(0)) {
                     for val in row.iter_mut() {
-                        let perturbation = self.rng.gen_range(-epsilon..=epsilon);
+                        let perturbation = self.rng.gen_range(-epsilon..epsilon + 1.0);
                         *val += perturbation;
                     }
                 }
@@ -511,7 +513,7 @@ impl WorstCaseScenarioGenerator {
 
                     let mut keep_indices = Vec::new();
                     for (i, &class) in y.iter().enumerate() {
-                        if class != target_class || self.rng.gen::<Float>() > removal_prob {
+                        if class != target_class || self.rng.random::<Float>() > removal_prob {
                             keep_indices.push(i);
                         }
                     }
@@ -530,8 +532,8 @@ impl WorstCaseScenarioGenerator {
             }
             DistributionShiftType::ConceptDrift => {
                 // Change the relationship between features and labels
-                for (i, label) in shift_y.iter_mut().enumerate() {
-                    if self.rng.gen::<Float>() < severity * 0.2 {
+                for label in shift_y.iter_mut() {
+                    if self.rng.random::<Float>() < severity * 0.2 {
                         // Flip some labels to simulate concept drift
                         *label = 1.0 - *label;
                     }
@@ -568,7 +570,9 @@ impl WorstCaseScenarioGenerator {
 
         for &idx in &outlier_indices {
             for val in outlier_x.row_mut(idx) {
-                let outlier_value = self.rng.gen_range(-outlier_magnitude..=outlier_magnitude);
+                let outlier_value = self
+                    .rng
+                    .gen_range(-outlier_magnitude..outlier_magnitude + 1.0);
                 *val += outlier_value;
             }
         }
@@ -631,16 +635,16 @@ impl WorstCaseScenarioGenerator {
         match corruption_type {
             CorruptionType::GaussianNoise { std } => {
                 for val in corrupted_x.iter_mut() {
-                    if self.rng.gen::<Float>() < corruption_rate {
-                        let noise = self.rng.gen::<Float>() * std;
+                    if self.rng.random::<Float>() < corruption_rate {
+                        let noise = self.rng.random::<Float>() * std;
                         *val += noise;
                     }
                 }
             }
             CorruptionType::SaltPepperNoise { ratio } => {
                 for val in corrupted_x.iter_mut() {
-                    if self.rng.gen::<Float>() < corruption_rate {
-                        *val = if self.rng.gen::<Float>() < *ratio {
+                    if self.rng.random::<Float>() < corruption_rate {
+                        *val = if self.rng.random::<Float>() < *ratio {
                             1.0
                         } else {
                             0.0
@@ -650,15 +654,15 @@ impl WorstCaseScenarioGenerator {
             }
             CorruptionType::MultiplicativeNoise { factor } => {
                 for val in corrupted_x.iter_mut() {
-                    if self.rng.gen::<Float>() < corruption_rate {
-                        let noise = 1.0 + (self.rng.gen::<Float>() - 0.5) * factor;
+                    if self.rng.random::<Float>() < corruption_rate {
+                        let noise = 1.0 + (self.rng.random::<Float>() - 0.5) * factor;
                         *val *= noise;
                     }
                 }
             }
             CorruptionType::FeatureMasking => {
                 for val in corrupted_x.iter_mut() {
-                    if self.rng.gen::<Float>() < corruption_rate {
+                    if self.rng.random::<Float>() < corruption_rate {
                         *val = 0.0;
                     }
                 }
@@ -666,8 +670,8 @@ impl WorstCaseScenarioGenerator {
             CorruptionType::Quantization { levels } => {
                 let step_size = 2.0 / (*levels as Float);
                 for val in corrupted_x.iter_mut() {
-                    if self.rng.gen::<Float>() < corruption_rate {
-                        *val = ((*val / step_size).round() * step_size).max(-1.0).min(1.0);
+                    if self.rng.random::<Float>() < corruption_rate {
+                        *val = ((*val / step_size).round() * step_size).clamp(-1.0, 1.0);
                     }
                 }
             }
@@ -705,7 +709,7 @@ impl WorstCaseScenarioGenerator {
                         * (2.0 * std::f64::consts::PI * t as Float / *period as Float).sin()
                             as Float
                 }
-                DriftPattern::RandomWalk => drift_rate * self.rng.gen::<Float>(),
+                DriftPattern::RandomWalk => drift_rate * self.rng.random::<Float>(),
             };
 
             for val in row {
@@ -736,7 +740,7 @@ impl WorstCaseScenarioGenerator {
         match noise_pattern {
             NoisePattern::Uniform => {
                 for label in noisy_y.iter_mut() {
-                    if self.rng.gen::<Float>() < noise_rate {
+                    if self.rng.random::<Float>() < noise_rate {
                         // Flip to random other class
                         let other_classes: Vec<Float> = unique_classes
                             .iter()
@@ -750,7 +754,7 @@ impl WorstCaseScenarioGenerator {
                 }
             }
             NoisePattern::ClassConditional { class_weights } => {
-                for (i, label) in noisy_y.iter_mut().enumerate() {
+                for label in noisy_y.iter_mut() {
                     let class_idx = unique_classes
                         .iter()
                         .position(|&c| c == *label)
@@ -761,7 +765,7 @@ impl WorstCaseScenarioGenerator {
                         noise_rate
                     };
 
-                    if self.rng.gen::<Float>() < class_noise_rate {
+                    if self.rng.random::<Float>() < class_noise_rate {
                         let other_classes: Vec<Float> = unique_classes
                             .iter()
                             .filter(|&&c| c != *label)
@@ -781,7 +785,7 @@ impl WorstCaseScenarioGenerator {
                 };
 
                 for label in noisy_y.iter_mut() {
-                    if self.rng.gen::<Float>() < noise_rate {
+                    if self.rng.random::<Float>() < noise_rate {
                         *label = target_class_value;
                     }
                 }
@@ -805,7 +809,7 @@ impl WorstCaseScenarioGenerator {
             MissingPattern::MCAR => {
                 // Missing completely at random
                 for val in missing_x.iter_mut() {
-                    if self.rng.gen::<Float>() < missing_rate {
+                    if self.rng.random::<Float>() < missing_rate {
                         *val = Float::NAN;
                     }
                 }
@@ -822,7 +826,7 @@ impl WorstCaseScenarioGenerator {
                     };
 
                     for val in row {
-                        if self.rng.gen::<Float>() < missing_prob {
+                        if self.rng.random::<Float>() < missing_prob {
                             *val = Float::NAN;
                         }
                     }
@@ -836,7 +840,7 @@ impl WorstCaseScenarioGenerator {
                     } else {
                         missing_rate * 0.5
                     };
-                    if self.rng.gen::<Float>() < missing_prob {
+                    if self.rng.random::<Float>() < missing_prob {
                         *val = Float::NAN;
                     }
                 }

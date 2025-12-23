@@ -236,7 +236,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove calibration convergence using proper scoring rules
     fn prove_calibration_convergence<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -280,7 +280,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove sharpness preservation during calibration
     fn prove_sharpness_preservation<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -313,7 +313,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove monotonicity property
     fn prove_monotonicity<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -345,7 +345,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove bias-variance optimality
     fn prove_bias_variance_optimality<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -376,7 +376,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove information preservation
     fn prove_information_preservation<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -407,7 +407,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove distribution robustness
     fn prove_distribution_robustness<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -438,7 +438,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove statistical consistency
     fn prove_statistical_consistency<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -469,7 +469,7 @@ impl TheoreticalCalibrationValidator {
     /// Prove convergence rate bounds
     fn prove_convergence_rate_bounds<T: CalibrationEstimator + ?Sized>(
         &mut self,
-        calibrator: &T,
+        _calibrator: &T,
         method_name: &str,
     ) -> Result<ProofResult> {
         let mut proof_steps = Vec::new();
@@ -527,8 +527,7 @@ impl TheoreticalCalibrationValidator {
     }
 
     /// Helper methods for verification
-
-    fn verify_convergence_conditions(&self, method_name: &str) -> Result<bool> {
+    fn verify_convergence_conditions(&self, _method_name: &str) -> Result<bool> {
         // Simulate theoretical analysis with ultra-precision arithmetic
         let test_points = self.generate_theoretical_test_points()?;
         let mut convergence_verified = true;
@@ -612,7 +611,7 @@ impl TheoreticalCalibrationValidator {
         Ok(0.1) // 10% degradation under moderate shift
     }
 
-    fn verify_statistical_consistency(&self, method_name: &str) -> Result<bool> {
+    fn verify_statistical_consistency(&self, _method_name: &str) -> Result<bool> {
         // Statistical consistency verification
         Ok(true) // Most calibration methods are consistent
     }
@@ -629,7 +628,6 @@ impl TheoreticalCalibrationValidator {
     }
 
     /// Detailed bound computations
-
     fn compute_calibration_error_upper_bound(&self) -> Result<TheoreticalBounds> {
         let n = self.config.n_theoretical_tests as Float;
         let bound_value = 2.0 * (2.0 * n.ln() / n).sqrt();
@@ -651,7 +649,7 @@ impl TheoreticalCalibrationValidator {
     fn compute_sample_complexity_lower_bound(&self) -> Result<TheoreticalBounds> {
         let epsilon = 0.01 as Float;
         let delta = 1.0 as Float - self.config.confidence_level;
-        let bound_value = (1.0 / (epsilon as f64).powi(2)) * (1.0 / delta as f64).ln() as Float;
+        let bound_value = (1.0 / (epsilon as f64).powi(2)) * (1.0 / delta).ln() as Float;
         let ultra_bound = UltraPrecisionFloat::from_float(bound_value, self.config.proof_precision);
 
         Ok(TheoreticalBounds {
@@ -801,7 +799,7 @@ impl TheoreticalCalibrationValidator {
                 report.push_str(&format!("  • {}\n", assumption));
             }
 
-            report.push_str("\n");
+            report.push('\n');
         }
 
         // Add theoretical bounds section

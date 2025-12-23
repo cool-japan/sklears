@@ -628,12 +628,13 @@ pub mod serialization {
 
         /// Save model to binary format
         pub fn save_to_binary<P: AsRef<std::path::Path>>(&self, path: P) -> NeuralResult<()> {
-            let binary = bincode::serialize(self).map_err(|e| {
-                sklears_core::error::SklearsError::InvalidParameter {
-                    name: "serialization".to_string(),
-                    reason: format!("Failed to serialize model to binary: {}", e),
-                }
-            })?;
+            let binary =
+                bincode::serde::encode_to_vec(self, bincode::config::standard()).map_err(|e| {
+                    sklears_core::error::SklearsError::InvalidParameter {
+                        name: "serialization".to_string(),
+                        reason: format!("Failed to serialize model to binary: {}", e),
+                    }
+                })?;
 
             std::fs::write(path, binary).map_err(|e| {
                 sklears_core::error::SklearsError::InvalidParameter {
@@ -654,12 +655,13 @@ pub mod serialization {
                 }
             })?;
 
-            let model: Self = bincode::deserialize(&binary).map_err(|e| {
-                sklears_core::error::SklearsError::InvalidParameter {
-                    name: "deserialization".to_string(),
-                    reason: format!("Failed to deserialize binary model: {}", e),
-                }
-            })?;
+            let (model, _): (Self, _) =
+                bincode::serde::decode_from_slice(&binary, bincode::config::standard()).map_err(
+                    |e| sklears_core::error::SklearsError::InvalidParameter {
+                        name: "deserialization".to_string(),
+                        reason: format!("Failed to deserialize binary model: {}", e),
+                    },
+                )?;
 
             Ok(model)
         }

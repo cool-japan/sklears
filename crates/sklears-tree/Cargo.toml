@@ -1,6 +1,6 @@
 [package]
 name = "sklears-tree"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -15,7 +15,6 @@ categories = ["science", "mathematics", "algorithms"]
 [dependencies]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 
 # Core SciRS2 modules for Tree Models
@@ -34,14 +33,14 @@ num_cpus = { workspace = true }
 # ❌ ndarray-linalg - use scirs2-linalg instead
 
 # External dependencies (evaluated for necessity)
-smartcore = "0.3"  # Third-party ML library for specific algorithms
+smartcore = "0.4"  # Third-party ML library for specific algorithms
 
 [dev-dependencies]
 criterion = { workspace = true }
 sklears-metrics = { workspace = true }
 approx = { workspace = true }
-tempfile = "3.8"
-proptest = "1.5"
+tempfile = "3.23"
+proptest = "1.7"
 
 [features]
 default = ["std"]

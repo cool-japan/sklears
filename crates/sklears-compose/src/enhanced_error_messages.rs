@@ -1863,7 +1863,7 @@ impl SuggestionGenerator for DataErrorSuggestionGenerator {
                     }
                 ],
                 confidence: 0.9,
-                estimated_time: Duration::from_mins(5),
+                estimated_time: <Duration as DurationExt>::from_mins(5),
                 success_probability: 0.85,
                 expertise_level: ExpertiseLevel::Beginner,
                 prerequisites: Vec::new(),
@@ -1912,7 +1912,7 @@ impl SuggestionGenerator for ConfigurationErrorSuggestionGenerator {
             }],
             code_examples: Vec::new(),
             confidence: 0.7,
-            estimated_time: Duration::from_mins(10),
+            estimated_time: <Duration as DurationExt>::from_mins(10),
             success_probability: 0.8,
             expertise_level: ExpertiseLevel::Intermediate,
             prerequisites: Vec::new(),

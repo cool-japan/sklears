@@ -577,7 +577,7 @@ impl TransferLearning {
     ) -> Vec<ParameterValue> {
         let mut all_recommendations = Vec::new();
 
-        for (problem_id, history) in &self.problem_histories {
+        for history in self.problem_histories.values() {
             if let Some(hist_signature) = history.problem_signature() {
                 let similarity =
                     self.calculate_problem_similarity(problem_signature, hist_signature);

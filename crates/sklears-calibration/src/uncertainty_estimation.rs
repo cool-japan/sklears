@@ -213,7 +213,7 @@ impl UncertaintyEstimator {
     ) -> Result<()> {
         use scirs2_core::random::thread_rng;
 
-        let rng_instance = if let Some(seed) = self.config.random_seed {
+        let _rng_instance = if let Some(_seed) = self.config.random_seed {
             thread_rng()
         } else {
             thread_rng()
@@ -333,7 +333,7 @@ impl BayesianUncertaintyEstimator {
 
         // Posterior update
         let xt_x = x_matrix.t().dot(&x_matrix);
-        let posterior_precision = &xt_x + prior_precision * Array2::eye(2);
+        let _posterior_precision = &xt_x + prior_precision * Array2::eye(2);
         // For simplicity, use pseudo-inverse approximation
         let posterior_cov = Array2::eye(2) / prior_precision; // Simplified approximation
 

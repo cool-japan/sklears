@@ -3,9 +3,11 @@
 //! This module tests how clustering algorithms handle challenging data conditions
 //! including noise, outliers, imbalanced clusters, and edge cases.
 
-use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{ChaCha8Rng, Distribution, Rng, SeedableRng};
+use scirs2_core::random::essentials::Normal;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::Distribution;
 use sklears_clustering::{
     AgglomerativeClustering, GaussianMixture, KMeans, KMeansConfig, PredictProba, DBSCAN, HDBSCAN,
 };
@@ -21,7 +23,7 @@ fn generate_noisy_clusters(
     n_features: usize,
     noise_level: Float,
 ) -> Array2<Float> {
-    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    let mut rng = StdRng::seed_from_u64(42);
     let mut data = Vec::new();
 
     for cluster_id in 0..n_clusters {
@@ -43,14 +45,14 @@ fn generate_noisy_clusters(
 
 /// Add random outliers to existing data
 fn add_outliers(data: Array2<Float>, n_outliers: usize, outlier_magnitude: Float) -> Array2<Float> {
-    let mut rng = ChaCha8Rng::seed_from_u64(123);
+    let mut rng = StdRng::seed_from_u64(123);
     let (n_samples, n_features) = data.dim();
 
     let mut outlier_data = Vec::new();
     for _ in 0..n_outliers {
         let mut outlier_point = Vec::new();
         for _ in 0..n_features {
-            let value = rng.gen_range(-outlier_magnitude..outlier_magnitude);
+            let value = rng.random_range(-outlier_magnitude..outlier_magnitude);
             outlier_point.push(value);
         }
         outlier_data.extend(outlier_point);

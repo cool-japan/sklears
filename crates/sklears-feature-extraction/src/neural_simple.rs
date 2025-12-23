@@ -58,7 +58,7 @@ impl Autoencoder {
         self
     }
 
-    pub fn fit<T>(&self, X: &ArrayView2<f64>, _y: &T) -> SklResult<Self> {
+    pub fn fit<T>(&self, _X: &ArrayView2<f64>, _y: &T) -> SklResult<Self> {
         // Placeholder implementation - return a clone
         Ok(self.clone())
     }

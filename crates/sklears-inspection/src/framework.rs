@@ -333,6 +333,15 @@ pub struct ExplanationPipeline<T> {
     parallel_config: ParallelConfig,
 }
 
+impl<T> Default for ExplanationPipeline<T>
+where
+    T: Send + Sync,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> ExplanationPipeline<T>
 where
     T: Send + Sync,

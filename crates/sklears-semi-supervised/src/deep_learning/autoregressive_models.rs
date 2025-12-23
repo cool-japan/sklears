@@ -6,7 +6,7 @@
 //! and incorporating labeled information through conditional generation.
 
 use scirs2_core::ndarray_ext::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Fit, Predict, PredictProba};
 
@@ -147,7 +147,7 @@ impl AutoregressiveModel {
             for i in 0..fan_in {
                 for j in 0..fan_out {
                     // Generate uniform distributed random number in [-scale, scale]
-                    let u: f64 = rng.gen_range(0.0..1.0);
+                    let u: f64 = rng.random_range(0.0, 1.0);
                     weight[(i, j)] = u * (2.0 * scale) - scale;
                 }
             }
@@ -167,7 +167,7 @@ impl AutoregressiveModel {
         for i in 0..*last_hidden_dim {
             for j in 0..self.n_classes {
                 // Generate uniform distributed random number in [-class_scale, class_scale]
-                let u: f64 = rng.gen_range(0.0..1.0);
+                let u: f64 = rng.random_range(0.0, 1.0);
                 class_weights[(i, j)] = u * (2.0 * class_scale) - class_scale;
             }
         }

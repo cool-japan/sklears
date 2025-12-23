@@ -5,7 +5,7 @@
 
 use super::common::*;
 use numpy::{PyArray2, PyReadonlyArray1, PyReadonlyArray2};
-use sklears::metrics;
+use sklears_metrics as metrics;
 
 /// Calculate accuracy score for classification
 #[pyfunction]

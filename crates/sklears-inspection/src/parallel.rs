@@ -68,7 +68,7 @@ impl ParallelConfig {
 
         #[cfg(feature = "parallel")]
         {
-            self.n_threads.unwrap_or_else(|| num_cpus::get())
+            self.n_threads.unwrap_or_else(num_cpus::get)
         }
         #[cfg(not(feature = "parallel"))]
         {
@@ -424,6 +424,12 @@ pub struct BatchStats {
     pub peak_memory_mb: usize,
 }
 
+impl Default for BatchStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BatchStats {
     /// Create new batch statistics
     pub fn new() -> Self {
@@ -497,7 +503,7 @@ where
         .chunks(batch_size)
         .collect::<Vec<_>>()
         .into_par_iter()
-        .map(|batch| processor(batch))
+        .map(processor)
         .collect();
 
     let batched_results = results?;
@@ -865,10 +871,7 @@ where
         } else {
             // Parallel processing with adaptive batching
             let batches: Vec<_> = data.chunks(adaptive_batch_size).collect();
-            let batch_results: SklResult<Vec<_>> = batches
-                .into_par_iter()
-                .map(|batch| processor(batch))
-                .collect();
+            let batch_results: SklResult<Vec<_>> = batches.into_par_iter().map(processor).collect();
 
             let processed_results = batch_results?;
             for batch_result in processed_results {

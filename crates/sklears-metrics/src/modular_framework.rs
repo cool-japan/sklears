@@ -62,6 +62,10 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+/// Type alias for metric aggregator map
+type AggregatorMap =
+    Arc<RwLock<HashMap<String, Box<dyn MetricAggregator<Value = f64, Result = f64>>>>>;
+
 /// Core trait for all metrics in the framework
 pub trait Metric: Send + Sync {
     /// Input type for the metric
@@ -675,7 +679,7 @@ impl MetricMiddleware for TimingMiddleware {
 /// Metric registry for dynamic registration and discovery
 pub struct MetricRegistry {
     metrics: Arc<RwLock<HashMap<String, Box<dyn DynMetric>>>>,
-    aggregators: Arc<RwLock<HashMap<String, Box<dyn MetricAggregator<Value = f64, Result = f64>>>>>,
+    aggregators: AggregatorMap,
     middleware: Arc<RwLock<HashMap<String, Box<dyn MetricMiddleware>>>>,
 }
 

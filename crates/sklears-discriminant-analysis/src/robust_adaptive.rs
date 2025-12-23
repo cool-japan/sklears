@@ -619,7 +619,7 @@ impl RobustDiscriminantAnalysis {
         &self,
         trained: &TrainedRobustDiscriminantAnalysis,
     ) -> Result<(Array2<Float>, Array1<Float>)> {
-        let n_features = trained.pooled_covariance.nrows();
+        let _n_features = trained.pooled_covariance.nrows();
         let n_components = trained.n_components;
 
         // For simplicity, we'll use PCA on the pooled robust covariance

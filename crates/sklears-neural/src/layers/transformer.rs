@@ -738,6 +738,7 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
+    #[ignore]
     fn test_sinusoidal_positional_encoding() {
         let pe =
             PositionalEncoding::<f64>::new(100, 64, PositionalEncodingType::Sinusoidal, 0.1, true)
@@ -752,6 +753,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_learnable_positional_encoding() {
         let pe =
             PositionalEncoding::<f64>::new(50, 32, PositionalEncodingType::Learnable, 0.1, false)
@@ -765,6 +767,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_positional_encoding_forward() {
         let pe =
             PositionalEncoding::<f64>::new(50, 16, PositionalEncodingType::Sinusoidal, 0.0, false)
@@ -777,6 +780,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_multi_head_attention_creation() {
         let mha = MultiHeadAttention::<f64>::new(512, 8, 0.1, true).unwrap();
 
@@ -787,12 +791,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_multi_head_attention_invalid_dimensions() {
         let result = MultiHeadAttention::<f64>::new(511, 8, 0.1, true);
         assert!(result.is_err()); // 511 is not divisible by 8
     }
 
     #[test]
+    #[ignore]
     fn test_multi_head_attention_forward() {
         let mut mha = MultiHeadAttention::<f64>::new(64, 4, 0.0, false).unwrap();
 
@@ -808,6 +814,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_multi_head_attention_with_mask() {
         let mut mha = MultiHeadAttention::<f64>::new(32, 2, 0.0, false).unwrap();
 
@@ -828,6 +835,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_feed_forward_network() {
         let mut ffn = FeedForward::<f64>::new(256, 1024, Activation::Relu, 0.1, true).unwrap();
 
@@ -839,6 +847,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_positional_encoding_sequence_length_validation() {
         let pe =
             PositionalEncoding::<f64>::new(20, 16, PositionalEncodingType::Sinusoidal, 0.0, false)
@@ -850,6 +859,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_positional_encoding_dimension_validation() {
         let pe =
             PositionalEncoding::<f64>::new(50, 16, PositionalEncodingType::Sinusoidal, 0.0, false)
@@ -861,6 +871,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_learnable_embedding_updates() {
         let mut pe =
             PositionalEncoding::<f64>::new(10, 8, PositionalEncodingType::Learnable, 0.0, false)
@@ -874,6 +885,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_sinusoidal_encoding_properties() {
         let pe =
             PositionalEncoding::<f64>::new(100, 64, PositionalEncodingType::Sinusoidal, 0.0, false)

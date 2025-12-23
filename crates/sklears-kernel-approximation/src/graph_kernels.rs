@@ -57,13 +57,13 @@ impl Graph {
 
     /// Add edge
     pub fn add_edge(&mut self, from: usize, to: usize) {
-        self.adjacency.entry(from).or_insert_with(Vec::new).push(to);
-        self.adjacency.entry(to).or_insert_with(Vec::new).push(from);
+        self.adjacency.entry(from).or_default().push(to);
+        self.adjacency.entry(to).or_default().push(from);
     }
 
     /// Add directed edge
     pub fn add_directed_edge(&mut self, from: usize, to: usize) {
-        self.adjacency.entry(from).or_insert_with(Vec::new).push(to);
+        self.adjacency.entry(from).or_default().push(to);
     }
 
     /// Set node labels
@@ -280,6 +280,12 @@ pub struct ShortestPathKernel {
     use_node_labels: bool,
     /// Whether to normalize by graph size
     normalize: bool,
+}
+
+impl Default for ShortestPathKernel {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ShortestPathKernel {

@@ -394,7 +394,7 @@ impl ConditionMonitor {
         use scirs2_core::random::SeedableRng;
         let mut rng = StdRng::seed_from_u64(42);
 
-        let mut v = Array1::from_vec((0..n).map(|_| rng.gen::<Float>()).collect());
+        let mut v = Array1::from_vec((0..n).map(|_| rng.random::<Float>()).collect());
         let norm = v.iter().map(|&x| x * x).sum::<Float>().sqrt();
         v /= norm;
 

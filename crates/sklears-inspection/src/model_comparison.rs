@@ -234,7 +234,7 @@ where
         EnsembleMethod::Average => {
             let mut sum = Array1::zeros(n_samples);
             for pred in &individual_predictions {
-                sum = sum + pred;
+                sum += pred;
             }
             sum / n_models as Float
         }
@@ -508,7 +508,7 @@ fn create_ensemble_predictions(
         EnsembleMethod::Average => {
             let mut ensemble = Array1::zeros(n_samples);
             for pred in predictions {
-                ensemble = ensemble + pred;
+                ensemble += pred;
             }
             Ok(ensemble / n_models)
         }
@@ -617,7 +617,7 @@ fn compute_mean_predictions(predictions: &[Array1<Float>]) -> Array1<Float> {
     let mut mean_pred = Array1::zeros(n_samples);
 
     for pred in predictions {
-        mean_pred = mean_pred + pred;
+        mean_pred += pred;
     }
 
     mean_pred / n_predictions

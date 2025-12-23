@@ -353,7 +353,7 @@ impl StructuredSVM<Untrained> {
 
         // Node features (emission features)
         for (pos, &label) in labels.iter().enumerate() {
-            let label_idx = *label_to_idx.get(&label).unwrap();
+            let _label_idx = *label_to_idx.get(&label).unwrap();
             let node_features = sequence.feature_at(pos);
 
             // Add weighted node features
@@ -411,7 +411,7 @@ impl StructuredSVM<Untrained> {
     ) -> Result<Array1<usize>> {
         let seq_len = sequence.length;
         let n_labels = label_to_idx.len();
-        let n_features = sequence.features.ncols();
+        let _n_features = sequence.features.ncols();
 
         // Dynamic programming tables
         let mut dp = Array2::zeros((seq_len, n_labels));
@@ -443,7 +443,7 @@ impl StructuredSVM<Untrained> {
                 let mut best_score = f64::NEG_INFINITY;
                 let mut best_prev = 0;
 
-                for (prev_label, &prev_idx) in label_to_idx.iter() {
+                for (_prev_label, &prev_idx) in label_to_idx.iter() {
                     let transition_score = transition_weights[[prev_idx, curr_idx]];
                     let total_score = dp[[pos - 1, prev_idx]] + transition_score;
 
@@ -653,7 +653,7 @@ impl StructuredSVM<Trained> {
         let mut backtrack = Array2::zeros((seq_len, n_labels));
 
         // Initialize first position
-        for (label, &label_idx) in label_to_idx.iter() {
+        for (_label, &label_idx) in label_to_idx.iter() {
             let node_features = sequence.feature_at(0);
             let mut score = 0.0;
 
@@ -669,11 +669,11 @@ impl StructuredSVM<Trained> {
         for pos in 1..seq_len {
             let node_features = sequence.feature_at(pos);
 
-            for (curr_label, &curr_idx) in label_to_idx.iter() {
+            for (_curr_label, &curr_idx) in label_to_idx.iter() {
                 let mut best_score = f64::NEG_INFINITY;
                 let mut best_prev = 0;
 
-                for (prev_label, &prev_idx) in label_to_idx.iter() {
+                for (_prev_label, &prev_idx) in label_to_idx.iter() {
                     let transition_score = transition_weights[[prev_idx, curr_idx]];
                     let total_score = dp[[pos - 1, prev_idx]] + transition_score;
 

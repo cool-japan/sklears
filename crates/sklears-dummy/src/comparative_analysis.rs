@@ -438,7 +438,7 @@ impl ComparativeAnalyzer {
         for _ in 0..n_permutations {
             // Shuffle the combined data
             for i in (1..combined.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 combined.swap(i, j);
             }
 

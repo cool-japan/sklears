@@ -453,7 +453,7 @@ impl DistributedMapReduce for MapReduceNeighborSearch {
     fn distributed_map(
         &self,
         query: &ArrayView1<Float>,
-        node_assignments: &[usize],
+        _node_assignments: &[usize],
     ) -> Vec<Vec<(Float, usize)>> {
         // This would interface with a distributed computing framework
         // For now, simulate with parallel processing
@@ -634,7 +634,7 @@ mod tests {
         let search = MapReduceNeighborSearch::new(config);
 
         // Test with empty data
-        let empty_x = Array2::<Float>::zeros((0, 2));
+        let _empty_x = Array2::<Float>::zeros((0, 2));
         let empty_test = Array2::<Float>::zeros((0, 2));
         let result = search.kneighbors(&empty_test, 1);
         assert!(result.is_err());

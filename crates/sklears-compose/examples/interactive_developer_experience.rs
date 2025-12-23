@@ -125,15 +125,15 @@ fn demo_interactive_debugging() -> SklResult<()> {
     println!("\n🐛 Interactive Debugging Session Demo");
     println!("{}", "=".repeat(60));
 
-    let (X, y) = generate_real_world_dataset();
+    let (_X, _y) = generate_real_world_dataset();
     let mut debugger = DeveloperPipelineDebugger::new();
 
     // Start debugging session
     debugger.start_debug_session()?;
 
     // Set up some breakpoints
-    let bp1 = debugger.add_breakpoint("data_preprocessing".to_string(), None);
-    let bp2 = debugger.add_breakpoint(
+    let _bp1 = debugger.add_breakpoint("data_preprocessing".to_string(), None);
+    let _bp2 = debugger.add_breakpoint(
         "model_training".to_string(),
         Some("input_shape[1] != 4".to_string()),
     );

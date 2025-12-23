@@ -399,6 +399,7 @@ impl CalibrationValidator {
 
         // Create train sets (all indices not in test set)
         let n_samples = y_true.len();
+        #[allow(clippy::needless_range_loop)]
         for i in 0..k {
             let test_set: std::collections::HashSet<usize> = splits[i].1.iter().cloned().collect();
             splits[i].0 = (0..n_samples)
@@ -543,9 +544,10 @@ fn compute_coverage_probability(
         let lower_bound = threshold;
         let upper_bound = 1.0 - threshold;
 
-        if target == 1 && pred >= lower_bound && pred <= upper_bound {
-            covered += 1;
-        } else if target == 0 && (pred < lower_bound || pred > upper_bound) {
+        // Check if prediction is correctly inside (target=1) or outside (target=0) the interval
+        let is_covered = (target == 1 && pred >= lower_bound && pred <= upper_bound)
+            || (target == 0 && (pred < lower_bound || pred > upper_bound));
+        if is_covered {
             covered += 1;
         }
     }

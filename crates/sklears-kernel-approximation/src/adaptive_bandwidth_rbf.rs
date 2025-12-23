@@ -6,7 +6,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform, Untrained},
@@ -487,7 +488,7 @@ impl AdaptiveBandwidthRBFSampler<Untrained> {
     }
 
     /// Kernel trace objective
-    fn kernel_trace(&self, x: &Array2<Float>, gamma: Float) -> Result<Float> {
+    fn kernel_trace(&self, x: &Array2<Float>, _gamma: Float) -> Result<Float> {
         let (n_samples, _) = x.dim();
         let trace = n_samples as Float; // All diagonal elements are 1.0 for RBF kernel
         Ok(-trace) // Negative because we typically minimize
@@ -627,7 +628,7 @@ impl Transform<Array2<Float>> for AdaptiveBandwidthRBFSampler<Trained> {
                     operation: "transform".to_string(),
                 })?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != random_weights.ncols() {
             return Err(SklearsError::InvalidInput(format!(

@@ -259,7 +259,7 @@ impl<State> AngleBasedOutlierDetection<State> {
         let cos_angle = dot_product / (norm_v1 * norm_v2);
 
         // Clamp to valid range for acos
-        let cos_angle = cos_angle.max(-1.0).min(1.0);
+        let cos_angle = cos_angle.clamp(-1.0, 1.0);
 
         // Return angle in radians
         Ok(cos_angle.acos())

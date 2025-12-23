@@ -269,7 +269,7 @@ impl Fit<Array2<Float>, Array1<Float>> for FeatureSelectionIsotonicRegression<Un
             ));
         }
 
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         // Perform feature selection based on the specified method
         let (selected_features, feature_scores) = match self.selection_method {
@@ -479,7 +479,7 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
             let mut worst_feature_idx = None;
 
             // Try removing each feature
-            for (idx, &feature) in selected_features.iter().enumerate() {
+            for (idx, &_feature) in selected_features.iter().enumerate() {
                 let mut test_features = selected_features.clone();
                 test_features.remove(idx);
 

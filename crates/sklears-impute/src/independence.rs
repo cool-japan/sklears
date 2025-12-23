@@ -140,7 +140,7 @@ pub fn chi_square_independence_test(
     missing_values: f64,
     bins: Option<usize>,
 ) -> SklResult<ChiSquareTestResult> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     if feature_idx >= n_features || other_feature_idx >= n_features {
@@ -222,7 +222,7 @@ pub fn fisher_exact_independence_test(
     missing_values: f64,
     threshold: Option<f64>,
 ) -> SklResult<FisherExactTestResult> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     if feature_idx >= n_features || other_feature_idx >= n_features {
@@ -306,7 +306,7 @@ pub fn cramers_v_association_test(
     missing_values: f64,
     bins: Option<usize>,
 ) -> SklResult<CramersVTestResult> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     if feature_idx >= n_features || other_feature_idx >= n_features {
@@ -405,7 +405,7 @@ pub fn kolmogorov_smirnov_independence_test(
     other_feature_idx: usize,
     missing_values: f64,
 ) -> SklResult<KolmogorovSmirnovTestResult> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     if feature_idx >= n_features || other_feature_idx >= n_features {
@@ -495,7 +495,7 @@ pub fn run_independence_test_suite(
     feature_names: Option<Vec<String>>,
     alpha: Option<f64>,
 ) -> SklResult<IndependenceTestSuite> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
     let alpha = alpha.unwrap_or(0.05);
 
@@ -917,7 +917,7 @@ fn compute_ks_p_value(ks_statistic: f64, n1: usize, n2: usize) -> f64 {
 ///
 /// Performs sensitivity analysis to assess the robustness of missing data mechanism assumptions.
 /// This helps understand how sensitive conclusions about missing data patterns are to different assumptions.
-
+///
 /// Result of sensitivity analysis
 #[derive(Debug, Clone)]
 pub struct SensitivityAnalysisResult {
@@ -1018,7 +1018,7 @@ pub fn sensitivity_analysis(
     correlation_strengths: &[f64],
     selection_strengths: &[f64],
 ) -> SklResult<SensitivityAnalysisResult> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     if n_samples == 0 || n_features == 0 {
@@ -1077,8 +1077,8 @@ pub fn pattern_sensitivity_analysis(
     missing_values: f64,
     pattern_perturbations: &[f64],
 ) -> SklResult<Vec<PatternSensitivityResult>> {
-    let X = X.mapv(|x| x as f64);
-    let (n_samples, n_features) = X.dim();
+    let X = X.mapv(|x| x);
+    let (_n_samples, _n_features) = X.dim();
 
     let mut results = Vec::new();
 
@@ -1240,7 +1240,7 @@ fn compute_robustness_summary(
     };
 
     let robustness_score = 1.0 - (mar_avg_variation + mnar_avg_variation) / 2.0;
-    let robustness_score = robustness_score.max(0.0).min(1.0);
+    let robustness_score = robustness_score.clamp(0.0, 1.0);
 
     // Identify sensitive aspects
     let mut sensitive_aspects = Vec::new();
@@ -1474,7 +1474,7 @@ fn perturb_missing_pattern(
     let perturbation_rate = perturbation_strength.min(0.5); // Limit perturbation
     let n_perturbations = ((n_samples * n_features) as f64 * perturbation_rate) as usize;
 
-    use scirs2_core::random::{Random, Rng};
+    use scirs2_core::random::Random;
     let mut rng = Random::default();
 
     for _ in 0..n_perturbations {

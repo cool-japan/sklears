@@ -284,13 +284,13 @@ impl Fit<Array2<f64>, Array1<f64>> for SparseGaussianProcessRegressor<Untrained>
 
         Ok(SparseGaussianProcessRegressor {
             state: SgprTrained {
-                /// X_train
+                // X_train
                 X_train,
                 y_train: y.to_owned(),
                 Z,
                 alpha,
                 Kmm: Kmm_reg,
-                /// Knm
+                // Knm
                 Knm,
                 L: L_A,
                 kernel,

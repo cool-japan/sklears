@@ -212,6 +212,7 @@ impl DiverseMiniBatchSelection {
 
             // Take top samples from this cluster
             let selected_count = cluster_samples.min(cluster_scores.len());
+            #[allow(clippy::needless_range_loop)]
             for i in 0..selected_count {
                 selected_indices.push(cluster_scores[i].0);
             }

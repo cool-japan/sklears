@@ -15,6 +15,7 @@ use super::config::{
     ParameterValue, PerformanceTuning, PrefetchingStrategy, StrategyConfig,
     StrategyResourceAllocation,
 };
+use super::resources::ResourceUtilization;
 use super::tasks::{ExecutionTask, ResourceUsage, TaskResult, TaskStatus, TaskType};
 
 /// Execution strategy trait for pluggable execution behaviors
@@ -79,33 +80,6 @@ impl Default for StrategyMetrics {
             error_count: 0,
             resource_utilization: ResourceUtilization::default(),
             last_updated: SystemTime::now(),
-        }
-    }
-}
-
-/// Resource utilization metrics
-#[derive(Debug, Clone)]
-pub struct ResourceUtilization {
-    /// CPU utilization percentage (0.0-100.0)
-    pub cpu_percent: f64,
-    /// Memory utilization percentage (0.0-100.0)
-    pub memory_percent: f64,
-    /// I/O utilization percentage (0.0-100.0)
-    pub io_percent: f64,
-    /// Network utilization percentage (0.0-100.0)
-    pub network_percent: f64,
-    /// Queue utilization percentage (0.0-100.0)
-    pub queue_percent: f64,
-}
-
-impl Default for ResourceUtilization {
-    fn default() -> Self {
-        Self {
-            cpu_percent: 0.0,
-            memory_percent: 0.0,
-            io_percent: 0.0,
-            network_percent: 0.0,
-            queue_percent: 0.0,
         }
     }
 }

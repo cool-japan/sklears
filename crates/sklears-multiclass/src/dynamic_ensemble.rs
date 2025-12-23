@@ -3,7 +3,7 @@
 //! This module implements Dynamic Ensemble Selection (DES) methods for multiclass classification.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -25,7 +25,7 @@ pub struct DynamicEnsembleSelectionConfig {
     pub competence_threshold: f64,
     /// Pool generation strategy
     pub pool_generation: PoolGenerationStrategy,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -89,10 +89,10 @@ impl Default for SelectionStrategy {
 pub enum PoolGenerationStrategy {
     /// Bootstrap aggregating
     Bagging,
-    /// Random subspace
-    RandomSubspace,
-    /// Random patches (both samples and features)
-    RandomPatches,
+    /// StdRng subspace
+    StdRngSubspace,
+    /// StdRng patches (both samples and features)
+    StdRngPatches,
     /// Different algorithms
     Heterogeneous,
 }
@@ -359,21 +359,21 @@ where
             ));
         }
 
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Split data into training and validation sets
         let validation_size = (n_samples as f64 * 0.3).max(1.0) as usize;
         let train_size = n_samples - validation_size;
 
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         // Create random indices for train/validation split
         let mut indices: Vec<usize> = (0..n_samples).collect();
         for i in (1..indices.len()).rev() {
-            let j = rng.random_range(0, i + 1);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -435,7 +435,7 @@ where
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Array1<i32>)> {
         let (n_samples, n_features) = X.dim();
 
@@ -444,39 +444,39 @@ where
                 // Bootstrap sampling
                 let mut indices = Vec::with_capacity(n_samples);
                 for _ in 0..n_samples {
-                    indices.push(rng.random_range(0, n_samples));
+                    indices.push(rng.gen_range(0..n_samples));
                 }
                 let X_bootstrap = X.select(Axis(0), &indices);
                 let y_bootstrap = y.select(Axis(0), &indices);
                 Ok((X_bootstrap, y_bootstrap))
             }
-            PoolGenerationStrategy::RandomSubspace => {
-                // Random feature subspace
+            PoolGenerationStrategy::StdRngSubspace => {
+                // StdRng feature subspace
                 let n_features_subset = (n_features as f64 * 0.7).max(1.0) as usize;
                 let mut feature_indices: Vec<usize> = (0..n_features).collect();
                 for i in (1..feature_indices.len()).rev() {
-                    let j = rng.random_range(0, i + 1);
+                    let j = rng.gen_range(0..i + 1);
                     feature_indices.swap(i, j);
                 }
                 feature_indices.truncate(n_features_subset);
                 let X_subset = X.select(Axis(1), &feature_indices);
                 Ok((X_subset, y.clone()))
             }
-            PoolGenerationStrategy::RandomPatches => {
-                // Random patches (both samples and features)
+            PoolGenerationStrategy::StdRngPatches => {
+                // StdRng patches (both samples and features)
                 let n_samples_subset = (n_samples as f64 * 0.8).max(1.0) as usize;
                 let n_features_subset = (n_features as f64 * 0.7).max(1.0) as usize;
 
-                // Random sample indices
+                // StdRng sample indices
                 let mut sample_indices = Vec::with_capacity(n_samples_subset);
                 for _ in 0..n_samples_subset {
-                    sample_indices.push(rng.random_range(0, n_samples));
+                    sample_indices.push(rng.gen_range(0..n_samples));
                 }
 
-                // Random feature indices
+                // StdRng feature indices
                 let mut feature_indices: Vec<usize> = (0..n_features).collect();
                 for i in (1..feature_indices.len()).rev() {
-                    let j = rng.random_range(0, i + 1);
+                    let j = rng.gen_range(0..i + 1);
                     feature_indices.swap(i, j);
                 }
                 feature_indices.truncate(n_features_subset);
@@ -492,7 +492,7 @@ where
                 // In a full implementation, this would use different algorithms
                 let mut indices = Vec::with_capacity(n_samples);
                 for _ in 0..n_samples {
-                    indices.push(rng.random_range(0, n_samples));
+                    indices.push(rng.gen_range(0..n_samples));
                 }
                 let X_bootstrap = X.select(Axis(0), &indices);
                 let y_bootstrap = y.select(Axis(0), &indices);
@@ -528,7 +528,7 @@ where
 {
     fn find_competence_region(&self, test_sample: &Array1<f64>) -> SklResult<CompetenceRegion> {
         let validation_data = &self.base_estimator.validation_X;
-        let validation_labels = &self.base_estimator.validation_y;
+        let _validation_labels = &self.base_estimator.validation_y;
         let n_validation = validation_data.nrows();
         let n_classifiers = self.base_estimator.classifier_pool.len();
 

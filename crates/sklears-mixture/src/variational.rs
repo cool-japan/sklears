@@ -179,7 +179,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for VariationalBayesianGMM<Untrained> {
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
@@ -300,7 +300,7 @@ impl VariationalBayesianGMM<Untrained> {
         Array1<f64>,
         Vec<Array2<f64>>,
     )> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Initialize weight concentration parameters
         let weight_concentration =
@@ -519,7 +519,7 @@ impl VariationalBayesianGMM<Untrained> {
         x: &ArrayView1<f64>,
         mean: &ArrayView1<f64>,
         cov: &Array2<f64>,
-        degrees_of_freedom: f64,
+        _degrees_of_freedom: f64,
     ) -> SklResult<f64> {
         // For simplicity, use Gaussian approximation
         // In full implementation, this would use proper Student-t distribution
@@ -577,7 +577,7 @@ impl VariationalBayesianGMM<Untrained> {
 
         // Update covariances (simplified)
         let mut covariances = Vec::new();
-        for k in 0..self.n_components {
+        for _k in 0..self.n_components {
             let mut cov = Array2::eye(n_features);
             for i in 0..n_features {
                 cov[[i, i]] = 1.0 + self.reg_covar;
@@ -600,9 +600,9 @@ impl VariationalBayesianGMM<Untrained> {
         X: &Array2<f64>,
         responsibilities: &Array2<f64>,
         weight_concentration: &Array1<f64>,
-        mean_precision: &Array1<f64>,
+        _mean_precision: &Array1<f64>,
         means: &Array2<f64>,
-        degrees_of_freedom: &Array1<f64>,
+        _degrees_of_freedom: &Array1<f64>,
         covariances: &[Array2<f64>],
     ) -> SklResult<f64> {
         // Simplified lower bound computation

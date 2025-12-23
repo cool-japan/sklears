@@ -9,6 +9,16 @@
 #![allow(unused_doc_comments)]
 #![allow(unused_parens)]
 #![allow(unused_comparisons)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::uninit_assumed_init)]
+#![allow(clippy::non_canonical_partial_ord_impl)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::legacy_numeric_constants)]
+#![allow(clippy::needless_option_as_deref)]
+#![allow(clippy::ifs_same_cond)]
 //! Clustering algorithms for sklears
 //!
 //! This crate provides implementations of clustering algorithms including:
@@ -46,7 +56,9 @@ pub mod density_peaks;
 pub mod dirichlet_process;
 #[cfg(feature = "parallel")]
 pub mod distributed;
+pub mod ensemble;
 pub mod evolutionary;
+pub mod feature_selection;
 pub mod fuzzy_cmeans;
 pub mod gmm;
 #[cfg(feature = "gpu")]
@@ -91,7 +103,15 @@ pub use dirichlet_process::{DirichletProcessConfig, DirichletProcessMixture, Pre
 pub use distributed::{
     DBSCANWorker, DataPartition, DistributedConfig, DistributedDBSCAN, WorkerMessage,
 };
+pub use ensemble::{
+    BaggingClustering, EnsembleConfig, EnsembleConfigBuilder, EnsembleMethod, EnsembleResult,
+    EvidenceAccumulationClustering, VotingEnsemble,
+};
 pub use evolutionary::{PSOClustering, PSOClusteringBuilder, PSOClusteringFitted};
+pub use feature_selection::{
+    FeatureSelectionConfig, FeatureSelectionConfigBuilder, FeatureSelectionMethod,
+    FeatureSelectionResult, FeatureSelector,
+};
 pub use fuzzy_cmeans::{FuzzyCMeans, FuzzyCMeansConfig, PredictMembership};
 pub use gmm::{
     BayesianGaussianMixture, CovarianceType, GaussianMixture, GaussianMixtureConfig,
@@ -198,7 +218,14 @@ pub mod prelude {
     pub use crate::dirichlet_process::{DirichletProcessMixture, PredictProbaDP};
     #[cfg(feature = "parallel")]
     pub use crate::distributed::{DBSCANWorker, DataPartition, DistributedDBSCAN};
+    pub use crate::ensemble::{
+        BaggingClustering, EnsembleConfigBuilder, EnsembleMethod, EvidenceAccumulationClustering,
+        VotingEnsemble,
+    };
     pub use crate::evolutionary::PSOClustering;
+    pub use crate::feature_selection::{
+        FeatureSelectionConfigBuilder, FeatureSelectionMethod, FeatureSelector,
+    };
     pub use crate::fuzzy_cmeans::{FuzzyCMeans, PredictMembership};
     pub use crate::gmm::{
         BayesianGaussianMixture, CovarianceType, GaussianMixture, ModelSelectionCriterion,

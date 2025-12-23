@@ -11,7 +11,7 @@ pub mod single_cell;
 pub mod temporal_gene;
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 

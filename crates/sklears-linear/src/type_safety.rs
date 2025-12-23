@@ -86,6 +86,12 @@ pub struct TypeSafeConfig<ProblemType> {
     _problem_type: PhantomData<ProblemType>,
 }
 
+impl<ProblemType> Default for TypeSafeConfig<ProblemType> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<ProblemType> TypeSafeConfig<ProblemType> {
     /// Create a new configuration
     pub fn new() -> Self {
@@ -195,11 +201,9 @@ impl<const N_FEATURES: usize> TypeSafeFit<problem_type::Regression, N_FEATURES>
         }
 
         // Simplified fitting logic (in practice, this would use the modular framework)
-        let mut coefficients = Array1::zeros(N_FEATURES);
-
         // Simple least squares solution: β = (X'X)^(-1)X'y
         let xtx = X.t().dot(X);
-        let xty = X.t().dot(y);
+        let _xty = X.t().dot(y);
 
         // Add regularization
         let mut xtx_reg = xtx;
@@ -209,7 +213,7 @@ impl<const N_FEATURES: usize> TypeSafeFit<problem_type::Regression, N_FEATURES>
 
         // Solve the system (simplified - in practice use proper linear algebra)
         // This is just a placeholder for the actual solving logic
-        coefficients = Array1::ones(N_FEATURES) * 0.5; // Dummy solution
+        let coefficients = Array1::ones(N_FEATURES) * 0.5; // Dummy solution
 
         let intercept = if self.config.fit_intercept {
             Some(y.mean().unwrap_or(0.0))
@@ -349,7 +353,7 @@ pub trait ConfigurationValidator<SolverType, ProblemType, RegularizationType> {
 }
 
 /// Configuration hints for optimal performance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ConfigurationHints {
     /// Recommended tolerance
     pub tolerance: Option<Float>,
@@ -359,17 +363,6 @@ pub struct ConfigurationHints {
     pub regularization_range: Option<(Float, Float)>,
     /// Performance notes
     pub notes: Vec<&'static str>,
-}
-
-impl Default for ConfigurationHints {
-    fn default() -> Self {
-        Self {
-            tolerance: None,
-            max_iterations: None,
-            regularization_range: None,
-            notes: Vec::new(),
-        }
-    }
 }
 
 /// Compile-time feature validation
@@ -605,6 +598,15 @@ pub struct TypeSafeSolverSelector<SolverType, ProblemType> {
     _problem_type: PhantomData<ProblemType>,
 }
 
+impl<SolverType, ProblemType> Default for TypeSafeSolverSelector<SolverType, ProblemType>
+where
+    SolverType: SolverConstraint<ProblemType>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<SolverType, ProblemType> TypeSafeSolverSelector<SolverType, ProblemType>
 where
     SolverType: SolverConstraint<ProblemType>,
@@ -663,8 +665,8 @@ impl<const N: usize> FixedSizeOps<N> {
     pub fn normalize(vector: &mut [Float; N]) {
         let norm = Self::l2_norm(vector);
         if norm > 0.0 {
-            for i in 0..N {
-                vector[i] /= norm;
+            for elem in vector.iter_mut().take(N) {
+                *elem /= norm;
             }
         }
     }

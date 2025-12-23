@@ -1,7 +1,7 @@
 //! Deep Canonical Correlation Analysis
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},

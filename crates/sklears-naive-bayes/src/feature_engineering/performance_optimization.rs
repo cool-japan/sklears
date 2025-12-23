@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OptimizationStrategy {
     /// SIMD
-    SIMD,
+    Simd,
     /// Parallel
     Parallel,
     /// Memory
@@ -24,7 +24,7 @@ pub enum OptimizationStrategy {
     /// Cache
     Cache,
     /// GPU
-    GPU,
+    Gpu,
     /// Vectorized
     Vectorized,
     /// BatchProcessing

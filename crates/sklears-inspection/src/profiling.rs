@@ -236,7 +236,7 @@ impl ProfileGuidedOptimizer {
         // Sample based on configured rate
         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
-        rng.gen::<f64>() < self.config.sample_rate
+        rng.gen::<Float>() < self.config.sample_rate
     }
 
     /// Record execution data

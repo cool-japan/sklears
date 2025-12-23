@@ -11,7 +11,7 @@ use std::f64::consts::PI;
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and operations
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 // SciRS2 Policy - Use scirs2-core for random number generation
-use scirs2_core::random::Rng;
+// use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -327,7 +327,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, f64>>
                             let mut indices: Vec<usize> = (0..self.n_inducing).collect();
                             // Simple shuffle using Fisher-Yates algorithm
                             for i in (1..indices.len()).rev() {
-                                let j = rng.gen_range(0..(i + 1));
+                                let j = rng.gen_range(0..i + 1);
                                 indices.swap(i, j);
                             }
                             indices.truncate(inducing_batch_size);
@@ -746,7 +746,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     /// This provides a computationally efficient approximation to the full ELBO
     /// calculation for use in recursive updates.
     fn compute_approximate_elbo(&self, X: &ArrayView2<f64>, y: &ArrayView1<f64>) -> SklResult<f64> {
-        let n = X.nrows() as f64;
+        let _n = X.nrows() as f64;
 
         // Compute prediction errors
         let (y_pred, y_var) = self.predict_with_std(X)?;
@@ -907,7 +907,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     fn add_inducing_points(
         mut self,
         X: &ArrayView2<f64>,
-        y: &ArrayView1<f64>,
+        _y: &ArrayView1<f64>,
         max_inducing: usize,
     ) -> SklResult<Self> {
         let current_inducing = self.state.Z.nrows();
@@ -993,7 +993,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     /// Remove redundant inducing points to maintain computational efficiency
     fn remove_redundant_inducing_points(
         mut self,
-        removal_threshold: f64,
+        _removal_threshold: f64,
         max_inducing: usize,
     ) -> SklResult<Self> {
         let current_inducing = self.state.Z.nrows();
@@ -1055,7 +1055,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
     fn optimize_inducing_point_locations(
         mut self,
         X: &ArrayView2<f64>,
-        y: &ArrayView1<f64>,
+        _y: &ArrayView1<f64>,
     ) -> SklResult<Self> {
         // Simple optimization: move inducing points towards data centroids in their neighborhoods
         let n_inducing = self.state.Z.nrows();
@@ -1351,7 +1351,7 @@ impl MultiOutputGaussianProcessRegressor<Untrained> {
     fn optimize_mixing_matrix(
         &self,
         Y: &ArrayView2<f64>,
-        K_inv: &[Array2<f64>],
+        _K_inv: &[Array2<f64>],
         n_iter: usize,
     ) -> (Array2<f64>, Vec<Array1<f64>>) {
         let (n_samples, n_outputs) = Y.dim();

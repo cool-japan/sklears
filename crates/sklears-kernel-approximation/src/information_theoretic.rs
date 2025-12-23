@@ -7,8 +7,8 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::Result;
 
 const LOG2: f64 = std::f64::consts::LN_2;
@@ -74,7 +74,7 @@ impl sklears_core::traits::Fit<Array2<f64>, Array1<f64>> for MutualInformationKe
             None => RealStdRng::from_seed(thread_rng().gen()),
         };
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Compute mutual information scores for each feature
         let mut mi_scores = Array1::zeros(n_features);
@@ -487,7 +487,7 @@ impl sklears_core::traits::Fit<Array2<f64>, Array1<f64>> for InformationBottlene
         let mut prev_objective = f64::NEG_INFINITY;
 
         // Iterate until convergence
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             // E-step: Update assignment probabilities
             self.update_assignment_probs(x, &cluster_centers, &mut assignment_probs)?;
 
@@ -585,7 +585,7 @@ impl InformationBottleneckExtractor {
         &self,
         x: &Array2<f64>,
         y: &Array1<f64>,
-        cluster_centers: &Array2<f64>,
+        _cluster_centers: &Array2<f64>,
         assignment_probs: &Array2<f64>,
     ) -> Result<f64> {
         let (n_samples, _) = x.dim();
@@ -753,7 +753,7 @@ fn compute_kl_divergence(p: &Array1<f64>, q: &Array1<f64>) -> Result<f64> {
 fn compute_gaussian_reference_histogram(bins: &Array1<f64>, mean: f64, std: f64) -> Array1<f64> {
     let n_bins = bins.len() - 1;
     let mut hist = Array1::zeros(n_bins);
-    let normal = RandNormal::new(mean, std).unwrap();
+    let _normal = RandNormal::new(mean, std).unwrap();
 
     for i in 0..n_bins {
         let bin_center = (bins[i] + bins[i + 1]) / 2.0;

@@ -4,11 +4,11 @@
 //! including mixed-type data handling, sketching algorithms, and custom encodings.
 
 use crate::*;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
 use sklears_core::prelude::{Estimator, Fit, SklearsError, Transform};
 use sklears_core::traits::Untrained;
-use std::hash::Hash;
+// use std::hash::Hash;
 
 /// Mixed-type feature extractor for handling heterogeneous data
 ///

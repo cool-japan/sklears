@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -39,6 +39,6 @@ let embedding = tsne.fit_transform(&x)?;
 
 ## Status
 
-- Validated by the workspace’s 10,013 passing tests for `0.1.0-alpha.1`.
+- Validated by the workspace’s 11,292 passing tests for `0.1.0-alpha.2`.
 - Performance parity (and in many cases superiority) compared with scikit-learn’s manifold implementations.
 - Upcoming tasks (GPU UMAP, streaming embeddings) tracked in `TODO.md`.

@@ -40,8 +40,8 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0-alpha.1"
-authors = ["Team KitaSan (cool-japan)"]
+version = "0.1.0-alpha.2"
+authors = ["COOLJAPAN OU (Team KitaSan)"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.70"
@@ -53,47 +53,46 @@ categories = ["science", "mathematics", "algorithms"]
 
 [workspace.dependencies]
 # Core dependencies from existing crates - LATEST AVAILABLE VERSIONS
-numrs2 = { version = "0.1.0-beta.3" }
-pandrs = { version = "0.1.0-beta.2" }
-polars = { version = "0.49", default-features = false, features = ["lazy", "ndarray"] }
+polars = { version = "0.52", default-features = false, features = ["lazy", "ndarray"] }
 
-# Essential SciRS2 dependencies for Sklears (SciRS2 Policy compliance) - RC.1
+# Essential SciRS2 dependencies for Sklears (SciRS2 Policy compliance) - RC.4
 # Removed scirs2 meta crate - not actually used, reduces compile time
-scirs2-core = { version = "0.1.0-rc.1", default-features = false }
+scirs2-core = { version = "0.1.0-rc.4", default-features = false, features = ["random"] }
 
 # TRANSITIONAL: Keep scirs2-autograd during migration (will be removed when all crates use scirs2_core::ndarray)
-scirs2-autograd = { version = "0.1.0-rc.1", default-features = false }
+scirs2-autograd = { version = "0.1.0-rc.4", default-features = false }
 
 # HIGHLY LIKELY REQUIRED SciRS2 crates
-scirs2-optimize = { version = "0.1.0-rc.1", default-features = false }
-scirs2-linalg = { version = "0.1.0-rc.1", default-features = false }
-scirs2-stats = { version = "0.1.0-rc.1", default-features = false }
-scirs2-cluster = { version = "0.1.0-rc.1", default-features = false }
-scirs2-metrics = { version = "0.1.0-rc.1", default-features = false }
+scirs2-optimize = { version = "0.1.0-rc.4", default-features = false }
+scirs2-linalg = { version = "0.1.0-rc.6", default-features = false }
+scirs2-stats = { version = "0.1.0-rc.4", default-features = false }
+scirs2-cluster = { version = "0.1.0-rc.4", default-features = false }
+scirs2-metrics = { version = "0.1.0-rc.4", default-features = false }
 
 # CONDITIONALLY REQUIRED SciRS2 crates
-scirs2-datasets = { version = "0.1.0-rc.1", default-features = false }
-scirs2-sparse = { version = "0.1.0-rc.1", default-features = false }
-scirs2-neural = { version = "0.1.0-rc.1", default-features = false }
+scirs2-datasets = { version = "0.1.0-rc.4", default-features = false }
+scirs2-sparse = { version = "0.1.0-rc.4", default-features = false }
+scirs2-neural = { version = "0.1.0-rc.4", default-features = false }
 
 # SPECIALIZED DOMAIN-SPECIFIC SciRS2 crates (add when needed by individual crates)
-scirs2-special = { version = "0.1.0-rc.1", default-features = false }
-scirs2-spatial = { version = "0.1.0-rc.1", default-features = false }
-scirs2-signal = { version = "0.1.0-rc.1", default-features = false } 
-scirs2-series = { version = "0.1.0-rc.1", default-features = false }  # For time series
-scirs2-text = { version = "0.1.0-rc.1", default-features = false }    # For text processing
-scirs2-fft = { version = "0.1.0-rc.1", default-features = false }      # For FFT operations
-scirs2-graph = { version = "0.1.0-rc.1", default-features = false }  # For graph neural networks
+scirs2-special = { version = "0.1.0-rc.4", default-features = false }
+scirs2-spatial = { version = "0.1.0-rc.4", default-features = false }
+scirs2-signal = { version = "0.1.0-rc.4", default-features = false }
+scirs2-series = { version = "0.1.0-rc.4", default-features = false }  # For time series
+scirs2-text = { version = "0.1.0-rc.4", default-features = false }    # For text processing
+scirs2-fft = { version = "0.1.0-rc.4", default-features = false }      # For FFT operations
+scirs2-graph = { version = "0.1.0-rc.4", default-features = false }  # For graph neural networks
 
 # ✅ APPROVED Numerical dependencies (compatible with SciRS2)
 approx = { version = "0.5" }
 
 # Parallelism and performance
-rayon = { version = "1.10" }
-num_cpus = { version = "1.16" }
+# NOTE: Consider migrating to scirs2_core::rayon when available (SciRS2 Policy)
+rayon = { version = "1.11" }
+num_cpus = { version = "1.17" }
 
 # Error handling
-thiserror = { version = "1.0" }
+thiserror = { version = "2.0" }
 anyhow = { version = "1.0" }
 
 # Proc macros for derive
@@ -107,22 +106,22 @@ serde_json = { version = "1.0" }
 
 # Testing and benchmarking
 criterion = { version = "0.5" }
-proptest = { version = "1.5" }
+proptest = { version = "1.7" }
 divan = { version = "0.1" }
 tempfile = { version = "3" }
 
 # Logging
 log = { version = "0.4" }
-env_logger = { version = "0.11" }
+env_logger = { version = "0.10" }
 
 # Memory layout and zero-copy
-bytemuck = { version = "1.18" }
+bytemuck = { version = "1.24" }
 memmap2 = { version = "0.9" }
 libc = { version = "0.2" }
 winapi = { version = "0.3", features = ["handleapi", "memoryapi", "winnt"] }
 
 # Lazy statics and thread-safe initialization
-once_cell = { version = "1.20" }
+once_cell = { version = "1.21" }
 lazy_static = { version = "1.5" }
 
 # Async traits and utilities
@@ -130,59 +129,60 @@ futures-core = { version = "0.3" }
 
 # Utilities
 chrono = { version = "0.4" }
-regex = { version = "1.11" }
+regex = { version = "1.12" }
 rustc_version_runtime = { version = "0.3" }
-lru = { version = "0.12" }
+lru = { version = "0.16" }
+uuid = { version = "1.19" }
 
 # Optional format support dependencies  
 serde_yaml = { version = "0.9" }
-toml = { version = "0.8" }
-serde_with = { version = "3.11" }
-quick-xml = { version = "0.36", features = ["serialize"] }
-flate2 = { version = "1.0" }
-sysinfo = { version = "0.32" }
+toml = { version = "0.9" }
+serde_with = { version = "3.12" }
+quick-xml = { version = "0.38", features = ["serialize"] }
+flate2 = { version = "1.1" }
+sysinfo = { version = "0.30" }
 
 # Python bindings
-pyo3 = { version = "0.22", features = ["extension-module", "chrono", "indexmap"] }
-numpy = { version = "0.22" }
+pyo3 = { version = "0.25", features = ["extension-module", "chrono", "indexmap"] }
+numpy = { version = "0.25" }
 
 # Internal crates
-sklears = { version = "0.1.0-alpha.1", path = "crates/sklears" }
-sklears-core = { version = "0.1.0-alpha.1", path = "crates/sklears-core" }
-sklears-clustering = { version = "0.1.0-alpha.1", path = "crates/sklears-clustering" }
-sklears-linear = { version = "0.1.0-alpha.1", path = "crates/sklears-linear" }
-sklears-ensemble = { version = "0.1.0-alpha.1", path = "crates/sklears-ensemble" }
-sklears-svm = { version = "0.1.0-alpha.1", path = "crates/sklears-svm" }
-sklears-tree = { version = "0.1.0-alpha.1", path = "crates/sklears-tree" }
-sklears-neighbors = { version = "0.1.0-alpha.1", path = "crates/sklears-neighbors" }
-sklears-decomposition = { version = "0.1.0-alpha.1", path = "crates/sklears-decomposition" }
-sklears-preprocessing = { version = "0.1.0-alpha.1", path = "crates/sklears-preprocessing" }
-sklears-model-selection = { version = "0.1.0-alpha.1", path = "crates/sklears-model-selection" }
-sklears-metrics = { version = "0.1.0-alpha.1", path = "crates/sklears-metrics" }
-sklears-utils = { version = "0.1.0-alpha.1", path = "crates/sklears-utils" }
-sklears-neural = { version = "0.1.0-alpha.1", path = "crates/sklears-neural" }
-sklears-simd = { version = "0.1.0-alpha.1", path = "crates/sklears-simd" }
-sklears-datasets = { version = "0.1.0-alpha.1", path = "crates/sklears-datasets" }
-sklears-feature-selection = { version = "0.1.0-alpha.1", path = "crates/sklears-feature-selection" }
-sklears-naive-bayes = { version = "0.1.0-alpha.1", path = "crates/sklears-naive-bayes" }
-sklears-gaussian-process = { version = "0.1.0-alpha.1", path = "crates/sklears-gaussian-process" }
-sklears-discriminant-analysis = { version = "0.1.0-alpha.1", path = "crates/sklears-discriminant-analysis" }
-sklears-manifold = { version = "0.1.0-alpha.1", path = "crates/sklears-manifold" }
-sklears-semi-supervised = { version = "0.1.0-alpha.1", path = "crates/sklears-semi-supervised" }
-sklears-feature-extraction = { version = "0.1.0-alpha.1", path = "crates/sklears-feature-extraction" }
-sklears-covariance = { version = "0.1.0-alpha.1", path = "crates/sklears-covariance" }
-sklears-cross-decomposition = { version = "0.1.0-alpha.1", path = "crates/sklears-cross-decomposition" }
-sklears-isotonic = { version = "0.1.0-alpha.1", path = "crates/sklears-isotonic" }
-sklears-kernel-approximation = { version = "0.1.0-alpha.1", path = "crates/sklears-kernel-approximation" }
-sklears-dummy = { version = "0.1.0-alpha.1", path = "crates/sklears-dummy" }
-sklears-calibration = { version = "0.1.0-alpha.1", path = "crates/sklears-calibration" }
-sklears-multiclass = { version = "0.1.0-alpha.1", path = "crates/sklears-multiclass" }
-sklears-multioutput = { version = "0.1.0-alpha.1", path = "crates/sklears-multioutput" }
-sklears-compose = { version = "0.1.0-alpha.1", path = "crates/sklears-compose" }
-sklears-impute = { version = "0.1.0-alpha.1", path = "crates/sklears-impute" }
-sklears-inspection = { version = "0.1.0-alpha.1", path = "crates/sklears-inspection" }
-sklears-mixture = { version = "0.1.0-alpha.1", path = "crates/sklears-mixture" }
-sklears-python = { version = "0.1.0-alpha.1", path = "crates/sklears-python" }
+sklears = { version = "0.1.0-alpha.2", path = "crates/sklears" }
+sklears-core = { version = "0.1.0-alpha.2", path = "crates/sklears-core" }
+sklears-clustering = { version = "0.1.0-alpha.2", path = "crates/sklears-clustering" }
+sklears-linear = { version = "0.1.0-alpha.2", path = "crates/sklears-linear" }
+sklears-ensemble = { version = "0.1.0-alpha.2", path = "crates/sklears-ensemble" }
+sklears-svm = { version = "0.1.0-alpha.2", path = "crates/sklears-svm" }
+sklears-tree = { version = "0.1.0-alpha.2", path = "crates/sklears-tree" }
+sklears-neighbors = { version = "0.1.0-alpha.2", path = "crates/sklears-neighbors" }
+sklears-decomposition = { version = "0.1.0-alpha.2", path = "crates/sklears-decomposition" }
+sklears-preprocessing = { version = "0.1.0-alpha.2", path = "crates/sklears-preprocessing" }
+sklears-model-selection = { version = "0.1.0-alpha.2", path = "crates/sklears-model-selection" }
+sklears-metrics = { version = "0.1.0-alpha.2", path = "crates/sklears-metrics" }
+sklears-utils = { version = "0.1.0-alpha.2", path = "crates/sklears-utils" }
+sklears-neural = { version = "0.1.0-alpha.2", path = "crates/sklears-neural" }
+sklears-simd = { version = "0.1.0-alpha.2", path = "crates/sklears-simd" }
+sklears-datasets = { version = "0.1.0-alpha.2", path = "crates/sklears-datasets" }
+sklears-feature-selection = { version = "0.1.0-alpha.2", path = "crates/sklears-feature-selection" }
+sklears-naive-bayes = { version = "0.1.0-alpha.2", path = "crates/sklears-naive-bayes" }
+sklears-gaussian-process = { version = "0.1.0-alpha.2", path = "crates/sklears-gaussian-process" }
+sklears-discriminant-analysis = { version = "0.1.0-alpha.2", path = "crates/sklears-discriminant-analysis" }
+sklears-manifold = { version = "0.1.0-alpha.2", path = "crates/sklears-manifold" }
+sklears-semi-supervised = { version = "0.1.0-alpha.2", path = "crates/sklears-semi-supervised" }
+sklears-feature-extraction = { version = "0.1.0-alpha.2", path = "crates/sklears-feature-extraction" }
+sklears-covariance = { version = "0.1.0-alpha.2", path = "crates/sklears-covariance" }
+sklears-cross-decomposition = { version = "0.1.0-alpha.2", path = "crates/sklears-cross-decomposition" }
+sklears-isotonic = { version = "0.1.0-alpha.2", path = "crates/sklears-isotonic" }
+sklears-kernel-approximation = { version = "0.1.0-alpha.2", path = "crates/sklears-kernel-approximation" }
+sklears-dummy = { version = "0.1.0-alpha.2", path = "crates/sklears-dummy" }
+sklears-calibration = { version = "0.1.0-alpha.2", path = "crates/sklears-calibration" }
+sklears-multiclass = { version = "0.1.0-alpha.2", path = "crates/sklears-multiclass" }
+sklears-multioutput = { version = "0.1.0-alpha.2", path = "crates/sklears-multioutput" }
+sklears-compose = { version = "0.1.0-alpha.2", path = "crates/sklears-compose" }
+sklears-impute = { version = "0.1.0-alpha.2", path = "crates/sklears-impute" }
+sklears-inspection = { version = "0.1.0-alpha.2", path = "crates/sklears-inspection" }
+sklears-mixture = { version = "0.1.0-alpha.2", path = "crates/sklears-mixture" }
+sklears-python = { version = "0.1.0-alpha.2", path = "crates/sklears-python" }
 
 [workspace.lints.rust]
 # Code quality and consistency
@@ -198,14 +198,27 @@ non_snake_case = "allow"  # For mathematical variables
 [workspace.lints.clippy]
 # Performance and correctness (with lower priority to allow overrides)
 all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
+# pedantic = { level = "warn", priority = -1 }  # Disabled: too many stylistic warnings for ML code
 
 # Allow common patterns in ML code
+incompatible_msrv = "allow"  # MSRV is managed separately (move to top for non-pedantic)
 too_many_arguments = "allow"  # ML functions often need many parameters
+not_unsafe_ptr_arg_deref = "allow"  # Some math operations need raw pointers
+needless_range_loop = "allow"  # Sometimes range loops are clearer for indexing
+nonminimal_bool = "allow"  # Sometimes explicit logic is clearer
+eq_op = "allow"  # Sometimes used for testing/assertions
+ifs_same_cond = "allow"  # Sometimes needed for completeness
+missing_safety_doc = "allow"  # Focus on primary functionality docs first
+excessive_precision = "allow"  # High precision constants are intentional in ML
+manual_clamp = "allow"  # Sometimes explicit min/max is clearer
+deref_addrof = "allow"  # Sometimes explicit ref/deref is clearer
+match_like_matches_macro = "allow"  # Sometimes match is clearer
+manual_slice_size_calculation = "allow"  # Sometimes explicit is clearer
 module_name_repetitions = "allow"  # Common in structured ML libraries
 similar_names = "allow"  # Mathematical variables often have similar names
 cast_precision_loss = "allow"  # Precision casts are common in ML
 cast_possible_truncation = "allow"  # Type conversions are common
+cast_sign_loss = "allow"  # Common in ML type conversions
 
 # Style flexibility for large codebase
 mixed_attributes_style = "allow"  # Allow both inner and outer attributes
@@ -216,7 +229,6 @@ missing_panics_doc = "allow"  # Focus on primary functionality docs first
 # Memory and performance
 large_enum_variant = "warn"
 large_stack_arrays = "warn"
-redundant_clone = "warn"
 
 # Documentation (encourage but don't enforce strictly)
 missing_docs_in_private_items = "allow"
@@ -230,5 +242,4 @@ codegen-units = 1
 opt-level = 3
 lto = true
 codegen-units = 1
-
 

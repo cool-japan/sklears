@@ -71,6 +71,130 @@ impl Kernel for RBF {
     }
 }
 
+/// ARD RBF (Automatic Relevance Determination RBF) Kernel
+///
+/// This kernel is similar to RBF but has a separate length scale for each dimension,
+/// allowing it to automatically determine which dimensions are most relevant for
+/// the prediction task.
+///
+/// The kernel is defined as:
+/// k(x, x') = exp(-0.5 * sum((x_i - x'_i)^2 / length_scales[i]^2))
+///
+/// # Examples
+///
+/// ```ignore
+/// use sklears_gaussian_process::kernels::ARDRBF;
+/// use scirs2_core::ndarray::Array1;
+///
+/// // Create ARD RBF kernel with different length scales for each dimension
+/// let length_scales = Array1::from_vec(vec![1.0, 2.0, 0.5]);
+/// let kernel = ARDRBF::new(length_scales);
+/// ```
+#[derive(Debug, Clone)]
+pub struct ARDRBF {
+    /// Length scale for each dimension
+    length_scales: scirs2_core::ndarray::Array1<f64>,
+}
+
+impl ARDRBF {
+    /// Create a new ARD RBF kernel with specified length scales for each dimension
+    ///
+    /// # Arguments
+    ///
+    /// * `length_scales` - Array of length scales, one for each dimension
+    pub fn new(length_scales: scirs2_core::ndarray::Array1<f64>) -> Self {
+        Self { length_scales }
+    }
+
+    /// Create a new ARD RBF kernel with uniform length scales
+    ///
+    /// # Arguments
+    ///
+    /// * `n_dims` - Number of dimensions
+    /// * `length_scale` - Initial length scale value for all dimensions
+    pub fn new_uniform(n_dims: usize, length_scale: f64) -> Self {
+        Self {
+            length_scales: scirs2_core::ndarray::Array1::from_elem(n_dims, length_scale),
+        }
+    }
+
+    /// Get the number of dimensions
+    pub fn n_dimensions(&self) -> usize {
+        self.length_scales.len()
+    }
+}
+
+impl Kernel for ARDRBF {
+    fn compute_kernel_matrix(
+        &self,
+        X1: &Array2<f64>,
+        X2: Option<&Array2<f64>>,
+    ) -> SklResult<Array2<f64>> {
+        let X2 = X2.unwrap_or(X1);
+        let n1 = X1.nrows();
+        let n2 = X2.nrows();
+
+        // Validate dimensions
+        if X1.ncols() != self.length_scales.len() {
+            return Err(SklearsError::InvalidInput(format!(
+                "X1 has {} dimensions but kernel expects {}",
+                X1.ncols(),
+                self.length_scales.len()
+            )));
+        }
+        if X2.ncols() != self.length_scales.len() {
+            return Err(SklearsError::InvalidInput(format!(
+                "X2 has {} dimensions but kernel expects {}",
+                X2.ncols(),
+                self.length_scales.len()
+            )));
+        }
+
+        let mut K = Array2::<f64>::zeros((n1, n2));
+
+        for i in 0..n1 {
+            for j in 0..n2 {
+                let x1 = X1.row(i);
+                let x2 = X2.row(j);
+                K[[i, j]] = self.kernel(&x1, &x2);
+            }
+        }
+        Ok(K)
+    }
+
+    fn kernel(&self, x1: &ArrayView1<f64>, x2: &ArrayView1<f64>) -> f64 {
+        // Compute weighted squared distance: sum((x_i - x'_i)^2 / l_i^2)
+        let mut weighted_sq_dist = 0.0;
+        for ((a, b), length_scale) in x1.iter().zip(x2.iter()).zip(self.length_scales.iter()) {
+            let diff = a - b;
+            weighted_sq_dist += (diff * diff) / (length_scale * length_scale);
+        }
+        (-0.5 * weighted_sq_dist).exp()
+    }
+
+    fn get_params(&self) -> Vec<f64> {
+        self.length_scales.to_vec()
+    }
+
+    fn set_params(&mut self, params: &[f64]) -> SklResult<()> {
+        if params.len() != self.length_scales.len() {
+            return Err(SklearsError::InvalidInput(format!(
+                "ARD RBF kernel requires exactly {} parameters (one per dimension), got {}",
+                self.length_scales.len(),
+                params.len()
+            )));
+        }
+        for (i, &param) in params.iter().enumerate() {
+            self.length_scales[i] = param;
+        }
+        Ok(())
+    }
+
+    fn clone_box(&self) -> Box<dyn Kernel> {
+        Box::new(self.clone())
+    }
+}
+
 /// Matérn Kernel
 #[derive(Debug, Clone)]
 pub struct Matern {
@@ -627,5 +751,163 @@ impl Kernel for ProductKernel {
         Box::new(Self {
             kernels: self.kernels.iter().map(|k| k.clone_box()).collect(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // SciRS2 Policy - Use scirs2-autograd for ndarray types
+    use scirs2_core::ndarray::{array, Array1};
+
+    #[test]
+    fn test_ardrbf_creation() {
+        let length_scales = Array1::from_vec(vec![1.0, 2.0, 0.5]);
+        let kernel = ARDRBF::new(length_scales.clone());
+        assert_eq!(kernel.n_dimensions(), 3);
+        assert_eq!(kernel.get_params(), vec![1.0, 2.0, 0.5]);
+    }
+
+    #[test]
+    fn test_ardrbf_creation_uniform() {
+        let kernel = ARDRBF::new_uniform(4, 1.5);
+        assert_eq!(kernel.n_dimensions(), 4);
+        assert_eq!(kernel.get_params(), vec![1.5, 1.5, 1.5, 1.5]);
+    }
+
+    #[test]
+    fn test_ardrbf_kernel_identical_points() {
+        let length_scales = Array1::from_vec(vec![1.0, 1.0]);
+        let kernel = ARDRBF::new(length_scales);
+
+        let x1 = array![1.0, 2.0];
+        let x2 = array![1.0, 2.0];
+
+        let k = kernel.kernel(&x1.view(), &x2.view());
+        assert!(
+            (k - 1.0).abs() < 1e-10,
+            "Kernel of identical points should be 1.0"
+        );
+    }
+
+    #[test]
+    fn test_ardrbf_kernel_different_points() {
+        let length_scales = Array1::from_vec(vec![1.0, 1.0]);
+        let kernel = ARDRBF::new(length_scales);
+
+        let x1 = array![0.0, 0.0];
+        let x2 = array![1.0, 1.0];
+
+        let k = kernel.kernel(&x1.view(), &x2.view());
+        // Expected: exp(-0.5 * ((1.0^2 / 1.0^2) + (1.0^2 / 1.0^2))) = exp(-1.0) ≈ 0.368
+        assert!(k > 0.0 && k < 1.0, "Kernel should be between 0 and 1");
+        assert!((k - (-1.0f64).exp()).abs() < 1e-10, "Kernel value mismatch");
+    }
+
+    #[test]
+    fn test_ardrbf_kernel_matrix() {
+        let length_scales = Array1::from_vec(vec![1.0, 1.0]);
+        let kernel = ARDRBF::new(length_scales);
+
+        let x = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
+        let k_matrix = kernel.compute_kernel_matrix(&x, None).unwrap();
+
+        assert_eq!(k_matrix.dim(), (3, 3));
+        // Diagonal should be 1.0
+        assert!((k_matrix[[0, 0]] - 1.0).abs() < 1e-10);
+        assert!((k_matrix[[1, 1]] - 1.0).abs() < 1e-10);
+        assert!((k_matrix[[2, 2]] - 1.0).abs() < 1e-10);
+        // Matrix should be symmetric
+        assert!((k_matrix[[0, 1]] - k_matrix[[1, 0]]).abs() < 1e-10);
+        assert!((k_matrix[[0, 2]] - k_matrix[[2, 0]]).abs() < 1e-10);
+        assert!((k_matrix[[1, 2]] - k_matrix[[2, 1]]).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_ardrbf_relevance_determination() {
+        // Test that different length scales weight dimensions differently
+        let length_scales = Array1::from_vec(vec![0.1, 10.0]); // First dimension very relevant, second not
+        let kernel = ARDRBF::new(length_scales);
+
+        let x1 = array![0.0, 0.0];
+        let x2_dim1 = array![1.0, 0.0]; // Change in first dimension
+        let x2_dim2 = array![0.0, 1.0]; // Change in second dimension
+
+        let k1 = kernel.kernel(&x1.view(), &x2_dim1.view());
+        let k2 = kernel.kernel(&x1.view(), &x2_dim2.view());
+
+        // Change in dimension 1 should have much more effect (smaller kernel value)
+        assert!(
+            k1 < k2,
+            "Dimension with smaller length scale should have more effect"
+        );
+    }
+
+    #[test]
+    fn test_ardrbf_set_params() {
+        let length_scales = Array1::from_vec(vec![1.0, 1.0]);
+        let mut kernel = ARDRBF::new(length_scales);
+
+        let new_params = vec![2.0, 3.0];
+        kernel.set_params(&new_params).unwrap();
+
+        assert_eq!(kernel.get_params(), vec![2.0, 3.0]);
+    }
+
+    #[test]
+    fn test_ardrbf_set_params_wrong_size() {
+        let length_scales = Array1::from_vec(vec![1.0, 1.0]);
+        let mut kernel = ARDRBF::new(length_scales);
+
+        let wrong_params = vec![1.0, 2.0, 3.0]; // Too many parameters
+        let result = kernel.set_params(&wrong_params);
+
+        assert!(
+            result.is_err(),
+            "Should error with wrong number of parameters"
+        );
+    }
+
+    #[test]
+    fn test_ardrbf_dimension_validation() {
+        let length_scales = Array1::from_vec(vec![1.0, 1.0]);
+        let kernel = ARDRBF::new(length_scales);
+
+        let x_wrong_dim = array![[0.0, 0.0, 0.0]]; // 3 dimensions instead of 2
+        let result = kernel.compute_kernel_matrix(&x_wrong_dim, None);
+
+        assert!(
+            result.is_err(),
+            "Should error with wrong number of dimensions"
+        );
+    }
+
+    #[test]
+    fn test_ardrbf_clone() {
+        let length_scales = Array1::from_vec(vec![1.0, 2.0]);
+        let kernel = ARDRBF::new(length_scales);
+        let cloned = kernel.clone();
+
+        assert_eq!(kernel.get_params(), cloned.get_params());
+        assert_eq!(kernel.n_dimensions(), cloned.n_dimensions());
+    }
+
+    #[test]
+    fn test_ardrbf_vs_rbf_isotropic() {
+        // When all length scales are equal, ARD RBF should behave like regular RBF
+        let length_scale = 1.5;
+        let ard_kernel = ARDRBF::new_uniform(2, length_scale);
+        let rbf_kernel = RBF::new(length_scale);
+
+        let x1 = array![1.0, 2.0];
+        let x2 = array![3.0, 4.0];
+
+        let k_ard = ard_kernel.kernel(&x1.view(), &x2.view());
+        let k_rbf = rbf_kernel.kernel(&x1.view(), &x2.view());
+
+        assert!(
+            (k_ard - k_rbf).abs() < 1e-10,
+            "ARD RBF with uniform length scales should match RBF"
+        );
     }
 }

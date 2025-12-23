@@ -152,21 +152,12 @@ pub trait BayesianModel: Send + Sync {
 }
 
 /// Bayesian Model Averaging
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BayesianModelAveraging {
     /// models
     pub models: Vec<String>,
     /// weights
     pub weights: Vec<f64>,
-}
-
-impl Default for BayesianModelAveraging {
-    fn default() -> Self {
-        Self {
-            models: Vec::new(),
-            weights: Vec::new(),
-        }
-    }
 }
 
 impl BayesianModelAveraging {
@@ -187,7 +178,7 @@ pub struct BayesianModelAveragingResults {
 }
 
 /// Convergence Diagnostics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ConvergenceDiagnostics {
     /// rhat
     pub rhat: Vec<f64>,
@@ -199,11 +190,7 @@ pub struct ConvergenceDiagnostics {
 
 impl ConvergenceDiagnostics {
     pub fn new() -> Self {
-        Self {
-            rhat: Vec::new(),
-            ess: Vec::new(),
-            converged: false,
-        }
+        Self::default()
     }
 }
 

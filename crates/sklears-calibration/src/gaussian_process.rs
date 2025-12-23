@@ -350,7 +350,7 @@ impl GaussianProcessCalibrator {
         params: &GPKernelParams,
     ) -> Result<Float> {
         // Temporarily set parameters
-        let original_params = self.kernel_params.clone();
+        let _original_params = self.kernel_params.clone();
         let mut temp_self = self.clone();
         temp_self.kernel_params = params.clone();
 
@@ -463,7 +463,7 @@ impl VariationalGPCalibrator {
             .to_owned();
         self.base_gp = self
             .base_gp
-            .fit(&self.inducing_points.as_ref().unwrap(), &inducing_labels)?;
+            .fit(self.inducing_points.as_ref().unwrap(), &inducing_labels)?;
 
         Ok(self)
     }

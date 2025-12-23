@@ -123,7 +123,7 @@ impl UncertaintyQuantifier {
         probabilities: &Array2<f64>,
         calibration_scores: Option<&Array2<f64>>,
     ) -> SklResult<UncertaintyResult> {
-        let (n_samples, n_classes) = probabilities.dim();
+        let (_n_samples, _n_classes) = probabilities.dim();
 
         // Compute confidence scores
         let confidence_scores = self.confidence_estimator.estimate(probabilities)?;
@@ -159,7 +159,7 @@ impl UncertaintyQuantifier {
         &self,
         probabilities: &Array2<f64>,
     ) -> SklResult<(Array1<f64>, Array1<f64>)> {
-        let (n_samples, n_classes) = probabilities.dim();
+        let (n_samples, _n_classes) = probabilities.dim();
         let mut epistemic = Array1::zeros(n_samples);
         let mut aleatoric = Array1::zeros(n_samples);
 
@@ -301,10 +301,10 @@ mod tests {
 
     #[test]
     fn test_uncertainty_result_structure() {
-        let predictions = array![0, 1, 2];
-        let probabilities = array![[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]];
+        let _predictions = array![0, 1, 2];
+        let _probabilities = array![[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]];
 
-        let quantifier = UncertaintyQuantifier::new();
+        let _quantifier = UncertaintyQuantifier::new();
 
         // This will fail until we implement the submodules, but tests the structure
         // let result = quantifier.quantify(&predictions, &probabilities, None);

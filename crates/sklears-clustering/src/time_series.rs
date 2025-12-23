@@ -26,9 +26,8 @@
 
 use std::f64::INFINITY;
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 
@@ -318,7 +317,7 @@ impl DTWKMeans {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         // Fisher-Yates shuffle
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -727,7 +726,7 @@ impl Fit<Array2<f64>, Array1<f64>> for ShapeClustering {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         // Fisher-Yates shuffle
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 

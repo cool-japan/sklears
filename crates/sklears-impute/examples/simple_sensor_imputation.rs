@@ -55,20 +55,20 @@ fn create_sample_sensor_data() -> SimpleSensorData {
                     let base_temp = 20.0;
                     let daily_variation =
                         10.0 * (2.0 * std::f64::consts::PI * time as f64 / 24.0).sin();
-                    let noise = rng.gen_range(-2.0..2.0);
+                    let noise = rng.random_range(-2.0..2.0);
                     base_temp + daily_variation + noise
                 }
                 SensorType::Humidity => {
                     // Humidity (somewhat inverse to temperature)
                     let base_humidity = 60.0;
                     let variation = -5.0 * (2.0 * std::f64::consts::PI * time as f64 / 24.0).sin();
-                    let noise = rng.gen_range(-5.0..5.0);
+                    let noise = rng.random_range(-5.0..5.0);
                     (base_humidity + variation + noise).clamp(0.0, 100.0)
                 }
                 SensorType::Pressure => {
                     // Pressure (more stable)
                     let base_pressure = 1013.25;
-                    let noise = rng.gen_range(-5.0..5.0);
+                    let noise = rng.random_range(-5.0..5.0);
                     base_pressure + noise
                 }
             };
@@ -81,7 +81,7 @@ fn create_sample_sensor_data() -> SimpleSensorData {
     // Random missing (2%)
     for time in 0..n_timesteps {
         for sensor in 0..n_sensors {
-            if rng.gen_range(0.0..1.0) < 0.02 {
+            if rng.random_range(0.0..1.0) < 0.02 {
                 measurements[[time, sensor]] = f64::NAN;
             }
         }
@@ -89,9 +89,9 @@ fn create_sample_sensor_data() -> SimpleSensorData {
 
     // Sensor failure periods (simulate maintenance)
     for _ in 0..3 {
-        let sensor = rng.gen_range(0..n_sensors);
-        let start_time = rng.gen_range(0..n_timesteps - 10);
-        let duration = rng.gen_range(2..8);
+        let sensor = rng.random_range(0..n_sensors);
+        let start_time = rng.random_range(0..n_timesteps - 10);
+        let duration = rng.random_range(2..8);
 
         for t in start_time..(start_time + duration).min(n_timesteps) {
             measurements[[t, sensor]] = f64::NAN;
@@ -211,7 +211,7 @@ fn compare_imputation_results(
         "Position", "Mean", "Forward Fill"
     );
 
-    for (i, &(row, col)) in missing_positions.iter().take(5).enumerate() {
+    for (_i, &(row, col)) in missing_positions.iter().take(5).enumerate() {
         let mean_val = mean_imputed[[row, col]];
         let ff_val = forward_fill_imputed[[row, col]];
 

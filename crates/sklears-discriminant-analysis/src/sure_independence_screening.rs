@@ -128,14 +128,6 @@ impl SureIndependenceScreening {
         let n_features = x.ncols();
         let mut correlations = Array1::zeros(n_features);
 
-        // Convert y to binary indicator matrix for multi-class problems
-        let classes: Vec<i32> = {
-            let mut cls = y.to_vec();
-            cls.sort_unstable();
-            cls.dedup();
-            cls
-        };
-
         match self.config.correlation_measure.as_str() {
             "pearson" => {
                 for (j, corr) in correlations.iter_mut().enumerate() {
@@ -209,7 +201,7 @@ impl SureIndependenceScreening {
         let y_ranks = self.compute_ranks(&y.mapv(|v| v as Float));
 
         // Compute Pearson correlation of ranks
-        let n = x_ranks.len() as Float;
+        let _n = x_ranks.len() as Float;
         let x_mean = x_ranks.mean().unwrap_or(0.0);
         let y_mean = y_ranks.mean().unwrap_or(0.0);
 

@@ -493,7 +493,7 @@ where
 
         while iteration < self.max_iter && !tentative_features.is_empty() {
             // Create augmented dataset with shadow features
-            let (x_augmented, feature_mapping) =
+            let (x_augmented, _feature_mapping) =
                 self.create_shadow_features(x, &tentative_features, &mut rng)?;
 
             // Train ensemble and get feature importances
@@ -513,7 +513,7 @@ where
             }
 
             // Statistical tests for feature confirmation/rejection
-            let critical_value = self.calculate_critical_value(iteration + 1)?;
+            let _critical_value = self.calculate_critical_value(iteration + 1)?;
 
             let mut to_confirm = Vec::new();
             let mut to_reject = Vec::new();
@@ -984,7 +984,7 @@ impl SelectorFunction for UnivariateSelector {
                     SklearsError::FitError(format!("Mutual info regression failed: {:?}", e))
                 })
             }
-            UnivariateMethod::VarianceThreshold(threshold) => {
+            UnivariateMethod::VarianceThreshold(_threshold) => {
                 let variances = x
                     .axis_iter(Axis(1))
                     .map(|col| {
@@ -1120,8 +1120,8 @@ impl SelectorFunction for TreeImportanceSelector {
     fn compute_scores(
         &self,
         x: &Array2<f64>,
-        y_classif: Option<&Array1<i32>>,
-        y_regression: Option<&Array1<f64>>,
+        _y_classif: Option<&Array1<i32>>,
+        _y_regression: Option<&Array1<f64>>,
     ) -> SklResult<Array1<f64>> {
         // Placeholder implementation - should use actual tree-based feature importance
         let n_features = x.ncols();

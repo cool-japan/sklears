@@ -4,9 +4,6 @@
 //! algorithms including convolution, filtering, edge detection, and morphological operations.
 
 #[cfg(feature = "no-std")]
-use alloc::{vec, vec::Vec};
-
-#[cfg(feature = "no-std")]
 use core::f32::consts;
 #[cfg(not(feature = "no-std"))]
 use std::f32::consts;
@@ -591,9 +588,16 @@ pub mod features {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_2d_convolution() {
@@ -701,7 +705,7 @@ mod tests {
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ];
 
-        let corners = features::harris_corners(&image, 5, 5, 0.04, 0.01);
+        let _corners = features::harris_corners(&image, 5, 5, 0.04, 0.01);
 
         // Should detect corners or at least not crash (no need to assert len >= 0 as it's always true)
     }

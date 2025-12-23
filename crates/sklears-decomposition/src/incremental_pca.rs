@@ -1,8 +1,7 @@
 //! Incremental Principal Component Analysis implementation
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_linalg::svd;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform, Untrained},

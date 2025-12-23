@@ -15,7 +15,7 @@
 use super::*;
 use scirs2_core::ndarray::{array, Array2};
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::{thread_rng, Distribution, Random, Rng, StandardNormal};
+use scirs2_core::random::{thread_rng, Distribution, Random, StandardNormal};
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 

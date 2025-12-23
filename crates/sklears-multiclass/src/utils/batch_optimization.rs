@@ -87,11 +87,6 @@ impl BatchProcessor {
         }
     }
 
-    /// Create a new batch processor with default configuration
-    pub fn default() -> Self {
-        Self::new(BatchConfig::default())
-    }
-
     /// Calculate optimal batch size based on data characteristics
     pub fn calculate_optimal_batch_size(&self, n_samples: usize, n_features: usize) -> usize {
         if !self.config.dynamic_sizing {
@@ -341,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_batch_processing() {
-        let mut processor = BatchProcessor::default();
+        let mut processor = BatchProcessor::new(BatchConfig::default());
         let data = Array2::ones((100, 10));
 
         // Mock prediction function that returns class 0 for all samples
@@ -355,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_batch_processing_probabilities() {
-        let mut processor = BatchProcessor::default();
+        let mut processor = BatchProcessor::new(BatchConfig::default());
         let data = Array2::ones((50, 5));
 
         // Mock probability prediction function
@@ -395,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_empty_data_handling() {
-        let mut processor = BatchProcessor::default();
+        let mut processor = BatchProcessor::new(BatchConfig::default());
         let empty_data = Array2::zeros((0, 5));
 
         let predict_fn = |_: &Array2<f64>| -> SklResult<Array1<i32>> { Ok(Array1::zeros(0)) };

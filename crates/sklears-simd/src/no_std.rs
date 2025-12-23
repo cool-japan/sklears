@@ -150,8 +150,8 @@ impl NoStdSimdOps {
         // Use SIMD if available on the platform
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if x.len() >= 4 && is_x86_feature_detected!("sse") {
-                return Self::dot_product_sse(x, y);
+            if x.len() >= 4 && crate::simd_feature_detected!("sse") {
+                return unsafe { Self::dot_product_sse(x, y) };
             }
         }
 
@@ -408,7 +408,7 @@ impl NoStdMemory {
             // Use aligned loads/stores if supported
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                if len >= 4 && alignment >= 16 && is_x86_feature_detected!("sse2") {
+                if len >= 4 && alignment >= 16 && crate::simd_feature_detected!("sse2") {
                     Self::aligned_copy_sse2(src, dst, len);
                     return;
                 }
@@ -444,7 +444,7 @@ impl NoStdMemory {
     pub fn prefetch(ptr: *const u8, _locality: i32) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("sse") {
+            if crate::simd_feature_detected!("sse") {
                 unsafe {
                     #[cfg(target_arch = "x86")]
                     use core::arch::x86::*;
@@ -509,7 +509,7 @@ impl NoStdMatrixOps {
             return Err(NoStdSimdError::EmptyInput);
         }
 
-        let rows = input.len();
+        let _rows = input.len();
         let cols = input[0].len();
 
         if output.len() != cols {
@@ -777,9 +777,12 @@ impl NoStdKernelOps {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_fixed_vec() {

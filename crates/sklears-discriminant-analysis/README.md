@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -44,6 +44,6 @@ let predictions = fitted.predict(&x)?;
 
 ## Status
 
-- Covered by the shared 10,013 passing workspace tests in the `0.1.0-alpha.1` release.
+- Covered by the shared 11,292 passing workspace tests in the `0.1.0-alpha.2` release.
 - Numerical stability validated on high-dimensional datasets using SciRS2 linear algebra backends.
 - Future enhancements (incremental LDA, GPU QDA) tracked within this crate's `TODO.md`.

@@ -44,6 +44,12 @@ pub struct BudgetUsage {
     pub operations_used: usize,
 }
 
+impl Default for BudgetUsage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BudgetUsage {
     /// Create a new budget usage tracker
     pub fn new() -> Self {
@@ -155,6 +161,12 @@ pub struct BudgetConstrainedRBFSampler {
     config: BudgetConstrainedConfig,
 }
 
+impl Default for BudgetConstrainedRBFSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BudgetConstrainedRBFSampler {
     /// Create a new budget-constrained RBF sampler
     pub fn new() -> Self {
@@ -190,7 +202,7 @@ impl BudgetConstrainedRBFSampler {
 
     /// Find optimal configuration within budget
     pub fn find_optimal_config(&self, x: &Array2<f64>) -> Result<BudgetOptimizationResult> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let mut total_usage = BudgetUsage::new();
         let mut tested_configs = HashMap::new();
         let mut best_quality = f64::NEG_INFINITY;
@@ -211,7 +223,7 @@ impl BudgetConstrainedRBFSampler {
         for n_components in
             (self.config.min_components..=self.config.max_components).step_by(self.config.step_size)
         {
-            let config_start = Instant::now();
+            let _config_start = Instant::now();
             let mut config_usage = BudgetUsage::new();
             let mut trial_qualities = Vec::new();
 
@@ -237,7 +249,7 @@ impl BudgetConstrainedRBFSampler {
 
                 // Fit and transform
                 let fitted = sampler.fit(&x_train, &())?;
-                let x_train_transformed = fitted.transform(&x_train)?;
+                let _x_train_transformed = fitted.transform(&x_train)?;
                 let x_val_transformed = fitted.transform(&x_val)?;
 
                 // Compute quality
@@ -372,7 +384,7 @@ impl BudgetConstrainedRBFSampler {
     /// Check if early stopping should be applied
     fn should_stop_early(
         &self,
-        current_quality: f64,
+        _current_quality: f64,
         tested_configs: &HashMap<usize, (f64, BudgetUsage)>,
     ) -> bool {
         if tested_configs.len() < 3 {
@@ -461,6 +473,12 @@ pub struct BudgetConstrainedNystroem {
     config: BudgetConstrainedConfig,
 }
 
+impl Default for BudgetConstrainedNystroem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BudgetConstrainedNystroem {
     /// Create a new budget-constrained Nyström method
     pub fn new() -> Self {
@@ -490,7 +508,7 @@ impl BudgetConstrainedNystroem {
 
     /// Find optimal configuration within budget
     pub fn find_optimal_config(&self, x: &Array2<f64>) -> Result<BudgetOptimizationResult> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let mut total_usage = BudgetUsage::new();
         let mut tested_configs = HashMap::new();
         let mut best_quality = f64::NEG_INFINITY;
@@ -501,7 +519,7 @@ impl BudgetConstrainedNystroem {
         for n_components in
             (self.config.min_components..=self.config.max_components).step_by(self.config.step_size)
         {
-            let config_start = Instant::now();
+            let _config_start = Instant::now();
             let mut config_usage = BudgetUsage::new();
             let mut trial_qualities = Vec::new();
 

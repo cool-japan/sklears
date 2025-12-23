@@ -4,7 +4,8 @@
 //! stratified k-fold CV and early stopping integration.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, SeedableRng};
+use scirs2_core::StdRng;
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -129,7 +130,7 @@ impl StratifiedKFold {
 }
 
 /// Wrapper for Float to make it hashable and orderable
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct OrderedFloat(Float);
 
 impl Eq for OrderedFloat {}
@@ -141,9 +142,16 @@ impl std::hash::Hash for OrderedFloat {
     }
 }
 
+impl std::cmp::PartialOrd for OrderedFloat {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl std::cmp::Ord for OrderedFloat {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+        // Use total_cmp for proper float ordering that handles NaN
+        self.0.total_cmp(&other.0)
     }
 }
 
@@ -319,11 +327,11 @@ impl CrossValidatorWithEarlyStopping {
 
 /// Cross-validation scoring with early stopping
 pub fn cross_validate_with_early_stopping<Model>(
-    model: Model,
+    _model: Model,
     x: &Array2<Float>,
     y: &Array1<Float>,
     cv: &CrossValidatorWithEarlyStopping,
-    scoring: Option<&str>,
+    _scoring: Option<&str>,
 ) -> Result<CrossValidationResult>
 where
     Model: Clone,
@@ -335,7 +343,7 @@ where
     let mut train_scores = Vec::with_capacity(n_splits);
     let mut early_stopping_iterations = Vec::with_capacity(n_splits);
 
-    for (fold_idx, (train_indices, test_indices)) in splits.iter().enumerate() {
+    for (train_indices, test_indices) in splits.iter() {
         // Extract train and test data for this fold
         let x_train = x.select(Axis(0), train_indices);
         let y_train = y.select(Axis(0), train_indices);
@@ -347,7 +355,7 @@ where
         if let Some(es_config) = &cv.early_stopping_config {
             // Split training data for validation if early stopping is enabled
             let val_split = es_config.validation_split;
-            let (x_tr, y_tr, x_val, y_val) = crate::early_stopping::train_validation_split(
+            let (_x_tr, _y_tr, _x_val, _y_val) = crate::early_stopping::train_validation_split(
                 &x_train,
                 &y_train,
                 val_split,
@@ -446,7 +454,7 @@ fn simulate_validation_score(iteration: usize) -> Float {
     base_score + improvement + noise
 }
 
-fn simulate_score(x: &Array2<Float>, y: &Array1<Float>) -> Float {
+fn simulate_score(x: &Array2<Float>, _y: &Array1<Float>) -> Float {
     // Mock scoring function - in practice this would use actual model predictions
     0.8 + 0.1 * (x.nrows() as Float / 100.0).min(1.0)
 }

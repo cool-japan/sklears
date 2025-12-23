@@ -95,7 +95,7 @@ impl MacroExecutionContext {
         F: FnOnce(&mut PerformanceMetrics),
     {
         if let Ok(mut metrics) = self.metrics.lock() {
-            updater(&mut *metrics);
+            updater(&mut metrics);
         }
     }
 
@@ -113,7 +113,10 @@ impl MacroExecutionContext {
     pub fn get_summary(&self) -> ExecutionSummary {
         let errors = self.errors.lock().map(|e| e.len()).unwrap_or(0);
         let warnings = self.warnings.lock().map(|w| w.len()).unwrap_or(0);
-        let metrics = self.metrics.lock().ok()
+        let metrics = self
+            .metrics
+            .lock()
+            .ok()
             .map(|m| m.clone())
             .unwrap_or_default();
 
@@ -321,10 +324,9 @@ impl DSLCache {
 
     /// Clear the entire cache
     pub fn clear(&self) {
-        if let (Ok(mut cache), Ok(mut current_size)) = (
-            self.cache.lock(),
-            self.current_size_bytes.lock()
-        ) {
+        if let (Ok(mut cache), Ok(mut current_size)) =
+            (self.cache.lock(), self.current_size_bytes.lock())
+        {
             cache.clear();
             *current_size = 0;
         }
@@ -352,11 +354,13 @@ pub struct CachedArtifact {
 impl CachedArtifact {
     /// Calculate the size of this artifact in bytes
     pub fn size_bytes(&self) -> usize {
-        self.content.len() +
-        self.source_hash.len() +
-        self.metadata.iter()
-            .map(|(k, v)| k.len() + v.len())
-            .sum::<usize>()
+        self.content.len()
+            + self.source_hash.len()
+            + self
+                .metadata
+                .iter()
+                .map(|(k, v)| k.len() + v.len())
+                .sum::<usize>()
     }
 
     /// Check if this artifact is still valid
@@ -394,8 +398,8 @@ pub mod utils {
 
     /// Generate a unique identifier for DSL artifacts
     pub fn generate_artifact_id(source: &str) -> String {
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
         source.hash(&mut hasher);
@@ -591,7 +595,9 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        assert!(cache.store("test_key".to_string(), artifact.clone()).is_ok());
+        assert!(cache
+            .store("test_key".to_string(), artifact.clone())
+            .is_ok());
         assert!(cache.get("test_key").is_some());
         assert!(cache.get("nonexistent_key").is_none());
     }

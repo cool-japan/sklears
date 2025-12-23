@@ -40,7 +40,7 @@ pub fn sample_multivariate_normal(
 pub fn gaussian_log_pdf(
     x: &ArrayView1<f64>,
     mean: &ArrayView1<f64>,
-    cov: &ArrayView2<f64>,
+    _cov: &ArrayView2<f64>,
 ) -> SklResult<f64> {
     let n_features = x.len();
     let diff = x - mean;
@@ -118,7 +118,7 @@ pub enum CovarianceMatrices {
 
 impl CovarianceType {
     /// Parse covariance type from string
-    pub fn from_str(s: &str) -> Result<Self, SklearsError> {
+    pub fn parse_type(s: &str) -> Result<Self, SklearsError> {
         match s.to_lowercase().as_str() {
             "full" => Ok(CovarianceType::Full),
             "diag" | "diagonal" => Ok(CovarianceType::Diagonal),

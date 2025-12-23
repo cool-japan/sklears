@@ -37,7 +37,7 @@ fn create_sample_financial_data() -> SimpleFinancialData {
         let mut price = 100.0; // Starting price
         for time in 0..n_periods {
             // Random walk
-            let return_rate = rng.gen_range(-0.02..0.02);
+            let return_rate = rng.random_range(-0.02..0.02);
             price *= 1.0 + return_rate;
             prices[[time, asset]] = price;
         }
@@ -46,7 +46,7 @@ fn create_sample_financial_data() -> SimpleFinancialData {
     // Introduce missing values (5% randomly)
     for time in 0..n_periods {
         for asset in 0..n_assets {
-            if rng.gen_range(0.0..1.0) < 0.05 {
+            if rng.random_range(0.0..1.0) < 0.05 {
                 prices[[time, asset]] = f64::NAN;
             }
         }

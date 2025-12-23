@@ -12,10 +12,7 @@ use alloc::vec;
 #[cfg(feature = "no-std")]
 use alloc::vec::Vec;
 
-#[cfg(feature = "no-std")]
-use core::mem;
-#[cfg(not(feature = "no-std"))]
-use std::mem;
+// Note: mem import removed as it's no longer needed after proper transpose implementation
 
 use crate::activation;
 use crate::allocator::SimdVec;
@@ -371,14 +368,34 @@ impl MatrixBuilder {
         self
     }
 
-    /// Transpose the matrix (placeholder - needs proper implementation)
-    pub fn transpose(mut self) -> Self {
-        // TODO: Implement proper matrix transpose
-        mem::swap(&mut self.rows, &mut self.cols);
-        self
+    /// Transpose the matrix
+    ///
+    /// Converts an MxN matrix to an NxM matrix by swapping rows and columns.
+    /// Uses row-major to row-major transposition for cache efficiency.
+    pub fn transpose(self) -> Self {
+        let mut transposed_data = vec![0.0; self.data.len()];
+
+        // Transpose: transposed[col][row] = original[row][col]
+        for row in 0..self.rows {
+            for col in 0..self.cols {
+                let src_idx = row * self.cols + col;
+                let dst_idx = col * self.rows + row;
+                transposed_data[dst_idx] = self.data[src_idx];
+            }
+        }
+
+        Self {
+            data: transposed_data,
+            rows: self.cols,
+            cols: self.rows,
+            safe_mode: self.safe_mode,
+        }
     }
 
-    /// Multiply by another matrix (placeholder - needs proper implementation)
+    /// Multiply by another matrix
+    ///
+    /// Computes C = A × B where A is self (MxN), B is other (NxP), and C is (MxP).
+    /// Uses standard O(M×N×P) algorithm with row-major order optimization.
     pub fn multiply(&self, other: &MatrixBuilder) -> Result<MatrixBuilder, String> {
         if self.cols != other.rows {
             return Err(format!(
@@ -387,16 +404,41 @@ impl MatrixBuilder {
             ));
         }
 
-        // TODO: Implement proper matrix multiplication
+        let m = self.rows;
+        let n = self.cols;
+        let p = other.cols;
+        let mut result_data = vec![0.0; m * p];
+
+        // C[i][j] = sum_k A[i][k] * B[k][j]
+        for i in 0..m {
+            for j in 0..p {
+                let mut sum = 0.0;
+                for k in 0..n {
+                    let a_val = self.data[i * self.cols + k];
+                    let b_val = other.data[k * other.cols + j];
+
+                    if self.safe_mode || other.safe_mode {
+                        sum += SafeSimdOps::safe_mul_f32(a_val, b_val).unwrap_or(0.0);
+                    } else {
+                        sum += a_val * b_val;
+                    }
+                }
+                result_data[i * p + j] = sum;
+            }
+        }
+
         Ok(MatrixBuilder {
-            data: vec![0.0; self.rows * other.cols],
-            rows: self.rows,
-            cols: other.cols,
+            data: result_data,
+            rows: m,
+            cols: p,
             safe_mode: self.safe_mode || other.safe_mode,
         })
     }
 
-    /// Multiply by a vector (placeholder - needs proper implementation)
+    /// Multiply by a vector
+    ///
+    /// Computes y = A × x where A is self (MxN), x is vector (N), and y is (M).
+    /// Uses row-major order for cache-efficient access.
     pub fn multiply_vector(&self, vector: &[f32]) -> Result<Vec<f32>, String> {
         if self.cols != vector.len() {
             return Err(format!(
@@ -407,8 +449,25 @@ impl MatrixBuilder {
             ));
         }
 
-        // TODO: Implement proper matrix-vector multiplication
-        Ok(vec![0.0; self.rows])
+        let mut result = vec![0.0; self.rows];
+
+        // y[i] = sum_j A[i][j] * x[j]
+        for i in 0..self.rows {
+            let mut sum = 0.0;
+            for j in 0..self.cols {
+                let a_val = self.data[i * self.cols + j];
+                let x_val = vector[j];
+
+                if self.safe_mode {
+                    sum += SafeSimdOps::safe_mul_f32(a_val, x_val).unwrap_or(0.0);
+                } else {
+                    sum += a_val * x_val;
+                }
+            }
+            result[i] = sum;
+        }
+
+        Ok(result)
     }
 
     /// Get matrix dimensions
@@ -555,10 +614,13 @@ pub mod ops {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::ops::*;
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_vector_builder_basic() {
@@ -621,13 +683,130 @@ mod tests {
 
     #[test]
     fn test_matrix_multiplication() {
+        // Test basic 2x2 matrix multiplication
+        // A = [[1, 2], [3, 4]]
+        // B = [[2, 0], [1, 2]]
+        // A × B = [[1*2+2*1, 1*0+2*2], [3*2+4*1, 3*0+4*2]]
+        //       = [[4, 4], [10, 8]]
         let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
         let b = MatrixBuilder::from_data(vec![2.0, 0.0, 1.0, 2.0], 2, 2).unwrap();
 
         let result = a.multiply(&b).unwrap().build();
-        // TODO: Fix matrix multiplication implementation
-        // assert_eq!(result.0, [4.0, 4.0, 10.0, 8.0]);
-        assert_eq!(result.0.len(), 4); // Just check dimensions for now
+        assert_eq!(result.0, [4.0, 4.0, 10.0, 8.0]);
+        assert_eq!(result.1, 2); // rows
+        assert_eq!(result.2, 2); // cols
+    }
+
+    #[test]
+    fn test_matrix_multiplication_rectangular() {
+        // Test non-square matrix multiplication
+        // A = [[1, 2, 3]] (1x3)
+        // B = [[4], [5], [6]] (3x1)
+        // A × B = [[1*4 + 2*5 + 3*6]] = [[32]] (1x1)
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0], 1, 3).unwrap();
+        let b = MatrixBuilder::from_data(vec![4.0, 5.0, 6.0], 3, 1).unwrap();
+
+        let result = a.multiply(&b).unwrap().build();
+        assert_eq!(result.0, [32.0]);
+        assert_eq!(result.1, 1);
+        assert_eq!(result.2, 1);
+    }
+
+    #[test]
+    fn test_matrix_multiplication_identity() {
+        // Test multiplication by identity matrix
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+        let identity = MatrixBuilder::identity(2);
+
+        let result = a.multiply(&identity).unwrap().build();
+        assert_eq!(result.0, [1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn test_matrix_transpose() {
+        // Test basic transpose
+        // A = [[1, 2, 3], [4, 5, 6]] (2x3)
+        // A^T = [[1, 4], [2, 5], [3, 6]] (3x2)
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3).unwrap();
+
+        let transposed = a.transpose().build();
+        assert_eq!(transposed.0, [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
+        assert_eq!(transposed.1, 3); // rows
+        assert_eq!(transposed.2, 2); // cols
+    }
+
+    #[test]
+    fn test_matrix_transpose_square() {
+        // Test square matrix transpose
+        // A = [[1, 2], [3, 4]] (2x2)
+        // A^T = [[1, 3], [2, 4]] (2x2)
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+
+        let transposed = a.transpose().build();
+        assert_eq!(transposed.0, [1.0, 3.0, 2.0, 4.0]);
+        assert_eq!(transposed.1, 2);
+        assert_eq!(transposed.2, 2);
+    }
+
+    #[test]
+    fn test_matrix_transpose_double() {
+        // Test that (A^T)^T = A
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3).unwrap();
+        let original_data = a.data.clone();
+
+        let double_transposed = a.transpose().transpose().build();
+        assert_eq!(double_transposed.0, original_data);
+        assert_eq!(double_transposed.1, 2);
+        assert_eq!(double_transposed.2, 3);
+    }
+
+    #[test]
+    fn test_matrix_vector_multiplication() {
+        // Test basic matrix-vector multiplication
+        // A = [[1, 2], [3, 4]] (2x2)
+        // x = [5, 6]
+        // A × x = [1*5+2*6, 3*5+4*6] = [17, 39]
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+        let x = vec![5.0, 6.0];
+
+        let result = a.multiply_vector(&x).unwrap();
+        assert_eq!(result, [17.0, 39.0]);
+    }
+
+    #[test]
+    fn test_matrix_vector_multiplication_rectangular() {
+        // Test rectangular matrix-vector multiplication
+        // A = [[1, 2, 3], [4, 5, 6]] (2x3)
+        // x = [1, 2, 3]
+        // A × x = [1*1+2*2+3*3, 4*1+5*2+6*3] = [14, 32]
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3).unwrap();
+        let x = vec![1.0, 2.0, 3.0];
+
+        let result = a.multiply_vector(&x).unwrap();
+        assert_eq!(result, [14.0, 32.0]);
+    }
+
+    #[test]
+    fn test_matrix_vector_multiplication_identity() {
+        // Test that identity matrix times vector equals vector
+        let identity = MatrixBuilder::identity(3);
+        let x = vec![5.0, 6.0, 7.0];
+
+        let result = identity.multiply_vector(&x).unwrap();
+        assert_eq!(result, x);
+    }
+
+    #[test]
+    fn test_matrix_operations_dimension_checks() {
+        // Test dimension validation
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+        let b = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0], 1, 3).unwrap();
+
+        // Should fail: 2x2 × 1x3 (incompatible dimensions)
+        assert!(a.multiply(&b).is_err());
+
+        // Should fail: 2x2 matrix with 3-element vector
+        assert!(a.multiply_vector(&[1.0, 2.0, 3.0]).is_err());
     }
 
     #[test]

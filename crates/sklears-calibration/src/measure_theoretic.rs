@@ -425,7 +425,7 @@ impl MeasureTheoreticCalibrator {
         &mut self,
         initial_predictions: &Array1<f64>,
     ) -> CalibrationResult<()> {
-        let n = initial_predictions.len();
+        let _n = initial_predictions.len();
 
         // Create initial filtration
         let initial_sigma_algebra = SigmaAlgebra {
@@ -628,7 +628,7 @@ impl MeasureTheoreticCalibrator {
 
         // Compute transport plan using Sinkhorn algorithm approximation
         let mut transport_plan = Array2::zeros((n, n));
-        let lambda = 10.0; // Regularization parameter
+        let _lambda = 10.0; // Regularization parameter
 
         // Initialize with uniform coupling
         transport_plan.fill(1.0 / (n * n) as f64);
@@ -690,7 +690,7 @@ impl MeasureTheoreticCalibrator {
     ) -> CalibrationResult<()> {
         // Create Levy measure for jumps
         let jump_sizes = Array1::linspace(-1.0, 1.0, 100);
-        let intensities = jump_sizes.map(|&x| jump_intensity * (-(x as f64).abs()).exp()); // Exponential decay
+        let intensities = jump_sizes.map(|&x: &f64| jump_intensity * (-x.abs()).exp()); // Exponential decay
 
         let levy_measure = LevyMeasure {
             jump_sizes,
@@ -752,7 +752,7 @@ impl MeasureTheoreticCalibrator {
 
                 // Total increment
                 updated[i] += drift_increment + normal_increment + jump_increment;
-                updated[i] = updated[i].max(1e-10).min(1.0 - 1e-10); // Keep in [0,1]
+                updated[i] = updated[i].clamp(1e-10, 1.0 - 1e-10); // Keep in [0,1]
             }
 
             Ok(updated)
@@ -875,11 +875,11 @@ impl MeasureTheoreticCalibrator {
 
         // Compute Hausdorff calibration
         let hausdorff_dimension = 1.5; // Fractional dimension
-        let hausdorff_result =
+        let _hausdorff_result =
             self.compute_hausdorff_calibration(predictions, hausdorff_dimension)?;
 
         // Compute optimal transport
-        let transport_result = self.compute_optimal_transport(predictions, targets)?;
+        let _transport_result = self.compute_optimal_transport(predictions, targets)?;
         let wasserstein_distance = self
             .optimal_transport
             .as_ref()

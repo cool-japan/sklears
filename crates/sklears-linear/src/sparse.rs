@@ -9,6 +9,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 #[cfg(feature = "sparse")]
+use scirs2_core::numeric::SparseElement;
+#[cfg(feature = "sparse")]
 use scirs2_sparse::CsrMatrix;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -94,7 +96,7 @@ pub struct SparseMatrixCSR<T: FloatBounds> {
 }
 
 #[cfg(feature = "sparse")]
-impl<T: FloatBounds> SparseMatrixCSR<T> {
+impl<T: FloatBounds + SparseElement> SparseMatrixCSR<T> {
     /// Create a new sparse matrix from CSR format
     pub fn new(inner: CsrMatrix<T>) -> Self {
         Self { inner }
@@ -106,10 +108,9 @@ impl<T: FloatBounds> SparseMatrixCSR<T> {
         ncols: usize,
         triplets: &[(usize, usize, T)],
     ) -> Result<Self> {
-        // TODO: Implement proper triplet to CSR conversion
-        Err(SklearsError::NotImplemented(
-            "Sparse matrix from triplets not yet implemented".to_string(),
-        ))
+        let csmat = CsrMatrix::try_from_triplets(nrows, ncols, triplets)
+            .map_err(|e| SklearsError::Other(format!("Failed to create sparse matrix: {:?}", e)))?;
+        Ok(Self::new(csmat))
     }
 
     /// Get inner CSR matrix
@@ -119,36 +120,42 @@ impl<T: FloatBounds> SparseMatrixCSR<T> {
 
     /// Create from dense matrix with sparsity threshold
     pub fn from_dense(dense: &Array2<T>, threshold: T) -> Self {
-        // TODO: Implement dense to sparse conversion
-        let data = Vec::new();
-        let row_indices = Vec::new();
-        let col_indices = Vec::new();
         let (nrows, ncols) = dense.dim();
+        let mut triplets = Vec::new();
 
-        let csmat =
-            CsrMatrix::new(data, row_indices, col_indices, (nrows, ncols)).unwrap_or_else(|_| {
-                // Create empty matrix as fallback
-                CsrMatrix::new(Vec::new(), Vec::new(), Vec::new(), (nrows, ncols)).unwrap()
-            });
+        // Iterate through dense matrix and collect non-zero elements
+        for i in 0..nrows {
+            for j in 0..ncols {
+                let val = dense[[i, j]];
+                // Check if value is above threshold (non-zero)
+                if val.abs() > threshold {
+                    triplets.push((i, j, val));
+                }
+            }
+        }
+
+        // Use try_from_triplets to construct CSR matrix
+        let csmat = CsrMatrix::try_from_triplets(nrows, ncols, &triplets).unwrap_or_else(|_| {
+            // Create empty matrix as fallback
+            CsrMatrix::try_from_triplets(nrows, ncols, &[]).unwrap()
+        });
+
         Self::new(csmat)
     }
 }
 
 #[cfg(feature = "sparse")]
-impl<T: FloatBounds + Default> SparseMatrix<T> for SparseMatrixCSR<T> {
+impl<T: FloatBounds + SparseElement> SparseMatrix<T> for SparseMatrixCSR<T> {
     fn nrows(&self) -> usize {
-        // TODO: Implement proper row count access
-        0
+        self.inner.rows()
     }
 
     fn ncols(&self) -> usize {
-        // TODO: Implement proper column count access
-        0
+        self.inner.cols()
     }
 
     fn nnz(&self) -> usize {
-        // TODO: Implement proper non-zero count
-        0
+        self.inner.nnz()
     }
 
     fn matvec(&self, x: &Array1<T>) -> Result<Array1<T>> {
@@ -160,17 +167,51 @@ impl<T: FloatBounds + Default> SparseMatrix<T> for SparseMatrixCSR<T> {
             )));
         }
 
-        // TODO: Implement proper sparse matrix-vector multiplication
-        Err(SklearsError::NotImplemented(
-            "Sparse matrix-vector multiplication not yet implemented".to_string(),
-        ))
+        let mut result = Array1::zeros(self.nrows());
+
+        // Standard CSR matrix-vector multiplication: y = A * x
+        for row_idx in 0..self.nrows() {
+            let row_start = self.inner.indptr[row_idx];
+            let row_end = self.inner.indptr[row_idx + 1];
+
+            let mut sum = T::default();
+            for j in row_start..row_end {
+                let col_idx = self.inner.indices[j];
+                let val = self.inner.data[j];
+                sum += val * x[col_idx];
+            }
+            result[row_idx] = sum;
+        }
+
+        Ok(result)
     }
 
     fn transp_matvec(&self, x: &Array1<T>) -> Result<Array1<T>> {
-        // TODO: Implement transpose matrix-vector multiplication
-        Err(SklearsError::NotImplemented(
-            "Transpose sparse matrix-vector multiplication not yet implemented".to_string(),
-        ))
+        if x.len() != self.nrows() {
+            return Err(SklearsError::InvalidInput(format!(
+                "Vector length {} does not match matrix rows {}",
+                x.len(),
+                self.nrows()
+            )));
+        }
+
+        let mut result = Array1::zeros(self.ncols());
+
+        // Transposed CSR matrix-vector multiplication: y = A^T * x
+        // For each row in A, scatter x[row] * A[row,:] into result
+        for row_idx in 0..self.nrows() {
+            let row_start = self.inner.indptr[row_idx];
+            let row_end = self.inner.indptr[row_idx + 1];
+
+            let x_val = x[row_idx];
+            for j in row_start..row_end {
+                let col_idx = self.inner.indices[j];
+                let val = self.inner.data[j];
+                result[col_idx] += val * x_val;
+            }
+        }
+
+        Ok(result)
     }
 
     fn row(&self, i: usize) -> Result<CsrMatrix<T>> {
@@ -204,10 +245,21 @@ impl<T: FloatBounds + Default> SparseMatrix<T> for SparseMatrixCSR<T> {
     }
 
     fn to_dense(&self) -> Result<Array2<T>> {
-        // TODO: Implement sparse to dense conversion
-        Err(SklearsError::NotImplemented(
-            "Sparse to dense conversion not yet implemented".to_string(),
-        ))
+        let mut dense = Array2::zeros((self.nrows(), self.ncols()));
+
+        // Convert CSR sparse matrix to dense format
+        for row_idx in 0..self.nrows() {
+            let row_start = self.inner.indptr[row_idx];
+            let row_end = self.inner.indptr[row_idx + 1];
+
+            for j in row_start..row_end {
+                let col_idx = self.inner.indices[j];
+                let val = self.inner.data[j];
+                dense[[row_idx, col_idx]] = val;
+            }
+        }
+
+        Ok(dense)
     }
 }
 
@@ -235,21 +287,21 @@ impl<T: FloatBounds> SparseCoordinateDescentSolver<T> {
         }
     }
 
-    pub fn fit_lasso(&self, x: &SparseMatrixCSR<T>, y: &Array1<T>) -> Result<Array1<T>> {
+    pub fn fit_lasso(&self, _x: &SparseMatrixCSR<T>, _y: &Array1<T>) -> Result<Array1<T>> {
         // TODO: Implement sparse LASSO coordinate descent
         Err(SklearsError::NotImplemented(
             "Sparse LASSO not yet implemented".to_string(),
         ))
     }
 
-    pub fn fit_ridge(&self, x: &SparseMatrixCSR<T>, y: &Array1<T>) -> Result<Array1<T>> {
+    pub fn fit_ridge(&self, _x: &SparseMatrixCSR<T>, _y: &Array1<T>) -> Result<Array1<T>> {
         // TODO: Implement sparse Ridge regression
         Err(SklearsError::NotImplemented(
             "Sparse Ridge regression not yet implemented".to_string(),
         ))
     }
 
-    pub fn fit_elastic_net(&self, x: &SparseMatrixCSR<T>, y: &Array1<T>) -> Result<Array1<T>> {
+    pub fn fit_elastic_net(&self, _x: &SparseMatrixCSR<T>, _y: &Array1<T>) -> Result<Array1<T>> {
         // TODO: Implement sparse Elastic Net
         Err(SklearsError::NotImplemented(
             "Sparse Elastic Net not yet implemented".to_string(),
@@ -259,10 +311,10 @@ impl<T: FloatBounds> SparseCoordinateDescentSolver<T> {
     /// Solve sparse LASSO regression
     pub fn solve_sparse_lasso(
         &self,
-        x: &SparseMatrixCSR<T>,
-        y: &Array1<T>,
-        alpha: T,
-        fit_intercept: bool,
+        _x: &SparseMatrixCSR<T>,
+        _y: &Array1<T>,
+        _alpha: T,
+        _fit_intercept: bool,
     ) -> Result<(Array1<T>, T)> {
         // TODO: Implement sparse LASSO solving
         Err(SklearsError::NotImplemented(
@@ -273,11 +325,11 @@ impl<T: FloatBounds> SparseCoordinateDescentSolver<T> {
     /// Solve sparse Elastic Net regression
     pub fn solve_sparse_elastic_net(
         &self,
-        x: &SparseMatrixCSR<T>,
-        y: &Array1<T>,
-        alpha: T,
-        l1_ratio: T,
-        fit_intercept: bool,
+        _x: &SparseMatrixCSR<T>,
+        _y: &Array1<T>,
+        _alpha: T,
+        _l1_ratio: T,
+        _fit_intercept: bool,
     ) -> Result<(Array1<T>, T)> {
         // TODO: Implement sparse Elastic Net solving
         Err(SklearsError::NotImplemented(
@@ -303,7 +355,7 @@ pub mod utils {
     }
 
     /// Convert dense to sparse if beneficial
-    pub fn auto_sparse<T: FloatBounds>(
+    pub fn auto_sparse<T: FloatBounds + SparseElement>(
         dense: &Array2<T>,
         threshold: T,
     ) -> Result<SparseMatrixCSR<T>> {

@@ -55,8 +55,8 @@ pub fn parallel_mean_absolute_error<
         // Use serial computation for small arrays - only for f64 arrays
         if std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
             unsafe {
-                let y_true_f64 = std::mem::transmute(y_true);
-                let y_pred_f64 = std::mem::transmute(y_pred);
+                let y_true_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true);
+                let y_pred_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred);
                 let result: f64 = crate::regression::mean_absolute_error(y_true_f64, y_pred_f64)?;
                 return Ok(std::mem::transmute_copy(&result));
             }
@@ -114,8 +114,8 @@ pub fn parallel_mean_squared_error<
         // Use serial computation for small arrays - only for f64 arrays
         if std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
             unsafe {
-                let y_true_f64 = std::mem::transmute(y_true);
-                let y_pred_f64 = std::mem::transmute(y_pred);
+                let y_true_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true);
+                let y_pred_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred);
                 let result: f64 = crate::regression::mean_squared_error(y_true_f64, y_pred_f64)?;
                 return Ok(std::mem::transmute_copy(&result));
             }
@@ -174,8 +174,8 @@ pub fn parallel_r2_score<
         // Use serial computation for small arrays - only for f64 arrays
         if std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
             unsafe {
-                let y_true_f64 = std::mem::transmute(y_true);
-                let y_pred_f64 = std::mem::transmute(y_pred);
+                let y_true_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true);
+                let y_pred_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred);
                 let result: f64 = crate::regression::r2_score(y_true_f64, y_pred_f64)?;
                 return Ok(std::mem::transmute_copy(&result));
             }

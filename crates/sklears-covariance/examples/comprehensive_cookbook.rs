@@ -631,7 +631,7 @@ fn create_professional_dataset(
     n_samples: usize,
     n_assets: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_assets));
@@ -649,12 +649,12 @@ fn create_professional_dataset(
                 * (i as f64 / n_samples as f64 * 2.0 * std::f64::consts::PI)
                     .sin()
                     .abs();
-        let market_return = rng.gen::<f64>() * 2.0 - 1.0 * market_vol / 16.0; // Daily scale
+        let market_return = rng.random() * 2.0 - 1.0 * market_vol / 16.0; // Daily scale
 
         // Sector factors
-        let tech_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.01;
-        let finance_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.008;
-        let healthcare_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.006;
+        let tech_factor = rng.random() * 2.0 - 1.0 * 0.01;
+        let finance_factor = rng.random() * 2.0 - 1.0 * 0.008;
+        let healthcare_factor = rng.random() * 2.0 - 1.0 * 0.006;
 
         for j in 0..n_assets {
             let sector = j % 3;
@@ -666,12 +666,12 @@ fn create_professional_dataset(
 
             // Asset-specific characteristics
             let beta = 0.6 + (j as f64 / n_assets as f64) * 0.8;
-            let idiosyncratic_vol = 0.01 + 0.005 * rng.gen::<f64>() * 2.0 - 1.0.abs();
-            let idiosyncratic = rng.gen::<f64>() * 2.0 - 1.0 * idiosyncratic_vol;
+            let idiosyncratic_vol = 0.01 + 0.005 * rng.random() * 2.0 - 1.0.abs();
+            let idiosyncratic = rng.random() * 2.0 - 1.0 * idiosyncratic_vol;
 
             // Occasional jumps (fat tails)
             let jump = if rng.gen_bool(0.02) {
-                rng.gen::<f64>() * 2.0 - 1.0 * 0.05
+                rng.random() * 2.0 - 1.0 * 0.05
             } else {
                 0.0
             };
@@ -699,18 +699,18 @@ fn create_conservative_portfolio(
     n_samples: usize,
     n_assets: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_assets));
 
     // Conservative portfolio: bonds, utilities, stable dividend stocks
     for i in 0..n_samples {
-        let market_return = rng.gen::<f64>() * 2.0 - 1.0 * 0.005; // Low volatility
+        let market_return = rng.random() * 2.0 - 1.0 * 0.005; // Low volatility
 
         for j in 0..n_assets {
             let beta = 0.2 + (j as f64 / n_assets as f64) * 0.4; // Low betas
-            let idiosyncratic = rng.gen::<f64>() * 2.0 - 1.0 * 0.003; // Low idiosyncratic risk
+            let idiosyncratic = rng.random() * 2.0 - 1.0 * 0.003; // Low idiosyncratic risk
 
             data[[i, j]] = market_return * beta + idiosyncratic;
         }
@@ -723,19 +723,19 @@ fn create_conservative_portfolio(
 }
 
 fn create_high_tech_portfolio(n_samples: usize, n_assets: usize) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_assets));
 
     // High-tech portfolio: high volatility, high correlations, momentum effects
     for i in 0..n_samples {
-        let tech_market_return = rng.gen::<f64>() * 2.0 - 1.0 * 0.025; // High volatility
+        let tech_market_return = rng.random() * 2.0 - 1.0 * 0.025; // High volatility
         let momentum_factor = if i > 0 { tech_market_return * 0.1 } else { 0.0 };
 
         for j in 0..n_assets {
             let beta = 1.2 + (j as f64 / n_assets as f64) * 0.8; // High betas
-            let idiosyncratic = rng.gen::<f64>() * 2.0 - 1.0 * 0.015; // High idiosyncratic risk
+            let idiosyncratic = rng.random() * 2.0 - 1.0 * 0.015; // High idiosyncratic risk
 
             data[[i, j]] = tech_market_return * beta + momentum_factor + idiosyncratic;
         }
@@ -749,17 +749,17 @@ fn create_international_portfolio(
     n_samples: usize,
     n_assets: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_assets));
 
     // International portfolio: multiple market factors, currency effects
     for i in 0..n_samples {
-        let us_market = rng.gen::<f64>() * 2.0 - 1.0 * 0.015;
-        let europe_market = rng.gen::<f64>() * 2.0 - 1.0 * 0.012;
-        let asia_market = rng.gen::<f64>() * 2.0 - 1.0 * 0.018;
-        let currency_effect = rng.gen::<f64>() * 2.0 - 1.0 * 0.008;
+        let us_market = rng.random() * 2.0 - 1.0 * 0.015;
+        let europe_market = rng.random() * 2.0 - 1.0 * 0.012;
+        let asia_market = rng.random() * 2.0 - 1.0 * 0.018;
+        let currency_effect = rng.random() * 2.0 - 1.0 * 0.008;
 
         for j in 0..n_assets {
             let region = j % 3;
@@ -770,7 +770,7 @@ fn create_international_portfolio(
             };
 
             let beta = 0.8 + (j as f64 / n_assets as f64) * 0.6;
-            let idiosyncratic = rng.gen::<f64>() * 2.0 - 1.0 * 0.01;
+            let idiosyncratic = rng.random() * 2.0 - 1.0 * 0.01;
 
             data[[i, j]] = market_return * beta + currency_exposure + idiosyncratic;
         }
@@ -795,18 +795,18 @@ fn create_optimization_dataset(
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
     // Dataset specifically designed for hyperparameter optimization
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     // Create data where shrinkage will make a clear difference
     for i in 0..n_samples {
-        let common_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.5;
+        let common_factor = rng.random() * 2.0 - 1.0 * 0.5;
 
         for j in 0..n_features {
             let loading = 0.3 + (j as f64 / n_features as f64) * 0.4;
-            let noise = rng.gen::<f64>() * 2.0 - 1.0 * 0.8;
+            let noise = rng.random() * 2.0 - 1.0 * 0.8;
 
             data[[i, j]] = common_factor * loading + noise;
         }
@@ -828,21 +828,21 @@ fn create_problematic_dataset(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     // Create problematic data with near-perfect correlations
     for i in 0..n_samples {
-        let base_value = rng.gen::<f64>() * 2.0 - 1.0;
+        let base_value = rng.random() * 2.0 - 1.0;
 
         for j in 0..n_features {
             // Make some variables nearly perfectly correlated
             if j < n_features / 2 {
-                data[[i, j]] = base_value + rng.gen::<f64>() * 2.0 - 1.0 * 0.01; // Nearly perfect correlation
+                data[[i, j]] = base_value + rng.random() * 2.0 - 1.0 * 0.01; // Nearly perfect correlation
             } else {
-                data[[i, j]] = rng.gen::<f64>() * 2.0 - 1.0; // Independent
+                data[[i, j]] = rng.random() * 2.0 - 1.0; // Independent
             }
         }
     }

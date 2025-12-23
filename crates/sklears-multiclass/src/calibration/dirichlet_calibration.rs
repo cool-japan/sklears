@@ -105,7 +105,7 @@ impl DirichletCalibration {
 
             for j in 0..n_classes {
                 let p = if row_sum > 0.0 {
-                    (row[j] / row_sum).max(1e-15).min(1.0 - 1e-15)
+                    (row[j] / row_sum).clamp(1e-15, 1.0 - 1e-15)
                 } else {
                     1.0 / n_classes as f64
                 };
@@ -285,7 +285,7 @@ impl DirichletCalibration {
 
             for j in 0..n_classes {
                 let p = if row_sum > 0.0 {
-                    (row[j] / row_sum).max(1e-15).min(1.0 - 1e-15)
+                    (row[j] / row_sum).clamp(1e-15, 1.0 - 1e-15)
                 } else {
                     1.0 / n_classes as f64
                 };
@@ -321,7 +321,7 @@ impl CalibrationFunction for DirichletCalibration {
         if n_classes == 2 {
             // Binary case
             for i in 0..n_samples {
-                let p = uncalibrated_probs[i].max(1e-15).min(1.0 - 1e-15);
+                let p = uncalibrated_probs[i].clamp(1e-15, 1.0 - 1e-15);
                 probs_2d[[i, 0]] = 1.0 - p;
                 probs_2d[[i, 1]] = p;
             }
@@ -329,7 +329,7 @@ impl CalibrationFunction for DirichletCalibration {
             // Multiclass case - this shouldn't normally happen with the CalibrationFunction trait
             // but we'll handle it by creating uniform probabilities across all classes
             for i in 0..n_samples {
-                let p = uncalibrated_probs[i].max(1e-15).min(1.0 - 1e-15);
+                let p = uncalibrated_probs[i].clamp(1e-15, 1.0 - 1e-15);
                 // Distribute the probability uniformly across all classes
                 for j in 0..n_classes {
                     probs_2d[[i, j]] = if j == 1 {
@@ -361,6 +361,30 @@ impl CalibrationFunction for DirichletCalibration {
     }
 }
 
+/// Configuration for cross-validation Dirichlet calibration
+#[derive(Debug, Clone)]
+pub struct DirichletCVConfig {
+    pub cv_folds: usize,
+    pub l2_reg: f64,
+    pub max_iter: usize,
+    pub tol: f64,
+    pub learning_rate: f64,
+    pub random_state: Option<u64>,
+}
+
+impl Default for DirichletCVConfig {
+    fn default() -> Self {
+        Self {
+            cv_folds: 5,
+            l2_reg: 0.01,
+            max_iter: 100,
+            tol: 1e-4,
+            learning_rate: 0.01,
+            random_state: None,
+        }
+    }
+}
+
 /// Helper function to create Dirichlet calibration with cross-validation
 ///
 /// This function fits Dirichlet calibration using stratified cross-validation
@@ -368,12 +392,7 @@ impl CalibrationFunction for DirichletCalibration {
 pub fn fit_dirichlet_with_cv(
     probabilities: &Array2<f64>,
     y_true: &Array1<i32>,
-    cv_folds: usize,
-    l2_reg: f64,
-    max_iter: usize,
-    tol: f64,
-    learning_rate: f64,
-    random_state: Option<u64>,
+    config: &DirichletCVConfig,
 ) -> SklResult<DirichletCalibration> {
     use crate::calibration::stratified_kfold_split;
 
@@ -381,7 +400,7 @@ pub fn fit_dirichlet_with_cv(
     let mut calibrated_probs = Array2::zeros((n_samples, n_classes));
 
     // Get stratified splits
-    let splits = stratified_kfold_split(y_true, cv_folds, random_state)?;
+    let splits = stratified_kfold_split(y_true, config.cv_folds, config.random_state)?;
 
     for (train_indices, test_indices) in splits {
         if train_indices.is_empty() || test_indices.is_empty() {
@@ -393,8 +412,14 @@ pub fn fit_dirichlet_with_cv(
         let train_labels = Array1::from_vec(train_indices.iter().map(|&i| y_true[i]).collect());
 
         // Fit calibrator on training fold
-        let mut calibrator = DirichletCalibration::new(l2_reg);
-        calibrator.fit(&train_probs, &train_labels, max_iter, tol, learning_rate)?;
+        let mut calibrator = DirichletCalibration::new(config.l2_reg);
+        calibrator.fit(
+            &train_probs,
+            &train_labels,
+            config.max_iter,
+            config.tol,
+            config.learning_rate,
+        )?;
 
         // Apply to test fold
         let test_probs = probabilities.select(Axis(0), &test_indices);
@@ -409,8 +434,14 @@ pub fn fit_dirichlet_with_cv(
     }
 
     // Fit final model on all data
-    let mut final_calibrator = DirichletCalibration::new(l2_reg);
-    final_calibrator.fit(probabilities, y_true, max_iter, tol, learning_rate)?;
+    let mut final_calibrator = DirichletCalibration::new(config.l2_reg);
+    final_calibrator.fit(
+        probabilities,
+        y_true,
+        config.max_iter,
+        config.tol,
+        config.learning_rate,
+    )?;
 
     Ok(final_calibrator)
 }
@@ -551,8 +582,8 @@ mod tests {
         assert_eq!(cal_high.dim(), (4, 3));
 
         // High regularization should generally produce less extreme weights
-        let weights_low_norm: f64 = calibrator_low_reg.weights.iter().map(|&x| x.abs()).sum();
-        let weights_high_norm: f64 = calibrator_high_reg.weights.iter().map(|&x| x.abs()).sum();
+        let _weights_low_norm: f64 = calibrator_low_reg.weights.iter().map(|&x| x.abs()).sum();
+        let _weights_high_norm: f64 = calibrator_high_reg.weights.iter().map(|&x| x.abs()).sum();
 
         // This might not always be true depending on the optimization, but generally expected
         // assert!(weights_high_norm <= weights_low_norm);
@@ -592,9 +623,15 @@ mod tests {
         ];
         let y_true = array![0, 1, 2, 0, 0, 1];
 
-        let calibrator =
-            fit_dirichlet_with_cv(&probabilities, &y_true, 3, 0.01, 100, 1e-6, 0.01, Some(42))
-                .unwrap();
+        let config = DirichletCVConfig {
+            cv_folds: 3,
+            l2_reg: 0.01,
+            max_iter: 100,
+            tol: 1e-6,
+            learning_rate: 0.01,
+            random_state: Some(42),
+        };
+        let calibrator = fit_dirichlet_with_cv(&probabilities, &y_true, &config).unwrap();
 
         assert!(calibrator.fitted);
 

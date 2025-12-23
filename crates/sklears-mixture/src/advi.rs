@@ -434,7 +434,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for ADVIGaussianMixture<Untrained> {
     type Fitted = ADVIGaussianMixtureTrained;
 
     fn fit(self, X: &ArrayView2<f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         if n_samples < self.n_components {
             return Err(SklearsError::InvalidInput(
@@ -503,7 +503,7 @@ impl ADVIGaussianMixture<Untrained> {
         Array1<f64>,
         Array3<f64>,
     )> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Initialize weight concentration parameters
         let weight_concentration = Array1::from_elem(self.n_components, self.weight_concentration);
@@ -959,7 +959,7 @@ impl ADVIGaussianMixture<Untrained> {
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<Array1<f64>> {
         let mut gradient = Array1::zeros(params.len());
-        let f0 = self.evaluate_objective(X, params, rng)?;
+        let _f0 = self.evaluate_objective(X, params, rng)?;
 
         for i in 0..params.len() {
             let mut params_plus = params.clone();
@@ -1041,7 +1041,7 @@ impl ADVIGaussianMixture<Untrained> {
         &self,
         X: &ArrayView2<f64>,
         params: &Array1<f64>,
-        rng: &mut scirs2_core::random::rngs::StdRng,
+        _rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<f64> {
         let (n_samples, n_features) = X.dim();
 
@@ -1165,7 +1165,7 @@ impl ADVIGaussianMixture<Untrained> {
 
         for k in 0..self.n_components {
             expected_log_weights[k] =
-                self.digamma(weight_concentration[k]) - self.digamma(concentration_sum);
+                Self::digamma(weight_concentration[k]) - Self::digamma(concentration_sum);
         }
 
         Ok(expected_log_weights)
@@ -1178,7 +1178,7 @@ impl ADVIGaussianMixture<Untrained> {
         mean: &ArrayView1<f64>,
         precision: &ArrayView2<f64>,
         degrees_of_freedom: &f64,
-        scale_matrix: &ArrayView2<f64>,
+        _scale_matrix: &ArrayView2<f64>,
     ) -> SklResult<f64> {
         let n_features = x.len();
         let diff = x - mean;
@@ -1186,7 +1186,7 @@ impl ADVIGaussianMixture<Untrained> {
         // Compute expected log determinant of precision matrix
         let mut expected_log_det = 0.0;
         for i in 0..n_features {
-            expected_log_det += self.digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
+            expected_log_det += Self::digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
         }
         expected_log_det += n_features as f64 * (2.0_f64).ln();
 
@@ -1212,13 +1212,13 @@ impl ADVIGaussianMixture<Untrained> {
         X: &ArrayView2<f64>,
         responsibilities: &Array2<f64>,
         weight_concentration: &Array1<f64>,
-        mean_precision: &Array1<f64>,
+        _mean_precision: &Array1<f64>,
         mean_values: &Array2<f64>,
         precision_values: &Array3<f64>,
         degrees_of_freedom: &Array1<f64>,
         scale_matrices: &Array3<f64>,
     ) -> SklResult<f64> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let mut lower_bound = 0.0;
 
         // Expected log likelihood
@@ -1247,12 +1247,13 @@ impl ADVIGaussianMixture<Untrained> {
         let prior_concentration_sum = self.weight_concentration * self.n_components as f64;
 
         // Weight KL divergence
-        lower_bound += self.log_gamma(concentration_sum) - self.log_gamma(prior_concentration_sum);
+        lower_bound +=
+            Self::log_gamma(concentration_sum) - Self::log_gamma(prior_concentration_sum);
         for k in 0..self.n_components {
-            lower_bound +=
-                self.log_gamma(self.weight_concentration) - self.log_gamma(weight_concentration[k]);
+            lower_bound += Self::log_gamma(self.weight_concentration)
+                - Self::log_gamma(weight_concentration[k]);
             lower_bound += (weight_concentration[k] - self.weight_concentration)
-                * (self.digamma(weight_concentration[k]) - self.digamma(concentration_sum));
+                * (Self::digamma(weight_concentration[k]) - Self::digamma(concentration_sum));
         }
 
         // Entropy term
@@ -1354,9 +1355,9 @@ impl ADVIGaussianMixture<Untrained> {
     }
 
     /// Digamma function approximation
-    fn digamma(&self, x: f64) -> f64 {
+    fn digamma(x: f64) -> f64 {
         if x < 8.0 {
-            self.digamma(x + 1.0) - 1.0 / x
+            Self::digamma(x + 1.0) - 1.0 / x
         } else {
             let inv_x = 1.0 / x;
             let inv_x2 = inv_x * inv_x;
@@ -1365,9 +1366,9 @@ impl ADVIGaussianMixture<Untrained> {
     }
 
     /// Log gamma function approximation
-    fn log_gamma(&self, x: f64) -> f64 {
+    fn log_gamma(x: f64) -> f64 {
         if x < 0.5 {
-            (PI / (PI * x).sin()).ln() - self.log_gamma(1.0 - x)
+            (PI / (PI * x).sin()).ln() - Self::log_gamma(1.0 - x)
         } else {
             let g = 7.0;
             let c = [
@@ -1384,8 +1385,8 @@ impl ADVIGaussianMixture<Untrained> {
 
             let z = x - 1.0;
             let mut x_sum = c[0];
-            for i in 1..9 {
-                x_sum += c[i] / (z + i as f64);
+            for (i, &c_val) in c.iter().enumerate().skip(1) {
+                x_sum += c_val / (z + i as f64);
             }
             let t = z + g + 0.5;
             (2.0 * PI).sqrt().ln() + (z + 0.5) * t.ln() - t + x_sum.ln()
@@ -1582,7 +1583,7 @@ impl ADVIGaussianMixtureTrained {
 
         for k in 0..self.n_components {
             expected_log_weights[k] =
-                self.digamma(self.weight_concentration[k]) - self.digamma(concentration_sum);
+                Self::digamma(self.weight_concentration[k]) - Self::digamma(concentration_sum);
         }
 
         Ok(expected_log_weights)
@@ -1594,7 +1595,7 @@ impl ADVIGaussianMixtureTrained {
         mean: &ArrayView1<f64>,
         precision: &ArrayView2<f64>,
         degrees_of_freedom: &f64,
-        scale_matrix: &ArrayView2<f64>,
+        _scale_matrix: &ArrayView2<f64>,
     ) -> SklResult<f64> {
         let n_features = x.len();
         let diff = x - mean;
@@ -1602,7 +1603,7 @@ impl ADVIGaussianMixtureTrained {
         // Compute expected log determinant of precision matrix
         let mut expected_log_det = 0.0;
         for i in 0..n_features {
-            expected_log_det += self.digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
+            expected_log_det += Self::digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
         }
         expected_log_det += n_features as f64 * (2.0_f64).ln();
 
@@ -1622,9 +1623,9 @@ impl ADVIGaussianMixtureTrained {
         Ok(log_likelihood)
     }
 
-    fn digamma(&self, x: f64) -> f64 {
+    fn digamma(x: f64) -> f64 {
         if x < 8.0 {
-            self.digamma(x + 1.0) - 1.0 / x
+            Self::digamma(x + 1.0) - 1.0 / x
         } else {
             let inv_x = 1.0 / x;
             let inv_x2 = inv_x * inv_x;

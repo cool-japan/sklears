@@ -695,14 +695,16 @@ impl CIIntegration {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     #[cfg(not(feature = "no-std"))]
     use std::fs;
+    #[cfg(not(feature = "no-std"))]
     use std::time::Duration;
 
     #[test]
+    #[cfg(not(feature = "no-std"))]
     fn test_performance_monitor_creation() {
         let temp_file = "/tmp/test_perf_monitor.csv";
         let _ = fs::remove_file(temp_file); // Clean up if exists
@@ -714,6 +716,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "no-std"))]
     fn test_performance_record_parsing() {
         let temp_file = "/tmp/test_perf_parsing.csv";
         let _ = fs::remove_file(temp_file);
@@ -736,6 +739,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "no-std"))]
     fn test_trend_analysis() {
         let temp_file = "/tmp/test_trend_analysis.csv";
         let _ = fs::remove_file(temp_file);
@@ -754,6 +758,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "no-std"))]
     fn test_ci_integration() {
         let results = CIIntegration::run_ci_benchmarks();
         assert!(results.is_ok());

@@ -465,7 +465,8 @@ mod tests {
         assert!(fitted.get_precision().is_some());
         assert_eq!(fitted.get_lambda(), 0.1);
         // Nuclear norm minimization may result in low-rank matrices due to regularization
-        assert!(fitted.get_rank() >= 0);
+        // Rank should be at most min(n_samples, n_features)
+        assert!(fitted.get_rank() <= 3);
     }
 
     #[test]

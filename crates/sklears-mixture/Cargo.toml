@@ -15,7 +15,6 @@ description = "Gaussian mixture models"
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 # SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true }
 scirs2-optimize = { workspace = true }   # For optimization algorithms

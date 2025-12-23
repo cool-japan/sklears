@@ -799,7 +799,7 @@ impl PipelineConfigValidator {
                 field_type: FieldType::Integer,
                 constraints: vec![Constraint::Range {
                     min: 0.0,
-                    max: 2147483647.0,
+                    max: 2_147_483_647.0,
                 }],
                 description: "Random seed for reproducibility".to_string(),
                 examples: vec!["42".to_string(), "123".to_string()],

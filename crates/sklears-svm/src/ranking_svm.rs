@@ -395,7 +395,7 @@ impl RankingSVM<Untrained> {
         }
 
         // All pairwise samples have target +1 (preferred item should rank higher)
-        let y_train = Array1::<Float>::ones(n_samples);
+        let _y_train = Array1::<Float>::ones(n_samples);
 
         // Create kernel instance
         let kernel = match &self.config.kernel {

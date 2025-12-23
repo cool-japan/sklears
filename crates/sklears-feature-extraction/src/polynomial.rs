@@ -4,7 +4,7 @@
 //! spline basis functions for non-linear feature transformation.
 
 use crate::*;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 use sklears_core::prelude::{SklearsError, Transform};
 
@@ -411,7 +411,7 @@ impl SplineBasisFunctions {
             SplineType::BSpline => {
                 // For B-splines, we need additional knots at the boundaries
                 let n_interior_knots = self.n_splines - self.degree - 1;
-                let total_knots = n_interior_knots + 2 * (self.degree + 1);
+                let _total_knots = n_interior_knots + 2 * (self.degree + 1);
 
                 let step = (x_max - x_min) / (n_interior_knots + 1) as Float;
 
@@ -590,7 +590,7 @@ impl SplineBasisFunctions {
             for k in 2..n_basis {
                 if k - 2 < n_knots - 2 {
                     let knot = knots[k - 2];
-                    let x_min = knots[0];
+                    let _x_min = knots[0];
                     let x_max = knots[n_knots - 1];
 
                     let d_k = self.natural_cubic_basis_function(x, knot, x_max);
@@ -604,7 +604,7 @@ impl SplineBasisFunctions {
         Ok(basis_matrix)
     }
 
-    fn natural_cubic_basis_function(&self, x: Float, knot: Float, x_max: Float) -> Float {
+    fn natural_cubic_basis_function(&self, x: Float, knot: Float, _x_max: Float) -> Float {
         if x <= knot {
             0.0
         } else {

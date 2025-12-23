@@ -1,6 +1,6 @@
 //! Embedded feature selection methods
 
-use crate::{FeatureImportance, IndexableTarget};
+use crate::FeatureImportance;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::{rngs::StdRng, thread_rng, SeedableRng};

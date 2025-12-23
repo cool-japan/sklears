@@ -35,19 +35,24 @@ pub mod computer_vision;
 pub mod counterfactual;
 pub mod dashboard;
 pub mod deep_learning;
+pub mod distributed;
 pub mod enterprise;
 pub mod external_visualizations;
 pub mod fairness;
+pub mod federated;
 pub mod framework;
+pub mod gnn;
 pub mod gpu;
 pub mod hooks;
 pub mod information_theoretic;
 pub mod lazy;
+pub mod llm;
 pub mod local_explanations;
 pub mod memory;
 pub mod metrics_registry;
 pub mod model_agnostic;
 pub mod model_comparison;
+pub mod multimodal;
 pub mod nlp;
 pub mod occlusion;
 pub mod parallel;
@@ -57,6 +62,7 @@ pub mod perturbation;
 pub mod plugins;
 pub mod probabilistic;
 pub mod profiling;
+pub mod quantum;
 pub mod reporting;
 pub mod rules;
 pub mod sensitivity;
@@ -70,9 +76,8 @@ pub mod uncertainty;
 pub mod validation;
 pub mod visualization;
 pub mod visualization_backend;
-// Temporarily disabled due to compilation issues
-// #[cfg(feature = "wasm")]
-// pub mod wasm;
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 // Re-export commonly used types
 pub use types::*;
@@ -140,6 +145,11 @@ pub use deep_learning::{
     DeepLearningAnalyzer, DeepLearningConfig, DetectedConcept, DisentanglementMetrics,
     NetworkDissectionResult as DeepNetworkDissectionResult, TCAVResult,
 };
+pub use distributed::{
+    ClusterConfig, ClusterExplanationOrchestrator, ClusterHealth, ClusterStatistics,
+    DistributedCoordinator, DistributedTask, HealthStatus, LoadBalancingStrategy, TaskResult,
+    TaskStatus, TaskType, WorkerConfig, WorkerNode,
+};
 pub use enterprise::{
     AccessControl, AccessControlConfig, AccessLevel, ActionItem, AlertRule, AuditEvent,
     AuditEventType, AuditLogger, AuditRecord, AuditSeverity, AuditTrail, ComplianceFramework,
@@ -160,12 +170,18 @@ pub use fairness::{
     DemographicParityResult, DistanceMetric, EqualizedOddsResult, FairnessConfig, FairnessMetrics,
     FairnessResult, IndividualFairnessResult,
 };
+pub use federated::{
+    AggregationStats, FederatedConfig, FederatedExplainer, FederatedExplanation, PrivacyMechanism,
+};
 pub use framework::{
     ChainedConfig, ChainedStrategy, CombinedConfig, CombinedOutput, CombinedStrategy,
     CounterfactualExplainer, Explainer, ExplanationMetadata, ExplanationPipeline,
     ExplanationPostProcessor, ExplanationStrategy, FeatureAttributor, FeatureExplainer,
     GlobalExplainer, GradientAttributor, LocalExplainer, PipelineResult, UncertainExplanation,
     UncertaintyAwareExplainer, ValidationResult, ValidationViolation, ViolationSeverity,
+};
+pub use gnn::{
+    GNNExplainer, GNNExplainerConfig, GNNExplanation, GNNTask, Graph, MessagePassingExplanation,
 };
 pub use gpu::{
     utils as gpu_utils, GpuBackend, GpuBuffer, GpuConfig, GpuContext, GpuDevice,
@@ -186,6 +202,11 @@ pub use lazy::{
     LazyComputationManager, LazyConfig, LazyExecutionStats, LazyExplanation,
     LazyExplanationPipeline, LazyFeatureImportance, LazyShapValues,
 };
+pub use llm::{
+    CounterfactualText, LLMAttentionExplanation, LLMExplainer, LLMExplainerConfig, LLMExplanation,
+    LLMTask, LayerImportance, LayerType, NeuronActivation, PromptSensitivity, PromptVariation,
+    TokenizedInput, VariationType,
+};
 pub use local_explanations::{explain_locally, LocalExplanationConfig, LocalExplanationMethod};
 pub use memory::{
     cache_friendly_permutation_importance, cache_friendly_shap_computation, CacheConfig, CacheKey,
@@ -202,6 +223,11 @@ pub use model_comparison::{
     analyze_ensemble, assess_prediction_stability, compare_models, compute_model_agreement,
     BiasVarianceDecomposition, DiversityMetrics, EnsembleAnalysisResult, EnsembleMethod,
     ModelComparisonConfig, ModelComparisonResult, ModelMetrics, StabilityMetrics,
+};
+pub use multimodal::{
+    CrossModalAttention, FusionExplanation, FusionStrategy, InteractionType, ModalityContributions,
+    ModalityInteraction, ModalityType, MultiModalConfig, MultiModalExplainer,
+    MultiModalExplanation, MultiModalInput,
 };
 pub use nlp::{
     analyze_text_attention, explain_semantic_similarity, explain_syntax, explain_text_with_lime,
@@ -238,6 +264,10 @@ pub use profiling::{
     BottleneckType, HotPath, MethodProfile, OptimizationComplexity, OptimizationConfig,
     OptimizationOpportunity, OptimizationType, PerformanceBottleneck, ProfileGuidedOptimizer,
     RuntimeStatistics, Severity,
+};
+pub use quantum::{
+    CircuitComplexity, GateInstance, QuantumCircuit, QuantumExplainer, QuantumExplainerConfig,
+    QuantumExplanation, QuantumGate,
 };
 pub use reporting::{
     export_report, generate_quick_report, CaveatsAndRecommendations, DatasetInfo,

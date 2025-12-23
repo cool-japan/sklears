@@ -32,8 +32,7 @@ use std::collections::{HashMap, HashSet};
 
 use scirs2_core::ndarray::Array2;
 use scirs2_core::rand_prelude::{Distribution, SliceRandom};
-use scirs2_core::random::RandNormal;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, RandNormal, Rng};
 use sklears_core::error::{Result, SklearsError};
 
 use super::internal_validation::ClusteringValidator;
@@ -445,7 +444,7 @@ impl StabilityAnalyzer {
             s
         } else {
             let mut rng = thread_rng();
-            (0..n_runs).map(|_| rng.r#gen::<u64>()).collect()
+            (0..n_runs).map(|_| rng.gen::<u64>()).collect()
         };
 
         // Run clustering with different seeds

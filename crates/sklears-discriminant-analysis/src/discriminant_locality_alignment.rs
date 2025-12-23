@@ -391,7 +391,7 @@ impl DiscriminantLocalityAlignment<Untrained> {
                 }
             } else {
                 // Use simple graph weights
-                for (idx, &j) in neighbors.iter().enumerate() {
+                for (_idx, &j) in neighbors.iter().enumerate() {
                     alignment_weights[[i, j]] = graph[[i, j]];
                 }
             }

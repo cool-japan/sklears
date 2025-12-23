@@ -526,7 +526,7 @@ impl SIFTExtractor {
             return Ok(Array1::zeros(128));
         }
 
-        let image = &scale_space[keypoint.octave][keypoint.layer];
+        let _image = &scale_space[keypoint.octave][keypoint.layer];
         let mut descriptor = Array1::zeros(128);
 
         // Simplified descriptor computation (normally would use 4x4 grid of histograms)

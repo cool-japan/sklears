@@ -421,7 +421,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
     }
 
     fn extract_temporal_features(&self, x: &Array3<Float>) -> Result<Array2<Float>> {
-        let (n_samples, n_features, n_time_steps) = x.dim();
+        let (_n_samples, _n_features, _n_time_steps) = x.dim();
 
         match &self.config.temporal_method {
             TemporalMethod::SlidingWindow => self.extract_sliding_window_features(x),
@@ -772,6 +772,11 @@ impl TemporalDiscriminantAnalysis<Untrained> {
     ) -> Result<Array2<Float>> {
         // Simplified state space feature extraction
         let (n_samples, n_features, n_time_steps) = x.dim();
+        if n_time_steps == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Time series must contain at least one time step".to_string(),
+            ));
+        }
         let features_per_series = state_dim.min(n_features);
         let mut features = Array2::zeros((n_samples, features_per_series));
 
@@ -781,7 +786,9 @@ impl TemporalDiscriminantAnalysis<Untrained> {
                 let time_series = x.slice(s![sample_idx, feature_idx, ..]);
 
                 // Use final state as feature (in full implementation, would use Kalman filtering)
-                features[[sample_idx, state_idx]] = time_series[n_time_steps - 1];
+                if let Some(last) = time_series.last() {
+                    features[[sample_idx, state_idx]] = *last;
+                }
             }
         }
 
@@ -793,6 +800,11 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         x: &Array3<Float>,
     ) -> Result<(Array2<Float>, Option<Array2<Float>>)> {
         let (n_samples, n_features, n_time_steps) = x.dim();
+        if n_time_steps == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Temporal decomposition requires at least one time step".to_string(),
+            ));
+        }
 
         // Trend analysis
         let mut trend_coefficients = Array2::zeros((n_samples, n_features));
@@ -828,7 +840,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
     fn compute_trend_coefficient(&self, time_series: &ArrayView1<Float>) -> Result<Float> {
         match &self.config.trend_method {
             TrendMethod::Linear => self.compute_slope(time_series),
-            TrendMethod::Polynomial { degree } => {
+            TrendMethod::Polynomial { degree: _ } => {
                 // Simplified polynomial trend - just use linear for now
                 self.compute_slope(time_series)
             }
@@ -1006,7 +1018,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         y: &Array1<i32>,
         classes: &Array1<i32>,
     ) -> Result<Vec<TemporalPattern>> {
-        let (n_samples, n_features, n_time_steps) = x.dim();
+        let (_n_samples, n_features, n_time_steps) = x.dim();
         let mut patterns = Vec::new();
 
         for (class_idx, &class_label) in classes.iter().enumerate() {
@@ -1121,12 +1133,12 @@ impl TemporalDiscriminantAnalysis<Untrained> {
     fn learn_state_space_model(
         &self,
         x: &Array3<Float>,
-        y: &Array1<i32>,
-        classes: &Array1<i32>,
+        _y: &Array1<i32>,
+        _classes: &Array1<i32>,
     ) -> Result<(Option<Array2<Float>>, Option<Array2<Float>>)> {
         match &self.config.temporal_method {
             TemporalMethod::StateSpace { state_dim } => {
-                let (n_samples, n_features, n_time_steps) = x.dim();
+                let (_n_samples, n_features, _n_time_steps) = x.dim();
 
                 // Simplified state space model - use identity matrices
                 let state_transition = Array2::eye(*state_dim);
@@ -1141,10 +1153,10 @@ impl TemporalDiscriminantAnalysis<Untrained> {
     fn compute_temporal_discriminant_components(
         &self,
         temporal_features: &Array2<Float>,
-        y: &Array1<i32>,
+        _y: &Array1<i32>,
         classes: &Array1<i32>,
-        temporal_means: &Array2<Float>,
-        temporal_covariances: &[Array2<Float>],
+        _temporal_means: &Array2<Float>,
+        _temporal_covariances: &[Array2<Float>],
     ) -> Result<Array2<Float>> {
         let n_features = temporal_features.ncols();
         let n_components = self
@@ -1232,7 +1244,7 @@ impl PredictProba<Array3<Float>, Array2<Float>> for TemporalDiscriminantAnalysis
             let sample_features = temporal_features.row(sample_idx);
             let mut log_probs = Array1::zeros(n_classes);
 
-            for (class_idx, pattern) in temporal_patterns.iter().enumerate() {
+            for (class_idx, _pattern) in temporal_patterns.iter().enumerate() {
                 // Compute likelihood based on temporal pattern matching
                 let class_mean = temporal_means.row(class_idx);
                 let diff = &sample_features - &class_mean;

@@ -430,7 +430,7 @@ impl PriorElicitationEngine {
         &self,
         X: &ArrayView2<f64>,
         data_characteristics: &DataCharacteristics,
-        rng: &mut scirs2_core::random::rngs::StdRng,
+        _rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<PriorSpecification> {
         let n_features = data_characteristics.n_features;
 
@@ -520,7 +520,7 @@ impl PriorElicitationEngine {
     /// Reference (non-informative) prior elicitation
     fn reference_prior_elicitation(
         &self,
-        X: &ArrayView2<f64>,
+        _X: &ArrayView2<f64>,
         data_characteristics: &DataCharacteristics,
     ) -> SklResult<PriorSpecification> {
         let n_features = data_characteristics.n_features;
@@ -641,7 +641,7 @@ impl PriorElicitationEngine {
         &self,
         X: &ArrayView2<f64>,
         data_characteristics: &DataCharacteristics,
-        rng: &mut scirs2_core::random::rngs::StdRng,
+        _rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<PriorSpecification> {
         let n_features = data_characteristics.n_features;
 
@@ -698,7 +698,7 @@ impl PriorElicitationEngine {
     /// Maximum entropy prior elicitation
     fn maximum_entropy_elicitation(
         &self,
-        X: &ArrayView2<f64>,
+        _X: &ArrayView2<f64>,
         data_characteristics: &DataCharacteristics,
     ) -> SklResult<PriorSpecification> {
         let n_features = data_characteristics.n_features;
@@ -780,7 +780,7 @@ impl PriorElicitationEngine {
     /// Generate recommendations based on quality assessment
     fn generate_recommendations(
         &self,
-        prior_spec: &PriorSpecification,
+        _prior_spec: &PriorSpecification,
         quality_metrics: &PriorQualityMetrics,
         data_characteristics: &DataCharacteristics,
     ) -> Vec<String> {
@@ -837,7 +837,7 @@ impl PriorElicitationEngine {
     fn estimate_natural_clusters(&self, X: &ArrayView2<f64>) -> SklResult<usize> {
         // Simple heuristic based on within-cluster sum of squares
         let (n_samples, _) = X.dim();
-        let max_k = (n_samples / 10).min(10).max(1);
+        let max_k = (n_samples / 10).clamp(1, 10);
 
         let mut best_k = 1;
         let mut best_score = f64::INFINITY;
@@ -891,7 +891,7 @@ impl PriorElicitationEngine {
 
         quality_score *= 1.0 - (outlier_count as f64) / (n_samples as f64) * 0.1;
 
-        Ok(quality_score.max(0.0).min(1.0))
+        Ok(quality_score.clamp(0.0, 1.0))
     }
 
     fn compute_empirical_covariance(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
@@ -1013,7 +1013,7 @@ impl PriorElicitationEngine {
 
     fn simulate_user_preferences(
         &self,
-        data_characteristics: &DataCharacteristics,
+        _data_characteristics: &DataCharacteristics,
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> UserPreferences {
         // Simulate user preferences for demonstration
@@ -1029,7 +1029,7 @@ impl PriorElicitationEngine {
         &self,
         prior_spec: &mut PriorSpecification,
         user_preferences: &UserPreferences,
-        data_characteristics: &DataCharacteristics,
+        _data_characteristics: &DataCharacteristics,
     ) -> SklResult<()> {
         // Adjust weight concentration based on balance preference
         if user_preferences.prefer_balanced_clusters {
@@ -1244,7 +1244,7 @@ impl PriorElicitationEngine {
     fn compute_prior_data_conflict(
         &self,
         prior_spec: &PriorSpecification,
-        X: &ArrayView2<f64>,
+        _X: &ArrayView2<f64>,
         data_characteristics: &DataCharacteristics,
     ) -> SklResult<f64> {
         // Simplified conflict measure based on distance between prior means and data mean

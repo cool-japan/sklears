@@ -576,7 +576,7 @@ pub mod utils {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::{Array2, ArrayView2};
-    use scirs2_core::{random::Rng, thread_rng};
+    use scirs2_core::random::{thread_rng, Rng};
 
     /// Example plugin implementation for testing
     #[derive(Debug)]
@@ -709,7 +709,7 @@ mod tests {
             let mut rng = thread_rng();
             let mut embedding = Array2::zeros((n_samples, self.n_components));
             for elem in embedding.iter_mut() {
-                *elem = rng.gen::<f64>();
+                *elem = rng.gen();
             }
 
             self.embedding = Some(embedding);

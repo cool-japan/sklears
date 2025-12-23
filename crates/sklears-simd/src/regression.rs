@@ -29,10 +29,10 @@ pub fn least_squares_normal_equation(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { least_squares_avx2(x, y, &mut xtx, &mut xty) };
             return (xtx, xty);
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { least_squares_sse2(x, y, &mut xtx, &mut xty) };
             return (xtx, xty);
         }
@@ -249,9 +249,9 @@ pub fn elastic_net_penalty(weights: &[f32], alpha: f32, l1_ratio: f32) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { elastic_net_penalty_avx2(weights, alpha, l1_ratio) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { elastic_net_penalty_sse2(weights, alpha, l1_ratio) };
         }
     }
@@ -364,10 +364,10 @@ pub fn soft_threshold(values: &[f32], threshold: f32, output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { soft_threshold_avx2(values, threshold, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { soft_threshold_sse2(values, threshold, output) };
             return;
         }
@@ -505,10 +505,10 @@ pub fn linear_predict(x: &[&[f32]], weights: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { linear_predict_avx2(x, weights, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { linear_predict_sse2(x, weights, output) };
             return;
         }
@@ -597,7 +597,7 @@ unsafe fn linear_predict_avx2(x: &[&[f32]], weights: &[f32], output: &mut [f32])
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;

@@ -5,7 +5,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -160,7 +160,7 @@ pub struct StackingConfig {
     pub meta_learner_strategy: MetaLearnerStrategy,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Use original features in meta-learner
     pub passthrough: bool,
@@ -512,9 +512,9 @@ where
         let n_classes = classes.len();
 
         // Initialize random number generator
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         // Generate meta-features using the specified stacking method
@@ -579,7 +579,7 @@ where
         x: &Array2<f64>,
         y: &Array1<i32>,
         cv_folds: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Vec<C::Fitted>)> {
         let n_samples = x.nrows();
         let n_base_estimators = self.base_estimators.len();
@@ -600,7 +600,7 @@ where
         let folds = self.generate_cv_folds(n_samples, cv_folds, rng);
 
         // For each fold, train base estimators and predict on validation set
-        for (fold_idx, (train_indices, val_indices)) in folds.iter().enumerate() {
+        for (train_indices, val_indices) in folds.iter() {
             let x_train = x.select(Axis(0), train_indices);
             let y_train = y.select(Axis(0), train_indices);
             let x_val = x.select(Axis(0), val_indices);
@@ -664,7 +664,7 @@ where
         x: &Array2<f64>,
         y: &Array1<i32>,
         test_size: f64,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Vec<C::Fitted>)> {
         let n_samples = x.nrows();
         let split_point = ((1.0 - test_size) * n_samples as f64) as usize;
@@ -673,7 +673,7 @@ where
         let mut indices: Vec<usize> = (0..n_samples).collect();
         // Shuffle using Fisher-Yates algorithm
         for i in (1..indices.len()).rev() {
-            let j = rng.random_range(0, i + 1);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -752,7 +752,7 @@ where
         x: &Array2<f64>,
         y: &Array1<i32>,
         blend_ratio: f64,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Vec<C::Fitted>)> {
         // Similar to holdout but uses a fixed blending set
         self.generate_holdout_meta_features(x, y, blend_ratio, rng)
@@ -762,12 +762,12 @@ where
         &self,
         n_samples: usize,
         cv_folds: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> Vec<(Vec<usize>, Vec<usize>)> {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         // Shuffle using Fisher-Yates algorithm
         for i in (1..indices.len()).rev() {
-            let j = rng.random_range(0, i + 1);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 

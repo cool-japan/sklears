@@ -7,7 +7,7 @@
 
 Clustering algorithms for the sklears machine learning library.
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -23,7 +23,7 @@ This crate provides implementations of clustering algorithms including:
 
 ```toml
 [dependencies]
-sklears = { version = "0.1.0-alpha.1", features = ["clustering"] }
+sklears = { version = "0.1.0-alpha.2", features = ["clustering"] }
 ```
 
 ## Examples
@@ -65,6 +65,14 @@ let labels = model.fit_predict(&data)?;
 - **Parallel Assignment**: Multi-threaded cluster assignment
 - **Efficient K-D Trees**: For neighbor searches in DBSCAN
 - **Memory-Efficient Updates**: In-place operations where possible
+
+### GPU-Accelerated Distances
+
+Enable the optional `gpu` feature to experiment with WebGPU-powered distance kernels. GPU-backed tests are ignored by default because device discovery can be slow; run them explicitly when a compatible GPU is available:
+
+```bash
+cargo test -p sklears-clustering --features gpu -- --ignored gpu_distances::gpu::tests::test_gpu_distance_computation
+```
 
 ## Metrics
 

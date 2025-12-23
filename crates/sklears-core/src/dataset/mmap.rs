@@ -124,6 +124,7 @@ pub fn make_large_regression<P: AsRef<Path>>(
     chunk_size: Option<usize>,
 ) -> Result<()> {
     // SciRS2 Policy: Use scirs2_core::random for all RNG operations
+    use scirs2_core::random::essentials::Uniform;
     use scirs2_core::random::prelude::*;
     use scirs2_core::random::{thread_rng, Distribution};
 
@@ -133,9 +134,11 @@ pub fn make_large_regression<P: AsRef<Path>>(
         Normal::new(0.0, 1.0).map_err(|e| crate::error::SklearsError::Other(e.to_string()))?;
 
     // Generate random coefficients for linear combination
+    let uniform =
+        Uniform::new(-10.0, 10.0).map_err(|e| crate::error::SklearsError::Other(e.to_string()))?;
     let mut coef = Vec::with_capacity(n_features);
     for _ in 0..n_features {
-        coef.push(rng.random_range(-10.0..10.0));
+        coef.push(uniform.sample(&mut rng));
     }
 
     let mut builder = MmapDatasetBuilder::new(n_samples, n_features)

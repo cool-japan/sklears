@@ -10,6 +10,13 @@ use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use thiserror::Error;
 
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
+
+/// Type alias for chunk data: (features, labels)
+type ChunkData = (Array2<f64>, Array1<i32>);
+
 #[derive(Error, Debug)]
 pub enum OnlineLearningError {
     #[error("Features and targets have different number of samples")]
@@ -208,7 +215,7 @@ impl ConceptDriftDetector {
 }
 
 /// Online Gaussian Naive Bayes statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OnlineGaussianStats {
     pub n_samples: f64,
     pub mean: f64,
@@ -268,7 +275,7 @@ impl OnlineGaussianStats {
 }
 
 /// Online Multinomial Naive Bayes statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OnlineMultinomialStats {
     pub feature_counts: HashMap<i32, f64>,
     pub total_count: f64,
@@ -353,12 +360,29 @@ pub struct OnlineNaiveBayes {
     is_initialized: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FeatureType {
     /// Continuous
     Continuous,
     /// Discrete
     Discrete,
+}
+
+/// Checkpoint structure for serializing OnlineNaiveBayes state
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OnlineNBCheckpoint {
+    pub class_counts: HashMap<i32, f64>,
+    pub total_samples: f64,
+    pub gaussian_stats: HashMap<(i32, usize), OnlineGaussianStats>,
+    pub multinomial_stats: HashMap<(i32, usize), OnlineMultinomialStats>,
+    pub classes: Vec<i32>,
+    pub n_features: Option<usize>,
+    pub feature_types: Vec<FeatureType>,
+    pub current_learning_rate: f64,
+    pub sample_count: u64,
+    pub is_initialized: bool,
+    pub processed_chunks: u64,
+    pub total_samples_seen: u64,
 }
 
 impl OnlineNaiveBayes {
@@ -515,10 +539,7 @@ impl OnlineNaiveBayes {
             {
                 FeatureType::Continuous => {
                     let key = (label, feature_idx);
-                    let stats = self
-                        .gaussian_stats
-                        .entry(key)
-                        .or_insert_with(OnlineGaussianStats::new);
+                    let stats = self.gaussian_stats.entry(key).or_default();
 
                     if self.config.forgetting_factor < 1.0 {
                         stats.update_with_forgetting(
@@ -777,7 +798,7 @@ pub trait DataChunkIterator {
     type Error;
 
     /// Get the next chunk of data
-    fn next_chunk(&mut self) -> Result<Option<(Array2<f64>, Array1<i32>)>, Self::Error>;
+    fn next_chunk(&mut self) -> Result<Option<ChunkData>, Self::Error>;
 
     /// Estimate total number of samples (if known)
     fn estimated_total_samples(&self) -> Option<usize>;
@@ -1006,9 +1027,69 @@ impl OutOfCoreNaiveBayes {
     }
 
     fn save_checkpoint(&self) -> Result<(), OnlineLearningError> {
-        // Placeholder for checkpoint saving functionality
-        // In a real implementation, you'd serialize the model state
+        self.save_checkpoint_to_path("checkpoint.json")
+    }
+
+    /// Save checkpoint to a specific file path
+    pub fn save_checkpoint_to_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), OnlineLearningError> {
+        let checkpoint = OnlineNBCheckpoint {
+            class_counts: self.online_nb.class_counts.clone(),
+            total_samples: self.online_nb.total_samples,
+            gaussian_stats: self.online_nb.gaussian_stats.clone(),
+            multinomial_stats: self.online_nb.multinomial_stats.clone(),
+            classes: self.online_nb.classes.clone(),
+            n_features: self.online_nb.n_features,
+            feature_types: self.online_nb.feature_types.clone(),
+            current_learning_rate: self.online_nb.current_learning_rate,
+            sample_count: self.online_nb.sample_count,
+            is_initialized: self.online_nb.is_initialized,
+            processed_chunks: self.processed_chunks as u64,
+            total_samples_seen: self.total_samples_seen as u64,
+        };
+
+        let json = serde_json::to_string_pretty(&checkpoint).map_err(|e| {
+            OnlineLearningError::NumericalError(format!("Failed to serialize checkpoint: {}", e))
+        })?;
+
+        fs::write(path, json).map_err(|e| {
+            OnlineLearningError::NumericalError(format!("Failed to write checkpoint: {}", e))
+        })?;
+
         println!("Checkpoint saved at chunk {}", self.processed_chunks);
+        Ok(())
+    }
+
+    /// Load checkpoint from a specific file path
+    pub fn load_checkpoint_from_path<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), OnlineLearningError> {
+        let json = fs::read_to_string(path).map_err(|e| {
+            OnlineLearningError::NumericalError(format!("Failed to read checkpoint: {}", e))
+        })?;
+
+        let checkpoint: OnlineNBCheckpoint = serde_json::from_str(&json).map_err(|e| {
+            OnlineLearningError::NumericalError(format!("Failed to deserialize checkpoint: {}", e))
+        })?;
+
+        // Restore model state
+        self.online_nb.class_counts = checkpoint.class_counts;
+        self.online_nb.total_samples = checkpoint.total_samples;
+        self.online_nb.gaussian_stats = checkpoint.gaussian_stats;
+        self.online_nb.multinomial_stats = checkpoint.multinomial_stats;
+        self.online_nb.classes = checkpoint.classes;
+        self.online_nb.n_features = checkpoint.n_features;
+        self.online_nb.feature_types = checkpoint.feature_types;
+        self.online_nb.current_learning_rate = checkpoint.current_learning_rate;
+        self.online_nb.sample_count = checkpoint.sample_count;
+        self.online_nb.is_initialized = checkpoint.is_initialized;
+        self.processed_chunks = checkpoint.processed_chunks as usize;
+        self.total_samples_seen = checkpoint.total_samples_seen as usize;
+
+        println!("Checkpoint loaded from chunk {}", self.processed_chunks);
         Ok(())
     }
 

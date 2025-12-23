@@ -1011,7 +1011,7 @@ impl TrainedDeepDiscriminantLearning {
         x_batch: &Array2<Float>,
         y_batch: &Array1<i32>,
     ) -> Result<(Array2<Float>, Array1<i32>)> {
-        if let Some(alpha) = self.config.mixup_alpha {
+        if self.config.mixup_alpha.is_some() {
             let batch_size = x_batch.nrows();
             let mut mixed_x = x_batch.clone();
             let mixed_y = y_batch.clone(); // For simplicity, keep original labels
@@ -1218,14 +1218,13 @@ impl TrainedDeepDiscriminantLearning {
     /// Advanced weight update with momentum and adaptive learning rates
     fn update_weights_advanced(
         &mut self,
-        x_batch: &Array2<Float>,
-        y_batch: &Array1<i32>,
-        outputs: &Array2<Float>,
+        _x_batch: &Array2<Float>,
+        _y_batch: &Array1<i32>,
+        _outputs: &Array2<Float>,
         learning_rate: Float,
     ) -> Result<()> {
         // Simplified weight update (in practice, compute actual gradients)
         let weight_decay = self.config.training.weight_decay;
-        let momentum = self.config.training.momentum;
 
         for layer in &mut self.layers {
             for weight in layer.weights.iter_mut() {

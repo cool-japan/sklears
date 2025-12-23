@@ -76,7 +76,7 @@ impl PropertyTestGenerator {
         let (min_val, max_val) = self.value_range;
 
         Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.gen_range(min_val..=max_val)
+            rng.gen_range(min_val..max_val + 1.0)
         })
     }
 
@@ -89,7 +89,7 @@ impl PropertyTestGenerator {
         let mut rng = StdRng::seed_from_u64(self.seed + 1);
         let (min_val, max_val) = self.value_range;
 
-        Array1::from_shape_fn(n_samples, |_| rng.gen_range(min_val..=max_val))
+        Array1::from_shape_fn(n_samples, |_| rng.gen_range(min_val..max_val + 1.0))
     }
 
     /// Generate classification targets

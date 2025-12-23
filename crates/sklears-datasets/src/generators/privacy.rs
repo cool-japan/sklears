@@ -24,7 +24,7 @@ pub fn make_privacy_preserving_dataset(
         ));
     }
 
-    if epsilon <= 0.0 || delta < 0.0 || delta >= 1.0 {
+    if epsilon <= 0.0 || !(0.0..1.0).contains(&delta) {
         return Err(SklearsError::InvalidInput(
             "epsilon must be positive, delta must be in [0, 1)".to_string(),
         ));
@@ -33,7 +33,7 @@ pub fn make_privacy_preserving_dataset(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate base dataset

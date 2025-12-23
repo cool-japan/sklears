@@ -218,8 +218,8 @@ impl BenchmarkClassifier {
                 .iter()
                 .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
 
-            let threshold = rng.gen_range(min_val..=max_val);
-            let prediction = rng.gen_range(0..=1);
+            let threshold = rng.gen_range(min_val..max_val + 1.0);
+            let prediction = rng.gen_range(0..2);
 
             stumps.push((feature_idx, threshold, prediction));
         }

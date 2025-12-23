@@ -32,7 +32,7 @@ pub fn generate_statistical_summary(
             .feature_names
             .as_ref()
             .and_then(|names| names.get(feature_idx))
-            .map(|name| name.clone())
+            .cloned()
             .unwrap_or_else(|| format!("feature_{}", feature_idx));
 
         let feature_stats = calculate_feature_statistics(data, feature_idx, &feature_name, config);
@@ -284,7 +284,7 @@ fn calculate_target_statistics(
     // Calculate continuous statistics if needed
     let continuous_stats = if data_type == "continuous" {
         Some(calculate_feature_statistics(
-            &vec![valid_targets.clone()],
+            &[valid_targets.clone()],
             0,
             target_name,
             config,

@@ -13,7 +13,7 @@ use log;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_core::{
     error::{Result, SklearnContext, SklearsError},
-    types::{Float, FloatBounds},
+    types::Float,
     validation::{ConfigValidation, Validate, ValidationRule, ValidationRules},
 };
 
@@ -407,7 +407,16 @@ pub fn enet_path_enhanced(
     })
 }
 
+/// Type alias for ElasticNet/Lasso path results (alphas, coefficients, intercepts, n_iters)
+pub type PathResult = Result<(
+    Array1<Float>,
+    Array2<Float>,
+    Array1<Float>,
+    Option<Array1<usize>>,
+)>;
+
 /// Legacy function for backward compatibility
+#[allow(clippy::too_many_arguments)]
 pub fn enet_path(
     x: &Array2<Float>,
     y: &Array1<Float>,
@@ -418,12 +427,7 @@ pub fn enet_path(
     max_iter: usize,
     tol: Float,
     return_n_iter: bool,
-) -> Result<(
-    Array1<Float>,
-    Array2<Float>,
-    Array1<Float>,
-    Option<Array1<usize>>,
-)> {
+) -> PathResult {
     let config = ElasticNetPathConfig {
         l1_ratio,
         n_alphas,
@@ -447,6 +451,7 @@ pub fn enet_path(
 /// Compute the Lasso path with coordinate descent
 ///
 /// This is a convenience function that calls enet_path with l1_ratio=1.0
+#[allow(clippy::too_many_arguments)]
 pub fn lasso_path(
     x: &Array2<Float>,
     y: &Array1<Float>,
@@ -456,12 +461,7 @@ pub fn lasso_path(
     max_iter: usize,
     tol: Float,
     return_n_iter: bool,
-) -> Result<(
-    Array1<Float>,
-    Array2<Float>,
-    Array1<Float>,
-    Option<Array1<usize>>,
-)> {
+) -> PathResult {
     enet_path(
         x,
         y,
@@ -495,7 +495,7 @@ pub fn lars_path(
     x: &Array2<Float>,
     y: &Array1<Float>,
     max_iter: Option<usize>,
-    alpha_min: Float,
+    _alpha_min: Float,
     fit_intercept: bool,
 ) -> Result<(Array1<Float>, Vec<usize>, Array2<Float>)> {
     let n_samples = x.nrows();
@@ -561,7 +561,7 @@ pub fn lars_path(
 pub fn lars_path_gram(
     xy: &Array1<Float>,
     gram: &Array2<Float>,
-    n_samples: usize,
+    _n_samples: usize,
     max_iter: Option<usize>,
     alpha_min: Float,
 ) -> Result<(Array1<Float>, Vec<usize>, Array2<Float>)> {
@@ -574,7 +574,7 @@ pub fn lars_path_gram(
         ));
     }
 
-    let max_iter = max_iter.unwrap_or(n_features);
+    let _max_iter = max_iter.unwrap_or(n_features);
 
     // Note: This is a placeholder implementation
     // A full implementation would use the Gram matrix directly in the LARS algorithm
@@ -653,6 +653,7 @@ fn compute_gram_matrix(x: &Array2<Float>) -> Array2<Float> {
 }
 
 /// Coordinate descent with warm start and dual gap computation
+#[allow(clippy::too_many_arguments)]
 fn coordinate_descent_with_warm_start(
     x: &Array2<Float>,
     y: &Array1<Float>,
@@ -666,7 +667,7 @@ fn coordinate_descent_with_warm_start(
     gram: Option<&Array2<Float>>,
 ) -> Result<(Array1<Float>, Float, usize, Float, Float)> {
     let n_samples = x.nrows() as Float;
-    let n_features = x.ncols();
+    let _n_features = x.ncols();
 
     // Initialize from warm start
     let mut coef = warm_start_coef.clone();
@@ -740,7 +741,6 @@ fn coordinate_descent_with_warm_start(
 
         // Check dual gap convergence
         if dual_gap < dual_gap_tol {
-            converged = true;
             break;
         }
 
@@ -760,6 +760,7 @@ fn coordinate_descent_with_warm_start(
 }
 
 /// Coordinate update using Gram matrix
+#[allow(clippy::too_many_arguments)]
 fn coordinate_update_with_gram(
     coef: &mut Array1<Float>,
     gram: &Array2<Float>,
@@ -777,7 +778,7 @@ fn coordinate_update_with_gram(
     let xy = x.t().dot(y);
 
     for j in 0..n_features {
-        let old_coef_j = coef[j];
+        let _old_coef_j = coef[j];
 
         // Compute gradient using Gram matrix
         let mut gradient = xy[j] / n_samples;
@@ -870,7 +871,7 @@ fn compute_dual_gap(
     let gradient = x.t().dot(&residuals) / n_samples;
 
     // Compute dual norm (maximum absolute gradient)
-    let dual_norm = gradient.iter().map(|&g| g.abs()).fold(0.0, Float::max);
+    let _dual_norm = gradient.iter().map(|&g| g.abs()).fold(0.0, Float::max);
 
     // Primal objective
     let primal = 0.5 * residuals.dot(&residuals) / n_samples
@@ -912,6 +913,7 @@ fn compute_objective(
 }
 
 #[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -966,7 +968,7 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0],];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let (alphas, active, coef_path) = lars_path(&x, &y, Some(2), 0.0, true).unwrap();
+        let (alphas, _active, coef_path) = lars_path(&x, &y, Some(2), 0.0, true).unwrap();
 
         assert!(alphas.len() > 0);
         assert_eq!(coef_path.nrows(), 2); // n_features
@@ -977,7 +979,7 @@ mod tests {
         let xy = array![1.0, 2.0];
         let gram = array![[1.0, 0.5], [0.5, 1.0],];
 
-        let (alphas, active, coef_path) = lars_path_gram(&xy, &gram, 5, Some(2), 0.0).unwrap();
+        let (alphas, _active, coef_path) = lars_path_gram(&xy, &gram, 5, Some(2), 0.0).unwrap();
 
         assert!(alphas.len() > 0);
         assert_eq!(coef_path.nrows(), 2);

@@ -149,10 +149,10 @@ impl Fit<Array2<f64>, ()> for MarkovRandomFieldMixture<Untrained> {
         }
 
         // Initialize parameters
-        let weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
+        let _weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
 
         // Initialize means with k-means++ style initialization
-        let means = self.initialize_means(X)?;
+        let _means = self.initialize_means(X)?;
 
         // Initialize covariances as identity matrices
         let mut covariances = Array3::zeros((self.n_components, n_features, n_features));
@@ -163,11 +163,11 @@ impl Fit<Array2<f64>, ()> for MarkovRandomFieldMixture<Untrained> {
         }
 
         // Initialize interaction parameters
-        let interaction_parameters: Array2<f64> =
+        let _interaction_parameters: Array2<f64> =
             Array2::zeros((self.n_components, self.n_components));
 
         // Build neighborhood graph based on spatial proximity
-        let neighborhood_graph = self.build_neighborhood_graph(X)?;
+        let _neighborhood_graph = self.build_neighborhood_graph(X)?;
 
         // TODO: Implement full MRF EM algorithm
         // This is a complex algorithm involving belief propagation or variational inference

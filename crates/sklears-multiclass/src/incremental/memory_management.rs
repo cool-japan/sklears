@@ -87,11 +87,6 @@ impl<T: FloatBounds> AdaptiveBuffer<T> {
         }
     }
 
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(MemoryConfig::default())
-    }
-
     /// Estimate memory usage of an array
     fn estimate_memory_usage(array: &Array1<T>) -> usize {
         array.len() * std::mem::size_of::<T>()
@@ -218,11 +213,6 @@ impl<T: FloatBounds> MemoryManager<T> {
             config,
             class_weights: HashMap::new(),
         }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(MemoryConfig::default())
     }
 
     /// Update class weights based on memory usage
@@ -374,14 +364,14 @@ mod tests {
 
     #[test]
     fn test_memory_manager_creation() {
-        let manager: MemoryManager<f64> = MemoryManager::default();
+        let manager: MemoryManager<f64> = MemoryManager::new(MemoryConfig::default());
         let stats = manager.memory_stats();
         assert_eq!(stats.num_examples, 0);
     }
 
     #[test]
     fn test_add_example() {
-        let mut manager: MemoryManager<f64> = MemoryManager::default();
+        let mut manager: MemoryManager<f64> = MemoryManager::new(MemoryConfig::default());
         let x = array![1.0, 2.0, 3.0];
 
         assert!(manager.add_example(x, 0).is_ok());
@@ -393,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_class_weights() {
-        let mut manager: MemoryManager<f64> = MemoryManager::default();
+        let mut manager: MemoryManager<f64> = MemoryManager::new(MemoryConfig::default());
 
         // Add examples for different classes
         manager.add_example(array![1.0, 2.0], 0).unwrap();
@@ -428,7 +418,7 @@ mod tests {
 
     #[test]
     fn test_sample_examples() {
-        let mut manager: MemoryManager<f64> = MemoryManager::default();
+        let mut manager: MemoryManager<f64> = MemoryManager::new(MemoryConfig::default());
 
         // Add multiple examples for class 0
         for i in 0..10 {

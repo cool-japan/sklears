@@ -4,12 +4,13 @@
 //! macros used in the sklears machine learning framework. It handles macro dispatch
 //! and coordinates with parsers and code generators to produce the final generated code.
 
-use proc_macro2::TokenStream;
 use crate::dsl_impl::{
-    dsl_types::{PipelineConfig, FeatureEngineeringConfig, HyperparameterConfig},
-    parsers::{parse_ml_pipeline, parse_feature_engineering, parse_hyperparameter_config},
-    code_generators::{generate_pipeline_code, generate_feature_engineering_code, generate_hyperparameter_code},
+    code_generators::{
+        generate_feature_engineering_code, generate_hyperparameter_code, generate_pipeline_code,
+    },
+    parsers::{parse_feature_engineering, parse_hyperparameter_config, parse_ml_pipeline},
 };
+use proc_macro2::TokenStream;
 
 /// Implementation of the ml_pipeline! macro
 ///
@@ -151,7 +152,7 @@ pub fn hyperparameter_config_impl(input: TokenStream) -> TokenStream {
 ///
 /// # Returns
 /// Generated TokenStream with the evaluation implementation
-pub fn model_evaluation_impl(input: TokenStream) -> TokenStream {
+pub fn model_evaluation_impl(_input: TokenStream) -> TokenStream {
     // TODO: Implement model evaluation macro
     // This is a placeholder for future enhancement
     quote::quote! {
@@ -169,7 +170,7 @@ pub fn model_evaluation_impl(input: TokenStream) -> TokenStream {
 ///
 /// # Returns
 /// Generated TokenStream with the data pipeline implementation
-pub fn data_pipeline_impl(input: TokenStream) -> TokenStream {
+pub fn data_pipeline_impl(_input: TokenStream) -> TokenStream {
     // TODO: Implement data pipeline macro
     // This is a placeholder for future enhancement
     quote::quote! {
@@ -187,7 +188,7 @@ pub fn data_pipeline_impl(input: TokenStream) -> TokenStream {
 ///
 /// # Returns
 /// Generated TokenStream with the experiment setup implementation
-pub fn experiment_config_impl(input: TokenStream) -> TokenStream {
+pub fn experiment_config_impl(_input: TokenStream) -> TokenStream {
     // TODO: Implement experiment config macro
     // This is a placeholder for future enhancement
     quote::quote! {
@@ -244,7 +245,8 @@ impl MacroRegistry {
     /// * `name` - Name of the macro
     /// * `implementation` - Function implementing the macro logic
     pub fn register(&mut self, name: &str, implementation: fn(TokenStream) -> TokenStream) {
-        self.implementations.insert(name.to_string(), implementation);
+        self.implementations
+            .insert(name.to_string(), implementation);
     }
 
     /// Execute a macro by name
@@ -298,7 +300,7 @@ mod tests {
     fn test_macro_registry_custom_registration() {
         let mut registry = MacroRegistry::new();
 
-        fn test_macro(input: TokenStream) -> TokenStream {
+        fn test_macro(_input: TokenStream) -> TokenStream {
             quote! { println!("test macro executed"); }
         }
 

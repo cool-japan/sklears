@@ -8,6 +8,9 @@ use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 
+#[cfg(feature = "oblique")]
+use scirs2_core::ndarray::s;
+
 use crate::criteria::{ConditionalTestType, FeatureType};
 
 /// Hyperplane split information for oblique trees

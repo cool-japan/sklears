@@ -348,10 +348,10 @@ impl LabelCorrelationAnalysis {
             visited[i] = true;
 
             // Find all labels correlated with this one
-            for j in 0..n_labels {
-                if !visited[j] && self.correlation_matrix[[i, j]].abs() > threshold {
+            for (j, is_visited) in visited.iter_mut().enumerate().take(n_labels) {
+                if !*is_visited && self.correlation_matrix[[i, j]].abs() > threshold {
                     cluster.push(j);
-                    visited[j] = true;
+                    *is_visited = true;
                 }
             }
 

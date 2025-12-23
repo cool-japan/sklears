@@ -349,7 +349,7 @@ impl ProximalGradientSelector<Untrained> {
         let mut objective_values = Vec::new();
 
         // Proximal gradient iterations
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             // Compute predictions
             let predictions = features.dot(&weights);
 
@@ -606,7 +606,7 @@ impl ADMMFeatureSelector<Untrained> {
 
         // ADMM iterations
         for _iter in 0..self.max_iter {
-            let x_old = x.clone();
+            let _x_old = x.clone();
             let z_old = z.clone();
 
             // x-update: solve quadratic subproblem
@@ -883,7 +883,7 @@ impl SemidefiniteFeatureSelector<Untrained> {
 
         // Projected gradient method for SDP relaxation
         for _iter in 0..self.max_iter {
-            let x_old = x_matrix.clone();
+            let _x_old = x_matrix.clone();
 
             // Compute gradient
             // Objective: maximize correlations^T * X * correlations - regularization * trace(X * cov_matrix)
@@ -899,7 +899,7 @@ impl SemidefiniteFeatureSelector<Untrained> {
 
             // Enforce constraint: 0 <= X_{ii} <= 1
             for i in 0..n_features {
-                x_projected[[i, i]] = x_projected[[i, i]].max(0.0).min(1.0);
+                x_projected[[i, i]] = x_projected[[i, i]].clamp(0.0, 1.0);
             }
 
             // Compute objective value
@@ -1419,7 +1419,7 @@ fn correlation_coefficient(x: &Array1<Float>, y: &Array1<Float>) -> SklResult<Fl
         ));
     }
 
-    let n = x.len() as Float;
+    let _n = x.len() as Float;
     let mean_x = x.mean().unwrap();
     let mean_y = y.mean().unwrap();
 

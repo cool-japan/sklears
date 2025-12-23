@@ -32,10 +32,7 @@ use sklears_compose::{
     WasmConfig,
     WasmPipeline,
 };
-use sklears_core::{
-    error::Result as SklResult,
-    traits::{Fit, Predict},
-};
+use sklears_core::{error::Result as SklResult, traits::Fit};
 use std::time::Instant;
 
 /// Financial Risk Assessment Pipeline
@@ -44,7 +41,7 @@ fn create_financial_risk_pipeline() -> SklResult<()> {
     println!("====================================");
 
     // Create domain-specific validation schema
-    let financial_schema = ValidationBuilder::new("FinancialRiskModel")
+    let _financial_schema = ValidationBuilder::new("FinancialRiskModel")
         .add_field(
             "risk_tolerance",
             FieldConstraints {
@@ -130,7 +127,7 @@ fn create_healthcare_pipeline() -> SklResult<()> {
     println!("================================");
 
     // Healthcare-specific validation
-    let healthcare_schema = ValidationBuilder::new("MedicalDiagnosticModel")
+    let _healthcare_schema = ValidationBuilder::new("MedicalDiagnosticModel")
         .add_field(
             "patient_privacy_level",
             FieldConstraints {
@@ -254,7 +251,7 @@ fn create_ecommerce_pipeline() -> SklResult<()> {
     let labels = array![1.0, 0.0, 1.0, 1.0];
     let trained_recommender =
         recommendation_pipeline.fit(&user_features.view(), &Some(&labels.view()))?;
-    let recommendations = trained_recommender.predict(&user_features.view())?;
+    let _recommendations = trained_recommender.predict(&user_features.view())?;
     let recommendation_time = start_time.elapsed();
 
     println!("⚡ Performance Metrics:");
@@ -318,7 +315,7 @@ fn create_iot_pipeline() -> SklResult<()> {
         debug_mode: false,
     };
 
-    let edge_pipeline = WasmPipeline::new(wasm_config);
+    let _edge_pipeline = WasmPipeline::new(wasm_config);
 
     println!("📱 Edge Deployment Ready:");
     println!("   • Memory footprint: 32MB");

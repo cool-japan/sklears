@@ -26,8 +26,8 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Fit, Transform};
@@ -129,7 +129,7 @@ impl AnisotropicRBFSampler {
         }
 
         // Simple optimization using coordinate descent
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             let mut improved = false;
 
             for j in 0..n_features {
@@ -192,7 +192,7 @@ impl AnisotropicRBFSampler {
             vt.ok_or_else(|| SklearsError::NumericalError("VT matrix not computed".to_string()))?;
         let s_inv = s.mapv(|x| if x > 1e-10 { 1.0 / x.sqrt() } else { 0.0 });
         let s_inv_diag = Array2::from_diag(&s_inv);
-        let k_inv_sqrt = u.dot(&s_inv_diag).dot(&vt);
+        let _k_inv_sqrt = u.dot(&s_inv_diag).dot(&vt);
         let log_det = s.mapv(|x| if x > 1e-10 { x.ln() } else { -23.0 }).sum(); // log(1e-10) ≈ -23
         let log_likelihood = -0.5 * (log_det + n as f64 * (2.0 * PI).ln());
 
@@ -208,16 +208,14 @@ impl Fit<Array2<f64>, ()> for AnisotropicRBFSampler {
         // Determine length scales
         let length_scales = if self.learn_length_scales {
             self.learn_length_scales_ml(x)?
+        } else if self.length_scales.len() == 1 {
+            Array1::from_elem(n_features, self.length_scales[0])
+        } else if self.length_scales.len() == n_features {
+            Array1::from_vec(self.length_scales.clone())
         } else {
-            if self.length_scales.len() == 1 {
-                Array1::from_elem(n_features, self.length_scales[0])
-            } else if self.length_scales.len() == n_features {
-                Array1::from_vec(self.length_scales.clone())
-            } else {
-                return Err(SklearsError::InvalidInput(
-                    "Length scales must be either scalar or match number of features".to_string(),
-                ));
-            }
+            return Err(SklearsError::InvalidInput(
+                "Length scales must be either scalar or match number of features".to_string(),
+            ));
         };
 
         // Generate random frequencies from scaled normal distribution
@@ -659,7 +657,7 @@ impl Fit<Array2<f64>, ()> for RobustAnisotropicRBFSampler {
 
         // Cholesky decomposition of precision matrix for sampling
         // Use SVD decomposition for sampling
-        let (u, s, vt) = precision.svd(true, true).map_err(|e| {
+        let (u, s, _vt) = precision.svd(true, true).map_err(|e| {
             SklearsError::NumericalError(format!("SVD decomposition failed: {:?}", e))
         })?;
         let u =

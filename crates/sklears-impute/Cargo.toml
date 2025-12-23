@@ -15,7 +15,6 @@ description = "Missing value imputation strategies"
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 # ✅ SciRS2 Policy compliant dependencies
 scirs2-core = { workspace = true }
 scirs2-optimize = { workspace = true }
@@ -30,17 +29,26 @@ scirs2-neural = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { version = "1.0" }
-itertools = "0.12"
-rayon = "1.8"
+itertools = "0.14"
+rayon = "1.10"
 wide = "0.7"
 approx = { workspace = true }
 # Additional dependencies for new modules
 memmap2 = "0.9"
-num_cpus = "1.16"
+num_cpus = "1.17"
 
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "imputation_benchmarks"
+harness = false
+
+[[bench]]
+name = "memory_benchmarks"
+harness = false
 
 [features]
 default = []

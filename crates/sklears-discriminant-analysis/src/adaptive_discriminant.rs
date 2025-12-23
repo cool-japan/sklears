@@ -249,7 +249,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
     /// Perform online adaptation with new data
     pub fn partial_fit(&mut self, x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Check dimensions first
         {
@@ -627,7 +627,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
         let n_classes = data.classes.len();
         let mut scores = Array1::zeros(n_classes);
 
-        for (class_idx, &class_label) in data.classes.iter().enumerate() {
+        for (class_idx, &_class_label) in data.classes.iter().enumerate() {
             let class_mean = data.class_means.row(class_idx);
             let diff = sample - &class_mean;
 
@@ -677,7 +677,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
         let n_classes = classes.len();
         let mut scores = Array1::zeros(n_classes);
 
-        for (class_idx, &class_label) in classes.iter().enumerate() {
+        for (class_idx, &_class_label) in classes.iter().enumerate() {
             let class_mean = class_means.row(class_idx);
             let diff = sample - &class_mean;
 

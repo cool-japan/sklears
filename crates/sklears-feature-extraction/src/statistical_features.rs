@@ -4,7 +4,7 @@
 //! including moments, distribution properties, and entropy-based measures.
 
 use crate::*;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, ArrayView1};
 use sklears_core::prelude::SklearsError;
 
@@ -621,13 +621,13 @@ impl EntropyFeaturesExtractor {
             for j in 0..(n - m) {
                 if i != j {
                     let mut match_m = true;
-                    let mut match_m1 = true;
+                    let mut _match_m1 = true;
 
                     // Check for matches of length m
                     for k in 0..m {
                         if (data[i + k] - data[j + k]).abs() > r {
                             match_m = false;
-                            match_m1 = false;
+                            _match_m1 = false;
                             break;
                         }
                     }
@@ -640,10 +640,10 @@ impl EntropyFeaturesExtractor {
                             if (data[i + m] - data[j + m]).abs() <= r {
                                 a += 1;
                             } else {
-                                match_m1 = false;
+                                _match_m1 = false;
                             }
                         } else {
-                            match_m1 = false;
+                            _match_m1 = false;
                         }
                     }
                 }

@@ -2,6 +2,15 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::only_used_in_recursion)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::single_match)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::incompatible_msrv)]
 //! Kernel approximation methods
 //!
 //! This module is part of sklears, providing scikit-learn compatible
@@ -15,23 +24,32 @@ pub mod adaptive_nystroem;
 pub mod advanced_testing;
 pub mod anisotropic_rbf;
 pub mod benchmarking;
+pub mod bioinformatics_kernels;
 pub mod budget_constrained;
+pub mod cache_optimization;
+pub mod causal_kernels;
 pub mod chi2_samplers;
 pub mod computer_vision_kernels;
 pub mod cross_validation;
 pub mod custom_kernel;
+pub mod deep_learning_kernels;
 pub mod distributed_kernel;
 pub mod ensemble_nystroem;
 pub mod error_bounded;
 pub mod fastfood;
+pub mod feature_generation;
+pub mod finance_kernels;
 pub mod gpu_acceleration;
 pub mod gradient_kernel_learning;
 pub mod graph_kernels;
 pub mod homogeneous_polynomial;
 pub mod incremental_nystroem;
 pub mod information_theoretic;
+pub mod kernel_framework;
 pub mod kernel_ridge_regression;
 pub mod memory_efficient;
+pub mod meta_learning_kernels;
+pub mod middleware;
 pub mod multi_kernel_learning;
 pub mod multi_scale_rbf;
 pub mod nlp_kernels;
@@ -44,12 +62,13 @@ pub mod plugin_architecture;
 pub mod polynomial_count_sketch;
 pub mod polynomial_features;
 pub mod progressive;
+pub mod quantum_kernel_methods;
 pub mod quasi_random_features;
 pub mod rbf_sampler;
 pub mod robust_kernels;
-// SIMD modules temporarily disabled for stable Rust compatibility
-// #[cfg(feature = "nightly-simd")]
-// pub mod simd_kernel;
+pub mod scientific_computing_kernels;
+// SIMD modules now use SciRS2-Core (stable Rust compatible)
+pub mod simd_kernel;
 // #[cfg(feature = "nightly-simd")]
 // pub mod simd_optimizations;
 pub mod simple_test;
@@ -62,6 +81,7 @@ pub mod tensor_polynomial;
 pub mod time_series_kernels;
 pub mod type_safe_kernels;
 pub mod type_safety;
+pub mod unsafe_optimizations;
 pub mod validation;
 
 pub use adaptive_bandwidth_rbf::{
@@ -88,11 +108,19 @@ pub use benchmarking::{
     BenchmarkableKernelMethod, BenchmarkableTransformer, KernelApproximationBenchmark,
     PerformanceMetric, QualityMetric,
 };
+pub use bioinformatics_kernels::{
+    GenomicKernel, MetabolicNetworkKernel, MultiOmicsKernel, OmicsIntegrationMethod,
+    PhylogeneticKernel, ProteinKernel,
+};
 pub use budget_constrained::{
     BudgetConstrainedConfig, BudgetConstrainedNystroem, BudgetConstrainedRBFSampler,
     BudgetConstraint, BudgetOptimizationResult, BudgetUsage, FittedBudgetConstrainedNystroem,
     FittedBudgetConstrainedRBFSampler, OptimizationStrategy,
 };
+pub use cache_optimization::{
+    AlignedBuffer, CacheAwareTransform, CacheConfig, CacheFriendlyMatrix, MemoryLayout,
+};
+pub use causal_kernels::{CausalKernel, CausalKernelConfig, CausalMethod, CounterfactualKernel};
 pub use chi2_samplers::{AdditiveChi2Sampler, SkewedChi2Sampler};
 pub use computer_vision_kernels::{
     ActivationFunction, ConvolutionalKernelFeatures, FittedConvolutionalKernelFeatures,
@@ -107,6 +135,10 @@ pub use custom_kernel::{
     CustomExponentialKernel, CustomKernelSampler, CustomLaplacianKernel, CustomPolynomialKernel,
     CustomRBFKernel, KernelFunction,
 };
+pub use deep_learning_kernels::{
+    Activation as DeepLearningActivation, DKLConfig, DeepKernelLearning, InfiniteWidthKernel,
+    NTKConfig, NeuralTangentKernel,
+};
 pub use distributed_kernel::{
     AggregationMethod, CommunicationPattern, DistributedConfig, DistributedNystroem,
     DistributedRBFSampler, PartitionStrategy, Worker,
@@ -119,6 +151,14 @@ pub use error_bounded::{
     FittedErrorBoundedNystroem, FittedErrorBoundedRBFSampler,
 };
 pub use fastfood::{FastfoodKernel, FastfoodKernelParams, FastfoodTransform};
+pub use feature_generation::{
+    CompositeGenerator, FeatureGenerator, FeatureGeneratorBuilder, PolynomialGenerator,
+    RandomFourierGenerator,
+};
+pub use finance_kernels::{
+    EconometricKernel, FinancialKernel, PortfolioKernel, RiskKernel, VolatilityKernel,
+    VolatilityModel,
+};
 pub use gpu_acceleration::{
     FittedGpuNystroem, FittedGpuRBFSampler, GpuBackend, GpuConfig, GpuContext, GpuDevice,
     GpuNystroem, GpuProfiler, GpuRBFSampler, MemoryStrategy, Precision,
@@ -142,6 +182,13 @@ pub use information_theoretic::{
     InformationBottleneckExtractor, KLDivergenceKernel, KLReferenceDistribution,
     MutualInformationKernel,
 };
+pub use kernel_framework::{
+    ApproximationQuality, BoundType as FrameworkBoundType,
+    CombinationStrategy as FrameworkCombinationStrategy, Complexity, CompositeKernelMethod,
+    ErrorBound as FrameworkErrorBound, FeatureMap, KMeansSampling, KernelAlignmentMetric,
+    KernelMethod, KernelType as FrameworkKernelType, SamplingStrategy as SamplingStrategyTrait,
+    UniformSampling,
+};
 pub use kernel_ridge_regression::{
     ApproximationMethod as KRRApproximationMethod, KernelRidgeRegression,
     MultiTaskKernelRidgeRegression, OnlineKernelRidgeRegression, RobustKernelRidgeRegression,
@@ -150,6 +197,14 @@ pub use kernel_ridge_regression::{
 pub use memory_efficient::{
     FittedMemoryEfficientNystroem, FittedMemoryEfficientRBFSampler, MemoryConfig,
     MemoryEfficientNystroem, MemoryEfficientRBFSampler, MemoryMonitor,
+};
+pub use meta_learning_kernels::{
+    DatasetMetaFeatures, MetaKernelType, MetaLearningConfig, MetaLearningKernelSelector,
+    MetaLearningStrategy, PerformanceMetric as MetaPerformanceMetric, TaskMetadata,
+};
+pub use middleware::{
+    Hook, HookContext, LoggingHook, Middleware, NormalizationMiddleware, PerformanceHook, Pipeline,
+    PipelineBuilder, PipelineStage, ValidationHook,
 };
 pub use multi_kernel_learning::{
     ApproximationMethod as MKLApproximationMethod, BaseKernel,
@@ -193,11 +248,17 @@ pub use progressive::{
     ProgressiveQualityMetric, ProgressiveRBFSampler, ProgressiveResult, ProgressiveStep,
     ProgressiveStrategy, StoppingCriterion,
 };
+pub use quantum_kernel_methods::{
+    EntanglementPattern, QuantumFeatureMap, QuantumKernelApproximation, QuantumKernelConfig,
+};
 pub use quasi_random_features::{QuasiRandomRBFSampler, QuasiRandomSequence};
 pub use rbf_sampler::{ArcCosineSampler, LaplacianSampler, PolynomialSampler, RBFSampler};
 pub use robust_kernels::{
     BreakdownPointAnalysis, InfluenceFunctionDiagnostics, RobustEstimator as RobustKernelEstimator,
     RobustKernelConfig, RobustLoss as RobustKernelLoss, RobustNystroem, RobustRBFSampler,
+};
+pub use scientific_computing_kernels::{
+    MultiscaleKernel, PhysicalSystem, PhysicsInformedConfig, PhysicsInformedKernel,
 };
 // #[cfg(feature = "nightly-simd")]
 // pub use simd_optimizations::{
@@ -281,6 +342,10 @@ pub use type_safety::{
     Trained,
     TransformationParameters,
     Untrained,
+};
+pub use unsafe_optimizations::{
+    batch_rbf_kernel_fast, dot_product_unrolled, elementwise_op_fast, fast_cosine_features,
+    matvec_multiply_fast, rbf_kernel_fast, safe_dot_product, safe_matvec_multiply,
 };
 pub use validation::{
     BoundFunction, BoundType, CrossValidationResult, DimensionDependencyAnalysis,

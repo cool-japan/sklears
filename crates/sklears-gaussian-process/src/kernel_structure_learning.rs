@@ -223,7 +223,7 @@ impl KernelStructureLearner {
         let mut best_kernel = current_kernel.clone();
         let mut best_score = current_score;
 
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             // Generate candidate structures
             let candidates = self.generate_candidates(&current_expression, rng)?;
 
@@ -319,7 +319,7 @@ impl KernelStructureLearner {
         let mut best_score = beam[0].1;
         score_history.push(best_score);
 
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let mut new_beam = Vec::new();
 
             // Expand each beam element
@@ -414,13 +414,14 @@ impl KernelStructureLearner {
         let initial_kernels = self.generate_initial_kernels()?;
 
         for _ in 0..population_size {
-            let kernel_expr = initial_kernels[rng.gen_range(0..initial_kernels.len())].clone();
+            let idx = rng.gen_range(0..initial_kernels.len());
+            let kernel_expr = initial_kernels[idx].clone();
             let kernel = self.expression_to_kernel(&kernel_expr)?;
             let score = self.evaluate_kernel(&kernel, &X, &y)?;
             population.push((kernel_expr, score));
         }
 
-        for generation in 0..self.max_iterations {
+        for _generation in 0..self.max_iterations {
             // Selection: tournament selection
             let mut new_population = Vec::new();
 
@@ -494,14 +495,15 @@ impl KernelStructureLearner {
         let mut temperature = initial_temperature;
         let cooling_rate = 0.95;
 
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             // Generate a neighbor
             let candidates = self.generate_candidates(&current_expression, rng)?;
             if candidates.is_empty() {
                 break;
             }
 
-            let candidate = &candidates[rng.gen_range(0..candidates.len())];
+            let idx = rng.gen_range(0..candidates.len());
+            let candidate = &candidates[idx];
             if self.expression_depth(candidate) > self.max_depth {
                 continue;
             }
@@ -663,7 +665,8 @@ impl KernelStructureLearner {
         if rng.gen::<f64>() < 0.1 {
             // Replace with random kernel
             let new_kernels = self.generate_initial_kernels()?;
-            Ok(new_kernels[rng.gen_range(0..new_kernels.len())].clone())
+            let idx = rng.gen_range(0..new_kernels.len());
+            Ok(new_kernels[idx].clone())
         } else {
             // Keep original
             Ok(expression.clone())

@@ -30,9 +30,9 @@ pub fn mean(values: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { mean_avx2(values) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { mean_sse2(values) };
         }
     }
@@ -110,9 +110,9 @@ pub fn sum(values: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { sum_avx2(values) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { sum_sse2(values) };
         }
     }
@@ -190,9 +190,9 @@ pub fn min_max(values: &[f32]) -> (f32, f32) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { min_max_avx2(values) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { min_max_sse2(values) };
         }
     }
@@ -322,9 +322,9 @@ pub fn variance(values: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { variance_avx2(values, mean_val) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { variance_sse2(values, mean_val) };
         }
     }
@@ -429,10 +429,10 @@ pub fn histogram_simd(data: &[f32], num_bins: usize, min_val: f32, max_val: f32)
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { histogram_avx2(data, &mut histogram, min_val, inv_bin_width, num_bins) };
             return histogram;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { histogram_sse2(data, &mut histogram, min_val, inv_bin_width, num_bins) };
             return histogram;
         }
@@ -650,7 +650,7 @@ pub fn percentile(data: &mut [f32], p: f32) -> f32 {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

@@ -9,8 +9,6 @@
 
 use crate::generators::basic::{make_blobs, make_classification, make_regression};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
@@ -222,7 +220,7 @@ where
     }
 
     // Filter out None values and collect results
-    let chunks: Vec<T> = results.into_iter().filter_map(|x| x).collect();
+    let chunks: Vec<T> = results.into_iter().flatten().collect();
 
     let generation_time = start_time.elapsed();
 
@@ -451,16 +449,12 @@ pub struct NodeInfo {
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeStatus {
     /// Idle
-
     Idle,
     /// Working
-
     Working,
     /// Completed
-
     Completed,
     /// Failed
-
     Failed,
 }
 
@@ -836,7 +830,7 @@ mod tests {
             n_workers: 2,
         };
 
-        let mut stream = stream_classification(4, 3, config);
+        let stream = stream_classification(4, 3, config);
         let mut total_samples = 0;
 
         for (i, (x, y)) in stream.enumerate() {

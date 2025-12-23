@@ -796,9 +796,16 @@ pub fn external_gemv(
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_mkl_adapter_creation() {

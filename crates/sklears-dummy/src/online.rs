@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::distributions::Distribution;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::prelude::*;
+use scirs2_core::random::{prelude::*, Rng};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, Trained};
 use sklears_core::types::Float;

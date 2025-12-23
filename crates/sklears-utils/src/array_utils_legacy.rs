@@ -232,7 +232,7 @@ pub fn array_argsort<T: Clone + PartialOrd>(array: &Array1<T>) -> Vec<usize> {
 pub fn array_shuffle<T>(array: &mut Array1<T>, rng: &mut impl rand::Rng) {
     let slice = array.as_slice_mut().unwrap();
     for i in (1..slice.len()).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.gen_range(0..i + 1);
         slice.swap(i, j);
     }
 }

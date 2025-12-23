@@ -64,7 +64,7 @@ pub enum BinaryClassifier<State = Untrained> {
 
 impl BinaryClassifier<Untrained> {
     pub fn new_lda() -> Self {
-        /// BinaryClassifier
+        // BinaryClassifier
         BinaryClassifier::LDA(LinearDiscriminantAnalysis::new())
     }
 
@@ -286,7 +286,7 @@ impl Fit<Array2<Float>, Array1<i32>> for OneVsRestDiscriminantAnalysis<Untrained
     fn fit(self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
         validate::check_consistent_length(x, y)?;
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Get unique classes

@@ -187,6 +187,7 @@ impl PolynomialFeatures {
     }
 
     /// Generate interaction combinations recursively
+    #[allow(clippy::only_used_in_recursion)]
     fn generate_interaction_combinations(
         &self,
         n_features: usize,
@@ -214,6 +215,7 @@ impl PolynomialFeatures {
     }
 
     /// Generate full polynomial combinations
+    #[allow(clippy::only_used_in_recursion)]
     fn generate_polynomial_combinations(
         &self,
         n_features: usize,

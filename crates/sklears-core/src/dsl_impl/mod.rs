@@ -171,118 +171,102 @@
 //! ```
 
 // Module declarations
-pub mod macro_implementations;
-pub mod dsl_types;
-pub mod parsers;
+pub mod advanced_optimizations;
 pub mod code_generators;
-pub mod visual_builder;
+pub mod dsl_types;
+pub mod macro_implementations;
+pub mod parsers;
 pub mod supporting_types;
+pub mod visual_builder;
 
 // Re-export core macro implementations
 pub use macro_implementations::{
-    ml_pipeline_impl,
-    feature_engineering_impl,
-    hyperparameter_config_impl,
-    model_evaluation_impl,
-    data_pipeline_impl,
-    experiment_config_impl,
-    handle_macro_error,
-    MacroRegistry,
+    data_pipeline_impl, experiment_config_impl, feature_engineering_impl, handle_macro_error,
+    hyperparameter_config_impl, ml_pipeline_impl, model_evaluation_impl, MacroRegistry,
 };
 
 // Re-export type definitions
 pub use dsl_types::{
-    // Pipeline types
-    PipelineConfig,
-    PipelineStage,
-    StageType,
-    PerformanceConfig,
-
+    CrossValidationConfig,
+    EarlyStoppingConfig,
+    FeatureDefinition,
     // Feature engineering types
     FeatureEngineeringConfig,
-    FeatureDefinition,
-    SelectionCriterion,
-    SelectionType,
-    ValidationRule,
     FeatureEngineeringOptions,
 
     // Hyperparameter optimization types
     HyperparameterConfig,
+    ObjectiveConfig,
+    OptimizationConfig,
+    OptimizationDirection,
+    OptimizationMetric,
+    OptimizationStrategy,
     ParameterDef,
     ParameterDistribution,
-    OptimizationConfig,
-    OptimizationStrategy,
-    EarlyStoppingConfig,
-    CrossValidationConfig,
-    ObjectiveConfig,
-    OptimizationMetric,
-    OptimizationDirection,
+    PerformanceConfig,
+
+    // Pipeline types
+    PipelineConfig,
+    PipelineStage,
+    SelectionCriterion,
+    SelectionType,
+    StageType,
+    ValidationRule,
 };
 
 // Re-export parsing functionality
-pub use parsers::{
-    parse_ml_pipeline,
-    parse_feature_engineering,
-    parse_hyperparameter_config,
-};
+pub use parsers::{parse_feature_engineering, parse_hyperparameter_config, parse_ml_pipeline};
 
 // Re-export code generation functionality
 pub use code_generators::{
-    generate_pipeline_code,
-    generate_feature_engineering_code,
-    generate_hyperparameter_code,
+    generate_feature_engineering_code, generate_hyperparameter_code, generate_pipeline_code,
 };
 
 // Re-export visual builder components
 pub use visual_builder::{
-    VisualPipelineBuilder,
-    VisualPipelineConfig,
-    ComponentLibrary,
-    ComponentTemplate,
-    ComponentDef,
-    ComponentInstance,
-    ComponentConnection,
-    PipelineCanvas,
-    VisualCodeGenerator,
-    PipelineValidator,
-    PipelineExportManager,
-    GeneratedPipeline,
-    WebInterface,
-    ImportFormat,
-    ExportFormat,
-    ValidationResult,
+    ComponentConnection, ComponentDef, ComponentInstance, ComponentLibrary, ComponentTemplate,
+    ExportFormat, GeneratedPipeline, ImportFormat, PipelineCanvas, PipelineExportManager,
+    PipelineValidator, ValidationResult, VisualCodeGenerator, VisualPipelineBuilder,
+    VisualPipelineConfig, WebInterface,
+};
+
+// Re-export advanced optimization components
+pub use advanced_optimizations::{
+    AdvancedPipelineOptimizer, ExecutionMetrics, ExecutionPlatform, OptimizationCategory,
+    OptimizationImpact, OptimizationMetadata, OptimizationPass, OptimizationProfiler,
+    OptimizationRecommendation, OptimizationResult, OptimizerConfig, PerformanceDataPoint,
+    RecommendationPriority,
 };
 
 // Re-export supporting types and utilities
 pub use supporting_types::{
-    // Resource management
-    ResourceConfig,
-    ResourceUsage,
-    MacroExecutionContext,
+    // Utilities
+    utils,
+    CacheStats,
+
+    CachedArtifact,
+    CodeGenerator,
+    // Caching
+    DSLCache,
+    // Error handling
+    DSLError,
+    // Registry and extensions
+    DSLRegistry,
+    DSLWarning,
+    ErrorSeverity,
+
     ExecutionSummary,
 
+    MacroExecutionContext,
+    MacroImplementation,
     // Performance monitoring
     PerformanceMetrics,
 
-    // Error handling
-    DSLError,
-    DSLWarning,
+    // Resource management
+    ResourceConfig,
+    ResourceUsage,
     SourceLocation,
-    ErrorSeverity,
-
-    // Caching
-    DSLCache,
-    CachedArtifact,
-    CacheStats,
-
-    // Registry and extensions
-    DSLRegistry,
-    MacroImplementation,
-    CodeGenerator,
     Validator,
-
-    // Utilities
-    utils,
 };
 
 /// Create a new macro registry with default implementations
@@ -370,7 +354,7 @@ pub fn create_dsl_cache(max_size_bytes: usize) -> DSLCache {
 /// let issues = validate_configuration(&config);
 /// assert!(issues.is_empty()); // Default config should be valid
 /// ```
-pub fn validate_configuration<T>(config: &T) -> Vec<DSLError>
+pub fn validate_configuration<T>(_config: &T) -> Vec<DSLError>
 where
     T: std::fmt::Debug,
 {
@@ -424,7 +408,7 @@ where
 ///
 /// # Returns
 /// Configuration converted to the target format
-pub fn convert_configuration<S, T>(source: S, _target_format: &str) -> Result<T, String>
+pub fn convert_configuration<S, T>(_source: S, _target_format: &str) -> Result<T, String>
 where
     S: std::fmt::Debug,
     T: Default,

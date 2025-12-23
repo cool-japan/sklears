@@ -3,7 +3,7 @@
 /// These tests verify that core machine learning properties and invariants
 /// hold across all implementations using proptest.
 use crate::traits::{Fit, Predict, Transform};
-use crate::types::{FloatBounds, LearningRate, Probability, RegularizationStrength};
+use crate::types::{LearningRate, Probability, RegularizationStrength};
 use crate::validation::{ValidationRule, ValidationRules};
 use proptest::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};

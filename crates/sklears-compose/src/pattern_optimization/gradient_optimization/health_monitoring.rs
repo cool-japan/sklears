@@ -486,7 +486,7 @@ impl ScheduledCheck {
 
         // Add jitter to prevent thundering herd
         let jitter = Duration::from_millis(
-            (rng().random::<f64>() * self.health_check.schedule.jitter.as_millis() as f64) as u64
+            (rng().gen::<f64>() * self.health_check.schedule.jitter.as_millis() as f64) as u64
         );
 
         self.next_execution = Instant::now() + self.health_check.schedule.interval + jitter;

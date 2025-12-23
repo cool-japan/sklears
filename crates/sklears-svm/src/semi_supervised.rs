@@ -159,7 +159,7 @@ impl TransductiveSVM {
 
         // Random initialization of pseudo-labels
         for i in n_labeled..n_total {
-            y_pseudo[i] = if rng.random::<f64>() > 0.5 { 1.0 } else { -1.0 };
+            y_pseudo[i] = if rng.gen() > 0.5 { 1.0 } else { -1.0 };
         }
 
         let mut best_objective = f64::INFINITY;

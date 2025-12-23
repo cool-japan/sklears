@@ -5,7 +5,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 
 type Result<T> = SklResult<T>;
@@ -208,7 +207,6 @@ impl FeatureSelectionBuilder {
         let mut current_X = X.to_owned();
         let mut selected_features: Vec<usize> = (0..X.ncols()).collect();
         let mut step_results = Vec::new();
-        let cumulative_scores: Array1<f64> = Array1::zeros(X.ncols());
 
         for (step_idx, step) in self.steps.iter().enumerate() {
             let step_start = std::time::Instant::now();
@@ -390,7 +388,7 @@ impl FeatureSelectionBuilder {
     fn apply_rfe(
         &self,
         X: &mut Array2<f64>,
-        y: &ArrayView1<f64>,
+        _y: &ArrayView1<f64>,
         selected_features: &mut Vec<usize>,
         _estimator_name: &str,
         n_features: Option<usize>,

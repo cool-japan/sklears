@@ -4,7 +4,7 @@
 //! including temporal patterns, frequency domain analysis, and sliding window statistics.
 
 use crate::*;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::prelude::SklearsError;
 
@@ -1615,7 +1615,7 @@ impl TemporalSpatialExtractor {
             ));
         }
 
-        let (n_timesteps, n_dimensions) = data.dim();
+        let (n_timesteps, _n_dimensions) = data.dim();
 
         if n_timesteps < self.max_temporal_lag + 1 {
             return Err(SklearsError::InvalidInput(
@@ -1821,7 +1821,7 @@ impl TemporalSpatialExtractor {
 
     /// Compute coherence features (measure of synchronization)
     fn compute_coherence(&self, data: &ArrayView2<Float>) -> SklResult<Vec<Float>> {
-        let (n_timesteps, n_dimensions) = data.dim();
+        let (_n_timesteps, n_dimensions) = data.dim();
         let mut features = Vec::new();
 
         // Phase coherence between dimensions

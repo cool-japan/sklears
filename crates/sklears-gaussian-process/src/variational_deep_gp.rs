@@ -57,9 +57,9 @@
 //! ```
 
 use crate::kernels::{Kernel, RBF};
-use crate::regression::{VariationalOptimizer, VariationalSparseGaussianProcessRegressor};
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis, s};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use crate::regression::VariationalOptimizer;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 
@@ -336,7 +336,7 @@ impl VariationalDeepGaussianProcess {
         X: &Array2<f64>,
     ) -> Result<Vec<VariationalLayerParameters>> {
         let mut layer_parameters = Vec::new();
-        let mut rng = Random::seed(self.config.random_seed.unwrap_or(42));
+        let mut rng = StdRng::seed_from_u64(self.config.random_seed.unwrap_or(42));
 
         for (layer_idx, layer_config) in self.config.layer_configs.iter().enumerate() {
             // Initialize inducing points
@@ -382,7 +382,7 @@ impl VariationalDeepGaussianProcess {
         &self,
         X: &Array2<f64>,
         n_inducing: usize,
-        rng: &mut Random,
+        rng: &mut StdRng,
     ) -> Result<Array2<f64>> {
         let n_samples = X.nrows();
         let n_dims = X.ncols();
@@ -410,14 +410,14 @@ impl VariationalDeepGaussianProcess {
     fn initialize_inducing_points_random(
         &self,
         layer_config: &VariationalLayerConfig,
-        rng: &mut Random,
+        rng: &mut StdRng,
     ) -> Result<Array2<f64>> {
         let mut inducing_points = Array2::zeros((layer_config.n_inducing, layer_config.input_dim));
 
-        // Initialize with standard normal distribution
+        // Initialize with uniform distribution in [-1, 1]
         for i in 0..layer_config.n_inducing {
             for j in 0..layer_config.input_dim {
-                inducing_points[[i, j]] = rng.gen::<f64>() * 2.0 - 1.0; // [-1, 1] range
+                inducing_points[[i, j]] = rng.gen_range(-1.0..1.0);
             }
         }
 
@@ -453,22 +453,22 @@ impl VariationalDeepGaussianProcess {
     fn update_variational_parameters(
         &self,
         state: &mut VariationalDeepGPState,
-        X_batch: &Array2<f64>,
-        y_batch: &Array2<f64>,
+        _X_batch: &Array2<f64>,
+        _y_batch: &Array2<f64>,
     ) -> Result<()> {
         // This is a simplified implementation
         // In practice, you would compute gradients of the ELBO with respect to
         // variational parameters and update them using the chosen optimizer
 
         // For now, we'll just add small random perturbations to simulate training
-        let mut rng = Random::seed(42);
+        let mut rng = StdRng::seed_from_u64(42);
         let lr = self.config.learning_rate;
 
         for layer_params in state.layer_parameters.iter_mut() {
             // Update means with small random perturbations
             for i in 0..layer_params.mean.nrows() {
                 for j in 0..layer_params.mean.ncols() {
-                    let perturbation = (rng.gen::<f64>() - 0.5) * lr * 0.1;
+                    let perturbation = rng.gen_range(-0.5..0.5) * lr * 0.1;
                     layer_params.mean[[i, j]] += perturbation;
                 }
             }
@@ -525,9 +525,9 @@ impl VariationalDeepGaussianProcess {
     fn forward_layer(
         &self,
         input_mean: &Array2<f64>,
-        input_var: &Array2<f64>,
+        _input_var: &Array2<f64>,
         layer_idx: usize,
-        layer_params: &VariationalLayerParameters,
+        _layer_params: &VariationalLayerParameters,
     ) -> Result<(Array2<f64>, Array2<f64>)> {
         let layer_config = &self.config.layer_configs[layer_idx];
         let n_test = input_mean.nrows();
@@ -596,7 +596,7 @@ impl VariationalDeepGaussianProcess {
     /// Compute KL divergence for a layer
     fn compute_layer_kl_divergence(
         &self,
-        layer_idx: usize,
+        _layer_idx: usize,
         layer_params: &VariationalLayerParameters,
     ) -> Result<f64> {
         // Simplified KL computation
@@ -807,7 +807,7 @@ mod tests {
             input_dim: 3,
             output_dim: 5,
             n_inducing: 15,
-            kernel: Box::new(RBF::new(1.5, 2.0)),
+            kernel: Box::new(RBF::new(1.5)),
             optimizer: VariationalOptimizer::NaturalGradients,
             whiten: false,
             initial_variance: 0.5,

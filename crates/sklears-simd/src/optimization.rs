@@ -307,13 +307,13 @@ pub fn simd_axpy(alpha: f32, x: &ArrayView1<f32>, y: &mut ArrayViewMut1<f32>) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+        if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("fma") {
             unsafe { simd_axpy_avx2_fma(alpha, x, y) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { simd_axpy_avx2(alpha, x, y) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { simd_axpy_sse2(alpha, x, y) };
             return;
         }
@@ -329,10 +329,10 @@ pub fn simd_axpy(alpha: f32, x: &ArrayView1<f32>, y: &mut ArrayViewMut1<f32>) {
 pub fn simd_scale(alpha: f32, x: &mut ArrayViewMut1<f32>) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { simd_scale_avx2(alpha, x) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { simd_scale_sse2(alpha, x) };
             return;
         }
@@ -358,13 +358,13 @@ pub fn simd_momentum_update(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+        if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("fma") {
             unsafe { simd_momentum_update_avx2_fma(momentum, grad, velocity) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { simd_momentum_update_avx2(momentum, grad, velocity) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { simd_momentum_update_sse2(momentum, grad, velocity) };
             return;
         }
@@ -592,10 +592,13 @@ unsafe fn simd_momentum_update_avx2_fma(
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_gradient_descent() {

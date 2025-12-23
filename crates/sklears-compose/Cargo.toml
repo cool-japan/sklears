@@ -19,7 +19,6 @@ workspace = true
 [dependencies]
 sklears-core = { workspace = true }
 # sklears-simd = { workspace = true }  # Temporarily disabled due to missing implementations
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 scirs2-optimize = { workspace = true }
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
@@ -31,11 +30,11 @@ serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.9", optional = true }
 chrono = { version = "0.4", features = ["serde"] }
-num_cpus = "1.16"
-uuid = { version = "1.8", features = ["v4"] }
+num_cpus = "1.17"
+uuid = { version = "1.18", features = ["v4"] }
 # ❌ REMOVED: rand_chacha - use scirs2_core::random instead (SciRS2 Policy violation)
 futures = "0.3"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.47", features = ["full"] }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -50,3 +49,16 @@ workflow = ["serde", "dep:serde_json", "dep:serde_yaml"]
 [[bench]]
 name = "simd_benchmarks"
 harness = false
+
+# Note: Additional benchmarks created but need API updates to compile
+# [[bench]]
+# name = "composition_benchmarks"
+# harness = false
+#
+# [[bench]]
+# name = "ensemble_benchmarks"
+# harness = false
+#
+# [[bench]]
+# name = "feature_transformation_benchmarks"
+# harness = false

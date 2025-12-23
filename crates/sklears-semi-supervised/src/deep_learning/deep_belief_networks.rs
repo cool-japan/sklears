@@ -6,7 +6,7 @@
 //! and fine-tuning with labeled data.
 
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};
 use thiserror::Error;
@@ -135,8 +135,8 @@ impl RestrictedBoltzmannMachine {
         for i in 0..self.n_visible {
             for j in 0..self.n_hidden {
                 // Generate normal distributed random number (mean=0.0, std=0.01)
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 weights[(i, j)] = z * 0.01;
             }
@@ -173,7 +173,7 @@ impl RestrictedBoltzmannMachine {
         // Sample from Bernoulli distribution
         let mut hidden_sample = Array1::zeros(self.n_hidden);
         for j in 0..self.n_hidden {
-            let random_val = rng.gen_range(0.0..1.0);
+            let random_val = rng.random_range(0.0, 1.0);
             hidden_sample[j] = if random_val < hidden_probs[j] {
                 1.0
             } else {
@@ -205,7 +205,7 @@ impl RestrictedBoltzmannMachine {
         // Sample from Bernoulli distribution
         let mut visible_sample = Array1::zeros(self.n_visible);
         for i in 0..self.n_visible {
-            let random_val = rng.gen_range(0.0..1.0);
+            let random_val = rng.random_range(0.0, 1.0);
             visible_sample[i] = if random_val < visible_probs[i] {
                 1.0
             } else {
@@ -583,8 +583,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for DeepBeliefNetwork {
         for i in 0..feature_dim {
             for j in 0..n_classes {
                 // Generate normal distributed random number (mean=0.0, std=0.1)
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 classifier_weights[(i, j)] = z * 0.1;
             }

@@ -55,6 +55,12 @@ use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 use std::time::Instant;
 
+/// Type alias for classification metric functions
+type ClassificationMetricFn = Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> f64 + Send + Sync>;
+
+/// Type alias for regression metric functions
+type RegressionMetricFn = Box<dyn Fn(&Array1<f64>, &Array1<f64>) -> f64 + Send + Sync>;
+
 /// Configuration for benchmarking
 #[derive(Debug, Clone)]
 pub struct BenchmarkConfig {
@@ -208,9 +214,9 @@ pub struct BenchmarkSuite {
 /// Classification benchmark definition
 pub struct ClassificationBenchmark {
     pub name: String,
-    pub metric_fn: Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> f64 + Send + Sync>,
+    pub metric_fn: ClassificationMetricFn,
     pub dataset: Dataset,
-    pub reference_fn: Option<Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> f64 + Send + Sync>>,
+    pub reference_fn: Option<ClassificationMetricFn>,
 }
 
 impl std::fmt::Debug for ClassificationBenchmark {
@@ -230,9 +236,9 @@ impl std::fmt::Debug for ClassificationBenchmark {
 /// Regression benchmark definition
 pub struct RegressionBenchmark {
     pub name: String,
-    pub metric_fn: Box<dyn Fn(&Array1<f64>, &Array1<f64>) -> f64 + Send + Sync>,
+    pub metric_fn: RegressionMetricFn,
     pub dataset: Dataset,
-    pub reference_fn: Option<Box<dyn Fn(&Array1<f64>, &Array1<f64>) -> f64 + Send + Sync>>,
+    pub reference_fn: Option<RegressionMetricFn>,
 }
 
 impl std::fmt::Debug for RegressionBenchmark {
@@ -252,9 +258,9 @@ impl std::fmt::Debug for RegressionBenchmark {
 /// Clustering benchmark definition
 pub struct ClusteringBenchmark {
     pub name: String,
-    pub metric_fn: Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> f64 + Send + Sync>,
+    pub metric_fn: ClassificationMetricFn,
     pub dataset: Dataset,
-    pub reference_fn: Option<Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> f64 + Send + Sync>>,
+    pub reference_fn: Option<ClassificationMetricFn>,
 }
 
 impl std::fmt::Debug for ClusteringBenchmark {
@@ -393,6 +399,9 @@ impl BenchmarkSuite {
     ) -> MetricsResult<BenchmarkResult> {
         let (y_true, y_pred) = self.generate_classification_data(benchmark.dataset)?;
 
+        // Calculate memory usage for input data
+        let memory_usage_bytes = Self::calculate_memory_usage_classification(&y_true, &y_pred);
+
         // Warmup
         for _ in 0..self.config.warmup_iterations {
             let _ = (benchmark.metric_fn)(&y_true, &y_pred);
@@ -455,7 +464,7 @@ impl BenchmarkSuite {
             time_std_ms: time_std,
             accuracy_score,
             relative_error,
-            memory_usage_bytes: None, // TODO: Implement memory tracking
+            memory_usage_bytes: Some(memory_usage_bytes),
             passed,
             metadata,
         })
@@ -467,6 +476,9 @@ impl BenchmarkSuite {
         benchmark: &RegressionBenchmark,
     ) -> MetricsResult<BenchmarkResult> {
         let (y_true, y_pred) = self.generate_regression_data(benchmark.dataset)?;
+
+        // Calculate memory usage for input data
+        let memory_usage_bytes = Self::calculate_memory_usage_regression(&y_true, &y_pred);
 
         // Warmup
         for _ in 0..self.config.warmup_iterations {
@@ -520,7 +532,7 @@ impl BenchmarkSuite {
             time_std_ms: time_std,
             accuracy_score,
             relative_error,
-            memory_usage_bytes: None,
+            memory_usage_bytes: Some(memory_usage_bytes),
             passed,
             metadata,
         })
@@ -532,6 +544,9 @@ impl BenchmarkSuite {
         benchmark: &ClusteringBenchmark,
     ) -> MetricsResult<BenchmarkResult> {
         let (y_true, y_pred) = self.generate_clustering_data(benchmark.dataset)?;
+
+        // Calculate memory usage for input data
+        let memory_usage_bytes = Self::calculate_memory_usage_classification(&y_true, &y_pred);
 
         // Warmup
         for _ in 0..self.config.warmup_iterations {
@@ -568,7 +583,7 @@ impl BenchmarkSuite {
             time_std_ms: time_std,
             accuracy_score: None,
             relative_error: None,
-            memory_usage_bytes: None,
+            memory_usage_bytes: Some(memory_usage_bytes),
             passed,
             metadata,
         })
@@ -786,6 +801,8 @@ impl BenchmarkSuite {
             let mut metadata = HashMap::new();
             metadata.insert("data_size".to_string(), size as f64);
 
+            let memory_usage_bytes = Self::calculate_memory_usage_regression(&y_true, &y_pred);
+
             results.push(BenchmarkResult {
                 test_name: format!("{}_scalability_{}", name, size),
                 benchmark_type: BenchmarkType::Scalability,
@@ -794,7 +811,7 @@ impl BenchmarkSuite {
                 time_std_ms: time_std,
                 accuracy_score: None,
                 relative_error: None,
-                memory_usage_bytes: None,
+                memory_usage_bytes: Some(memory_usage_bytes),
                 passed: true,
                 metadata,
             });
@@ -802,11 +819,46 @@ impl BenchmarkSuite {
 
         Ok(results)
     }
+
+    /// Calculate memory usage for classification/clustering arrays (i32)
+    fn calculate_memory_usage_classification(y_true: &Array1<i32>, y_pred: &Array1<i32>) -> usize {
+        // Memory for two i32 arrays
+        // Each i32 = 4 bytes, plus ndarray overhead (capacity, dimensions, strides)
+        let element_size = std::mem::size_of::<i32>();
+        let array_data_size = (y_true.len() + y_pred.len()) * element_size;
+
+        // Approximate ndarray overhead: dimension info, strides, etc.
+        // For 1D arrays: ~48 bytes per array (dimension, stride, pointer, capacity)
+        let ndarray_overhead = 48 * 2;
+
+        array_data_size + ndarray_overhead
+    }
+
+    /// Calculate memory usage for regression arrays (f64)
+    fn calculate_memory_usage_regression(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> usize {
+        // Memory for two f64 arrays
+        // Each f64 = 8 bytes, plus ndarray overhead
+        let element_size = std::mem::size_of::<f64>();
+        let array_data_size = (y_true.len() + y_pred.len()) * element_size;
+
+        // Approximate ndarray overhead
+        let ndarray_overhead = 48 * 2;
+
+        array_data_size + ndarray_overhead
+    }
 }
 
 impl BenchmarkReport {
     /// Generate comprehensive benchmark report
     pub fn generate(results: &[BenchmarkResult]) -> MetricsResult<Self> {
+        Self::generate_with_baseline(results, None)
+    }
+
+    /// Generate comprehensive benchmark report with optional baseline comparison
+    pub fn generate_with_baseline(
+        results: &[BenchmarkResult],
+        baseline_results: Option<&[BenchmarkResult]>,
+    ) -> MetricsResult<Self> {
         let total_tests = results.len();
         let passed_tests = results.iter().filter(|r| r.passed).count();
         let failed_tests = total_tests - passed_tests;
@@ -846,6 +898,10 @@ impl BenchmarkReport {
             max_relative_error,
         };
 
+        // Generate performance comparison if baseline provided
+        let performance_comparison =
+            baseline_results.map(|baseline| Self::compare_with_baseline(results, baseline));
+
         // Calculate overall score
         let pass_rate = passed_tests as f64 / total_tests as f64;
         let accuracy_factor = avg_accuracy_score.map_or(0.5, |acc| (acc + 1.0) / 2.0);
@@ -855,13 +911,146 @@ impl BenchmarkReport {
         Ok(Self {
             results: results.to_vec(),
             summary,
-            performance_comparison: None, // TODO: Implement baseline comparison
+            performance_comparison,
             overall_score,
         })
     }
 
+    /// Compare current results with baseline results
+    fn compare_with_baseline(
+        current: &[BenchmarkResult],
+        baseline: &[BenchmarkResult],
+    ) -> PerformanceComparison {
+        // Calculate average execution times
+        let current_time_ms = if !current.is_empty() {
+            current.iter().map(|r| r.execution_time_ms).sum::<f64>() / current.len() as f64
+        } else {
+            0.0
+        };
+
+        let baseline_time_ms = if !baseline.is_empty() {
+            baseline.iter().map(|r| r.execution_time_ms).sum::<f64>() / baseline.len() as f64
+        } else {
+            1.0 // Avoid division by zero
+        };
+
+        // Calculate speedup factor (baseline / current)
+        // > 1.0 means current is faster, < 1.0 means baseline was faster
+        let speedup_factor = if current_time_ms > 0.0 {
+            baseline_time_ms / current_time_ms
+        } else {
+            1.0
+        };
+
+        let performance_improved = speedup_factor > 1.0;
+
+        // Calculate p-value using Welch's t-test
+        let p_value = Self::welch_t_test(
+            &current
+                .iter()
+                .map(|r| r.execution_time_ms)
+                .collect::<Vec<_>>(),
+            &baseline
+                .iter()
+                .map(|r| r.execution_time_ms)
+                .collect::<Vec<_>>(),
+        );
+
+        PerformanceComparison {
+            speedup_factor,
+            performance_improved,
+            baseline_time_ms,
+            current_time_ms,
+            p_value: Some(p_value),
+        }
+    }
+
+    /// Welch's t-test for comparing two samples with potentially different variances
+    /// Returns approximate p-value (two-tailed test)
+    fn welch_t_test(sample1: &[f64], sample2: &[f64]) -> f64 {
+        if sample1.is_empty() || sample2.is_empty() {
+            return 1.0; // No significant difference if no data
+        }
+
+        // Calculate means
+        let mean1 = sample1.iter().sum::<f64>() / sample1.len() as f64;
+        let mean2 = sample2.iter().sum::<f64>() / sample2.len() as f64;
+
+        // Calculate variances
+        let var1 = if sample1.len() > 1 {
+            sample1.iter().map(|&x| (x - mean1).powi(2)).sum::<f64>() / (sample1.len() - 1) as f64
+        } else {
+            0.0
+        };
+
+        let var2 = if sample2.len() > 1 {
+            sample2.iter().map(|&x| (x - mean2).powi(2)).sum::<f64>() / (sample2.len() - 1) as f64
+        } else {
+            0.0
+        };
+
+        // Calculate standard errors
+        let se1 = var1 / sample1.len() as f64;
+        let se2 = var2 / sample2.len() as f64;
+        let se = (se1 + se2).sqrt();
+
+        if se < f64::EPSILON {
+            return 1.0; // No variance, no significant difference
+        }
+
+        // Calculate t-statistic
+        let t = (mean1 - mean2).abs() / se;
+
+        // Calculate degrees of freedom (Welch-Satterthwaite equation)
+        let df = if var1 > f64::EPSILON && var2 > f64::EPSILON {
+            let numerator = (se1 + se2).powi(2);
+            let denominator =
+                se1.powi(2) / (sample1.len() - 1) as f64 + se2.powi(2) / (sample2.len() - 1) as f64;
+            numerator / denominator
+        } else {
+            (sample1.len() + sample2.len() - 2) as f64
+        };
+
+        // Approximate p-value using normal approximation for large df
+        // For small samples, this is conservative
+        if df > 30.0 {
+            // Use standard normal approximation
+            Self::normal_two_tailed_p_value(t)
+        } else {
+            // Conservative estimate for small samples
+            // Using normal approximation but adjusting for small sample size
+            let p = Self::normal_two_tailed_p_value(t);
+            // Add conservative adjustment for small samples
+            (p * (1.0 + 1.0 / df)).min(1.0)
+        }
+    }
+
+    /// Calculate two-tailed p-value from z-score using normal approximation
+    fn normal_two_tailed_p_value(z: f64) -> f64 {
+        // Approximation of standard normal CDF using error function
+        // P(|Z| > z) ≈ 2 * (1 - Φ(z)) where Φ is the CDF
+        // Using approximation: Φ(z) ≈ 1 - 0.5 * exp(-1.65 * z) for z > 0
+
+        let z_abs = z.abs();
+
+        // Simple approximation for p-value
+        // For z > 3, p-value is very small
+        if z_abs > 6.0 {
+            return 0.0000001; // Very significant
+        }
+
+        // Abramowitz and Stegun approximation
+        let t = 1.0 / (1.0 + 0.2316419 * z_abs);
+        let d = 0.3989423 * (-z_abs * z_abs / 2.0).exp();
+        let p = d
+            * t
+            * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+
+        2.0 * p // Two-tailed
+    }
+
     /// Convert report to string format
-    pub fn to_string(&self) -> String {
+    pub fn to_report_string(&self) -> String {
         let mut report = String::new();
 
         report.push_str("=".repeat(60).as_str());
@@ -869,7 +1058,7 @@ impl BenchmarkReport {
         report.push_str("=".repeat(60).as_str());
         report.push('\n');
 
-        report.push_str(&"\nSummary:\n".to_string());
+        report.push_str("\nSummary:\n");
         report.push_str(&format!("  Total Tests: {}\n", self.summary.total_tests));
         report.push_str(&format!("  Passed: {}\n", self.summary.passed_tests));
         report.push_str(&format!("  Failed: {}\n", self.summary.failed_tests));
@@ -879,7 +1068,7 @@ impl BenchmarkReport {
         ));
         report.push_str(&format!("  Overall Score: {:.1}/100\n", self.overall_score));
 
-        report.push_str(&"\nPerformance:\n".to_string());
+        report.push_str("\nPerformance:\n");
         report.push_str(&format!(
             "  Average Execution Time: {:.4} ms\n",
             self.summary.avg_execution_time_ms
@@ -897,7 +1086,50 @@ impl BenchmarkReport {
             report.push_str(&format!("  Maximum Relative Error: {:.2e}\n", max_err));
         }
 
-        report.push_str(&"\nDetailed Results:\n".to_string());
+        // Add performance comparison if available
+        if let Some(ref comparison) = self.performance_comparison {
+            report.push_str("\nPerformance Comparison vs Baseline:\n");
+            report.push_str(&format!(
+                "  Baseline Time: {:.4} ms\n",
+                comparison.baseline_time_ms
+            ));
+            report.push_str(&format!(
+                "  Current Time: {:.4} ms\n",
+                comparison.current_time_ms
+            ));
+            report.push_str(&format!(
+                "  Speedup Factor: {:.2}x\n",
+                comparison.speedup_factor
+            ));
+            report.push_str(&format!(
+                "  Performance: {}\n",
+                if comparison.performance_improved {
+                    "IMPROVED ✓"
+                } else {
+                    "REGRESSED"
+                }
+            ));
+            if let Some(p_value) = comparison.p_value {
+                report.push_str(&format!(
+                    "  Statistical Significance (p-value): {:.4}\n",
+                    p_value
+                ));
+                report.push_str(&format!(
+                    "  Significance Level: {}\n",
+                    if p_value < 0.001 {
+                        "*** (highly significant)"
+                    } else if p_value < 0.01 {
+                        "** (very significant)"
+                    } else if p_value < 0.05 {
+                        "* (significant)"
+                    } else {
+                        "(not significant)"
+                    }
+                ));
+            }
+        }
+
+        report.push_str("\nDetailed Results:\n");
         report.push_str(&format!(
             "{:<30} {:>10} {:>10} {:>10} {:>8}\n",
             "Test", "Time (ms)", "Std (ms)", "Rel Error", "Status"

@@ -483,8 +483,8 @@ impl TestingSuite {
     ) -> SklResult<Array2<Float>> {
         use scirs2_core::random::Rng;
 
-        let n_samples = rng.gen_range(10..=self.property_config.max_samples.min(100));
-        let n_features = rng.gen_range(5..=self.property_config.max_features.min(20));
+        let n_samples = rng.gen_range(10..self.property_config.max_samples.min(100 + 1));
+        let n_features = rng.gen_range(5..self.property_config.max_features.min(20 + 1));
 
         let mut data = Array2::zeros((n_samples, n_features));
 

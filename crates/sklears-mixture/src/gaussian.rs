@@ -273,7 +273,7 @@ impl GaussianMixture<Untrained> {
         X: &Array2<f64>,
         seed: Option<u64>,
     ) -> SklResult<(Array1<f64>, Array2<f64>, Vec<Array2<f64>>)> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
 
         // Initialize weights (uniform)
         let weights = Array1::from_elem(self.n_components, 1.0 / self.n_components as f64);
@@ -442,7 +442,7 @@ impl GaussianMixture<Untrained> {
 
         // Update covariances (simplified)
         let mut covariances = Vec::new();
-        for k in 0..self.n_components {
+        for _k in 0..self.n_components {
             let mut cov = Array2::eye(n_features);
             for i in 0..n_features {
                 cov[[i, i]] = 1.0 + self.reg_covar;
@@ -461,7 +461,7 @@ impl GaussianMixture<Untrained> {
         means: &Array2<f64>,
         covariances: &[Array2<f64>],
     ) -> SklResult<f64> {
-        let (n_samples, _) = X.dim();
+        let (_n_samples, _) = X.dim();
         let mut log_likelihood = 0.0;
 
         // For each sample

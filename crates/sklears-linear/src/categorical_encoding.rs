@@ -6,7 +6,7 @@
 //! and other advanced encoding methods.
 
 use scirs2_core::essentials::Uniform;
-use scirs2_core::random::{thread_rng, Distribution, Rng};
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_core::error::SklearsError;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -360,6 +360,7 @@ impl CategoricalEncoder {
             let mut current_input_idx = 0;
             let mut categorical_info_idx = 0;
 
+            #[allow(clippy::explicit_counter_loop)]
             for col_idx in 0..total_input_features {
                 if encoding_result.column_mapping.contains_key(&col_idx) {
                     // This is a categorical column
@@ -565,15 +566,8 @@ impl CategoricalEncoder {
                     let global_mean = target.iter().sum::<f64>() / target.len() as f64;
 
                     for category in categories {
-                        let category_targets: Vec<f64> = target
-                            .iter()
-                            .enumerate()
-                            .filter_map(|(i, &val)| {
-                                // This is a simplified version - in practice, you'd need to track which rows have this category
-                                // For now, we'll use a basic calculation
-                                Some(val)
-                            })
-                            .collect();
+                        // This is a simplified version - in practice, you'd need to track which rows have this category
+                        let category_targets: Vec<f64> = target.to_vec();
 
                         let n_samples = category_targets.len();
                         if n_samples >= *min_samples_leaf {
@@ -613,8 +607,9 @@ impl CategoricalEncoder {
                     let mut binary_encoding = vec![0.0; actual_bits];
                     let value = i;
 
-                    for bit_idx in 0..actual_bits {
-                        binary_encoding[bit_idx] = ((value >> bit_idx) & 1) as f64;
+                    for (bit_idx, item) in binary_encoding.iter_mut().enumerate().take(actual_bits)
+                    {
+                        *item = ((value >> bit_idx) & 1) as f64;
                     }
 
                     encoding_map.insert(category.clone(), binary_encoding);

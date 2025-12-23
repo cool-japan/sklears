@@ -6,7 +6,8 @@
 //! from the same entity, etc.).
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use scirs2_core::SliceRandomExt;
 use std::collections::HashMap;
 
@@ -179,8 +180,7 @@ impl GroupKFold {
         }
 
         let mut splits = Vec::new();
-        for i in 0..self.n_splits {
-            let test_groups = &fold_assignments[i];
+        for test_groups in fold_assignments.iter().take(self.n_splits) {
             let train_groups: Vec<i32> = unique_groups
                 .iter()
                 .filter(|&group| !test_groups.contains(group))
@@ -254,8 +254,7 @@ impl GroupKFold {
         }
 
         let mut splits = Vec::new();
-        for i in 0..self.n_splits {
-            let test_groups = &fold_assignments[i];
+        for test_groups in fold_assignments.iter().take(self.n_splits) {
             let train_groups: Vec<i32> = unique_groups
                 .iter()
                 .filter(|&group| !test_groups.contains(group))

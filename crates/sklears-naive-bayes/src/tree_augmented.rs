@@ -310,7 +310,7 @@ impl TreeAugmentedNB {
             parent[x]
         }
 
-        fn union(parent: &mut Vec<usize>, rank: &mut Vec<usize>, x: usize, y: usize) -> bool {
+        fn union(parent: &mut Vec<usize>, rank: &mut [usize], x: usize, y: usize) -> bool {
             let root_x = find(parent, x);
             let root_y = find(parent, y);
 

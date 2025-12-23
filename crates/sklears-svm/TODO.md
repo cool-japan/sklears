@@ -1,6 +1,6 @@
 # TODO: sklears-svm Improvements
 
-## 0.1.0-alpha.1 progress checklist (2025-10-13)
+## 0.1.0-alpha.2 progress checklist (2025-12-22)
 
 - [x] Validated the sklears svm module as part of the 10,013 passing workspace tests (69 skipped).
 - [x] Published refreshed README and release notes for the alpha drop.

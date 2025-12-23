@@ -140,8 +140,8 @@ impl Fit<Vec<String>, ()> for NGramKernel {
         for sequence in sequences {
             let ngrams = self.extract_ngrams(sequence);
             for ngram in ngrams {
-                if !vocabulary.contains_key(&ngram) {
-                    vocabulary.insert(ngram, vocab_index);
+                if let std::collections::hash_map::Entry::Vacant(e) = vocabulary.entry(ngram) {
+                    e.insert(vocab_index);
                     vocab_index += 1;
                 }
             }
@@ -263,8 +263,8 @@ impl Fit<Vec<String>, ()> for SpectrumKernel {
             let chars: Vec<char> = sequence.chars().collect();
             for window in chars.windows(self.k) {
                 let kmer: String = window.iter().collect();
-                if !vocabulary.contains_key(&kmer) {
-                    vocabulary.insert(kmer, vocab_index);
+                if let std::collections::hash_map::Entry::Vacant(e) = vocabulary.entry(kmer) {
+                    e.insert(vocab_index);
                     vocab_index += 1;
                 }
             }
@@ -677,8 +677,10 @@ impl Fit<Vec<String>, ()> for MismatchKernel {
                 for mismatch_count in 0..=self.m {
                     let neighborhood = self.generate_neighborhood(&kmer, mismatch_count);
                     for neighbor in neighborhood {
-                        if !vocabulary.contains_key(&neighbor) {
-                            vocabulary.insert(neighbor, vocab_index);
+                        if let std::collections::hash_map::Entry::Vacant(e) =
+                            vocabulary.entry(neighbor)
+                        {
+                            e.insert(vocab_index);
                             vocab_index += 1;
                         }
                     }

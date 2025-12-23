@@ -9,8 +9,8 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform},
@@ -87,7 +87,7 @@ impl MemoryEfficientRBFSampler {
     /// Process data in chunks
     pub fn transform_chunked(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
         let chunk_size = self.config.chunk_size.min(n_samples);
 
         // Initialize output array

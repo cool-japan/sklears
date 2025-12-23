@@ -9,7 +9,7 @@ use crate::pls::PLSRegression;
 use crate::time_series::{RegimeSwitchingModel, VectorAutoregression};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, One};
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::{
     error::SklearsError,
     traits::{Fit, Transform},

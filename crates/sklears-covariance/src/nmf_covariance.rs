@@ -5,7 +5,7 @@
 //! interpretability of the factors is important.
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::{thread_rng, Rng};
 
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -279,8 +279,8 @@ impl NMFCovariance<Untrained> {
 
         match self.config.initialization {
             NMFInitialization::Random => {
-                let w = Array2::from_shape_fn((m, k), |_| rng.gen_range(0.0..1.0));
-                let h = Array2::from_shape_fn((k, n), |_| rng.gen_range(0.0..1.0));
+                let w = Array2::from_shape_fn((m, k), |_| rng.random_range(0.0..1.0));
+                let h = Array2::from_shape_fn((k, n), |_| rng.random_range(0.0..1.0));
                 Ok((w, h))
             }
             NMFInitialization::NNDSVD => self.initialize_nndsvd(matrix, false, false),
@@ -321,10 +321,10 @@ impl NMFCovariance<Untrained> {
         for comp in 1..k {
             if fill_random {
                 for i in 0..m {
-                    w[[i, comp]] = rng.gen_range(0.0..1.0) * scale;
+                    w[[i, comp]] = rng.random_range(0.0..1.0) * scale;
                 }
                 for j in 0..n {
-                    h[[comp, j]] = rng.gen_range(0.0..1.0) * scale;
+                    h[[comp, j]] = rng.random_range(0.0..1.0) * scale;
                 }
             } else if fill_average {
                 let avg_val = scale * 0.5;

@@ -328,9 +328,11 @@ impl SimdStatistics {
         let mut result = sum_array[0] + sum_array[1] + sum_array[2] + sum_array[3];
 
         // Handle remaining elements
-        for i in (chunks * 4)..len {
-            result += data[i];
-        }
+        result += data
+            .iter()
+            .skip(chunks * 4)
+            .take(len - chunks * 4)
+            .sum::<f64>();
 
         result / len as f64
     }
@@ -376,10 +378,15 @@ impl SimdStatistics {
         let mut result = sum_array[0] + sum_array[1] + sum_array[2] + sum_array[3];
 
         // Handle remaining elements
-        for i in (chunks * 4)..len {
-            let diff = data[i] - mean;
-            result += diff * diff;
-        }
+        result += data
+            .iter()
+            .skip(chunks * 4)
+            .take(len - chunks * 4)
+            .map(|&x| {
+                let diff = x - mean;
+                diff * diff
+            })
+            .sum::<f64>();
 
         result / (len - 1) as f64
     }
@@ -439,8 +446,7 @@ impl SimdStatistics {
         }
 
         // Handle remaining elements
-        for i in (chunks * 4)..len {
-            let val = data[i];
+        for &val in data.iter().skip(chunks * 4).take(len - chunks * 4) {
             if val < min_result {
                 min_result = val;
             }
@@ -634,7 +640,7 @@ pub struct SimdKMeans;
 impl SimdKMeans {
     /// Optimized centroid calculation
     pub fn calculate_centroids_simd(data: &Array2<f64>, labels: &[usize], k: usize) -> Array2<f64> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
         let mut centroids = Array2::zeros((k, n_features));
         let mut counts = vec![0; k];
 
@@ -782,11 +788,12 @@ impl SimdImputationOps {
         }
 
         // Handle remaining elements
-        for i in (chunks * 4)..len {
-            if data[i].is_nan() {
-                missing_count += 1;
-            }
-        }
+        missing_count += data
+            .iter()
+            .skip(chunks * 4)
+            .take(len - chunks * 4)
+            .filter(|x| x.is_nan())
+            .count();
 
         missing_count
     }
@@ -1059,9 +1066,9 @@ mod tests {
         let result = SimdMatrixOps::matrix_vector_multiply_simd(&matrix, &vector).unwrap();
 
         // Expected: [1*1 + 2*2 + 3*3, 4*1 + 5*2 + 6*3, 7*1 + 8*2 + 9*3] = [14, 32, 50]
-        assert_abs_diff_eq!(result[0] as f64, 14.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[1] as f64, 32.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(result[2] as f64, 50.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[0], 14.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[1], 32.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(result[2], 50.0, epsilon = 1e-10);
     }
 
     #[test]

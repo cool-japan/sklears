@@ -138,6 +138,12 @@ pub struct AlternatingProjectionsTrained {
     final_objective: f64,
 }
 
+impl Default for AlternatingProjections<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlternatingProjections<Untrained> {
     /// Create new alternating projections estimator
     pub fn new() -> Self {
@@ -436,8 +442,8 @@ impl AlternatingProjections<Untrained> {
     fn apply_dykstra_projections(
         &self,
         mut matrix: Array2<f64>,
-        auxiliary_matrices: &mut Vec<Array2<f64>>,
-        increments: &mut Vec<Array2<f64>>,
+        auxiliary_matrices: &mut [Array2<f64>],
+        increments: &mut [Array2<f64>],
     ) -> Result<Array2<f64>, SklearsError> {
         for (i, constraint) in self.config.constraints.iter().enumerate() {
             let input = &matrix + &increments[i];
@@ -450,14 +456,9 @@ impl AlternatingProjections<Untrained> {
 
     /// Apply averaged projections
     fn apply_averaged_projections(&self, matrix: Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let weights = self
-            .config
-            .weights
-            .as_ref()
-            .map(|w| w.clone())
-            .unwrap_or_else(|| {
-                vec![1.0 / self.config.constraints.len() as f64; self.config.constraints.len()]
-            });
+        let weights = self.config.weights.clone().unwrap_or_else(|| {
+            vec![1.0 / self.config.constraints.len() as f64; self.config.constraints.len()]
+        });
 
         let mut result = Array2::zeros(matrix.dim());
 

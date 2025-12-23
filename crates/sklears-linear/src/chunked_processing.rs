@@ -86,7 +86,7 @@ impl ChunkProcessingConfig {
         let max_samples = usable_memory / bytes_per_sample;
 
         // Ensure we have at least 1 sample, but limit to reasonable chunk sizes
-        max_samples.max(1).min(100000)
+        max_samples.clamp(1, 100000)
     }
 }
 
@@ -326,13 +326,14 @@ impl ChunkedMatrixProcessor {
             let end_row = (start_row + chunk_rows).min(a_rows);
 
             // Process chunk of A
+            #[allow(clippy::needless_range_loop)]
             for i in start_row..end_row {
                 let a_row = a.get_row(i)?;
 
                 for j in 0..b_cols {
                     let mut sum = 0.0;
-                    for k in 0..a_cols {
-                        sum += a_row[k] * b.get(k, j)?;
+                    for (k, &a_val) in a_row.iter().enumerate().take(a_cols) {
+                        sum += a_val * b.get(k, j)?;
                     }
                     result[i][j] = sum;
                 }
@@ -370,6 +371,7 @@ impl ChunkedMatrixProcessor {
         for start_row in (0..rows).step_by(chunk_rows) {
             let end_row = (start_row + chunk_rows).min(rows);
 
+            #[allow(clippy::needless_range_loop)]
             for i in start_row..end_row {
                 let matrix_row = matrix.get_row(i)?;
                 let vector_slice = vector.as_slice();

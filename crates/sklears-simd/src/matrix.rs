@@ -8,7 +8,7 @@ use scirs2_autograd::ndarray::{s, Array1, Array2, ArrayView2, ArrayViewMut2};
 
 // Conditional imports for no-std compatibility
 #[cfg(feature = "no-std")]
-use alloc::{string::ToString, vec, vec::Vec};
+use alloc::{string::ToString, vec::Vec};
 #[cfg(not(feature = "no-std"))]
 use std::{string::ToString, vec::Vec};
 
@@ -87,13 +87,13 @@ fn matrix_multiply_block_simd(
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+        if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("fma") {
             unsafe { matrix_multiply_avx2_fma(a, b, c) };
             return;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { matrix_multiply_avx2(a, b, c) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { matrix_multiply_sse2(a, b, c) };
             return;
         }
@@ -278,13 +278,13 @@ pub fn matrix_vector_multiply_f32(matrix: &Array2<f32>, vector: &Array1<f32>) ->
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+        if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("fma") {
             unsafe { matrix_vector_multiply_avx2_fma(matrix, vector, &mut result) };
             return result;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             unsafe { matrix_vector_multiply_avx2(matrix, vector, &mut result) };
             return result;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { matrix_vector_multiply_sse2(matrix, vector, &mut result) };
             return result;
         }
@@ -418,10 +418,10 @@ pub fn elementwise_add_simd(a: &Array2<f32>, b: &Array2<f32>) -> Array2<f32> {
     {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { elementwise_add_avx2(a_slice, b_slice, result_slice) };
                 return result;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { elementwise_add_sse2(a_slice, b_slice, result_slice) };
                 return result;
             }
@@ -745,10 +745,10 @@ pub fn compute_outer_product_simd(a: &Array1<f32>, b: &Array1<f32>) -> Array2<f3
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { outer_product_avx2(a, b, &mut result) };
             return result;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { outer_product_sse2(a, b, &mut result) };
             return result;
         }
@@ -819,10 +819,13 @@ unsafe fn outer_product_avx2(a: &Array1<f32>, b: &Array1<f32>, result: &mut Arra
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_matrix_multiply_simd() {

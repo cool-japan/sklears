@@ -711,7 +711,7 @@ impl ContributionWorkflow {
                 description: "Fork the repository and clone your fork".to_string(),
                 commands: vec![
                     "# Fork on GitHub".to_string(),
-                    "git clone https://github.com/YOUR_USERNAME/sklears.git".to_string(),
+                    "git clone https://github.com/cool-japan/sklears.git".to_string(),
                     "cd sklears".to_string(),
                     "git remote add upstream https://github.com/cool-japan/sklears.git".to_string(),
                 ],

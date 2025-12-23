@@ -6,6 +6,7 @@ use sklears_metrics::pairwise::{
     pairwise_distances_argmin_min, pairwise_kernels, DistanceMetric, KernelFunction,
 };
 
+#[allow(non_snake_case)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Pairwise Metrics Demo ===\n");
 

@@ -4,9 +4,10 @@
 
 use scirs2_core::ndarray::ndarray_linalg::{Eigh, Norm, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
-use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -164,7 +165,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MetricLearning<Untrained>
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         // Initialize metric matrix based on type
@@ -522,7 +523,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastiveLearning<Untra
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut embedding_matrix = Array2::zeros((n_features, self.n_components));
@@ -801,7 +802,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for TripletLoss<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut embedding_matrix = Array2::zeros((n_features, self.n_components));
@@ -1159,7 +1160,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SiameseNetworks<Untrained
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         // Build layer sizes: input -> hidden layers -> output

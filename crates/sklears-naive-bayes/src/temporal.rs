@@ -18,6 +18,9 @@ use std::collections::{HashMap, VecDeque};
 use crate::GaussianNB;
 use sklears_core::traits::{Trained, Untrained};
 
+/// Type alias for forward-backward algorithm results
+type ForwardBackwardResult = (Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<Array1<f64>>);
+
 /// Configuration for temporal Naive Bayes models
 #[derive(Debug, Clone)]
 pub struct TemporalConfig {
@@ -232,6 +235,12 @@ pub struct TemporalNaiveBayes {
     window_labels: Option<Array1<i32>>,
 }
 
+impl Default for TemporalNaiveBayes {
+    fn default() -> Self {
+        Self::new(TemporalConfig::default())
+    }
+}
+
 impl TemporalNaiveBayes {
     pub fn new(config: TemporalConfig) -> Self {
         let feature_extractor = TemporalFeatureExtractor::new(config.clone());
@@ -241,10 +250,6 @@ impl TemporalNaiveBayes {
             classifier: None,
             window_labels: None,
         }
-    }
-
-    pub fn default() -> Self {
-        Self::new(TemporalConfig::default())
     }
 
     /// Fit the temporal model
@@ -955,7 +960,7 @@ impl HMMNaiveBayes<Untrained> {
         X: &Array3<f64>,
         transition_probs: &Array2<f64>,
         initial_probs: &Array1<f64>,
-    ) -> Result<(Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<Array1<f64>>)> {
+    ) -> Result<ForwardBackwardResult> {
         let (n_sequences, sequence_length, _) = X.dim();
 
         let mut forward_probs = Vec::new();
@@ -1028,6 +1033,7 @@ impl HMMNaiveBayes<Untrained> {
     }
 
     /// Update HMM parameters in M-step
+    #[allow(clippy::too_many_arguments)]
     fn update_hmm_parameters(
         &self,
         X: &Array3<f64>,
@@ -1198,8 +1204,7 @@ impl HMMNaiveBayes<Trained> {
             let mut class_log_probs = Array1::zeros(n_classes);
             let mut timestep_count = 0;
 
-            for t in 0..sequence_length {
-                let state = state_sequence[t];
+            for (t, &state) in state_sequence.iter().enumerate().take(sequence_length) {
                 let observation = X.slice(s![seq_idx, t, ..]).to_owned();
 
                 // Get predictions from emission models for this state

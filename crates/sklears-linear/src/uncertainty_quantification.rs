@@ -123,11 +123,6 @@ impl UncertaintyQuantifier {
         Self { config }
     }
 
-    /// Create uncertainty quantifier with default configuration
-    pub fn default() -> Self {
-        Self::new(UncertaintyConfig::default())
-    }
-
     /// Quantify uncertainty using bootstrap method
     pub fn bootstrap_uncertainty<F>(
         &self,
@@ -298,7 +293,7 @@ impl UncertaintyQuantifier {
     /// Generate bootstrap sample indices
     fn bootstrap_sample(&self, n_samples: usize, rng: &mut impl Rng) -> Vec<usize> {
         (0..n_samples)
-            .map(|_| rng.random_range(0..n_samples))
+            .map(|_| rng.gen_range(0..n_samples))
             .collect()
     }
 
@@ -365,7 +360,7 @@ impl UncertaintyQuantifier {
 
     /// Compute empirical quantile from data
     fn compute_empirical_quantile(&self, data: &Array1<Float>, quantile: Float) -> Result<Float> {
-        if quantile < 0.0 || quantile > 1.0 {
+        if !(0.0..=1.0).contains(&quantile) {
             return Err(SklearsError::InvalidParameter {
                 name: "quantile".to_string(),
                 reason: format!("Quantile must be between 0 and 1, got {}", quantile),
@@ -404,6 +399,7 @@ impl UncertaintyQuantifier {
     }
 
     /// Compute normal distribution quantile (approximate)
+    #[allow(clippy::only_used_in_recursion)]
     fn compute_normal_quantile(&self, p: Float) -> Result<Float> {
         if p <= 0.0 || p >= 1.0 {
             return Err(SklearsError::InvalidParameter {
@@ -418,7 +414,7 @@ impl UncertaintyQuantifier {
             -3.969683028665376e+01,
             2.209460984245205e+02,
             -2.759285104469687e+02,
-            1.383577518672690e+02,
+            1.383_577_518_672_69e2,
             -3.066479806614716e+01,
             2.506628277459239e+00,
         ];
@@ -470,6 +466,12 @@ impl UncertaintyQuantifier {
     }
 }
 
+impl Default for UncertaintyQuantifier {
+    fn default() -> Self {
+        Self::new(UncertaintyConfig::default())
+    }
+}
+
 /// Trait for models that support uncertainty quantification
 pub trait UncertaintyCapable {
     /// Predict with uncertainty quantification
@@ -506,7 +508,7 @@ impl CalibrationMetrics {
     pub fn compute(
         uncertainty_result: &UncertaintyResult,
         y_true: &Array1<Float>,
-        n_bins: usize,
+        _n_bins: usize,
     ) -> Result<Self> {
         let coverage = uncertainty_result.coverage(y_true)?;
         let mean_interval_width = uncertainty_result.mean_interval_width();

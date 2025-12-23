@@ -7,7 +7,7 @@
 // use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{Rng, thread_rng, Random};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform, Untrained},

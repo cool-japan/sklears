@@ -131,7 +131,7 @@ impl GraphStructureLearning<Untrained> {
 
         // Initialize with k-NN graph
         let k = (n_samples as f64).sqrt().ceil() as usize;
-        let k = k.min(10).max(3); // Bound k between 3 and 10
+        let k = k.clamp(3, 10); // Bound k between 3 and 10
 
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = Vec::new();
@@ -378,7 +378,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for GraphStructureLearning<
                 } else if iteration % 10 == 0 && total_loss < prev_loss {
                     lr *= 1.1; // Increase learning rate
                 }
-                lr = lr.min(0.1).max(1e-6); // Bound learning rate
+                lr = lr.clamp(1e-6, 0.1); // Bound learning rate
             }
 
             prev_loss = total_loss;
@@ -1121,7 +1121,7 @@ impl DistributedGraphLearning<Untrained> {
 
         // Initialize with k-NN graph
         let k = (n_samples as f64).sqrt().ceil() as usize;
-        let k = k.min(10).max(3);
+        let k = k.clamp(3, 10);
 
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = Vec::new();

@@ -103,7 +103,7 @@ impl PlattScaling {
 
                 // Compute sigmoid and its derivatives
                 let p = self.sigmoid(d1);
-                let p_clipped = p.max(1e-15).min(1.0 - 1e-15);
+                let p_clipped = p.clamp(1e-15, 1.0 - 1e-15);
 
                 // Log-likelihood
                 log_likelihood += t * p_clipped.ln() + (1.0 - t) * (1.0 - p_clipped).ln();
@@ -157,7 +157,7 @@ impl PlattScaling {
                     let t = target_probs[i];
                     let d1 = new_a * fval + new_b;
                     let p = self.sigmoid(d1);
-                    let p_clipped = p.max(1e-15).min(1.0 - 1e-15);
+                    let p_clipped = p.clamp(1e-15, 1.0 - 1e-15);
 
                     if p_clipped.ln().is_finite() && (1.0 - p_clipped).ln().is_finite() {
                         new_likelihood += t * p_clipped.ln() + (1.0 - t) * (1.0 - p_clipped).ln();
@@ -183,8 +183,8 @@ impl PlattScaling {
             b += step_size * step_b;
 
             // Prevent extreme parameter values
-            a = a.max(-100.0).min(100.0);
-            b = b.max(-100.0).min(100.0);
+            a = a.clamp(-100.0, 100.0);
+            b = b.clamp(-100.0, 100.0);
         }
 
         self.a = a;
@@ -227,7 +227,7 @@ impl CalibrationFunction for PlattScaling {
         let mut decision_values = Array1::zeros(uncalibrated_probs.len());
 
         for (i, &prob) in uncalibrated_probs.iter().enumerate() {
-            let p_clipped = prob.max(1e-15).min(1.0 - 1e-15);
+            let p_clipped = prob.clamp(1e-15, 1.0 - 1e-15);
             decision_values[i] = (p_clipped / (1.0 - p_clipped)).ln();
         }
 
@@ -314,7 +314,7 @@ impl MulticlassPlattScaling {
             // Convert probabilities to decision values
             let mut decision_values = Array1::zeros(n_samples);
             for (i, &prob) in class_probs.iter().enumerate() {
-                let p_clipped = prob.max(1e-15).min(1.0 - 1e-15);
+                let p_clipped = prob.clamp(1e-15, 1.0 - 1e-15);
                 decision_values[i] = (p_clipped / (1.0 - p_clipped)).ln();
             }
 

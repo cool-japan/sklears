@@ -14,7 +14,7 @@ type DMatrix<T> = Array2<T>;
 type DVector<T> = Array1<T>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 // TODO: Migrate to full scirs2_core::random when API is stabilized
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::marker::PhantomData;

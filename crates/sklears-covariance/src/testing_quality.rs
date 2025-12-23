@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{array, Array1, Array2, ArrayView2};
 use scirs2_core::random::essentials::{Normal, Uniform};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use scirs2_core::StandardNormal;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;

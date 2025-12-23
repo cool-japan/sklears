@@ -334,7 +334,7 @@ impl ThompsonSampling {
         {
             // Simplified Thompson sampling using uniform distribution
             // In practice, this would use proper Beta(alpha, beta) sampling
-            let sample = alpha / (alpha + beta) + rng.gen_range(-0.1..0.1);
+            let sample = alpha / (alpha + beta) + rng.random_range(-0.1, 0.1);
 
             if sample > best_sample {
                 best_sample = sample;
@@ -356,7 +356,7 @@ impl ThompsonSampling {
 
         // Update Beta distribution parameters
         // Reward should be normalized to [0, 1] for Beta distribution
-        let normalized_reward = reward.max(0.0).min(1.0);
+        let normalized_reward = reward.clamp(0.0, 1.0);
 
         if normalized_reward > 0.5 {
             // Treat as success

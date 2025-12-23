@@ -5,13 +5,15 @@
 //!
 //! Run with: cargo run --example performance_comparison_clustering
 
-use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
+use scirs2_core::random::essentials::Normal;
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::Distribution;
 use sklears::prelude::*;
 use sklears_clustering::{KMeans, KMeansConfig, DBSCAN};
 use std::time::Instant;
 
+#[allow(non_snake_case)]
 fn generate_clustering_data(n_samples: usize, n_features: usize, n_clusters: usize) -> Array2<f64> {
     let mut rng = StdRng::seed_from_u64(42);
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -41,6 +43,7 @@ fn generate_clustering_data(n_samples: usize, n_features: usize, n_clusters: usi
     X
 }
 
+#[allow(non_snake_case)]
 fn benchmark_sklears_kmeans(X: &Array2<f64>, n_clusters: usize) -> (f64, f64) {
     println!("Benchmarking sklears K-Means...");
 
@@ -73,6 +76,7 @@ fn benchmark_sklears_kmeans(X: &Array2<f64>, n_clusters: usize) -> (f64, f64) {
 
     (fit_time, predict_time)
 }
+#[allow(non_snake_case)]
 
 fn benchmark_sklears_dbscan(X: &Array2<f64>) -> f64 {
     println!("Benchmarking sklears DBSCAN...");
@@ -164,6 +168,7 @@ fn print_clustering_summary(
     println!("  - Memory usage: 2-4x lower memory consumption");
 }
 
+#[allow(non_snake_case)]
 fn main() {
     println!("sklears vs scikit-learn Performance Comparison: Clustering");
     println!("=========================================================");

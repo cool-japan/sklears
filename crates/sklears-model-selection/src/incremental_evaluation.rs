@@ -6,7 +6,8 @@
 //! monitoring in non-stationary environments.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::types::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -351,7 +352,7 @@ impl IncrementalEvaluator {
     where
         F: FnOnce(&Array1<Float>, Float),
     {
-        let update_start = Instant::now();
+        let _update_start = Instant::now();
         self.sample_count += 1;
 
         // Add to current window
@@ -477,7 +478,7 @@ impl IncrementalEvaluator {
     }
 
     /// Create appropriate drift detector based on strategy
-    fn create_drift_detector(strategy: &IncrementalEvaluationStrategy) -> Box<dyn DriftDetector> {
+    fn create_drift_detector(_strategy: &IncrementalEvaluationStrategy) -> Box<dyn DriftDetector> {
         // Default to ADWIN detector
         Box::new(ADWINDetector::new(0.002))
     }

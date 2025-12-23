@@ -495,7 +495,7 @@ where
             }
 
             BoundaryAdjustmentMethod::DensityWeighting { bandwidth, kernel } => {
-                let densities =
+                let _densities =
                     self.calculate_density_weights(&x_train, &y_train, *bandwidth, kernel)?;
                 let thresholds = classes.iter().map(|&c| (c, 0.5)).collect();
                 (thresholds, HashMap::new(), Some(HashMap::new()))
@@ -507,7 +507,7 @@ where
             }
 
             BoundaryAdjustmentMethod::CostSensitiveBoundary {
-                cost_matrix,
+                cost_matrix: _,
                 adjustment_factor,
             } => {
                 // Implement cost-sensitive boundary adjustment

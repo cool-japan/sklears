@@ -48,7 +48,7 @@ struct DecisionNode {
 }
 
 #[derive(Debug, Clone)]
-struct ClassificationDecisionNode {
+pub struct ClassificationDecisionNode {
     is_leaf: bool,
     prediction: Option<Array1<i32>>, // Mode/majority class for each target
     probabilities: Option<Array2<Float>>, // Probability distributions per target

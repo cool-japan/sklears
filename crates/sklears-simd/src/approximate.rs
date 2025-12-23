@@ -7,7 +7,7 @@
 extern crate alloc;
 
 #[cfg(feature = "no-std")]
-use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
+use alloc::collections::BTreeMap as HashMap;
 #[cfg(not(feature = "no-std"))]
 use std::{collections::HashMap, vec};
 
@@ -53,7 +53,7 @@ pub mod approximate_ops {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { approximate_dot_product_f32_avx2(a, b, error_bound) };
             }
         }
@@ -65,7 +65,7 @@ pub mod approximate_ops {
     pub fn approximate_sum_f32(data: &[f32], error_bound: ErrorBound) -> (f32, ErrorBound) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { approximate_sum_f32_avx2(data, error_bound) };
             }
         }
@@ -95,7 +95,7 @@ pub mod approximate_ops {
     ) -> (f32, ErrorBound) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { approximate_sum_of_squares_f32_avx2(data, error_bound) };
             }
         }
@@ -839,7 +839,7 @@ pub mod sketching {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     #[cfg(feature = "no-std")]

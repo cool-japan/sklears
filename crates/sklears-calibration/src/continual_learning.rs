@@ -18,6 +18,9 @@ use std::collections::HashMap;
 
 use crate::CalibrationEstimator;
 
+/// Type alias for replay sample data (probabilities, labels, weights)
+type ReplaySampleData = (Array1<Float>, Array1<i32>, Array1<Float>);
+
 /// Task identification and metadata
 #[derive(Debug, Clone, PartialEq)]
 pub struct TaskId {
@@ -394,7 +397,7 @@ impl ContinualLearningCalibrator {
     }
 
     /// Get replay samples according to strategy
-    fn get_replay_samples(&self) -> Result<Option<(Array1<Float>, Array1<i32>, Array1<Float>)>> {
+    fn get_replay_samples(&self) -> Result<Option<ReplaySampleData>> {
         match &self.replay_strategy {
             ReplayStrategy::FixedSize { samples_per_task } => {
                 self.get_fixed_size_replay(*samples_per_task)
@@ -414,10 +417,7 @@ impl ContinualLearningCalibrator {
     }
 
     /// Get fixed size replay samples
-    fn get_fixed_size_replay(
-        &self,
-        samples_per_task: usize,
-    ) -> Result<Option<(Array1<Float>, Array1<i32>, Array1<Float>)>> {
+    fn get_fixed_size_replay(&self, samples_per_task: usize) -> Result<Option<ReplaySampleData>> {
         let mut replay_probs = Vec::new();
         let mut replay_labels = Vec::new();
         let mut replay_weights = Vec::new();
@@ -427,7 +427,7 @@ impl ContinualLearningCalibrator {
                 let n_samples = samples_per_task.min(probs.len());
 
                 // Simple random sampling
-                let rng_instance = thread_rng();
+                let _rng_instance = thread_rng();
                 let mut indices: Vec<usize> = (0..probs.len()).collect();
                 indices.reverse();
 
@@ -454,7 +454,7 @@ impl ContinualLearningCalibrator {
     fn get_importance_weighted_replay(
         &self,
         max_samples: usize,
-    ) -> Result<Option<(Array1<Float>, Array1<i32>, Array1<Float>)>> {
+    ) -> Result<Option<ReplaySampleData>> {
         // For now, use equal importance for all tasks
         // In practice, could weight by task difficulty or recency
         let n_tasks = self.task_calibrators.len();
@@ -467,10 +467,7 @@ impl ContinualLearningCalibrator {
     }
 
     /// Get diversity-based replay samples
-    fn get_diversity_based_replay(
-        &self,
-        max_samples: usize,
-    ) -> Result<Option<(Array1<Float>, Array1<i32>, Array1<Float>)>> {
+    fn get_diversity_based_replay(&self, max_samples: usize) -> Result<Option<ReplaySampleData>> {
         // Simple implementation: spread samples across probability ranges
         let (all_probs, all_labels, all_weights) = self.memory_buffer.get_all_examples();
 
@@ -505,7 +502,7 @@ impl ContinualLearningCalibrator {
                 .collect();
 
             // Sample from this bin
-            let rng_instance = thread_rng();
+            let _rng_instance = thread_rng();
             let mut bin_indices_shuffled = bin_indices;
             bin_indices_shuffled.reverse();
 
@@ -531,8 +528,8 @@ impl ContinualLearningCalibrator {
     fn get_temporal_decay_replay(
         &self,
         max_samples: usize,
-        decay_rate: Float,
-    ) -> Result<Option<(Array1<Float>, Array1<i32>, Array1<Float>)>> {
+        _decay_rate: Float,
+    ) -> Result<Option<ReplaySampleData>> {
         // Weight samples by recency
         let (all_probs, all_labels, all_weights) = self.memory_buffer.get_all_examples();
 
@@ -544,7 +541,7 @@ impl ContinualLearningCalibrator {
         // In practice, would compute actual temporal weights
         let n_samples = max_samples.min(all_probs.len());
 
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
         let mut indices: Vec<usize> = (0..all_probs.len()).collect();
         indices.reverse();
 
@@ -652,7 +649,7 @@ impl TemperatureScalingWrapper {
 }
 
 impl CalibrationEstimator for TemperatureScalingWrapper {
-    fn fit(&mut self, probabilities: &Array1<Float>, _y_true: &Array1<i32>) -> Result<()> {
+    fn fit(&mut self, _probabilities: &Array1<Float>, _y_true: &Array1<i32>) -> Result<()> {
         // Simple temperature estimation
         self.temperature = 1.0; // In practice, would optimize this
         self.is_fitted = true;

@@ -196,7 +196,7 @@ impl Fit<Array2<Float>, Array1<Float>> for ElasticNetCV<Untrained> {
     fn fit(self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Self::Fitted> {
         validate::check_consistent_length(x, y)?;
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_features = x.ncols();
 
         // Get l1_ratio candidates
@@ -262,7 +262,7 @@ impl Fit<Array2<Float>, Array1<Float>> for ElasticNetCV<Untrained> {
             sorted_alphas.sort_by(|a, b| b.partial_cmp(a).unwrap());
 
             for &alpha in &sorted_alphas {
-                let elastic_net = if self.config.warm_start && previous_coef.is_some() {
+                let _elastic_net = if self.config.warm_start && previous_coef.is_some() {
                     // Use warm start with previous coefficients
                     LinearRegression::elastic_net(alpha, l1_ratio)
                         .fit_intercept(self.config.fit_intercept)
@@ -568,7 +568,15 @@ mod tests {
             y[i] = 2.0 * x[[i, 0]] + 1.5 * x[[i, 1]] + 3.0 * x[[i, 2]];
         }
 
-        let model = ElasticNetCV::new().cv(5).fit(&x, &y).unwrap();
+        // Use smaller parameter space to avoid timeout
+        // 3 l1_ratios × 5 alphas × 3 folds = 45 fits (vs. 3500 with defaults)
+        let model = ElasticNetCV::new()
+            .l1_ratios(vec![0.3, 0.5, 0.7])
+            .alphas(vec![0.001, 0.01, 0.1, 1.0, 10.0])
+            .cv(3)
+            .max_iter(500)
+            .fit(&x, &y)
+            .unwrap();
 
         // Check that l1_ratio is not at extremes (pure Ridge or pure Lasso)
         let l1_ratio = model.l1_ratio();

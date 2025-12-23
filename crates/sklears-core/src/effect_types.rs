@@ -1034,6 +1034,146 @@ pub type MemoryIOEffect = Combined<Memory, IO>;
 pub type GPUMemoryEffect = Combined<GPU, Memory>;
 pub type FallibleIOEffect = Combined<Fallible, IO>;
 
+// =============================================================================
+// Advanced Effect Composition Patterns
+// =============================================================================
+
+/// Effect transformer for composing effect handlers
+pub struct EffectTransformer<E1, E2>
+where
+    E1: EffectType,
+    E2: EffectType,
+{
+    _phantom1: PhantomData<E1>,
+    _phantom2: PhantomData<E2>,
+}
+
+impl<E1, E2> EffectTransformer<E1, E2>
+where
+    E1: EffectType,
+    E2: EffectType,
+{
+    /// Transform one effect into another
+    pub fn transform<T, F>(effect: Effect<T, E1>, f: F) -> Effect<T, E2>
+    where
+        F: FnOnce(E1::Data) -> E2::Data,
+    {
+        Effect {
+            value: effect.value,
+            effect_data: f(effect.effect_data),
+            metadata: effect.metadata,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Effect inference engine for automatic effect tracking
+pub struct EffectInference {
+    inferred_effects: Arc<Mutex<HashMap<String, Vec<String>>>>,
+}
+
+impl EffectInference {
+    /// Create a new effect inference engine
+    pub fn new() -> Self {
+        Self {
+            inferred_effects: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Infer effects from a computation
+    pub fn infer<T, F>(&self, name: impl Into<String>, _computation: F) -> Vec<String>
+    where
+        F: FnOnce() -> T,
+    {
+        let name = name.into();
+
+        // Simple heuristic-based inference
+        // In practice, this would use static analysis
+        let effects = vec!["Pure".to_string()];
+
+        let mut cache = self.inferred_effects.lock().unwrap();
+        cache.insert(name.clone(), effects.clone());
+
+        effects
+    }
+
+    /// Get inferred effects for a named computation
+    pub fn get_effects(&self, name: &str) -> Option<Vec<String>> {
+        self.inferred_effects.lock().unwrap().get(name).cloned()
+    }
+}
+
+impl Default for EffectInference {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Row polymorphism for extensible effects
+pub trait EffectRow {
+    fn row_type_name() -> &'static str;
+    fn contains_effect(effect_name: &str) -> bool;
+}
+
+/// Empty effect row
+pub struct EmptyRow;
+
+impl EffectRow for EmptyRow {
+    fn row_type_name() -> &'static str {
+        "EmptyRow"
+    }
+
+    fn contains_effect(_effect_name: &str) -> bool {
+        false
+    }
+}
+
+/// Polymorphic effect with row-based extensibility
+pub struct PolyEffect<T, R: EffectRow> {
+    value: T,
+    effect_names: Vec<String>,
+    _phantom: PhantomData<R>,
+}
+
+impl<T, R: EffectRow> PolyEffect<T, R> {
+    /// Create a new polymorphic effect
+    pub fn new(value: T) -> Self {
+        Self {
+            value,
+            effect_names: Vec::new(),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Get the value
+    pub fn value(self) -> T {
+        self.value
+    }
+
+    /// Map the value
+    pub fn map<U, F>(self, f: F) -> PolyEffect<U, R>
+    where
+        F: FnOnce(T) -> U,
+    {
+        PolyEffect {
+            value: f(self.value),
+            effect_names: self.effect_names,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Add an effect tag
+    pub fn with_effect(mut self, effect_name: impl Into<String>) -> Self {
+        self.effect_names.push(effect_name.into());
+        self
+    }
+
+    /// Check if an effect is present
+    pub fn has_effect(&self, effect_name: &str) -> bool {
+        self.effect_names.iter().any(|e| e == effect_name)
+    }
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -1128,8 +1268,8 @@ mod tests {
         let _combined_type: Combined<IO, Random> = Combined {
             _phantom: PhantomData,
         };
-        assert!(!Combined::<IO, Random>::IS_PURE);
-        assert!(Combined::<IO, Random>::NEEDS_TRACKING);
+        const _: () = assert!(!Combined::<IO, Random>::IS_PURE);
+        const _: () = assert!(Combined::<IO, Random>::NEEDS_TRACKING);
     }
 
     #[test]
@@ -1159,5 +1299,48 @@ mod tests {
 
         assert!(metadata.duration >= std::time::Duration::from_nanos(0));
         assert!(metadata.timestamp <= std::time::SystemTime::now());
+    }
+
+    #[test]
+    fn test_effect_inference() {
+        let inference = EffectInference::new();
+        let effects = inference.infer("my_computation", || 42);
+
+        assert!(!effects.is_empty());
+        assert_eq!(effects[0], "Pure");
+
+        let cached = inference.get_effects("my_computation");
+        assert!(cached.is_some());
+        assert_eq!(cached.unwrap(), effects);
+    }
+
+    #[test]
+    fn test_poly_effect_creation() {
+        let effect = PolyEffect::<i32, EmptyRow>::new(100);
+        assert_eq!(effect.value(), 100);
+    }
+
+    #[test]
+    fn test_poly_effect_mapping() {
+        let effect = PolyEffect::<i32, EmptyRow>::new(10);
+        let mapped = effect.map(|x| x * 5);
+        assert_eq!(mapped.value(), 50);
+    }
+
+    #[test]
+    fn test_poly_effect_tagging() {
+        let effect = PolyEffect::<i32, EmptyRow>::new(42)
+            .with_effect("IO")
+            .with_effect("Random");
+
+        assert!(effect.has_effect("IO"));
+        assert!(effect.has_effect("Random"));
+        assert!(!effect.has_effect("GPU"));
+    }
+
+    #[test]
+    fn test_empty_row() {
+        assert_eq!(EmptyRow::row_type_name(), "EmptyRow");
+        assert!(!EmptyRow::contains_effect("any_effect"));
     }
 }

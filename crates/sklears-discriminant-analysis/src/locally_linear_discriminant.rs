@@ -395,14 +395,6 @@ impl LocallyLinearDiscriminantAnalysis {
             let y = y.unwrap();
             let mut supervised_cost = cost_matrix.clone();
 
-            // Add class-based regularization
-            let classes: Vec<i32> = {
-                let mut unique_classes: Vec<i32> = y.iter().cloned().collect();
-                unique_classes.sort_unstable();
-                unique_classes.dedup();
-                unique_classes
-            };
-
             // Encourage points of the same class to be close in embedding
             for i in 0..n_samples {
                 for j in 0..n_samples {

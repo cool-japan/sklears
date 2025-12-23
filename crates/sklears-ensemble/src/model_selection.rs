@@ -217,7 +217,7 @@ impl EnsembleCrossValidator {
                         let mut rng = thread_rng();
                         // Simple shuffle using Fisher-Yates
                         for i in (1..indices.len()).rev() {
-                            let j = rng.gen_range(0..=i);
+                            let j = rng.gen_range(0..i + 1);
                             indices.swap(i, j);
                         }
                     }

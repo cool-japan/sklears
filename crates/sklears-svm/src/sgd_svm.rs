@@ -303,7 +303,7 @@ impl SGDClassifier {
     }
 
     /// Compute learning rate for current iteration
-    fn compute_learning_rate(&self, iteration: usize, n_samples: usize) -> f64 {
+    fn compute_learning_rate(&self, iteration: usize, _n_samples: usize) -> f64 {
         match self.learning_rate.as_str() {
             "constant" => {
                 if self.eta0 > 0.0 {

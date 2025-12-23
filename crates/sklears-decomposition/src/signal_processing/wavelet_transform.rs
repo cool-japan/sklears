@@ -239,7 +239,7 @@ impl WaveletTransform {
         let mut current_signal = signal.clone();
         let mut details = Vec::new();
 
-        for level in 0..self.levels {
+        for _level in 0..self.levels {
             if current_signal.len() < self.wavelet_type.filter_length() {
                 break;
             }

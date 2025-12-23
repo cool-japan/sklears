@@ -3,6 +3,8 @@
 //! This benchmark suite measures the performance improvements from SIMD optimizations
 //! across various pipeline operations, comparing vectorized vs scalar implementations.
 
+#![allow(missing_docs)]
+
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_compose::simd_optimizations::{SimdConfig, SimdOps};

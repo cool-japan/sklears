@@ -48,7 +48,8 @@ mod gaussian;
 mod hierarchical;
 mod kernel_methods;
 mod mixed;
-mod model_selection;
+// TODO: ndarray 0.17 HRTB trait bound issues
+//mod model_selection;
 mod multilabel;
 mod multinomial;
 mod neural_naive_bayes;
@@ -170,11 +171,12 @@ pub use kernel_methods::{
     ScoringMetric as KernelScoringMetric,
 };
 pub use mixed::{FeatureDistribution, MixedNB};
-pub use model_selection::{
-    BayesianModelComparison, BayesianModelSelector, CVResults, CVStrategy, InformationCriterion,
-    ModelComparison, ModelSelectionResults, NaiveBayesModelSelector, NestedModelComparison,
-    NestedModelValidation, ParameterGrid, ParameterValue, ScoringMetric,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use model_selection::{
+//     BayesianModelComparison, BayesianModelSelector, CVResults, CVStrategy, InformationCriterion,
+//     ModelComparison, ModelSelectionResults, NaiveBayesModelSelector, NestedModelComparison,
+//     NestedModelValidation, ParameterGrid, ParameterValue, ScoringMetric,
+// };
 pub use multilabel::{
     AdvancedChainClassifier, ChainOrderingStrategy, LabelCorrelationAnalysis, LabelDependencyGraph,
     LabelHierarchy, MultiLabelNB, MultiLabelStrategy,

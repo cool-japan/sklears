@@ -626,7 +626,7 @@ impl StochasticVariationalGMM<Untrained> {
 
     /// Initialize optimizer state
     fn initialize_optimizer_state(&self, n_features: usize) -> OptimizerState {
-        /// OptimizerState
+        // Return OptimizerState
         OptimizerState {
             m_pi: Array1::zeros(self.n_components),
             m_mu_mean: Array2::zeros((self.n_components, n_features)),
@@ -715,11 +715,11 @@ impl StochasticVariationalGMM<Untrained> {
         &self,
         batch_X: &Array2<f64>,
         local_params: &LocalParameters,
-        global_pi_alpha: &Array1<f64>,
+        _global_pi_alpha: &Array1<f64>,
         global_mu_mean: &Array2<f64>,
         global_mu_precision: &Array2<f64>,
         global_lambda_nu: &Array1<f64>,
-        global_lambda_w: &Vec<Array2<f64>>,
+        _global_lambda_w: &Vec<Array2<f64>>,
         n_total: usize,
         batch_size: usize,
     ) -> SklResult<Gradients> {
@@ -806,7 +806,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_lambda_w: &mut Vec<Array2<f64>>,
         gradients: &Gradients,
         optimizer_state: &mut OptimizerState,
-        epoch: usize,
+        _epoch: usize,
     ) -> SklResult<()> {
         optimizer_state.t += 1;
 
@@ -893,7 +893,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &mut Array2<f64>,
         global_mu_precision: &mut Array2<f64>,
         global_lambda_nu: &mut Array1<f64>,
-        global_lambda_w: &mut Vec<Array2<f64>>,
+        _global_lambda_w: &mut Vec<Array2<f64>>,
         gradients: &Gradients,
         optimizer_state: &mut OptimizerState,
     ) -> SklResult<()> {
@@ -939,7 +939,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &mut Array2<f64>,
         global_mu_precision: &mut Array2<f64>,
         global_lambda_nu: &mut Array1<f64>,
-        global_lambda_w: &mut Vec<Array2<f64>>,
+        _global_lambda_w: &mut Vec<Array2<f64>>,
         gradients: &Gradients,
         optimizer_state: &mut OptimizerState,
     ) -> SklResult<()> {
@@ -987,7 +987,7 @@ impl StochasticVariationalGMM<Untrained> {
         global_mu_mean: &mut Array2<f64>,
         global_mu_precision: &mut Array2<f64>,
         global_lambda_nu: &mut Array1<f64>,
-        global_lambda_w: &mut Vec<Array2<f64>>,
+        _global_lambda_w: &mut Vec<Array2<f64>>,
         gradients: &Gradients,
         optimizer_state: &mut OptimizerState,
     ) -> SklResult<()> {
@@ -1059,7 +1059,7 @@ impl StochasticVariationalGMM<Untrained> {
         &self,
         batch_X: &Array2<f64>,
         local_params: &LocalParameters,
-        global_pi_alpha: &Array1<f64>,
+        _global_pi_alpha: &Array1<f64>,
         global_mu_mean: &Array2<f64>,
         global_mu_precision: &Array2<f64>,
         global_lambda_nu: &Array1<f64>,
@@ -1201,7 +1201,7 @@ impl StochasticVariationalGMM<Untrained> {
 
 impl OptimizerState {
     /// Decay learning rate
-    fn decay_learning_rate(&mut self, decay_rate: f64) {
+    fn decay_learning_rate(&mut self, _decay_rate: f64) {
         // This is handled at the algorithm level, not optimizer state level
         // But we can track it if needed
     }
@@ -1377,7 +1377,7 @@ impl StochasticVariationalGMM<StochasticVariationalGMMTrained> {
     }
 
     /// Continue training with additional data (incremental learning)
-    pub fn partial_fit(&mut self, X: &ArrayView2<'_, Float>) -> SklResult<()> {
+    pub fn partial_fit(&mut self, _X: &ArrayView2<'_, Float>) -> SklResult<()> {
         // Implementation for incremental learning would go here
         // This would allow the model to continue learning from new data
         // without retraining from scratch

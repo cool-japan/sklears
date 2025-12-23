@@ -194,7 +194,7 @@ impl Fit<Array2<f64>, ()> for SpatiallyConstrainedGMM<Untrained> {
             &spatial_smoothness,
         )?;
 
-        let trained_state = SpatiallyConstrainedGMMTrained {
+        let _trained_state = SpatiallyConstrainedGMMTrained {
             weights: final_weights,
             means: final_means,
             covariances: final_covariances,
@@ -376,17 +376,17 @@ impl SpatiallyConstrainedGMM<Untrained> {
     fn spatial_em_algorithm(
         &self,
         X: &Array2<f64>,
-        coords: &Array2<f64>,
+        _coords: &Array2<f64>,
         mut weights: Array1<f64>,
         mut means: Array2<f64>,
         mut covariances: Array3<f64>,
         spatial_smoothness: &Array2<f64>,
     ) -> SklResult<(Array1<f64>, Array2<f64>, Array3<f64>)> {
-        let (n_samples, n_features) = X.dim();
-        let n_components = self.config.n_components;
+        let (_n_samples, _n_features) = X.dim();
+        let _n_components = self.config.n_components;
         let mut prev_log_likelihood = f64::NEG_INFINITY;
 
-        for iteration in 0..self.config.max_iter {
+        for _iteration in 0..self.config.max_iter {
             // E-step: Compute responsibilities with spatial constraints
             let responsibilities =
                 self.e_step_spatial(X, &weights, &means, &covariances, spatial_smoothness)?;

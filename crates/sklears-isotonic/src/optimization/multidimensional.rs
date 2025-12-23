@@ -181,9 +181,9 @@ impl Predict<Array2<Float>, Array1<Float>>
         let mut predictions = Array1::<Float>::zeros(n_samples);
 
         // Predict using each dimension and combine the results
-        for dim in 0..n_features {
+        for (dim, regressor) in fitted_regressors.iter().enumerate().take(n_features) {
             let x_dim = x.column(dim);
-            let dim_predictions = fitted_regressors[dim].predict(&x_dim.to_owned())?;
+            let dim_predictions = regressor.predict(&x_dim.to_owned())?;
 
             // For separable case, we can average, sum, or use another combination strategy
             // Here we use averaging for simplicity

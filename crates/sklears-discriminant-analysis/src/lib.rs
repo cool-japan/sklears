@@ -12,7 +12,8 @@
 pub mod adaptive_discriminant;
 // pub mod async_optimization; // Temporarily disabled - needs error type fixes
 pub mod bayesian_discriminant;
-pub mod boundary_adjustment;
+// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score traits
+// pub mod boundary_adjustment;
 pub mod canonical_discriminant;
 pub mod cost_sensitive_discriminant_analysis;
 pub mod cross_modal_discriminant;
@@ -73,11 +74,12 @@ pub use bayesian_discriminant::{
     BayesianDiscriminantAnalysis, BayesianDiscriminantAnalysisConfig, InferenceMethod,
     PosteriorParameters, PriorType, TrainedBayesianDiscriminantAnalysis,
 };
-pub use boundary_adjustment::{
-    BoundaryAdjustmentConfig, BoundaryAdjustmentDiscriminantAnalysis, BoundaryAdjustmentMethod,
-    DensityKernel, OptimizationCriterion, SearchMethod,
-    TrainedBoundaryAdjustmentDiscriminantAnalysis,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score traits
+// pub use boundary_adjustment::{
+//     BoundaryAdjustmentConfig, BoundaryAdjustmentDiscriminantAnalysis, BoundaryAdjustmentMethod,
+//     DensityKernel, OptimizationCriterion, SearchMethod,
+//     TrainedBoundaryAdjustmentDiscriminantAnalysis,
+// };
 pub use canonical_discriminant::{
     CanonicalDiscriminantAnalysis, CanonicalDiscriminantAnalysisConfig,
     TrainedCanonicalDiscriminantAnalysis,

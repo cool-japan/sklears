@@ -9,9 +9,10 @@ use sklears::prelude::*;
 use sklears::traits::PredictProba;
 // StandardScaler not available in facade
 // use sklears::preprocessing::scaling::StandardScaler;
-use sklears::data_generation::make_classification;
+use sklears::utils::data_generation::make_classification;
 
 #[test]
+#[allow(non_snake_case)]
 fn test_simple_classification_pipeline() {
     // Generate synthetic data
     let (X, y) = make_classification(50, 4, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
@@ -50,6 +51,7 @@ fn test_simple_classification_pipeline() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_knn_probability_predictions() {
     // Generate binary classification data
     let (X, y) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
@@ -85,12 +87,14 @@ fn test_knn_probability_predictions() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "StandardScaler not available in facade crate"]
 fn test_preprocessing_consistency() {
     // Test disabled until StandardScaler is available in facade
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_data_generation_functions() {
     // Test make_classification
     let (X, y) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
@@ -111,6 +115,7 @@ fn test_data_generation_functions() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "StandardScaler not available in facade crate"]
 fn test_cross_crate_compatibility() {
     // Test that different crates work together seamlessly
@@ -133,6 +138,7 @@ fn test_cross_crate_compatibility() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_error_handling() {
     // Test dimension mismatch errors
     let X_train = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();

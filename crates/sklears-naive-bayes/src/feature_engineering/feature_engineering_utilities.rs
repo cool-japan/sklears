@@ -11,6 +11,9 @@ use sklears_core::error::Result;
 use sklears_core::prelude::SklearsError;
 use std::collections::HashMap;
 
+/// Type alias for train/test split data: (X_train, X_test, y_train, y_test)
+type TrainTestSplitGeneric<T> = (Array2<T>, Array2<T>, Array1<T>, Array1<T>);
+
 /// Utility configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UtilityConfig {
@@ -675,7 +678,7 @@ impl FeatureEngineeringUtils {
         labels: &ArrayView1<T>,
         test_size: f64,
         seed: Option<u64>,
-    ) -> Result<(Array2<T>, Array2<T>, Array1<T>, Array1<T>)>
+    ) -> Result<TrainTestSplitGeneric<T>>
     where
         T: Clone + Copy + Default + std::fmt::Debug,
     {

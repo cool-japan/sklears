@@ -65,3 +65,12 @@ Thumbs.db
 
 ./build_output.txt
 crates/sklears-semi-supervised/proptest-regressions/convergence_tests.txt
+
+crates/sklears-compose/Applications/
+crates/sklears-compose/bin/
+
+# Local config
+.config/
+
+# Jupyter Notebook
+.ipynb_checkpoints/

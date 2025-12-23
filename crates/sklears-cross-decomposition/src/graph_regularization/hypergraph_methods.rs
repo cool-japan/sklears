@@ -13,8 +13,7 @@
 //! - Spectral hypergraph methods for dimensionality reduction
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::{HashMap, HashSet};
@@ -736,13 +735,12 @@ impl MultiWayInteractionAnalyzer {
         }
 
         let mut combinations = Vec::new();
-        self.generate_combinations_recursive(n, k, 0, &mut vec![], &mut combinations);
+        Self::generate_combinations_recursive(n, k, 0, &mut vec![], &mut combinations);
         combinations
     }
 
     /// Recursive helper for generating combinations
     fn generate_combinations_recursive(
-        &self,
         n: usize,
         k: usize,
         start: usize,
@@ -756,7 +754,7 @@ impl MultiWayInteractionAnalyzer {
 
         for i in start..n {
             current.push(i);
-            self.generate_combinations_recursive(n, k, i + 1, current, result);
+            Self::generate_combinations_recursive(n, k, i + 1, current, result);
             current.pop();
         }
     }

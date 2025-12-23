@@ -324,7 +324,7 @@ impl Default for PluginValidator {
 ///
 /// Contains comprehensive information about a plugin including metadata,
 /// security information, dependencies, and marketplace data.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PluginManifest {
     /// Basic plugin metadata
     pub metadata: PluginMetadata,
@@ -528,7 +528,7 @@ pub enum VulnerabilitySeverity {
 }
 
 /// API usage information for security analysis
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApiUsageInfo {
     /// API calls made by the plugin
     pub calls: Vec<String>,
@@ -539,7 +539,7 @@ pub struct ApiUsageInfo {
 }
 
 /// Code analysis information
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CodeAnalysisInfo {
     /// Cyclomatic complexity score
     pub cyclomatic_complexity: usize,
@@ -554,7 +554,7 @@ pub struct CodeAnalysisInfo {
 }
 
 /// Dependency specification
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Dependency {
     /// Dependency name
     pub name: String,
@@ -567,7 +567,7 @@ pub struct Dependency {
 }
 
 /// Marketplace information
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MarketplaceInfo {
     /// Plugin URL on marketplace
     pub url: String,

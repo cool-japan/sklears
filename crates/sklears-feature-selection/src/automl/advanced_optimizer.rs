@@ -143,7 +143,6 @@ impl AdvancedHyperparameterOptimizer {
         let mut best_config = self.generate_initial_config(method, characteristics)?;
         let mut best_score = self.evaluate_config(method, &best_config, X, y)?;
 
-        let rng = thread_rng();
         for iteration in 0..self.max_iterations {
             if start_time.elapsed() > self.time_budget {
                 break;
@@ -194,7 +193,7 @@ impl AdvancedHyperparameterOptimizer {
         let mut best_score = self.evaluate_config(method, &best_config, X, y)?;
 
         let mut rng = thread_rng();
-        for generation in 0..(self.max_iterations / POPULATION_SIZE) {
+        for _generation in 0..(self.max_iterations / POPULATION_SIZE) {
             if start_time.elapsed() > self.time_budget {
                 break;
             }
@@ -374,23 +373,23 @@ impl AdvancedHyperparameterOptimizer {
     ) -> Result<MethodConfig> {
         match method {
             AutoMLMethod::UnivariateFiltering => {
-                let k = rng.gen_range(1..=characteristics.n_features.min(100));
+                let k = rng.gen_range(1..characteristics.n_features.min(101));
                 Ok(MethodConfig::Univariate { k })
             }
             AutoMLMethod::CorrelationBased => {
-                let threshold = rng.gen_range(0.1..=0.9);
+                let threshold = rng.gen_range(0.1..1.9);
                 Ok(MethodConfig::Correlation { threshold })
             }
             AutoMLMethod::TreeBased => {
-                let n_estimators = rng.gen_range(10..=200);
-                let max_depth = rng.gen_range(3..=15);
+                let n_estimators = rng.gen_range(10..201);
+                let max_depth = rng.gen_range(3..16);
                 Ok(MethodConfig::Tree {
                     n_estimators,
                     max_depth,
                 })
             }
             AutoMLMethod::LassoBased => {
-                let alpha = rng.gen_range(0.001..=1.0);
+                let alpha = rng.gen_range(0.001..2.0);
                 Ok(MethodConfig::Lasso { alpha })
             }
             _ => Ok(MethodConfig::Univariate {
@@ -436,7 +435,7 @@ impl AdvancedHyperparameterOptimizer {
     ) -> Result<f64> {
         // Simplified evaluation - return random score for demo
         let mut rng = thread_rng();
-        Ok(rng.gen_range(0.0..=1.0))
+        Ok(rng.gen_range(0.0..2.0))
     }
 
     fn select_parent<R: Rng>(&self, scores: &[f64], rng: &mut R) -> usize {
@@ -466,7 +465,7 @@ impl AdvancedHyperparameterOptimizer {
 
     fn mutate<R: Rng>(
         &self,
-        config: &MethodConfig,
+        _config: &MethodConfig,
         method: &AutoMLMethod,
         characteristics: &DataCharacteristics,
         rng: &mut R,

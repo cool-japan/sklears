@@ -9,6 +9,8 @@ use scirs2_core::ndarray::{s, Array2};
 use thiserror::Error;
 
 #[cfg(feature = "gpu")]
+use std::collections::HashMap;
+#[cfg(feature = "gpu")]
 use wgpu::{
     util::DeviceExt, Adapter, BufferDescriptor, BufferUsages, ComputePassDescriptor,
     ComputePipeline, Device, DeviceDescriptor, Features, Instance, Limits, PowerPreference, Queue,
@@ -51,8 +53,9 @@ pub struct GpuKernelComputer {
 impl GpuKernelComputer {
     /// Create a new GPU kernel computer
     pub async fn new() -> GpuKernelResult<Self> {
-        let instance = Instance::new(wgpu::InstanceDescriptor {
+        let instance = Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::default(),
             ..Default::default()
         });
 
@@ -71,6 +74,7 @@ impl GpuKernelComputer {
                     label: None,
                     required_features: Features::empty(),
                     required_limits: Limits::default(),
+                    memory_hints: wgpu::MemoryHints::Performance,
                 },
                 None,
             )
@@ -137,7 +141,9 @@ impl GpuKernelComputer {
                 label: Some("RBF Kernel Pipeline"),
                 layout: None,
                 module: &shader,
-                entry_point: "rbf_kernel",
+                entry_point: Some("rbf_kernel"),
+                compilation_options: Default::default(),
+                cache: None,
             });
 
         self.shader_modules.insert("rbf".to_string(), shader);
@@ -190,7 +196,9 @@ impl GpuKernelComputer {
                 label: Some("Polynomial Kernel Pipeline"),
                 layout: None,
                 module: &shader,
-                entry_point: "polynomial_kernel",
+                entry_point: Some("polynomial_kernel"),
+                compilation_options: Default::default(),
+                cache: None,
             });
 
         self.shader_modules.insert("polynomial".to_string(), shader);
@@ -240,7 +248,9 @@ impl GpuKernelComputer {
                 label: Some("Linear Kernel Pipeline"),
                 layout: None,
                 module: &shader,
-                entry_point: "linear_kernel",
+                entry_point: Some("linear_kernel"),
+                compilation_options: Default::default(),
+                cache: None,
             });
 
         self.shader_modules.insert("linear".to_string(), shader);
@@ -292,7 +302,9 @@ impl GpuKernelComputer {
                 label: Some("Sigmoid Kernel Pipeline"),
                 layout: None,
                 module: &shader,
-                entry_point: "sigmoid_kernel",
+                entry_point: Some("sigmoid_kernel"),
+                compilation_options: Default::default(),
+                cache: None,
             });
 
         self.shader_modules.insert("sigmoid".to_string(), shader);
@@ -571,7 +583,7 @@ impl GpuKernel {
 
     /// Compute kernel matrix on CPU
     pub fn compute_cpu_kernel_matrix(&self, x: &Array2<f32>, y: &Array2<f32>) -> Array2<f32> {
-        let (n_x, n_features) = x.dim();
+        let (n_x, _n_features) = x.dim();
         let (n_y, _) = y.dim();
         let mut result = Array2::zeros((n_x, n_y));
 
@@ -645,6 +657,7 @@ impl GpuKernelBenchmark {
         // CPU benchmark
         let cpu_start = std::time::Instant::now();
         let cpu_kernel = GpuKernel::new(kernel_type.clone(), false);
+        #[cfg_attr(not(feature = "gpu"), allow(unused_variables))]
         let cpu_result = cpu_kernel.compute_cpu_kernel_matrix(x, y);
         let cpu_time = cpu_start.elapsed();
 

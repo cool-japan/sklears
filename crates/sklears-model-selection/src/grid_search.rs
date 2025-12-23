@@ -4,7 +4,7 @@ use crate::{CrossValidator, KFold, Scoring};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::IndexedRandom;
 use scirs2_core::random::essentials::Normal as RandNormal;
-use scirs2_core::random::prelude::*;
+// use scirs2_core::random::prelude::*;
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
@@ -726,7 +726,8 @@ where
 
     /// Sample parameter combinations from distributions
     fn sample_parameters(&self, n_samples: usize) -> Vec<ParameterSet> {
-        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
 
         let mut rng = match self.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -1147,7 +1148,8 @@ mod tests {
 
     #[test]
     fn test_parameter_distribution_sampling() {
-        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
         let mut rng = StdRng::seed_from_u64(42);
 
         // Test Choice distribution

@@ -10,11 +10,10 @@
 //! - Trust region methods: Robust optimization with adaptive step sizes
 //! - Accelerated gradient methods: Fast first-order optimization
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{Cholesky, DMatrix, DVector, LU};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
-use scirs2_core::ndarray::Array1;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_linalg::{cholesky, lu, solve};
 
 use crate::kernels::{create_kernel, Kernel, KernelType};
 use sklears_core::error::{Result, SklearsError};
@@ -64,7 +63,7 @@ impl Default for AdvancedOptimizationConfig {
 #[derive(Debug, Clone)]
 pub struct OptimizationResult {
     /// Dual coefficients
-    pub dual_coef: DVector<f64>,
+    pub dual_coef: Array1<f64>,
     /// Intercept term
     pub intercept: f64,
     /// Support vector indices
@@ -145,6 +144,9 @@ impl ADMMSVM {
 
         // ADMM iterations
         for iteration in 0..self.config.max_iter {
+            // Store previous z for dual residual calculation
+            let z_prev = z.clone();
+
             // Update alpha (dual variables)
             alpha = self.update_alpha(&k_matrix, y, &z, &u)?;
 
@@ -167,7 +169,8 @@ impl ADMMSVM {
 
             // Check convergence
             let primal_residual = (&alpha - &z).norm();
-            let dual_residual = 0.0; // TODO: Implement proper dual residual calculation
+            // Dual residual: ρ * ||z^{k+1} - z^k||
+            let dual_residual = self.config.rho * (&z - &z_prev).norm();
 
             if primal_residual < self.config.tol && dual_residual < self.config.tol {
                 if self.config.verbose {

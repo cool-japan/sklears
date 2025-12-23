@@ -185,7 +185,7 @@ impl TopicModel {
             for term in 0..self.num_terms {
                 let count = doc_term_matrix[[doc, term]] as usize;
                 for _ in 0..count {
-                    let topic = rng.random_range(0..self.num_topics);
+                    let topic = rng.gen_range(0..self.num_topics);
                     doc_assignments.push(topic);
                     topic_counts[topic] += 1.0;
                     topic_term_counts[[topic, term]] += 1.0;
@@ -196,7 +196,7 @@ impl TopicModel {
         }
 
         // Gibbs sampling
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let mut changes = 0;
 
             for doc in 0..self.num_documents {
@@ -272,8 +272,8 @@ impl TopicModel {
     fn fit_nmf(
         &mut self,
         doc_term_matrix: &Array2<f64>,
-        alpha: f64,
-        l1_ratio: f64,
+        _alpha: f64,
+        _l1_ratio: f64,
     ) -> Result<(), TopicModelError> {
         let mut rng = scirs2_core::random::thread_rng();
 
@@ -283,13 +283,13 @@ impl TopicModel {
 
         for i in 0..self.num_documents {
             for j in 0..self.num_topics {
-                w[[i, j]] = rng.random::<f64>();
+                w[[i, j]] = rng.gen();
             }
         }
 
         for i in 0..self.num_topics {
             for j in 0..self.num_terms {
-                h[[i, j]] = rng.random::<f64>();
+                h[[i, j]] = rng.gen();
             }
         }
 
@@ -336,7 +336,7 @@ impl TopicModel {
         doc_term_matrix: &Array2<f64>,
         alpha: f64,
         beta: f64,
-        eta: f64,
+        _eta: f64,
     ) -> Result<(), TopicModelError> {
         // For now, fall back to regular LDA
         self.fit_lda(doc_term_matrix, alpha, beta)
@@ -359,7 +359,7 @@ impl TopicModel {
         doc_term_matrix: &Array2<f64>,
         alpha: f64,
         beta: f64,
-        variance: f64,
+        _variance: f64,
     ) -> Result<(), TopicModelError> {
         // For now, fall back to regular LDA
         self.fit_lda(doc_term_matrix, alpha, beta)
@@ -383,7 +383,7 @@ impl TopicModel {
             for term in 0..self.num_terms {
                 let count = doc_term_matrix[[doc, term]] as usize;
                 for _ in 0..count {
-                    let topic = rng.random_range(0..self.num_topics);
+                    let topic = rng.gen_range(0..self.num_topics);
                     assignments.push(topic);
                     doc_topic_counts[topic] += 1.0;
                 }
@@ -469,11 +469,11 @@ impl TopicModel {
     fn sample_topic(&self, probs: &Array1<f64>, rng: &mut impl Rng) -> usize {
         let total: f64 = probs.sum();
         if total == 0.0 {
-            return rng.random_range(0..self.num_topics);
+            return rng.gen_range(0..self.num_topics);
         }
 
         let mut cumulative = 0.0;
-        let threshold = rng.random::<f64>() * total;
+        let threshold = rng.gen::<f64>() * total;
 
         for (topic, &prob) in probs.iter().enumerate() {
             cumulative += prob;
@@ -645,13 +645,13 @@ impl TopicSVM<sklears_core::traits::Untrained> {
     pub fn fit(
         mut self,
         x: &Array2<f64>,
-        y: &Array1<f64>,
+        _y: &Array1<f64>,
     ) -> Result<TopicSVM<sklears_core::traits::Trained>, TopicModelError> {
         // Fit topic model
         self.topic_model.fit(x)?;
 
         // Transform features
-        let x_transformed = if self.use_topic_features {
+        let _x_transformed = if self.use_topic_features {
             let topic_features = self.topic_model.transform(x)?;
             self.concatenate_features(x, &topic_features)
         } else {

@@ -60,6 +60,7 @@ impl Default for OptimizedConfig {
 }
 
 // Module declarations
+pub mod advanced_simd;
 pub mod approximate_methods;
 pub mod chunked_processing;
 pub mod parallel_processing;

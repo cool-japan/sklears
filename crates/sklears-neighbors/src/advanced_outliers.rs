@@ -613,7 +613,7 @@ impl IsolationNode {
 
         // Select random feature and split value
         let n_features = data.ncols();
-        let split_feature = rng.random_range(0..n_features);
+        let split_feature = rng.gen_range(0..n_features);
 
         // Get min and max values for the selected feature among the current samples
         let mut min_val = Float::INFINITY;
@@ -634,7 +634,7 @@ impl IsolationNode {
         }
 
         // Random split value between min and max
-        let split_value = rng.random_range(min_val..max_val);
+        let split_value = rng.gen_range(min_val..max_val);
 
         // Split data
         let mut left_indices = Vec::new();

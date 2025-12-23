@@ -448,6 +448,7 @@ pub mod classification;
 pub mod clustering;
 pub mod computer_vision;
 pub mod display_utils;
+pub mod mathematical_foundations;
 // Distributed metrics require full MPI with libffi, which doesn't work on macOS ARM64
 #[cfg(all(feature = "distributed", not(target_os = "macos")))]
 pub mod distributed_metrics;

@@ -1064,7 +1064,7 @@ mod tests {
         assert_eq!(ptr.ref_count(), 1);
 
         // Clone increases ref count
-        let ptr2 = ptr.clone();
+        let _ptr2 = ptr.clone();
         assert_eq!(ptr.ref_count(), 2);
 
         // Read value

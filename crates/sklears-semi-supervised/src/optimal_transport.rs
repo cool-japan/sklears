@@ -734,6 +734,285 @@ pub struct EarthMoverTrained {
     pub label_distributions: Array2<f64>,
 }
 
+/// Gromov-Wasserstein Semi-Supervised Learning
+///
+/// This method uses the Gromov-Wasserstein distance to compare structured data
+/// and propagate labels in a metric-invariant way.
+///
+/// # Parameters
+///
+/// * `regularization` - Entropic regularization parameter
+/// * `max_iter` - Maximum number of iterations
+/// * `tol` - Convergence tolerance
+/// * `alpha` - Weight for structure preservation
+#[derive(Debug, Clone)]
+pub struct GromovWassersteinSemiSupervised<S = Untrained> {
+    state: S,
+    regularization: f64,
+    max_iter: usize,
+    tol: f64,
+    alpha: f64,
+    random_state: Option<u64>,
+}
+
+impl GromovWassersteinSemiSupervised<Untrained> {
+    /// Create a new GromovWassersteinSemiSupervised instance
+    pub fn new() -> Self {
+        Self {
+            state: Untrained,
+            regularization: 0.1,
+            max_iter: 50,
+            tol: 1e-6,
+            alpha: 0.5,
+            random_state: None,
+        }
+    }
+
+    /// Set the regularization parameter
+    pub fn regularization(mut self, regularization: f64) -> Self {
+        self.regularization = regularization;
+        self
+    }
+
+    /// Set the maximum number of iterations
+    pub fn max_iter(mut self, max_iter: usize) -> Self {
+        self.max_iter = max_iter;
+        self
+    }
+
+    /// Set the convergence tolerance
+    pub fn tol(mut self, tol: f64) -> Self {
+        self.tol = tol;
+        self
+    }
+
+    /// Set the alpha parameter
+    pub fn alpha(mut self, alpha: f64) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    /// Set the random state
+    pub fn random_state(mut self, random_state: u64) -> Self {
+        self.random_state = Some(random_state);
+        self
+    }
+}
+
+impl Default for GromovWassersteinSemiSupervised<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Estimator for GromovWassersteinSemiSupervised<Untrained> {
+    type Config = ();
+    type Error = SklearsError;
+    type Float = Float;
+
+    fn config(&self) -> &Self::Config {
+        &()
+    }
+}
+
+impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
+    for GromovWassersteinSemiSupervised<Untrained>
+{
+    type Fitted = GromovWassersteinSemiSupervised<GromovWassersteinTrained>;
+
+    #[allow(non_snake_case)]
+    fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
+        let X = X.to_owned();
+        let y = y.to_owned();
+        let (n_samples, _n_features) = X.dim();
+
+        // Identify labeled and unlabeled samples
+        let mut labeled_indices = Vec::new();
+        let mut unlabeled_indices = Vec::new();
+        let mut classes = std::collections::HashSet::new();
+
+        for (i, &label) in y.iter().enumerate() {
+            if label == -1 {
+                unlabeled_indices.push(i);
+            } else {
+                labeled_indices.push(i);
+                classes.insert(label);
+            }
+        }
+
+        if labeled_indices.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "No labeled samples provided".to_string(),
+            ));
+        }
+
+        let classes: Vec<i32> = classes.into_iter().collect();
+        let n_classes = classes.len();
+
+        // Compute structure matrix (pairwise distances)
+        let mut structure_matrix = Array2::<f64>::zeros((n_samples, n_samples));
+        for i in 0..n_samples {
+            for j in 0..n_samples {
+                let diff = &X.row(i) - &X.row(j);
+                let dist = diff.mapv(|x| x * x).sum().sqrt();
+                structure_matrix[[i, j]] = dist;
+            }
+        }
+
+        // Initialize transport plan
+        let mut transport_plan =
+            Array2::<f64>::ones((n_samples, n_samples)) / (n_samples * n_samples) as f64;
+
+        // Initialize label distributions
+        let mut label_distributions = Array2::<f64>::zeros((n_samples, n_classes));
+
+        // Set labeled samples
+        for &idx in &labeled_indices {
+            if let Some(class_idx) = classes.iter().position(|&c| c == y[idx]) {
+                label_distributions[[idx, class_idx]] = 1.0;
+            }
+        }
+
+        // Initialize unlabeled samples with uniform distribution
+        for &idx in &unlabeled_indices {
+            for class_idx in 0..n_classes {
+                label_distributions[[idx, class_idx]] = 1.0 / n_classes as f64;
+            }
+        }
+
+        // Simplified Gromov-Wasserstein optimization
+        for _iter in 0..self.max_iter {
+            let prev_plan = transport_plan.clone();
+
+            // Update transport plan based on structure preservation
+            for i in 0..n_samples {
+                for j in 0..n_samples {
+                    let mut cost = 0.0;
+                    // Simplified GW cost: compare local structures
+                    for k in 0..n_samples.min(10) {
+                        // Limit for efficiency
+                        let diff = (structure_matrix[[i, k]] - structure_matrix[[j, k]]).abs();
+                        cost += diff;
+                    }
+                    transport_plan[[i, j]] = (-cost / self.regularization).exp();
+                }
+            }
+
+            // Normalize transport plan
+            let row_sum: f64 = transport_plan.sum();
+            if row_sum > 0.0 {
+                transport_plan /= row_sum;
+            }
+
+            // Update label distributions
+            for &unlabeled_idx in &unlabeled_indices {
+                let mut new_distribution = Array1::<f64>::zeros(n_classes);
+
+                for &labeled_idx in &labeled_indices {
+                    let weight = transport_plan[[unlabeled_idx, labeled_idx]];
+                    if let Some(class_idx) = classes.iter().position(|&c| c == y[labeled_idx]) {
+                        new_distribution[class_idx] += weight;
+                    }
+                }
+
+                // Normalize
+                let sum = new_distribution.sum();
+                if sum > 0.0 {
+                    new_distribution /= sum;
+                }
+
+                for class_idx in 0..n_classes {
+                    label_distributions[[unlabeled_idx, class_idx]] = new_distribution[class_idx];
+                }
+            }
+
+            // Check convergence
+            let diff = (&transport_plan - &prev_plan).mapv(|x| x.abs()).sum();
+            if diff < self.tol {
+                break;
+            }
+        }
+
+        // Generate final labels
+        let mut final_labels = y.clone();
+        for &idx in &unlabeled_indices {
+            let class_idx = label_distributions
+                .row(idx)
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .unwrap()
+                .0;
+            final_labels[idx] = classes[class_idx];
+        }
+
+        Ok(GromovWassersteinSemiSupervised {
+            state: GromovWassersteinTrained {
+                X_train: X,
+                y_train: final_labels,
+                classes: Array1::from(classes),
+                structure_matrix,
+                transport_plan,
+                label_distributions,
+            },
+            regularization: self.regularization,
+            max_iter: self.max_iter,
+            tol: self.tol,
+            alpha: self.alpha,
+            random_state: self.random_state,
+        })
+    }
+}
+
+impl Predict<ArrayView2<'_, Float>, Array1<i32>>
+    for GromovWassersteinSemiSupervised<GromovWassersteinTrained>
+{
+    #[allow(non_snake_case)]
+    fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
+        let X = X.to_owned();
+        let n_test = X.nrows();
+        let mut predictions = Array1::zeros(n_test);
+
+        for i in 0..n_test {
+            // Find nearest neighbor using structure-preserving distance
+            let mut min_dist = f64::INFINITY;
+            let mut best_label = self.state.classes[0];
+
+            for j in 0..self.state.X_train.nrows() {
+                // Compute simple Euclidean distance
+                let diff = &X.row(i) - &self.state.X_train.row(j);
+                let dist = diff.mapv(|x| x * x).sum().sqrt();
+
+                if dist < min_dist {
+                    min_dist = dist;
+                    best_label = self.state.y_train[j];
+                }
+            }
+
+            predictions[i] = best_label;
+        }
+
+        Ok(predictions)
+    }
+}
+
+/// Trained state for GromovWassersteinSemiSupervised
+#[derive(Debug, Clone)]
+pub struct GromovWassersteinTrained {
+    /// X_train
+    pub X_train: Array2<f64>,
+    /// y_train
+    pub y_train: Array1<i32>,
+    /// classes
+    pub classes: Array1<i32>,
+    /// structure_matrix
+    pub structure_matrix: Array2<f64>,
+    /// transport_plan
+    pub transport_plan: Array2<f64>,
+    /// label_distributions
+    pub label_distributions: Array2<f64>,
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -880,5 +1159,37 @@ mod tests {
 
         assert_eq!(predictions.len(), 1);
         assert_eq!(predictions[0], 0);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_gromov_wasserstein_basic() {
+        let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
+        let y = array![0, 1, -1, -1];
+
+        let gw = GromovWassersteinSemiSupervised::new()
+            .regularization(0.1)
+            .max_iter(10)
+            .random_state(42);
+
+        let fitted = gw.fit(&X.view(), &y.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).unwrap();
+
+        assert_eq!(predictions.len(), 4);
+        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+    }
+
+    #[test]
+    fn test_gromov_wasserstein_parameters() {
+        let gw = GromovWassersteinSemiSupervised::new()
+            .regularization(0.2)
+            .max_iter(200)
+            .tol(1e-8)
+            .alpha(0.8);
+
+        assert_eq!(gw.regularization, 0.2);
+        assert_eq!(gw.max_iter, 200);
+        assert_eq!(gw.tol, 1e-8);
+        assert_eq!(gw.alpha, 0.8);
     }
 }

@@ -161,8 +161,9 @@ fn main() -> Result<()> {
 
 /// Generate a cluster of points around a center with some noise
 fn generate_cluster(n_points: usize, center: [f64; 2], std_dev: f64) -> Array2<f64> {
-    use scirs2_core::essentials::Normal;
-    use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::random::{rngs::StdRng, SeedableRng};
+    use scirs2_core::Distribution;
 
     let mut rng = StdRng::seed_from_u64(42);
     let normal = Normal::new(0.0, std_dev).unwrap();

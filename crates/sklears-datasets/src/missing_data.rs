@@ -38,7 +38,7 @@ pub fn make_missing_completely_at_random(
 
     for i in 0..n_rows {
         for j in 0..n_cols {
-            if rng.gen::<f64>() < missing_rate {
+            if rng.gen() < missing_rate {
                 result[[i, j]] = f64::NAN;
             }
         }
@@ -106,7 +106,7 @@ pub fn make_missing_at_random(
         };
 
         for j in 0..n_cols {
-            if j != predictor_column && rng.gen::<f64>() < missing_prob {
+            if j != predictor_column && rng.gen() < missing_prob {
                 result[[i, j]] = f64::NAN;
             }
         }
@@ -175,7 +175,7 @@ pub fn make_missing_not_at_random(
             missing_rate * 0.2
         };
 
-        if rng.gen::<f64>() < missing_prob {
+        if rng.gen() < missing_prob {
             result[[i, target_column]] = f64::NAN;
         }
     }
@@ -227,7 +227,7 @@ pub fn make_outliers(
     // Randomly select samples to become outliers
     let mut outlier_indices: Vec<usize> = (0..n_rows).collect();
     for i in (1..outlier_indices.len()).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.gen_range(0..i + 1);
         outlier_indices.swap(i, j);
     }
     outlier_indices.truncate(n_outliers);
@@ -239,7 +239,7 @@ pub fn make_outliers(
             let std = stds[feature_idx];
 
             // Add extreme deviation
-            let sign = if rng.gen::<f64>() < 0.5 { -1.0 } else { 1.0 };
+            let sign = if rng.gen() < 0.5 { -1.0 } else { 1.0 };
             let deviation = sign * outlier_magnitude * std;
             result[[sample_idx, feature_idx]] = mean + deviation;
         }
@@ -297,7 +297,7 @@ pub fn make_imbalanced_classification(
     let mut centers = Array2::zeros((n_classes, n_features));
     for i in 0..n_classes {
         for j in 0..n_features {
-            centers[[i, j]] = rng.gen_range(-5.0..5.0);
+            centers[[i, j]] = rng.random_range(-5.0, 5.0);
         }
     }
 
@@ -384,7 +384,7 @@ pub fn make_anomalies(
     // Select anomaly indices
     let mut anomaly_indices: Vec<usize> = (0..n_rows).collect();
     for i in (1..anomaly_indices.len()).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.gen_range(0..i + 1);
         anomaly_indices.swap(i, j);
     }
     anomaly_indices.truncate(n_anomalies);
@@ -395,7 +395,7 @@ pub fn make_anomalies(
             for &idx in &anomaly_indices {
                 labels[idx] = 1;
                 for j in 0..n_cols {
-                    let sign = if rng.gen::<f64>() < 0.5 { -1.0 } else { 1.0 };
+                    let sign = if rng.gen() < 0.5 { -1.0 } else { 1.0 };
                     result[[idx, j]] = means[j] + sign * severity * stds[j];
                 }
             }
@@ -408,7 +408,7 @@ pub fn make_anomalies(
                 // Modify only a subset of features to create context-dependent anomalies
                 let n_features_to_modify = (n_cols / 2).max(1);
                 for j in 0..n_features_to_modify {
-                    let sign = if rng.gen::<f64>() < 0.5 { -1.0 } else { 1.0 };
+                    let sign = if rng.gen() < 0.5 { -1.0 } else { 1.0 };
                     result[[idx, j]] = means[j] + sign * severity * stds[j];
                 }
             }

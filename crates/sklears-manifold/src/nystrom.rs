@@ -5,9 +5,10 @@
 
 use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
-use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -375,7 +376,7 @@ impl NystromApproximation {
             }
 
             // Select next landmark with probability proportional to squared distance
-            let threshold = rng.gen::<Float>() * total_distance;
+            let threshold = rng.random::<Float>() * total_distance;
             let mut cumulative = 0.0;
             let mut selected_idx = 0;
 

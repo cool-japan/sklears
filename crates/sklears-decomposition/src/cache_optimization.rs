@@ -12,8 +12,6 @@
 //! - Loop optimization and vectorization hints
 //! - Performance profiling and cache miss analysis
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -429,13 +427,13 @@ impl TiledMatrixOps {
                 let mut sum = 0.0;
 
                 // Vectorized inner loop with prefetching
-                for (j, (&matrix_val, &vec_val)) in
+                for (_j, (&matrix_val, &vec_val)) in
                     matrix.row(ii).iter().zip(vector.iter()).enumerate()
                 {
                     #[cfg(target_arch = "x86_64")]
-                    if self.config.enable_prefetch && j + 8 < n {
+                    if self.config.enable_prefetch && _j + 8 < n {
                         unsafe {
-                            let next_ptr = matrix.as_ptr().add(ii * n + j + 8);
+                            let next_ptr = matrix.as_ptr().add(ii * n + _j + 8);
                             std::arch::x86_64::_mm_prefetch(
                                 next_ptr as *const i8,
                                 std::arch::x86_64::_MM_HINT_T0,
@@ -763,7 +761,8 @@ mod tests {
         assert!(analysis.cache_efficiency <= 1.0);
 
         let miss_estimate = analyzer.estimate_cache_misses(&analysis);
-        assert!(miss_estimate.l1_misses >= 0);
+        // l1_misses is always >= 0 by type (usize)
+        assert!(miss_estimate.l1_misses <= analysis.memory_accesses);
     }
 
     #[test]

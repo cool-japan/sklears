@@ -966,7 +966,6 @@ pub mod convenience {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_array_binary_format() {

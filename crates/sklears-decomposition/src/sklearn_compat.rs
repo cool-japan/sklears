@@ -16,7 +16,7 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::{Fit, Transform},
+    //     traits::{Fit, Transform},
     types::Float,
 };
 use std::collections::HashMap;
@@ -40,7 +40,7 @@ pub trait SklearnTransformer: std::fmt::Debug {
     }
 
     /// Inverse transform (if applicable)
-    fn inverse_transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
+    fn inverse_transform(&self, _x: &Array2<Float>) -> Result<Array2<Float>> {
         Err(SklearsError::InvalidInput(
             "Inverse transform not implemented for this transformer".to_string(),
         ))
@@ -280,7 +280,7 @@ impl SklearnTransformer for SklearnPCA {
         };
 
         // Perform SVD decomposition
-        let (u, s, vt) = self.compute_svd(&centered_data, n_components)?;
+        let (_u, s, vt) = self.compute_svd(&centered_data, n_components)?;
 
         // Store results
         self.components_ = Some(

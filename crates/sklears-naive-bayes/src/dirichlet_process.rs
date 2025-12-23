@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::SeedableRng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::Distribution;
@@ -585,14 +585,199 @@ impl DirichletProcessNB {
         X: &Array2<f64>,
         y: &Array1<i32>,
     ) -> Result<(), DirichletProcessError> {
-        // Simplified variational inference implementation
-        // TODO: Implement full variational inference
-        if self.config.max_iterations > 0 {
-            // E-step: Update variational parameters
-            // M-step: Update component parameters
-            // This is a placeholder for full implementation
+        let n_samples = X.nrows();
+        let n_features = X.ncols();
+        let max_components = self.config.max_components.min(n_samples);
+
+        // Initialize variational parameters
+        let mut responsibilities = Array2::<f64>::zeros((n_samples, max_components));
+        let mut alpha =
+            vec![self.config.concentration_alpha / max_components as f64; max_components];
+        let mut beta = vec![1.0; max_components];
+
+        // Initialize with K-means-like initialization
+        self.initialize_variational_components(X, y, max_components)?;
+
+        let mut prev_elbo = f64::NEG_INFINITY;
+
+        for iteration in 0..self.config.max_iterations {
+            // E-step: Update responsibilities using current component parameters
+            for i in 0..n_samples {
+                let sample = X.row(i);
+                let sample_array = sample.to_owned();
+
+                // Compute log-likelihood for each component
+                let mut log_probs = Vec::with_capacity(max_components);
+                for k in 0..max_components.min(self.components.len()) {
+                    let log_like = self.components[k].log_likelihood(&sample_array);
+                    let log_weight = (alpha[k] / alpha.iter().sum::<f64>()).ln();
+                    log_probs.push(log_weight + log_like);
+                }
+
+                // Normalize to get responsibilities using log-sum-exp trick
+                if !log_probs.is_empty() {
+                    let max_log_prob = log_probs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                    let sum_exp: f64 = log_probs.iter().map(|&lp| (lp - max_log_prob).exp()).sum();
+                    let log_sum = max_log_prob + sum_exp.ln();
+
+                    for k in 0..log_probs.len() {
+                        responsibilities[[i, k]] = (log_probs[k] - log_sum).exp();
+                    }
+                }
+            }
+
+            // M-step: Update component parameters based on responsibilities
+            for k in 0..max_components.min(self.components.len()) {
+                let resp_k = responsibilities.column(k);
+                let n_k = resp_k.sum();
+
+                if n_k > 1e-10 {
+                    // Update component weight (Dirichlet variational parameter)
+                    alpha[k] = self.config.concentration_alpha / max_components as f64 + n_k;
+
+                    // Update mean with weighted samples
+                    let mut new_mean = Array1::zeros(n_features);
+                    for i in 0..n_samples {
+                        let sample = X.row(i);
+                        new_mean = new_mean + sample.to_owned() * responsibilities[[i, k]];
+                    }
+                    new_mean /= n_k;
+                    self.components[k].mean = new_mean;
+
+                    // Update precision matrix (simplified - using diagonal)
+                    let mut new_precision = Array2::zeros((n_features, n_features));
+                    for i in 0..n_samples {
+                        let sample = X.row(i).to_owned();
+                        let diff = &sample - &self.components[k].mean;
+                        let outer = diff
+                            .clone()
+                            .insert_axis(scirs2_core::ndarray::Axis(1))
+                            .dot(&diff.clone().insert_axis(scirs2_core::ndarray::Axis(0)));
+                        new_precision = new_precision + outer * responsibilities[[i, k]];
+                    }
+
+                    // Regularize and invert (simplified using diagonal + small ridge)
+                    for d in 0..n_features {
+                        let var_d: f64 = new_precision[[d, d]] / n_k + 1e-6;
+                        new_precision[[d, d]] = var_d.recip();
+                    }
+                    self.components[k].precision = new_precision;
+
+                    // Update sample counts and class counts
+                    self.components[k].sample_count = n_k as usize;
+                    self.components[k].class_counts.clear();
+                    for i in 0..n_samples {
+                        if responsibilities[[i, k]] > 0.01 {
+                            let class = y[i];
+                            *self.components[k].class_counts.entry(class).or_insert(0) +=
+                                (responsibilities[[i, k]] * 100.0) as usize;
+                        }
+                    }
+                }
+            }
+
+            // Compute ELBO (Evidence Lower Bound) for convergence checking
+            let elbo = self.compute_elbo(X, &responsibilities, &alpha);
+
+            // Check convergence
+            if (elbo - prev_elbo).abs() < self.config.tolerance {
+                break;
+            }
+            prev_elbo = elbo;
+
+            // Prune components with very small weight
+            self.prune_small_components(0.01);
         }
+
+        // Update final component weights and assignments
+        for i in 0..n_samples {
+            let mut max_resp = 0.0;
+            let mut max_k = 0;
+            for k in 0..max_components.min(self.components.len()) {
+                if responsibilities[[i, k]] > max_resp {
+                    max_resp = responsibilities[[i, k]];
+                    max_k = k;
+                }
+            }
+            self.component_assignments[i] = max_k;
+        }
+
+        self.update_component_weights();
+
         Ok(())
+    }
+
+    /// Initialize variational components for variational inference
+    fn initialize_variational_components(
+        &mut self,
+        X: &Array2<f64>,
+        y: &Array1<i32>,
+        max_components: usize,
+    ) -> Result<(), DirichletProcessError> {
+        self.components.clear();
+        let n_samples = X.nrows();
+
+        // Initialize with stratified sampling from classes
+        let unique_classes: HashSet<i32> = y.iter().cloned().collect();
+        let n_init = max_components.min(unique_classes.len() * 2);
+
+        for i in 0..n_init {
+            let idx = (i * n_samples / n_init) % n_samples;
+            let mut component = DirichletComponent::new(self.n_features);
+            component.mean = X.row(idx).to_owned();
+            component.weight = 1.0 / n_init as f64;
+            self.components.push(component);
+        }
+
+        Ok(())
+    }
+
+    /// Compute Evidence Lower Bound (ELBO) for convergence monitoring
+    fn compute_elbo(&self, X: &Array2<f64>, responsibilities: &Array2<f64>, alpha: &[f64]) -> f64 {
+        let n_samples = X.nrows();
+        let n_components = self.components.len();
+
+        let mut elbo = 0.0;
+
+        // Expected log-likelihood term
+        for i in 0..n_samples {
+            let sample = X.row(i).to_owned();
+            for k in 0..n_components {
+                let resp = responsibilities[[i, k]];
+                if resp > 1e-10 {
+                    let log_like = self.components[k].log_likelihood(&sample);
+                    elbo += resp * log_like;
+                }
+            }
+        }
+
+        // KL divergence term for Dirichlet (simplified)
+        let alpha_sum: f64 = alpha.iter().sum();
+        let alpha_0 = self.config.concentration_alpha;
+
+        for &a in alpha {
+            if a > 0.0 {
+                elbo += (a - alpha_0 / n_components as f64) * (a.ln() - alpha_sum.ln());
+            }
+        }
+
+        // Entropy term for responsibilities
+        for i in 0..n_samples {
+            for k in 0..n_components {
+                let resp = responsibilities[[i, k]];
+                if resp > 1e-10 {
+                    elbo -= resp * resp.ln();
+                }
+            }
+        }
+
+        elbo
+    }
+
+    /// Prune components with weight below threshold
+    fn prune_small_components(&mut self, threshold: f64) {
+        self.components
+            .retain(|c| c.weight >= threshold || c.sample_count > 0);
     }
 
     fn stick_breaking_inference(

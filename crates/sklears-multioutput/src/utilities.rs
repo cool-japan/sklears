@@ -5,7 +5,7 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -13,7 +13,6 @@ use sklears_core::{
 };
 
 /// Label combination frequency analysis utilities
-
 pub struct CLARE<S = Untrained> {
     state: S,
     n_clusters: usize,

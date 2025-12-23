@@ -4,15 +4,13 @@
 //! to outliers and contamination in the data, including robust estimators,
 //! breakdown point analysis, and influence function diagnostics.
 
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::Result;
-use sklears_core::traits::Fit;
 use std::collections::HashMap;
 
 /// Robust estimation method
@@ -228,7 +226,7 @@ impl RobustRBFSampler {
 
             // Compute covariance matrix for subset
             let subset_data = self.extract_subset(x, &subset);
-            let (mean, cov) = self.compute_robust_statistics(&subset_data);
+            let (_mean, cov) = self.compute_robust_statistics(&subset_data);
 
             // Compute volume (determinant of covariance matrix)
             let volume = self.compute_determinant(&cov);
@@ -361,7 +359,7 @@ impl RobustRBFSampler {
         let mut weights = Array1::ones(n_samples);
 
         if self.config.use_irls {
-            for iteration in 0..self.config.max_iterations {
+            for _iteration in 0..self.config.max_iterations {
                 let old_weights = weights.clone();
 
                 // Update weights based on robust loss function
@@ -392,7 +390,7 @@ impl RobustRBFSampler {
     }
 
     /// Compute residual for robust weight calculation
-    fn compute_residual(&self, sample: &ArrayView1<f64>, index: usize) -> f64 {
+    fn compute_residual(&self, sample: &ArrayView1<f64>, _index: usize) -> f64 {
         // Simplified residual computation - in practice this would depend on the specific problem
         sample.iter().map(|&x| x.abs()).sum::<f64>() / sample.len() as f64
     }
@@ -473,7 +471,7 @@ impl RobustRBFSampler {
         &self,
         x: &Array2<f64>,
         mean: &Array1<f64>,
-        cov: &Array2<f64>,
+        _cov: &Array2<f64>,
     ) -> Array1<f64> {
         let n_samples = x.nrows();
         let mut distances = Array1::zeros(n_samples);
@@ -489,13 +487,13 @@ impl RobustRBFSampler {
     }
 
     /// Compute Huber center
-    fn compute_huber_center(&self, x: &Array2<f64>, delta: f64) -> Array1<f64> {
+    fn compute_huber_center(&self, x: &Array2<f64>, _delta: f64) -> Array1<f64> {
         // Simplified Huber center computation
         x.mean_axis(Axis(0)).unwrap()
     }
 
     /// Compute Huber scale
-    fn compute_huber_scale(&self, x: &Array2<f64>, center: &Array1<f64>, delta: f64) -> f64 {
+    fn compute_huber_scale(&self, x: &Array2<f64>, center: &Array1<f64>, _delta: f64) -> f64 {
         // Simplified Huber scale computation
         let distances: Vec<f64> = x
             .rows()
@@ -513,19 +511,19 @@ impl RobustRBFSampler {
         &self,
         sample: &ArrayView1<f64>,
         center: &Array1<f64>,
-        delta: f64,
+        _delta: f64,
     ) -> f64 {
         (sample - center).mapv(|x| x.abs()).sum()
     }
 
     /// Compute Tukey center
-    fn compute_tukey_center(&self, x: &Array2<f64>, c: f64) -> Array1<f64> {
+    fn compute_tukey_center(&self, x: &Array2<f64>, _c: f64) -> Array1<f64> {
         // Simplified Tukey center computation
         x.mean_axis(Axis(0)).unwrap()
     }
 
     /// Compute Tukey scale
-    fn compute_tukey_scale(&self, x: &Array2<f64>, center: &Array1<f64>, c: f64) -> f64 {
+    fn compute_tukey_scale(&self, x: &Array2<f64>, center: &Array1<f64>, _c: f64) -> f64 {
         // Simplified Tukey scale computation
         let distances: Vec<f64> = x
             .rows()
@@ -543,7 +541,7 @@ impl RobustRBFSampler {
         &self,
         sample: &ArrayView1<f64>,
         center: &Array1<f64>,
-        c: f64,
+        _c: f64,
     ) -> f64 {
         (sample - center).mapv(|x| x.abs()).sum()
     }
@@ -754,7 +752,7 @@ impl RobustNystroem {
         let mut kernel_values = Array2::zeros((n_samples, n_basis));
 
         for i in 0..n_samples {
-            for (j, &basis_idx) in indices.iter().enumerate() {
+            for (j, &_basis_idx) in indices.iter().enumerate() {
                 // For now, just use a placeholder computation
                 kernel_values[[i, j]] = thread_rng().gen_range(0.0..1.0);
             }
@@ -779,6 +777,12 @@ pub struct BreakdownPointAnalysis {
     estimator: RobustEstimator,
     contamination_levels: Vec<f64>,
     breakdown_points: HashMap<String, f64>,
+}
+
+impl Default for BreakdownPointAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BreakdownPointAnalysis {
@@ -863,6 +867,12 @@ pub struct InfluenceFunctionDiagnostics {
     cook_distances: Option<Array1<f64>>,
 }
 
+impl Default for InfluenceFunctionDiagnostics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InfluenceFunctionDiagnostics {
     /// Create a new influence function diagnostics
     pub fn new() -> Self {
@@ -913,7 +923,7 @@ impl InfluenceFunctionDiagnostics {
         let mut leverage = Array1::zeros(n_samples);
 
         // Simplified leverage computation
-        let (mean, cov) = self.compute_robust_statistics(x);
+        let (mean, _cov) = self.compute_robust_statistics(x);
 
         for i in 0..n_samples {
             let centered = &x.row(i) - &mean;
@@ -965,7 +975,7 @@ impl InfluenceFunctionDiagnostics {
     }
 
     /// Compute robust estimate
-    fn compute_robust_estimate(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
+    fn compute_robust_estimate(&self, _x: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         // Simplified robust estimate - just return mean
         Ok(y.mean().unwrap())
     }

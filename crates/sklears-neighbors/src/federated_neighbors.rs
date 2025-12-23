@@ -175,8 +175,8 @@ impl FederatedParticipant {
         match strategy {
             NoiseStrategy::Gaussian => {
                 // Simple Box-Muller transform for Gaussian noise
-                let u1: Float = rng.random();
-                let u2: Float = rng.random();
+                let u1: Float = rng.gen();
+                let u2: Float = rng.gen();
                 let z0 = ((-2.0 as Float) * u1.ln()).sqrt()
                     * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
                 z0 * scale
@@ -189,9 +189,9 @@ impl FederatedParticipant {
             }
             NoiseStrategy::Exponential => {
                 // Exponential noise (symmetric)
-                let u: Float = rng.random();
+                let u: Float = rng.gen();
                 let exp_sample = -scale * u.ln();
-                if rng.random::<bool>() {
+                if rng.gen::<bool>() {
                     exp_sample
                 } else {
                     -exp_sample

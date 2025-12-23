@@ -14,7 +14,7 @@ use sklears_core::{
 
 /// Generate random data for testing
 fn random_data_strategy() -> impl Strategy<Value = Array2<Float>> {
-    (2usize..=5, 2usize..=4, 20usize..=100).prop_flat_map(|(n_features, n_clusters, n_samples)| {
+    (2usize..=5, 2usize..=4, 20usize..=100).prop_flat_map(|(n_features, _n_clusters, n_samples)| {
         prop::collection::vec(prop::collection::vec(-10.0f64..10.0, n_features), n_samples)
             .prop_map(move |data| {
                 Array2::from_shape_vec(

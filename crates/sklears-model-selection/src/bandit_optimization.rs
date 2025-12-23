@@ -306,7 +306,7 @@ impl BanditOptimizer {
         for (i, stats) in self.arm_stats.iter().enumerate() {
             let sample = if stats.n_pulls == 0 {
                 // Sample from uninformative prior
-                self.rng.gen::<f64>()
+                self.rng.gen()
             } else {
                 // Sample from posterior (assuming Gaussian with known variance)
                 let mean = stats.mean_reward();
@@ -668,7 +668,7 @@ where
                     if let Some(stats) = self.arm_stats.get(&arm) {
                         // Sample from posterior (simplified)
                         let alpha = stats.sum_rewards + 1.0;
-                        let beta = (stats.n_pulls as f64 - stats.sum_rewards) + 1.0;
+                        let _beta = (stats.n_pulls as f64 - stats.sum_rewards) + 1.0;
                         let sample = rng.gen::<f64>().powf(1.0 / alpha); // Simplified beta sampling
 
                         if sample > best_sample {
@@ -723,7 +723,7 @@ where
     }
 
     /// Evaluate a specific arm (parameter configuration)
-    fn evaluate_arm(&self, arm: usize, x: &Array2<Float>, y: &Array1<Float>) -> Result<f64> {
+    fn evaluate_arm(&self, _arm: usize, x: &Array2<Float>, y: &Array1<Float>) -> Result<f64> {
         // Simple train-test split for evaluation (placeholder for full CV)
         let n_samples = x.nrows();
         let train_size = (n_samples as f64 * 0.8) as usize;

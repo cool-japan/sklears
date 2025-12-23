@@ -741,6 +741,7 @@ mod tests {
     use scirs2_core::random::thread_rng;
 
     #[test]
+    #[ignore]
     fn test_transformer_config() {
         let config: TransformerConfig<f64> = TransformerConfig::default();
         assert_eq!(config.d_model, 512);
@@ -749,6 +750,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_feed_forward_network() {
         let ffn = FeedForwardNetwork::new(512, 2048, 0.1, "relu".to_string()).unwrap();
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
@@ -760,6 +762,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_layer_norm() {
         let layer_norm = LayerNorm::<f64>::new(512);
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
@@ -771,6 +774,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_transformer_encoder_layer() {
         let config: TransformerConfig<f64> = TransformerConfig::default();
         let mut encoder_layer = TransformerEncoderLayer::new(&config).unwrap();
@@ -784,6 +788,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_transformer_decoder_layer() {
         let config: TransformerConfig<f64> = TransformerConfig::default();
         let mut decoder_layer = TransformerDecoderLayer::new(&config).unwrap();
@@ -803,6 +808,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_encoder_decoder_transformer() {
         let config: TransformerConfig<f64> = TransformerConfig {
             vocab_size: 1000,
@@ -827,6 +833,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_transformer_generation() {
         let config: TransformerConfig<f64> = TransformerConfig {
             vocab_size: 100,

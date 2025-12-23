@@ -5,8 +5,7 @@
 //! multiply-add operations, and auto-vectorization hints.
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 // TODO: Check if these SIMD functions are available in scirs2_core
 // use scirs2_core::simd::{auto_vectorize, SimdOps};
 // use scirs2_core::simd_ops::{simd_dot_product, simd_matrix_multiply, SimdUnifiedOps};

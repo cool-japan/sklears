@@ -372,7 +372,7 @@ impl NearestShrunkenCentroids<Untrained> {
 
         // Standardize
         let mut x_standardized = x.clone();
-        for (i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
+        for (_i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
             for j in 0..n_features {
                 row[j] = (row[j] - means[j]) / stds[j];
             }
@@ -664,7 +664,7 @@ impl NearestShrunkenCentroids<Untrained> {
         class_priors: &Array1<Float>,
         classes: &Array1<i32>,
     ) -> Result<i32> {
-        let n_classes = classes.len();
+        let _n_classes = classes.len();
         let mut min_distance = Float::INFINITY;
         let mut predicted_class = classes[0];
 
@@ -697,7 +697,7 @@ impl NearestShrunkenCentroids<Untrained> {
         class_priors: &Array1<Float>,
         classes: &Array1<i32>,
     ) -> Result<i32> {
-        let n_classes = classes.len();
+        let _n_classes = classes.len();
         let mut min_distance = Float::INFINITY;
         let mut predicted_class = classes[0];
 
@@ -734,7 +734,7 @@ impl NearestShrunkenCentroids<Trained> {
         let data = self.data.as_ref().unwrap();
         let mut x_standardized = x.clone();
 
-        for (i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
+        for (_i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
             for j in 0..data.n_features {
                 row[j] = (row[j] - data.feature_means[j]) / data.feature_stds[j];
             }
@@ -828,7 +828,7 @@ impl PredictProba<Array2<Float>, Array2<Float>> for NearestShrunkenCentroids<Tra
 
 impl Transform<Array2<Float>, Array2<Float>> for NearestShrunkenCentroids<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let data = self.data.as_ref().unwrap();
 
         if n_features != data.n_features {

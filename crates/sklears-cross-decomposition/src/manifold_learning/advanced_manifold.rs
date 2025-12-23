@@ -5,8 +5,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::types::Float;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::f64::consts::PI;
@@ -395,7 +394,7 @@ impl AdvancedManifoldLearning {
         let mut embedding = Array2::zeros((n_samples, self.embedding_dimension));
         for i in 0..n_samples {
             for j in 0..self.embedding_dimension {
-                use scirs2_core::random::{Distribution, RandNormal as Normal};
+                use scirs2_core::random::{Distribution, RandNormal as Normal, Rng};
                 let normal = Normal::new(0.0, 1e-4).unwrap();
                 embedding[[i, j]] = normal.sample(&mut rng);
             }

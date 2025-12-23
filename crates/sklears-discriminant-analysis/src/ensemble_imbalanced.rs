@@ -265,7 +265,7 @@ impl EnsembleImbalancedDiscriminantAnalysis {
         &self,
         x: &Array2<Float>,
         y: &Array1<i32>,
-        k_neighbors: usize,
+        _k_neighbors: usize,
     ) -> Result<(Array2<Float>, Array1<i32>)> {
         let classes = self.get_unique_classes(y);
         let mut class_counts = HashMap::new();
@@ -322,9 +322,9 @@ impl EnsembleImbalancedDiscriminantAnalysis {
     /// Train a single base classifier
     fn train_base_classifier(
         &self,
-        x: &Array2<Float>,
+        _x: &Array2<Float>,
         y: &Array1<i32>,
-        sample_weights: Option<&Array1<Float>>,
+        _sample_weights: Option<&Array1<Float>>,
     ) -> Result<Box<dyn Predict<Array2<Float>, Array1<i32>> + Send + Sync>> {
         // This is a simplified implementation - in practice, you would
         // use actual LDA/QDA implementations from other modules
@@ -413,7 +413,7 @@ impl Fit<Array2<Float>, Array1<i32>> for EnsembleImbalancedDiscriminantAnalysis 
             } => {
                 let mut sample_weights = Array1::from_elem(x.nrows(), 1.0 / x.nrows() as Float);
 
-                for iteration in 0..*n_estimators {
+                for _iteration in 0..*n_estimators {
                     let model = self.train_base_classifier(x, y, Some(&sample_weights))?;
                     let predictions = model.predict(x)?;
 
@@ -618,7 +618,7 @@ mod tests {
 
     #[test]
     fn test_class_weights_computation() {
-        let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
+        let _x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
         let y = array![0, 0, 0, 1]; // 3:1 imbalance
 
         let ensemble = EnsembleImbalancedDiscriminantAnalysis::new();

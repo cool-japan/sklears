@@ -111,10 +111,10 @@ pub fn make_dna_sequence_dataset(
         labels[i] = rng.gen_range(0..n_classes) as i32;
 
         for j in 0..sequence_length {
-            let base_idx = if rng.gen::<f64>() < gc_content / 2.0 {
-                if rng.gen::<f64>() < 0.5 { 2 } else { 3 } // G or C
+            let base_idx = if rng.gen() < gc_content / 2.0 {
+                if rng.gen() < 0.5 { 2 } else { 3 } // G or C
             } else {
-                if rng.gen::<f64>() < 0.5 { 0 } else { 1 } // A or T
+                if rng.gen() < 0.5 { 0 } else { 1 } // A or T
             };
 
             sequences[[i, j * 4 + base_idx]] = 1.0;
@@ -183,7 +183,7 @@ pub fn make_document_clustering_dataset(
         labels[i] = topic as i32;
 
         for j in 0..n_features {
-            if rng.gen::<f64>() > sparsity {
+            if rng.gen() > sparsity {
                 // Sample word count based on topic distribution
                 let word_prob = topic_distributions[[topic, j]];
                 let word_count = rng.sample(Normal::new(word_prob * 100.0, 10.0).unwrap()).max(0.0);
@@ -236,7 +236,7 @@ pub fn make_synthetic_image_classification(
     let mut prototypes = Array2::zeros((n_classes, n_pixels));
     for i in 0..n_classes {
         for j in 0..n_pixels {
-            prototypes[[i, j]] = rng.gen_range(0.0..1.0);
+            prototypes[[i, j]] = rng.random_range(0.0, 1.0);
         }
     }
 
@@ -360,7 +360,7 @@ pub fn make_multi_agent_environment(
 
             // Generate actions for each agent
             for agent in 0..n_agents {
-                let action = if rng.gen::<f64>() < cooperation_probability {
+                let action = if rng.gen() < cooperation_probability {
                     // Cooperative action (biased towards specific actions)
                     rng.gen_range(0..(n_actions / 2).max(1))
                 } else {
@@ -428,7 +428,7 @@ pub fn make_ab_testing_simulation(
     for i in 0..n_users {
         let confounding_score = features.row(i).sum() * confounding_strength;
         let treatment_prob = 0.5 + 0.2 * confounding_score.tanh();
-        treatments[i] = if rng.gen::<f64>() < treatment_prob { 1 } else { 0 };
+        treatments[i] = if rng.gen() < treatment_prob { 1 } else { 0 };
     }
 
     // Generate outcomes

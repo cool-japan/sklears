@@ -54,10 +54,9 @@
 /// use sklears_core::ensemble_improvements::{
 use crate::error::{Result, SklearsError};
 // SciRS2 Policy: Using scirs2_core::ndarray and scirs2_core::random (COMPLIANT)
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, SecureRandom};
-use scirs2_core::random::distributions::{SliceRandom, Uniform};
 use rayon::prelude::*;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::random::Random;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -423,7 +422,7 @@ impl TrainedParallelEnsemble {
 
         // Copy original features
         meta_features
-            .slice_mut(ndarray::s![.., 0..n_base_features])
+            .slice_mut(s![.., 0..n_base_features])
             .assign(original_features);
 
         // Add base learner predictions as features
@@ -742,7 +741,7 @@ impl TrainedBaseModel for TrainedRandomForestModel {
         let mut rng = Random::seed(self.id as u64);
 
         let predictions =
-            Array1::from_iter((0..x.nrows()).map(|_| rng.gen_range(0.0_f64..3.0_f64).round()));
+            Array1::from_iter((0..x.nrows()).map(|_| rng.random_range(0.0_f64, 3.0_f64).round()));
 
         Ok(predictions)
     }

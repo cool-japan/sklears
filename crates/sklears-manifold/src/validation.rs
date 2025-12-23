@@ -705,7 +705,7 @@ impl HyperparameterOptimizer {
                         ParameterValue::Float(val)
                     }
                     ParameterSpace::IntRange { low, high } => {
-                        ParameterValue::Int(rng.gen_range(*low..=*high))
+                        ParameterValue::Int(rng.gen_range(*low..*high + 1))
                     }
                 };
 

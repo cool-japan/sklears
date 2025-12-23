@@ -6,7 +6,7 @@
 //! approach where one gradient boosting classifier is trained per class.
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::Random;
+use scirs2_core::random::seeded_rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -179,7 +179,7 @@ pub struct GradientBoostingConfig {
     pub min_samples_leaf: usize,
     /// Fraction of samples used for fitting the individual base learners
     pub subsample: f64,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Loss function to be optimized
     pub loss: GradientBoostingLoss,
@@ -503,7 +503,7 @@ where
             ));
         }
 
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Initialize class priors
         let mut class_counts = vec![0; n_classes];
@@ -559,14 +559,15 @@ where
             let mut class_estimators = Vec::new();
 
             let mut rng = match self.config.random_state {
-                Some(seed) => Random::seed(seed + class_idx as u64),
-                None => Random::seed(42),
+                Some(seed) => seeded_rng(seed + class_idx as u64),
+                None => seeded_rng(42),
             };
 
             // Early stopping variables
             let mut best_score = f64::INFINITY;
             let mut best_iteration = 0;
             let mut no_improve_count = 0;
+            #[allow(unused_assignments)]
             let mut stopped_early = false;
 
             // Gradient boosting iterations
@@ -579,7 +580,7 @@ where
                     let n_subset = ((X_train.nrows() as f64) * self.config.subsample) as usize;
                     let mut indices: Vec<usize> = (0..X_train.nrows()).collect();
                     for i in 0..n_subset {
-                        let j = rng.random_range(i, X_train.nrows());
+                        let j = rng.gen_range(i..X_train.nrows());
                         indices.swap(i, j);
                     }
                     indices.truncate(n_subset);

@@ -254,7 +254,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ApproximateKNNImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         // Determine sample size based on accuracy level
@@ -298,8 +298,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
             return Err(SklearsError::InvalidInput(format!(
@@ -315,7 +315,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
             .axis_iter_mut(Axis(0))
             .into_par_iter()
             .enumerate()
-            .for_each(|(i, mut row)| {
+            .for_each(|(_i, mut row)| {
                 for j in 0..n_features {
                     if self.is_missing(row[j]) {
                         // Find approximate neighbors
@@ -354,7 +354,7 @@ impl ApproximateKNNImputer<Untrained> {
 
         // Fisher-Yates shuffle for random sampling
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -387,12 +387,12 @@ impl ApproximateKNNImputer<Untrained> {
             let mut random_vector = Array1::<f64>::zeros(n_features);
             for i in 0..n_features {
                 // Generate standard normal using Box-Muller transform
-                let u1 = rng.gen::<f64>();
-                let u2 = rng.gen::<f64>();
+                let u1: f64 = rng.gen();
+                let u2: f64 = rng.gen();
                 let z = (-2.0_f64 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 random_vector[i] = z;
             }
-            let offset = rng.gen::<f64>() * bucket_width;
+            let offset: f64 = rng.gen::<f64>() * bucket_width;
 
             hash_functions.push(RandomHashFunction {
                 random_vector,
@@ -476,7 +476,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
         let mut candidate_indices: Vec<usize> = (0..self.state.reference_samples.nrows()).collect();
 
         for i in (1..candidate_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             candidate_indices.swap(i, j);
         }
 
@@ -576,7 +576,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
         let mut rng = Random::default();
         let mut feature_indices: Vec<usize> = (0..n_features).collect();
         for i in (1..feature_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             feature_indices.swap(i, j);
         }
         feature_indices.truncate(subset_size);
@@ -641,7 +641,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
         let sample_rate = self.state.config.accuracy_level;
         let mut rng = Random::default();
 
-        for (i, (&x1, &x2)) in row1.iter().zip(row2.iter()).enumerate() {
+        for (&x1, &x2) in row1.iter().zip(row2.iter()) {
             // Skip some features based on sampling rate
             if rng.gen::<f64>() > sample_rate {
                 continue;
@@ -786,7 +786,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ApproximateSimpleImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         // Determine sample size for approximation
@@ -816,8 +816,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
             return Err(SklearsError::InvalidInput(format!(
@@ -1007,7 +1007,7 @@ mod tests {
 
         assert_eq!(imputer.config.accuracy_level, 0.5);
         assert_eq!(imputer.config.sample_size, 500);
-        assert_eq!(imputer.config.use_randomization, false);
+        assert!(!imputer.config.use_randomization);
     }
 
     #[test]

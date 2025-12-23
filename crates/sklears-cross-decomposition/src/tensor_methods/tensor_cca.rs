@@ -180,7 +180,7 @@ impl Fit<Array3<Float>, Array3<Float>> for TensorCCA<Untrained> {
             for mode in 0..2 {
                 // Initialize X weights
                 let mut w_x: Array1<Float> = Array1::from_iter(
-                    (0..weights_x[mode].nrows()).map(|_| thread_rng().gen::<Float>()),
+                    (0..weights_x[mode].nrows()).map(|_| thread_rng().random::<Float>()),
                 );
                 let norm = (w_x.dot(&w_x)).sqrt();
                 if norm > 0.0 {
@@ -190,7 +190,7 @@ impl Fit<Array3<Float>, Array3<Float>> for TensorCCA<Untrained> {
 
                 // Initialize Y weights
                 let mut w_y: Array1<Float> = Array1::from_iter(
-                    (0..weights_y[mode].nrows()).map(|_| thread_rng().gen::<Float>()),
+                    (0..weights_y[mode].nrows()).map(|_| thread_rng().random::<Float>()),
                 );
                 let norm = (w_y.dot(&w_y)).sqrt();
                 if norm > 0.0 {

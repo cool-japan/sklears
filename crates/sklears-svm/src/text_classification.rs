@@ -334,7 +334,7 @@ impl StringKernel {
 
         // Fill DP table for longer subsequences
         if length > 1 {
-            let prev_kernel = self.compute_subsequence_kernel(s1, s2, length - 1);
+            let _prev_kernel = self.compute_subsequence_kernel(s1, s2, length - 1);
 
             for i in 1..=n1 {
                 for j in 1..=n2 {

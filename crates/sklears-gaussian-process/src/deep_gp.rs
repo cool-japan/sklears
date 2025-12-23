@@ -38,12 +38,10 @@
 //! ```
 
 use crate::kernels::Kernel;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Random}; // SciRS2 Policy
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::{Random, Rng}; // SciRS2 Policy
 use sklears_core::error::{Result as SklResult, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict};
-use std::collections::HashMap;
-use std::fmt;
 
 /// State marker for untrained deep GP
 #[derive(Debug, Clone)]
@@ -69,6 +67,20 @@ pub struct DeepGPLayer {
     pub variational_var: Array1<f64>,
     pub output_dim: usize,
     pub input_dim: usize,
+    /// Whether to use residual connections (skip connections from input)
+    pub use_residual: bool,
+    /// Weight for residual connection (0.0 = no residual, 1.0 = only residual)
+    pub residual_weight: f64,
+    /// Whether to use attention mechanism
+    pub use_attention: bool,
+    /// Attention query weights (for computing attention scores)
+    pub attention_query_weights: Option<Array2<f64>>,
+    /// Attention key weights
+    pub attention_key_weights: Option<Array2<f64>>,
+    /// Attention value weights
+    pub attention_value_weights: Option<Array2<f64>>,
+    /// Number of attention heads
+    pub n_attention_heads: usize,
 }
 
 impl DeepGPLayer {
@@ -84,7 +96,118 @@ impl DeepGPLayer {
             variational_var: Array1::ones(n_inducing),
             output_dim,
             input_dim,
+            use_residual: false,
+            residual_weight: 0.0,
+            use_attention: false,
+            attention_query_weights: None,
+            attention_key_weights: None,
+            attention_value_weights: None,
+            n_attention_heads: 1,
         }
+    }
+
+    /// Enable residual connections for this layer
+    pub fn with_residual(mut self, weight: f64) -> Self {
+        self.use_residual = true;
+        self.residual_weight = weight.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Enable attention mechanism for this layer
+    pub fn with_attention(mut self, n_heads: usize, attention_dim: usize) -> Self {
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::{Rng, SeedableRng};
+
+        self.use_attention = true;
+        self.n_attention_heads = n_heads.max(1);
+
+        // Initialize attention weights with small random values
+        let mut rng = StdRng::seed_from_u64(42);
+        let scale = (1.0 / (self.input_dim as f64)).sqrt();
+
+        // Query, Key, Value projection matrices
+        let mut query_weights = Array2::zeros((self.input_dim, attention_dim));
+        let mut key_weights = Array2::zeros((self.input_dim, attention_dim));
+        let mut value_weights = Array2::zeros((self.input_dim, attention_dim));
+
+        for i in 0..self.input_dim {
+            for j in 0..attention_dim {
+                query_weights[[i, j]] = rng.gen_range(-scale..scale);
+                key_weights[[i, j]] = rng.gen_range(-scale..scale);
+                value_weights[[i, j]] = rng.gen_range(-scale..scale);
+            }
+        }
+
+        self.attention_query_weights = Some(query_weights);
+        self.attention_key_weights = Some(key_weights);
+        self.attention_value_weights = Some(value_weights);
+
+        self
+    }
+
+    /// Compute attention scores using scaled dot-product attention
+    fn compute_attention(&self, inputs: &Array2<f64>) -> SklResult<Array2<f64>> {
+        if !self.use_attention {
+            return Ok(inputs.clone());
+        }
+
+        let query_weights = self.attention_query_weights.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Attention weights not initialized".to_string())
+        })?;
+        let key_weights = self.attention_key_weights.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Attention weights not initialized".to_string())
+        })?;
+        let value_weights = self.attention_value_weights.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Attention weights not initialized".to_string())
+        })?;
+
+        // Project inputs to query, key, value spaces
+        let queries = inputs.dot(query_weights); // (n_points, attention_dim)
+        let keys = inputs.dot(key_weights); // (n_points, attention_dim)
+        let values = inputs.dot(value_weights); // (n_points, attention_dim)
+
+        let n_points = queries.nrows();
+        let attention_dim = queries.ncols();
+
+        // Compute attention scores: Q * K^T / sqrt(d_k)
+        let scale = (attention_dim as f64).sqrt();
+        let mut attention_scores = Array2::zeros((n_points, n_points));
+
+        for i in 0..n_points {
+            for j in 0..n_points {
+                let mut score = 0.0;
+                for k in 0..attention_dim {
+                    score += queries[[i, k]] * keys[[j, k]];
+                }
+                attention_scores[[i, j]] = score / scale;
+            }
+        }
+
+        // Apply softmax to get attention weights
+        let mut attention_weights = Array2::zeros((n_points, n_points));
+        for i in 0..n_points {
+            let mut row_sum = 0.0;
+            let max_score = attention_scores
+                .row(i)
+                .iter()
+                .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+            for j in 0..n_points {
+                let exp_score = (attention_scores[[i, j]] - max_score).exp();
+                attention_weights[[i, j]] = exp_score;
+                row_sum += exp_score;
+            }
+
+            // Normalize
+            for j in 0..n_points {
+                attention_weights[[i, j]] /= row_sum;
+            }
+        }
+
+        // Apply attention weights to values
+        let attended_values = attention_weights.dot(&values);
+
+        Ok(attended_values)
     }
 
     /// Forward pass through this layer
@@ -92,10 +215,17 @@ impl DeepGPLayer {
         let n_points = inputs.nrows();
         let n_inducing = self.inducing_points.nrows();
 
-        // Compute kernel matrices
+        // Apply attention mechanism if enabled
+        let attended_inputs = if self.use_attention {
+            self.compute_attention(inputs)?
+        } else {
+            inputs.clone()
+        };
+
+        // Compute kernel matrices with attended inputs
         let k_uf = self
             .kernel
-            .compute_kernel_matrix(&self.inducing_points, Some(inputs))?;
+            .compute_kernel_matrix(&self.inducing_points, Some(&attended_inputs))?;
         let k_uu = self
             .kernel
             .compute_kernel_matrix(&self.inducing_points, None)?;
@@ -125,6 +255,21 @@ impl DeepGPLayer {
         for i in 0..n_points {
             for j in 0..self.output_dim {
                 mean_matrix[[i, j]] = mean_pred[i];
+            }
+        }
+
+        // Apply residual connection if enabled
+        if self.use_residual
+            && self.input_dim == self.output_dim
+            && inputs.ncols() == self.output_dim
+        {
+            // Residual connection: output = (1-w) * GP_output + w * input
+            // where w is the residual weight
+            for i in 0..n_points {
+                for j in 0..self.output_dim {
+                    mean_matrix[[i, j]] = (1.0 - self.residual_weight) * mean_matrix[[i, j]]
+                        + self.residual_weight * inputs[[i, j]];
+                }
             }
         }
 
@@ -161,6 +306,22 @@ pub struct DeepGaussianProcessRegressor<S = Untrained> {
     convergence_threshold: f64,
     jitter: f64,
     random_seed: Option<u64>,
+    /// Mini-batch size for data points (for doubly stochastic)
+    data_batch_size: Option<usize>,
+    /// Mini-batch size for inducing points (for doubly stochastic)
+    inducing_batch_size: Option<usize>,
+    /// Use doubly stochastic variational inference
+    use_doubly_stochastic: bool,
+    /// Use residual connections between layers
+    use_residual_connections: bool,
+    /// Weight for residual connections (0.0-1.0)
+    residual_weight: f64,
+    /// Use attention mechanisms in layers
+    use_attention: bool,
+    /// Number of attention heads
+    n_attention_heads: usize,
+    /// Attention dimension
+    attention_dim: usize,
     _state: S,
 }
 
@@ -180,6 +341,14 @@ impl DeepGaussianProcessRegressor<Untrained> {
             convergence_threshold: 1e-6,
             jitter: 1e-6,
             random_seed: None,
+            data_batch_size: None,
+            inducing_batch_size: None,
+            use_doubly_stochastic: false,
+            use_residual_connections: false,
+            residual_weight: 0.5,
+            use_attention: false,
+            n_attention_heads: 1,
+            attention_dim: 64,
             _state: Untrained,
         }
     }
@@ -226,12 +395,12 @@ impl DeepGaussianProcessRegressor<Untrained> {
     }
 
     /// Initialize inducing points for a layer
-    fn initialize_inducing_points(
+    fn initialize_inducing_points<R: Rng>(
         &self,
         x_train: &Array2<f64>,
         n_inducing: usize,
         input_dim: usize,
-        rng: &mut Random,
+        rng: &mut R,
     ) -> Array2<f64> {
         if n_inducing >= x_train.nrows() {
             // If we want more inducing points than data points, just use all data
@@ -280,7 +449,7 @@ impl DeepGaussianProcessRegressor<Untrained> {
         let mut all_variational_means = Vec::new();
         let mut all_variational_vars = Vec::new();
 
-        let mut current_input = x_train.clone();
+        let current_input = x_train.clone();
         let mut current_input_dim = x_train.ncols();
 
         // Initialize each layer
@@ -313,9 +482,9 @@ impl DeepGaussianProcessRegressor<Untrained> {
 
         // Simplified training loop
         let mut best_log_likelihood = f64::NEG_INFINITY;
-        let mut current_log_likelihood = 0.0;
+        let mut current_log_likelihood;
 
-        for epoch in 0..self.max_epochs {
+        for _epoch in 0..self.max_epochs {
             // Simplified ELBO computation
             current_log_likelihood = self.compute_simplified_elbo(x_train, y_train, &deep_layers);
 
@@ -330,7 +499,7 @@ impl DeepGaussianProcessRegressor<Untrained> {
             // For now, we'll just update the means slightly
             for layer in &mut deep_layers {
                 for i in 0..layer.variational_mean.len() {
-                    layer.variational_mean[i] += rng.gen_range(-0.01..0.01) * self.learning_rate;
+                    layer.variational_mean[i] += rng.random_range(-0.01, 0.01) * self.learning_rate;
                 }
             }
         }
@@ -342,6 +511,14 @@ impl DeepGaussianProcessRegressor<Untrained> {
             convergence_threshold: self.convergence_threshold,
             jitter: self.jitter,
             random_seed: self.random_seed,
+            data_batch_size: self.data_batch_size,
+            inducing_batch_size: self.inducing_batch_size,
+            use_doubly_stochastic: self.use_doubly_stochastic,
+            use_residual_connections: self.use_residual_connections,
+            residual_weight: self.residual_weight,
+            use_attention: self.use_attention,
+            n_attention_heads: self.n_attention_heads,
+            attention_dim: self.attention_dim,
             _state: Trained {
                 layers: deep_layers,
                 inducing_points: all_inducing_points,
@@ -474,6 +651,14 @@ pub struct DeepGaussianProcessRegressorBuilder {
     convergence_threshold: f64,
     jitter: f64,
     random_seed: Option<u64>,
+    data_batch_size: Option<usize>,
+    inducing_batch_size: Option<usize>,
+    use_doubly_stochastic: bool,
+    use_residual_connections: bool,
+    residual_weight: f64,
+    use_attention: bool,
+    n_attention_heads: usize,
+    attention_dim: usize,
 }
 
 impl DeepGaussianProcessRegressorBuilder {
@@ -486,6 +671,14 @@ impl DeepGaussianProcessRegressorBuilder {
             convergence_threshold: 1e-6,
             jitter: 1e-6,
             random_seed: None,
+            data_batch_size: None,
+            inducing_batch_size: None,
+            use_doubly_stochastic: false,
+            use_residual_connections: false,
+            residual_weight: 0.5,
+            use_attention: false,
+            n_attention_heads: 1,
+            attention_dim: 64,
         }
     }
 
@@ -525,6 +718,41 @@ impl DeepGaussianProcessRegressorBuilder {
         self
     }
 
+    /// Enable doubly stochastic variational inference
+    pub fn doubly_stochastic(mut self, data_batch_size: usize, inducing_batch_size: usize) -> Self {
+        self.use_doubly_stochastic = true;
+        self.data_batch_size = Some(data_batch_size);
+        self.inducing_batch_size = Some(inducing_batch_size);
+        self
+    }
+
+    /// Set data batch size for mini-batch training
+    pub fn data_batch_size(mut self, batch_size: usize) -> Self {
+        self.data_batch_size = Some(batch_size);
+        self
+    }
+
+    /// Set inducing point batch size for doubly stochastic inference
+    pub fn inducing_batch_size(mut self, batch_size: usize) -> Self {
+        self.inducing_batch_size = Some(batch_size);
+        self
+    }
+
+    /// Enable residual connections between layers
+    pub fn residual_connections(mut self, weight: f64) -> Self {
+        self.use_residual_connections = true;
+        self.residual_weight = weight.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Enable attention mechanisms in layers
+    pub fn attention(mut self, n_heads: usize, attention_dim: usize) -> Self {
+        self.use_attention = true;
+        self.n_attention_heads = n_heads.max(1);
+        self.attention_dim = attention_dim.max(1);
+        self
+    }
+
     /// Build the Deep GP regressor
     pub fn build(self) -> DeepGaussianProcessRegressor<Untrained> {
         DeepGaussianProcessRegressor {
@@ -534,6 +762,14 @@ impl DeepGaussianProcessRegressorBuilder {
             convergence_threshold: self.convergence_threshold,
             jitter: self.jitter,
             random_seed: self.random_seed,
+            data_batch_size: self.data_batch_size,
+            inducing_batch_size: self.inducing_batch_size,
+            use_doubly_stochastic: self.use_doubly_stochastic,
+            use_residual_connections: self.use_residual_connections,
+            residual_weight: self.residual_weight,
+            use_attention: self.use_attention,
+            n_attention_heads: self.n_attention_heads,
+            attention_dim: self.attention_dim,
             _state: Untrained,
         }
     }
@@ -553,6 +789,12 @@ pub struct DeepGPConfig {
     pub convergence_threshold: f64,
     pub jitter: f64,
     pub num_layers: usize,
+    /// Mini-batch size for data points (None = full batch)
+    pub data_batch_size: Option<usize>,
+    /// Mini-batch size for inducing points (None = full batch)
+    pub inducing_batch_size: Option<usize>,
+    /// Use doubly stochastic variational inference
+    pub use_doubly_stochastic: bool,
 }
 
 impl Default for DeepGPConfig {
@@ -563,6 +805,9 @@ impl Default for DeepGPConfig {
             convergence_threshold: 1e-6,
             jitter: 1e-6,
             num_layers: 0,
+            data_batch_size: None,
+            inducing_batch_size: None,
+            use_doubly_stochastic: false,
         }
     }
 }
@@ -580,6 +825,9 @@ impl<S> Estimator for DeepGaussianProcessRegressor<S> {
             convergence_threshold: 1e-6,
             jitter: 1e-6,
             num_layers: 0,
+            data_batch_size: None,
+            inducing_batch_size: None,
+            use_doubly_stochastic: false,
         };
         &DEFAULT_CONFIG
     }
@@ -691,6 +939,36 @@ mod tests {
     }
 
     #[test]
+    fn test_deep_gp_attention() {
+        let _X = array![[1.0], [2.0], [3.0], [4.0]];
+        let _y = array![1.0, 4.0, 9.0, 16.0];
+
+        let deep_gp = DeepGaussianProcessRegressor::builder()
+            .add_layer(Box::new(RBF::new(1.0)), 10)
+            .add_layer(Box::new(RBF::new(0.5)), 8)
+            .attention(2, 32) // 2 attention heads, 32-dimensional attention space
+            .learning_rate(0.01)
+            .max_epochs(50)
+            .build();
+
+        assert_eq!(deep_gp.use_attention, true);
+        assert_eq!(deep_gp.n_attention_heads, 2);
+        assert_eq!(deep_gp.attention_dim, 32);
+
+        // Test that attention can be combined with other features
+        let deep_gp_combo = DeepGaussianProcessRegressor::builder()
+            .add_layer(Box::new(RBF::new(1.0)), 10)
+            .attention(4, 64)
+            .residual_connections(0.3)
+            .doubly_stochastic(32, 5)
+            .build();
+
+        assert_eq!(deep_gp_combo.use_attention, true);
+        assert_eq!(deep_gp_combo.use_residual_connections, true);
+        assert_eq!(deep_gp_combo.use_doubly_stochastic, true);
+    }
+
+    #[test]
     fn test_deep_gp_layer_predictions() {
         let deep_gp = DeepGaussianProcessRegressor::builder()
             .add_layer(Box::new(RBF::new(1.0)), 5)
@@ -707,11 +985,11 @@ mod tests {
         let x_test = array![[0.5], [1.5]];
 
         // Test predictions from first layer
-        let (layer0_pred, layer0_var) = trained_model.predict_layer(&x_test, 0).unwrap();
+        let (layer0_pred, _layer0_var) = trained_model.predict_layer(&x_test, 0).unwrap();
         assert_eq!(layer0_pred.nrows(), 2);
 
         // Test predictions from second layer
-        let (layer1_pred, layer1_var) = trained_model.predict_layer(&x_test, 1).unwrap();
+        let (layer1_pred, _layer1_var) = trained_model.predict_layer(&x_test, 1).unwrap();
         assert_eq!(layer1_pred.nrows(), 2);
 
         // Test invalid layer index

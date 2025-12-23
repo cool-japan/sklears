@@ -15,8 +15,8 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
-use scirs2_core::random::RandNormal;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
+use scirs2_core::random::{RandNormal, Rng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -261,7 +261,7 @@ impl MultiObjectiveOptimizer<Untrained> {
     /// Evaluate objectives for all solutions in the population
     fn evaluate_population(
         &self,
-        population: &mut Vec<ParetoSolution>,
+        population: &mut [ParetoSolution],
         X: &ArrayView2<'_, Float>,
         y: &ArrayView2<'_, Float>,
     ) -> SklResult<()> {
@@ -364,7 +364,7 @@ impl MultiObjectiveOptimizer<Untrained> {
     }
 
     /// Non-dominated sorting
-    fn non_dominated_sort(&self, population: &mut Vec<ParetoSolution>) -> SklResult<()> {
+    fn non_dominated_sort(&self, population: &mut [ParetoSolution]) -> SklResult<()> {
         let n = population.len();
         let mut domination_count = vec![0; n];
         let mut dominated_solutions = vec![Vec::new(); n];
@@ -423,7 +423,7 @@ impl MultiObjectiveOptimizer<Untrained> {
     }
 
     /// Calculate crowding distance
-    fn calculate_crowding_distance(&self, population: &mut Vec<ParetoSolution>) -> SklResult<()> {
+    fn calculate_crowding_distance(&self, population: &mut [ParetoSolution]) -> SklResult<()> {
         let n = population.len();
         let n_objectives = self.config.objectives.len();
 

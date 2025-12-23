@@ -206,8 +206,8 @@ impl ActiveSetIsotonicRegressor {
         let mut groups = vec![0; n]; // Group assignment for each variable
 
         // Initialize each variable to its own group
-        for i in 0..n {
-            groups[i] = i;
+        for (i, group) in groups.iter_mut().enumerate().take(n) {
+            *group = i;
         }
 
         // Merge groups based on active constraints
@@ -219,9 +219,9 @@ impl ActiveSetIsotonicRegressor {
                     // Merge groups
                     let new_group = group1.min(group2);
                     let old_group = group1.max(group2);
-                    for j in 0..n {
-                        if groups[j] == old_group {
-                            groups[j] = new_group;
+                    for group in groups.iter_mut().take(n) {
+                        if *group == old_group {
+                            *group = new_group;
                         }
                     }
                 }

@@ -1035,10 +1035,10 @@ mod tests {
 
         // Create series with repeated pattern
         let series = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 7.0, 8.0]);
-        let motifs = recognizer.find_motifs(&series, 2);
+        let _motifs = recognizer.find_motifs(&series, 2);
 
         // Should find the pattern [1, 2, 3] that occurs twice
-        assert!(motifs.len() >= 0); // May or may not find motifs depending on threshold
+        // (_motifs.len() is always >= 0 by type)
     }
 
     #[test]

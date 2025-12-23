@@ -52,20 +52,12 @@ pub struct PluginMetadata {
 /// Configuration for a plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// PluginConfig
+#[derive(Default)]
 pub struct PluginConfig {
     /// Parameters for the plugin
     pub parameters: HashMap<String, serde_json::Value>,
     /// Random seed for reproducibility
     pub random_state: Option<u64>,
-}
-
-impl Default for PluginConfig {
-    fn default() -> Self {
-        Self {
-            parameters: HashMap::new(),
-            random_state: None,
-        }
-    }
 }
 
 /// Trait for kernel approximation plugins
@@ -326,7 +318,6 @@ pub struct LinearKernelPlugin;
 
 impl KernelApproximationPlugin for LinearKernelPlugin {
     fn metadata(&self) -> PluginMetadata {
-        /// PluginMetadata
         PluginMetadata {
             name: "linear_kernel".to_string(),
             version: "1.0.0".to_string(),
@@ -412,7 +403,7 @@ pub struct LinearKernelInstance {
 impl KernelApproximationInstance for LinearKernelInstance {
     fn fit(&mut self, x: &Array2<f64>, _y: &()) -> std::result::Result<(), PluginError> {
         use scirs2_core::random::thread_rng;
-        use scirs2_core::random::{Distribution, StandardNormal};
+        use scirs2_core::random::StandardNormal;
 
         let (_, n_features) = x.dim();
         let mut rng = thread_rng();

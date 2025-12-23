@@ -92,7 +92,7 @@ impl TimeSeriesCalibrator {
 
         // Simple seasonal adjustment using moving averages
         for i in 0..n {
-            let start = if i >= period { i - period } else { 0 };
+            let start = i.saturating_sub(period);
             let end = (i + period + 1).min(n);
 
             let seasonal_mean = probabilities.slice(s![start..end]).mean().unwrap_or(0.5);
@@ -135,7 +135,7 @@ impl TimeSeriesCalibrator {
             let window_targets = y_true.slice(s![start..end]).to_owned();
 
             // Compute temporal weights for this window
-            let weights = self.compute_temporal_weights(window_probs.len());
+            let _weights = self.compute_temporal_weights(window_probs.len());
 
             // Fit calibrator for this window
             let mut calibrator = self.base_calibrator.clone_box();

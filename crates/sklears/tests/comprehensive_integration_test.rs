@@ -9,46 +9,51 @@ use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};
 // use sklears_preprocessing::feature_engineering::{FunctionTransformer, PolynomialFeatures};
 // use sklears_preprocessing::imputation::{KNNImputer, SimpleImputer};
 // use sklears_preprocessing::scaling::{MinMaxScaler, RobustScaler, StandardScaler};
-use sklears::data_generation::make_classification;
+use sklears::utils::data_generation::make_classification;
 // Tree models are not available in current setup
 use sklears_metrics::classification::{accuracy_score, f1_score, precision_score, recall_score};
 use sklears_model_selection::train_test_split;
 use sklears_model_selection::KFold;
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "Preprocessing modules not available in facade"]
 fn test_full_classification_pipeline() {
     // Test disabled - StandardScaler and PolynomialFeatures not available in facade
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "Preprocessing modules not available in facade"]
 fn test_full_regression_pipeline() {
     // Test disabled - StandardScaler, MinMaxScaler, RobustScaler not available in facade
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "Preprocessing modules not available in facade"]
 fn test_preprocessing_pipeline_with_missing_values() {
     // Test disabled - SimpleImputer and KNNImputer not available in facade
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "Preprocessing modules not available in facade"]
 fn test_categorical_encoding_pipeline() {
     // Test disabled - LabelEncoder, OrdinalEncoder, OneHotEncoder not available in facade
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_cross_validation_integration() {
     // Generate data for cross-validation
-    let (X, y) = make_classification(100, 5, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (_X, _y) = make_classification(100, 5, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
 
     // Test cross-validation with different models
-    let kfold = KFold::new(5);
+    let _kfold = KFold::new(5);
 
     // KNN classifier
-    let knn_regressor = KNeighborsRegressor::new(3);
+    let _knn_regressor = KNeighborsRegressor::new(3);
     // Cross-validation temporarily disabled due to trait issues
     // let knn_scores = cross_val_score(
     //     knn_regressor.clone(),
@@ -85,12 +90,14 @@ fn test_cross_validation_integration() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "Preprocessing modules not available in facade"]
 fn test_feature_engineering_integration() {
     // Test disabled - PolynomialFeatures and FunctionTransformer not available in facade
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_multiclass_metrics_integration() {
     // Generate multiclass data
     let (X, y) = make_classification(120, 4, 4, None, None, 0.0, 1.0, Some(42)).unwrap();
@@ -145,6 +152,7 @@ fn test_multiclass_metrics_integration() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 #[ignore = "Preprocessing modules not available in facade"]
 fn test_clustering_evaluation_integration() {
     // Test disabled - StandardScaler not available in facade

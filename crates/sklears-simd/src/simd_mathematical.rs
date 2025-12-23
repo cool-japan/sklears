@@ -32,10 +32,10 @@ pub fn sqrt_vec(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { sqrt_vec_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { sqrt_vec_sse2(input, output) };
             return;
         }
@@ -106,10 +106,10 @@ pub fn reciprocal_vec(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { reciprocal_vec_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { reciprocal_vec_sse2(input, output) };
             return;
         }
@@ -182,10 +182,10 @@ pub fn exp_vec(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { exp_vec_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { exp_vec_sse2(input, output) };
             return;
         }
@@ -249,7 +249,7 @@ unsafe fn exp_vec_avx2(input: &[f32], output: &mut [f32]) {
 /// Fast exponential approximation using SSE2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn exp_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m128 {
+unsafe fn exp_approx_sse2(x: core::arch::x86_64::__m128) -> core::arch::x86_64::__m128 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -294,7 +294,7 @@ unsafe fn exp_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__
 /// Fast exponential approximation using AVX2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn exp_approx_avx2(x: std::arch::x86_64::__m256) -> std::arch::x86_64::__m256 {
+unsafe fn exp_approx_avx2(x: core::arch::x86_64::__m256) -> core::arch::x86_64::__m256 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -346,10 +346,10 @@ pub fn ln_vec(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { ln_vec_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { ln_vec_sse2(input, output) };
             return;
         }
@@ -413,7 +413,7 @@ unsafe fn ln_vec_avx2(input: &[f32], output: &mut [f32]) {
 /// Fast natural logarithm approximation using SSE2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn ln_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m128 {
+unsafe fn ln_approx_sse2(x: core::arch::x86_64::__m128) -> core::arch::x86_64::__m128 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -457,7 +457,7 @@ unsafe fn ln_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m
 /// Fast natural logarithm approximation using AVX2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn ln_approx_avx2(x: std::arch::x86_64::__m256) -> std::arch::x86_64::__m256 {
+unsafe fn ln_approx_avx2(x: core::arch::x86_64::__m256) -> core::arch::x86_64::__m256 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -508,10 +508,10 @@ pub fn sin_vec(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { sin_vec_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { sin_vec_sse2(input, output) };
             return;
         }
@@ -575,7 +575,7 @@ unsafe fn sin_vec_avx2(input: &[f32], output: &mut [f32]) {
 /// Fast sine approximation using SSE2 with Taylor series
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn sin_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m128 {
+unsafe fn sin_approx_sse2(x: core::arch::x86_64::__m128) -> core::arch::x86_64::__m128 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -612,7 +612,7 @@ unsafe fn sin_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__
 /// Fast sine approximation using AVX2 with Taylor series
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn sin_approx_avx2(x: std::arch::x86_64::__m256) -> std::arch::x86_64::__m256 {
+unsafe fn sin_approx_avx2(x: core::arch::x86_64::__m256) -> core::arch::x86_64::__m256 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -656,10 +656,10 @@ pub fn cos_vec(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { cos_vec_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { cos_vec_sse2(input, output) };
             return;
         }
@@ -723,7 +723,7 @@ unsafe fn cos_vec_avx2(input: &[f32], output: &mut [f32]) {
 /// Fast cosine approximation using SSE2 with Taylor series
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn cos_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m128 {
+unsafe fn cos_approx_sse2(x: core::arch::x86_64::__m128) -> core::arch::x86_64::__m128 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -738,7 +738,7 @@ unsafe fn cos_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__
 /// Fast cosine approximation using AVX2 with Taylor series
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn cos_approx_avx2(x: std::arch::x86_64::__m256) -> std::arch::x86_64::__m256 {
+unsafe fn cos_approx_avx2(x: core::arch::x86_64::__m256) -> core::arch::x86_64::__m256 {
     #[cfg(feature = "no-std")]
     use core::arch::x86_64::*;
     #[cfg(not(feature = "no-std"))]
@@ -839,7 +839,7 @@ pub fn round_vec(input: &[f32], output: &mut [f32]) {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

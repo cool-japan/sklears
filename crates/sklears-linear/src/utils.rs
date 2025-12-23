@@ -10,6 +10,9 @@ use sklears_core::{
     types::Float,
 };
 
+/// Type alias for rank-revealing QR decomposition result
+pub type RankRevealingQrResult = (Array2<Float>, Array2<Float>, Vec<usize>, usize);
+
 /// Orthogonal Matching Pursuit (OMP) algorithm
 ///
 /// Solves the OMP problem: argmin ||y - X @ coef||^2 subject to ||coef||_0 <= n_nonzero_coefs
@@ -778,10 +781,7 @@ pub fn accurate_condition_number(a: &Array2<Float>) -> Result<Float> {
 ///
 /// # Returns
 /// * (Q, R, permutation vector, rank)
-pub fn rank_revealing_qr(
-    a: &Array2<Float>,
-    rcond: Option<Float>,
-) -> Result<(Array2<Float>, Array2<Float>, Vec<usize>, usize)> {
+pub fn rank_revealing_qr(a: &Array2<Float>, rcond: Option<Float>) -> Result<RankRevealingQrResult> {
     let n_samples = a.nrows();
     let n_features = a.ncols();
     let rcond = rcond.unwrap_or(Float::EPSILON * n_samples.max(n_features) as Float);

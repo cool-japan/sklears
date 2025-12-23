@@ -27,7 +27,7 @@ impl VariationalFreeEnergy {
         max_iter: usize,
         tol: f64,
     ) -> Result<(Array1<f64>, Array2<f64>, VariationalParams)> {
-        let n = x.nrows();
+        let _n = x.nrows();
         let m = inducing_points.nrows();
 
         // Initialize variational parameters
@@ -45,7 +45,7 @@ impl VariationalFreeEnergy {
         let mut best_elbo = f64::NEG_INFINITY;
         let mut best_params = None;
 
-        for iter in 0..max_iter {
+        for _iter in 0..max_iter {
             let old_mean = variational_mean.clone();
             let old_cov_factor = variational_cov_factor.clone();
 
@@ -133,8 +133,8 @@ impl VariationalFreeEnergy {
         noise_variance: f64,
         whitened: bool,
     ) -> Result<ELBOResult> {
-        let n = y.len();
-        let m = variational_mean.len();
+        let _n = y.len();
+        let _m = variational_mean.len();
 
         // Compute variational covariance S = L L^T
         let variational_cov = variational_cov_factor.dot(&variational_cov_factor.t());
@@ -308,10 +308,10 @@ impl VariationalFreeEnergy {
 
     /// Compute alpha for whitened parameterization
     fn compute_alpha_whitened(
-        k_nm: &Array2<f64>,
+        _k_nm: &Array2<f64>,
         k_mm_inv: &Array2<f64>,
         variational_mean: &Array1<f64>,
-        noise_variance: f64,
+        _noise_variance: f64,
     ) -> Result<Array1<f64>> {
         // Transform whitened variables back to standard space
         // Simplified version - assume k_mm_inv is already the inverse
@@ -422,7 +422,7 @@ impl StochasticVariationalInference {
         // Compute final alpha and parameters
         let alpha = VariationalFreeEnergy::compute_alpha_standard(&k_mm_inv, &variational_mean)?;
 
-        let variational_cov = variational_cov_factor.dot(&variational_cov_factor.t());
+        let _variational_cov = variational_cov_factor.dot(&variational_cov_factor.t());
 
         // Compute final ELBO on full dataset
         let k_nm = kernel.kernel_matrix(x, inducing_points);
@@ -457,7 +457,7 @@ impl StochasticVariationalInference {
 
         // Fisher-Yates shuffle
         for i in (1..n).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -503,7 +503,7 @@ pub mod variational_utils {
         let k_mm = kernel.kernel_matrix(inducing_points, inducing_points);
         let k_nm = kernel.kernel_matrix(x, inducing_points);
 
-        let k_mm_inv = KernelOps::invert_using_cholesky(&k_mm)?;
+        let _k_mm_inv = KernelOps::invert_using_cholesky(&k_mm)?;
 
         // Simple initialization: m = (K_mm + σ²I)^(-1) K_mn y
         let mut k_mm_reg = k_mm.clone();

@@ -6,8 +6,8 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::random::thread_rng;
 use scirs2_core::random::RandNormal;
-use scirs2_core::random::{thread_rng, Rng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -941,10 +941,10 @@ impl GraphNeuralNetwork<Untrained> {
             let predictions = node_embeddings.mapv(|x| if x > 0.0 { 1 } else { 0 });
 
             // Simple gradient update (in practice, would use backpropagation)
-            for layer_idx in 0..weights.len() {
-                for i in 0..weights[layer_idx].nrows() {
-                    for j in 0..weights[layer_idx].ncols() {
-                        weights[layer_idx][[i, j]] *= 0.999; // Simple weight decay
+            for weight in &mut weights {
+                for i in 0..weight.nrows() {
+                    for j in 0..weight.ncols() {
+                        weight[[i, j]] *= 0.999; // Simple weight decay
                     }
                 }
             }
@@ -977,6 +977,7 @@ impl GraphNeuralNetwork<Untrained> {
     }
 
     /// Initialize GNN parameters
+    #[allow(clippy::type_complexity)]
     fn initialize_gnn_parameters(
         &self,
         n_features: usize,

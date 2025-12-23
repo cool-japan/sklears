@@ -3,14 +3,25 @@
 //! This module provides SIMD-optimized implementations of common dataset generation
 //! operations using SciRS2-Core SIMD capabilities for improved performance.
 
+// Note: SIMD support is optional and uses platform-specific intrinsics
+// The actual SIMD implementation is in the functions below using #[cfg(target_arch)]
 #[cfg(feature = "simd")]
-use scirs2_core::simd::{auto_vectorize, SimdArray, SimdOps};
-#[cfg(feature = "simd")]
-use scirs2_core::simd_ops::{simd_dot_product, simd_matrix_multiply};
+#[allow(unused_imports)]
+use scirs2_core::simd::SimdOps;
 
-use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rng, DistributionExt, Random};
+use scirs2_core::ndarray::{Array1, Array2, ShapeBuilder};
+use scirs2_core::random::{Distribution, RandNormal, Random};
 use thiserror::Error;
+
+// Helper function for generating normal random values
+#[inline]
+fn gen_normal_value<R>(rng: &mut R, mean: f64, std: f64) -> f64
+where
+    R: scirs2_core::random::Rng,
+{
+    let dist = RandNormal::new(mean, std).unwrap();
+    dist.sample(rng)
+}
 
 /// SIMD-specific errors
 #[derive(Error, Debug)]
@@ -60,11 +71,6 @@ pub fn make_simd_classification(
     config: Option<SimdConfig>,
 ) -> SimdResult<(Array2<f64>, Array1<i32>)> {
     let config = config.unwrap_or_default();
-    let mut rng = match random_state {
-        Some(seed) => Random::new_with_seed(seed),
-        None => Random::new(),
-    };
-
     // Check if SIMD optimization should be used
     let use_simd =
         config.use_simd && n_samples >= config.simd_threshold && is_simd_available(&config)?;
@@ -72,6 +78,7 @@ pub fn make_simd_classification(
     let n_informative = n_informative.unwrap_or(n_features.min(n_classes));
 
     if use_simd {
+        let mut rng = Random::seed(random_state.unwrap_or(42));
         make_simd_classification_accelerated(
             n_samples,
             n_features,
@@ -82,17 +89,18 @@ pub fn make_simd_classification(
         )
     } else {
         // Fallback to standard implementation
+        let mut rng = Random::seed(random_state.unwrap_or(42));
         make_classification_standard(n_samples, n_features, n_classes, n_informative, &mut rng)
     }
 }
 
 #[cfg(feature = "simd")]
-fn make_simd_classification_accelerated(
+fn make_simd_classification_accelerated<R: scirs2_core::random::Rng>(
     n_samples: usize,
     n_features: usize,
     n_classes: usize,
     n_informative: usize,
-    rng: &mut Random,
+    rng: &mut R,
     config: &SimdConfig,
 ) -> SimdResult<(Array2<f64>, Array1<i32>)> {
     // Use SciRS2 SIMD capabilities
@@ -103,7 +111,8 @@ fn make_simd_classification_accelerated(
         Array1::from_shape_fn(n_samples, |_| rng.gen_range(0..n_classes) as i32);
 
     // SIMD-optimized feature generation
-    let mut features = Array2::<f64>::zeros((n_samples, n_features));
+    // Use column-major (F-order) so columns are contiguous in memory for SIMD operations
+    let mut features = Array2::<f64>::zeros((n_samples, n_features).f());
 
     // Process features in SIMD-friendly chunks
     for feature_idx in 0..n_informative {
@@ -152,11 +161,11 @@ fn make_simd_classification_accelerated(
 }
 
 #[cfg(feature = "simd")]
-fn fill_feature_column_simd(
+fn fill_feature_column_simd<R: scirs2_core::random::Rng>(
     column: &mut [f64],
     targets: &Array1<i32>,
     class_means: &[f64],
-    rng: &mut Random,
+    rng: &mut R,
     simd_width: usize,
     chunk_size: usize,
 ) -> SimdResult<()> {
@@ -176,7 +185,9 @@ fn fill_feature_column_simd(
             .collect();
 
         // Generate noise using SciRS2 random
-        let noise_values: Vec<f64> = (0..chunk.len()).map(|_| rng.gen_normal(0.0, 1.0)).collect();
+        let noise_values: Vec<f64> = (0..chunk.len())
+            .map(|_| gen_normal_value(rng, 0.0, 1.0))
+            .collect();
 
         // SIMD add: base_values + noise_values
         if chunk.len() >= simd_width && base_values.len() == noise_values.len() {
@@ -199,17 +210,17 @@ fn fill_feature_column_simd(
 }
 
 #[cfg(feature = "simd")]
-fn fill_feature_column_standard(
+fn fill_feature_column_standard<R: scirs2_core::random::Rng>(
     column: &mut [f64],
     targets: &Array1<i32>,
     class_means: &[f64],
-    rng: &mut Random,
+    rng: &mut R,
 ) -> SimdResult<()> {
     let targets_slice = targets.as_slice().unwrap();
 
     for (i, &target) in targets_slice.iter().enumerate() {
         let class_mean = class_means[target as usize];
-        let noise = rng.gen_normal(0.0, 1.0);
+        let noise = gen_normal_value(rng, 0.0, 1.0);
         column[i] = class_mean + noise;
     }
 
@@ -217,41 +228,45 @@ fn fill_feature_column_standard(
 }
 
 #[cfg(feature = "simd")]
-fn simd_fill_noise(
+fn simd_fill_noise<R: scirs2_core::random::Rng>(
     slice: &mut [f64],
-    rng: &mut Random,
-    simd_width: usize,
+    rng: &mut R,
+    _simd_width: usize,
     chunk_size: usize,
 ) -> SimdResult<()> {
     // Process in SIMD-friendly chunks
     for chunk in slice.chunks_mut(chunk_size) {
         for value in chunk.iter_mut() {
-            *value = rng.gen_normal(0.0, 1.0);
+            *value = gen_normal_value(rng, 0.0, 1.0);
         }
     }
     Ok(())
 }
 
 #[cfg(feature = "simd")]
-fn standard_fill_noise(slice: &mut [f64], rng: &mut Random) -> SimdResult<()> {
+fn standard_fill_noise<R: scirs2_core::random::Rng>(
+    slice: &mut [f64],
+    rng: &mut R,
+) -> SimdResult<()> {
     for value in slice.iter_mut() {
-        *value = rng.gen_normal(0.0, 1.0);
+        *value = gen_normal_value(rng, 0.0, 1.0);
     }
     Ok(())
 }
 
-fn make_classification_standard(
+fn make_classification_standard<R: scirs2_core::random::Rng>(
     n_samples: usize,
     n_features: usize,
     n_classes: usize,
     n_informative: usize,
-    rng: &mut Random,
+    rng: &mut R,
 ) -> SimdResult<(Array2<f64>, Array1<i32>)> {
     // Fallback to standard implementation
     let targets: Array1<i32> =
         Array1::from_shape_fn(n_samples, |_| rng.gen_range(0..n_classes) as i32);
 
-    let mut features = Array2::<f64>::zeros((n_samples, n_features));
+    // Use column-major (F-order) for contiguous columns
+    let mut features = Array2::<f64>::zeros((n_samples, n_features).f());
 
     // Generate informative features
     for feature_idx in 0..n_informative {
@@ -261,7 +276,7 @@ fn make_classification_standard(
 
         for (sample_idx, &target) in targets.iter().enumerate() {
             let class_mean = class_means[target as usize];
-            let noise = rng.gen_normal(0.0, 1.0);
+            let noise = gen_normal_value(rng, 0.0, 1.0);
             features[[sample_idx, feature_idx]] = class_mean + noise;
         }
     }
@@ -269,7 +284,7 @@ fn make_classification_standard(
     // Generate noise features
     for feature_idx in n_informative..n_features {
         for sample_idx in 0..n_samples {
-            features[[sample_idx, feature_idx]] = rng.gen_normal(0.0, 1.0);
+            features[[sample_idx, feature_idx]] = gen_normal_value(rng, 0.0, 1.0);
         }
     }
 
@@ -303,33 +318,32 @@ pub fn make_simd_regression(
     config: Option<SimdConfig>,
 ) -> SimdResult<(Array2<f64>, Array1<f64>)> {
     let config = config.unwrap_or_default();
-    let mut rng = match random_state {
-        Some(seed) => Random::new_with_seed(seed),
-        None => Random::new(),
-    };
 
     let use_simd =
         config.use_simd && n_samples >= config.simd_threshold && is_simd_available(&config)?;
 
     if use_simd {
+        let mut rng = Random::seed(random_state.unwrap_or(42));
         make_simd_regression_accelerated(n_samples, n_features, noise, &mut rng, &config)
     } else {
+        let mut rng = Random::seed(random_state.unwrap_or(42));
         make_regression_standard(n_samples, n_features, noise, &mut rng)
     }
 }
 
 #[cfg(feature = "simd")]
-fn make_simd_regression_accelerated(
+fn make_simd_regression_accelerated<R: scirs2_core::random::Rng>(
     n_samples: usize,
     n_features: usize,
     noise: f64,
-    rng: &mut Random,
+    rng: &mut R,
     config: &SimdConfig,
 ) -> SimdResult<(Array2<f64>, Array1<f64>)> {
     let simd_width = 8; // Default SIMD width for f64
 
     // Generate features using SIMD operations
-    let mut features = Array2::<f64>::zeros((n_samples, n_features));
+    // Use column-major (F-order) for contiguous columns
+    let mut features = Array2::<f64>::zeros((n_samples, n_features).f());
 
     // Fill features matrix using SIMD operations
     if let Some(slice) = features.as_slice_mut() {
@@ -346,7 +360,7 @@ fn make_simd_regression_accelerated(
     // Compute targets using SIMD dot product operations
     let mut targets = Array1::<f64>::zeros(n_samples);
 
-    for (sample_idx, mut target) in targets.iter_mut().enumerate() {
+    for (sample_idx, target) in targets.iter_mut().enumerate() {
         let feature_row = features.row(sample_idx);
 
         // Use SIMD dot product when available
@@ -365,7 +379,7 @@ fn make_simd_regression_accelerated(
 
         // Add noise
         if noise > 0.0 {
-            *target += rng.gen_normal(0.0, noise);
+            *target += gen_normal_value(rng, 0.0, noise);
         }
     }
 
@@ -378,18 +392,19 @@ fn simd_dot_product_fallback(a: &[f64], b: &[f64]) -> f64 {
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
-fn make_regression_standard(
+fn make_regression_standard<R: scirs2_core::random::Rng>(
     n_samples: usize,
     n_features: usize,
     noise: f64,
-    rng: &mut Random,
+    rng: &mut R,
 ) -> SimdResult<(Array2<f64>, Array1<f64>)> {
-    let mut features = Array2::<f64>::zeros((n_samples, n_features));
+    // Use column-major (F-order) for contiguous columns
+    let mut features = Array2::<f64>::zeros((n_samples, n_features).f());
 
     // Fill features matrix
     for mut row in features.rows_mut() {
         for value in row.iter_mut() {
-            *value = rng.gen_normal(0.0, 1.0);
+            *value = gen_normal_value(rng, 0.0, 1.0);
         }
     }
 
@@ -399,7 +414,7 @@ fn make_regression_standard(
     // Compute targets
     let mut targets = Array1::<f64>::zeros(n_samples);
 
-    for (sample_idx, mut target) in targets.iter_mut().enumerate() {
+    for (sample_idx, target) in targets.iter_mut().enumerate() {
         let feature_row = features.row(sample_idx);
         *target = feature_row
             .iter()
@@ -409,7 +424,7 @@ fn make_regression_standard(
 
         // Add noise
         if noise > 0.0 {
-            *target += rng.gen_normal(0.0, noise);
+            *target += gen_normal_value(rng, 0.0, noise);
         }
     }
 
@@ -537,7 +552,7 @@ mod tests {
     #[test]
     fn test_fallback_to_standard() {
         // Test with very small dataset that should fallback to standard implementation
-        let config = SimdConfig {
+        let _config = SimdConfig {
             simd_threshold: 10000, // Very high threshold
             ..Default::default()
         };
@@ -546,10 +561,10 @@ mod tests {
         #[cfg(feature = "simd")]
         {
             let result =
-                make_simd_classification(50, 3, 2, Some(2), Some(42), Some(config.clone()));
+                make_simd_classification(50, 3, 2, Some(2), Some(42), Some(_config.clone()));
             assert!(result.is_ok());
 
-            let result = make_simd_regression(50, 3, 0.1, Some(42), Some(config));
+            let result = make_simd_regression(50, 3, 0.1, Some(42), Some(_config));
             assert!(result.is_ok());
         }
     }

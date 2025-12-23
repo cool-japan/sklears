@@ -3,9 +3,10 @@
 //! This module provides tools for extracting features from data lying on
 //! or near low-dimensional manifolds embedded in high-dimensional spaces.
 
-use crate::*;
+// use crate::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::Result as SklResult,
     prelude::{SklearsError, Transform},
@@ -793,7 +794,7 @@ impl<S> RiemannianFeatureExtractor<S> {
     /// Estimate local curvature at a point
     fn estimate_curvature(&self, data: &Array2<f64>, point_idx: usize) -> SklResult<f64> {
         let n_samples = data.nrows();
-        let n_features = data.ncols();
+        let _n_features = data.ncols();
 
         if point_idx >= n_samples {
             return Err(SklearsError::InvalidInput(
@@ -949,7 +950,7 @@ impl Transform<Array2<f64>, Array2<f64>>
                 && feature_idx < total_features
             {
                 features[(i, feature_idx)] = self.state.curvatures[nearest_idx];
-                feature_idx += 1;
+                // feature_idx would be incremented here, but not needed at end of loop
             }
         }
 

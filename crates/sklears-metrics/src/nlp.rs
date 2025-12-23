@@ -474,8 +474,8 @@ pub fn edit_distance(s1: &str, s2: &str) -> usize {
     let mut dp = vec![vec![0; n + 1]; m + 1];
 
     // Initialize base cases
-    for i in 0..=m {
-        dp[i][0] = i;
+    for (i, row) in dp.iter_mut().enumerate().take(m + 1) {
+        row[0] = i;
     }
     for j in 0..=n {
         dp[0][j] = j;

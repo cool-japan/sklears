@@ -5,7 +5,8 @@
 
 use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::Result as SklResult,

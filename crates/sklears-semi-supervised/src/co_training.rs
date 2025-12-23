@@ -160,7 +160,7 @@ impl CoTraining<Untrained> {
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
             // Use k=5 nearest neighbors
-            let k = distances.len().min(5).max(1);
+            let k = distances.len().clamp(1, 5);
             let mut class_votes: HashMap<i32, f64> = HashMap::new();
             let mut total_weight = 0.0;
 
@@ -687,7 +687,7 @@ impl MultiViewCoTraining<Untrained> {
 
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
-            let k = distances.len().min(7).max(3);
+            let k = distances.len().clamp(3, 7);
             let mut class_votes: HashMap<i32, f64> = HashMap::new();
             let mut total_weight = 0.0;
 
@@ -1069,7 +1069,7 @@ impl MultiViewCoTraining<MultiViewCoTrainingTrained> {
 
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
-            let k = distances.len().min(7).max(3);
+            let k = distances.len().clamp(3, 7);
             let mut class_votes: HashMap<i32, f64> = HashMap::new();
             let mut total_weight = 0.0;
 

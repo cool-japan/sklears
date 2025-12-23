@@ -53,9 +53,9 @@ pub struct FinancialImputationFramework {
     /// Portfolio analytics configuration
     portfolio_config: PortfolioConfig,
     /// Economic data settings
-    economic_config: EconomicConfig,
+    _economic_config: EconomicConfig,
     /// Credit risk imputation parameters
-    credit_config: CreditConfig,
+    _credit_config: CreditConfig,
     /// Risk management settings
     risk_config: RiskConfig,
     /// Regulatory compliance requirements
@@ -551,8 +551,8 @@ impl FinancialImputationFramework {
         Self {
             market_data_config: MarketDataConfig::default(),
             portfolio_config: PortfolioConfig::default(),
-            economic_config: EconomicConfig::default(),
-            credit_config: CreditConfig::default(),
+            _economic_config: EconomicConfig::default(),
+            _credit_config: CreditConfig::default(),
             risk_config: RiskConfig::default(),
             regulatory_config: RegulatoryConfig::default(),
             quality_thresholds: QualityThresholds::default(),
@@ -706,7 +706,7 @@ impl FinancialImputationFramework {
     /// Select appropriate imputation methods based on financial data characteristics
     fn select_imputation_methods(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
         patterns: &FinancialMissingPattern,
     ) -> Result<Vec<ImputationMethod>, ImputationError> {
         let mut methods = Vec::new();
@@ -1045,7 +1045,7 @@ impl FinancialImputationFramework {
 
     fn detect_clustering_patterns(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<Vec<ClusterPattern>, ImputationError> {
         // Simplified clustering pattern detection
         Ok(Vec::new())
@@ -1053,7 +1053,7 @@ impl FinancialImputationFramework {
 
     fn analyze_trading_hours(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<TradingHourAnalysis, ImputationError> {
         Ok(TradingHourAnalysis {
             pre_market_missing: 0.05,
@@ -1071,7 +1071,7 @@ impl FinancialImputationFramework {
     ) -> Result<f64, ImputationError> {
         // Simplified financial time series imputation
         if j > 0 {
-            Ok(data.prices[[i, j - 1]] * (1.0 + thread_rng().gen_range(-0.01..0.01)))
+            Ok(data.prices[[i, j - 1]] * (1.0 + thread_rng().random_range(-0.01..0.01)))
         } else {
             Ok(100.0) // Default price
         }
@@ -1187,7 +1187,7 @@ impl FinancialImputationFramework {
 
     fn validate_volume_price_relationship(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<RelationshipValidation, ImputationError> {
         // Simplified volume-price relationship validation
         Ok(RelationshipValidation {
@@ -1200,7 +1200,7 @@ impl FinancialImputationFramework {
 
     fn validate_volatility_clustering(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<ClusteringValidation, ImputationError> {
         // Simplified volatility clustering validation
         Ok(ClusteringValidation {
@@ -1213,7 +1213,7 @@ impl FinancialImputationFramework {
 
     fn validate_correlation_preservation(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<CorrelationValidation, ImputationError> {
         // Simplified correlation preservation validation
         Ok(CorrelationValidation {
@@ -1226,7 +1226,7 @@ impl FinancialImputationFramework {
 
     fn validate_return_distribution(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<DistributionValidation, ImputationError> {
         // Simplified return distribution validation
         let tail_behavior = TailBehaviorValidation {
@@ -1244,29 +1244,32 @@ impl FinancialImputationFramework {
         })
     }
 
-    fn check_basel_iii_compliance(&self, data: &FinancialDataset) -> Result<bool, ImputationError> {
+    fn check_basel_iii_compliance(
+        &self,
+        _data: &FinancialDataset,
+    ) -> Result<bool, ImputationError> {
         Ok(self.regulatory_config.basel_iii_compliance)
     }
 
-    fn check_mifid_ii_compliance(&self, data: &FinancialDataset) -> Result<bool, ImputationError> {
+    fn check_mifid_ii_compliance(&self, _data: &FinancialDataset) -> Result<bool, ImputationError> {
         Ok(self.regulatory_config.mifid_ii_compliance)
     }
 
     fn check_solvency_ii_compliance(
         &self,
-        data: &FinancialDataset,
+        _data: &FinancialDataset,
     ) -> Result<bool, ImputationError> {
         Ok(self.regulatory_config.solvency_ii_compliance)
     }
 
-    fn check_ccar_compliance(&self, data: &FinancialDataset) -> Result<bool, ImputationError> {
+    fn check_ccar_compliance(&self, _data: &FinancialDataset) -> Result<bool, ImputationError> {
         Ok(self.regulatory_config.ccar_compliance)
     }
 
     fn calculate_var_impact(
         &self,
-        original: &FinancialDataset,
-        imputed: &FinancialDataset,
+        _original: &FinancialDataset,
+        _imputed: &FinancialDataset,
     ) -> Result<f64, ImputationError> {
         // Simplified VaR impact calculation
         Ok(0.02) // 2% impact
@@ -1274,8 +1277,8 @@ impl FinancialImputationFramework {
 
     fn calculate_volatility_impact(
         &self,
-        original: &FinancialDataset,
-        imputed: &FinancialDataset,
+        _original: &FinancialDataset,
+        _imputed: &FinancialDataset,
     ) -> Result<f64, ImputationError> {
         // Simplified volatility impact calculation
         Ok(0.05) // 5% impact
@@ -1283,8 +1286,8 @@ impl FinancialImputationFramework {
 
     fn calculate_correlation_impact(
         &self,
-        original: &FinancialDataset,
-        imputed: &FinancialDataset,
+        _original: &FinancialDataset,
+        _imputed: &FinancialDataset,
     ) -> Result<f64, ImputationError> {
         // Simplified correlation impact calculation
         Ok(0.03) // 3% impact
@@ -1525,7 +1528,7 @@ fn create_synthetic_financial_data() -> Result<FinancialDataset, Box<dyn std::er
         let mut price = 100.0; // Starting price
         for j in 0..n_periods {
             // Random walk with drift
-            let return_rate = rng.gen_range(-0.05..0.05);
+            let return_rate = rng.random_range(-0.05..0.05);
             price *= 1.0 + return_rate;
             prices[[i, j]] = price;
         }
@@ -1536,19 +1539,20 @@ fn create_synthetic_financial_data() -> Result<FinancialDataset, Box<dyn std::er
 
     // Create volume data
     let volumes: Array1<f64> =
-        Array1::from_shape_fn(n_periods, |_| rng.gen_range(1000.0..100000.0));
+        Array1::from_shape_fn(n_periods, |_| rng.random_range(1000.0..100000.0));
 
     // Create spread data
-    let spreads: Array1<f64> = Array1::from_shape_fn(n_periods, |_| rng.gen_range(0.001..0.1));
+    let spreads: Array1<f64> = Array1::from_shape_fn(n_periods, |_| rng.random_range(0.001..0.1));
 
     // Create factor loadings
-    let factor_loadings = Array2::from_shape_fn((n_assets, 5), |_| rng.gen_range(-1.0..1.0));
+    let factor_loadings = Array2::from_shape_fn((n_assets, 5), |_| rng.random_range(-1.0..1.0));
 
     // Create economic indicators
-    let economic_indicators = Array2::from_shape_fn((10, n_periods), |_| rng.gen_range(-3.0..3.0));
+    let economic_indicators =
+        Array2::from_shape_fn((10, n_periods), |_| rng.random_range(-3.0..3.0));
 
     // Create credit features
-    let credit_features = Array2::from_shape_fn((n_assets, 20), |_| rng.gen_range(0.0..1.0));
+    let credit_features = Array2::from_shape_fn((n_assets, 20), |_| rng.random_range(0.0..1.0));
 
     // Create market regimes
     let regimes: Array1<i32> = Array1::from_shape_fn(n_periods, |i| {
@@ -1583,7 +1587,7 @@ fn introduce_financial_missing_patterns(
 
     // Weekend/holiday gaps (5% of time periods)
     for _ in 0..(n_periods / 20) {
-        let period = rng.gen_range(0..n_periods);
+        let period = rng.random_range(0..n_periods);
         for asset in 0..n_assets {
             prices[[asset, period]] = f64::NAN;
         }
@@ -1591,19 +1595,19 @@ fn introduce_financial_missing_patterns(
 
     // Individual asset corporate events (2% randomly distributed)
     for _ in 0..(n_assets * n_periods / 50) {
-        let asset = rng.gen_range(0..n_assets);
-        let period = rng.gen_range(0..n_periods);
+        let asset = rng.random_range(0..n_assets);
+        let period = rng.random_range(0..n_periods);
         prices[[asset, period]] = f64::NAN;
     }
 
     // Data feed issues (1% clustered)
     for _ in 0..5 {
-        let start_period = rng.gen_range(0..n_periods - 10);
-        let duration = rng.gen_range(1..5);
-        let affected_assets = rng.gen_range(1..10);
+        let start_period = rng.random_range(0..n_periods - 10);
+        let duration = rng.random_range(1..5);
+        let affected_assets = rng.random_range(1..10);
 
-        for i in 0..affected_assets {
-            let asset = rng.gen_range(0..n_assets);
+        for _i in 0..affected_assets {
+            let asset = rng.random_range(0..n_assets);
             for j in 0..duration {
                 if start_period + j < n_periods {
                     prices[[asset, start_period + j]] = f64::NAN;
@@ -1791,7 +1795,7 @@ fn display_performance_metrics(
 
 /// Demonstrate high-frequency trading scenario
 fn demonstrate_trading_scenario(
-    framework: &FinancialImputationFramework,
+    _framework: &FinancialImputationFramework,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("  📈 High-Frequency Trading:");
     println!("    • Tick-level data imputation");
@@ -1804,7 +1808,7 @@ fn demonstrate_trading_scenario(
 
 /// Demonstrate portfolio analytics scenario
 fn demonstrate_portfolio_scenario(
-    framework: &FinancialImputationFramework,
+    _framework: &FinancialImputationFramework,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("  💼 Portfolio Analytics:");
     println!("    • Risk factor model preservation");
@@ -1817,7 +1821,7 @@ fn demonstrate_portfolio_scenario(
 
 /// Demonstrate risk management scenario
 fn demonstrate_risk_scenario(
-    framework: &FinancialImputationFramework,
+    _framework: &FinancialImputationFramework,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("  ⚠️  Risk Management:");
     println!("    • VaR calculation preservation");

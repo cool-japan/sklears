@@ -32,11 +32,13 @@ mod convergence_tests {
             self
         }
 
+        #[allow(dead_code)]
         fn get_params(&self) -> &HashMap<String, GridParameterValue> {
             &self.params
         }
 
         /// Quadratic objective function with known minimum at x=0, y=0
+        #[allow(dead_code)]
         fn score(&self, _x: &Array2<f64>, _y: &Array1<f64>) -> f64 {
             let x = match self.params.get("x") {
                 Some(GridParameterValue::Float(v)) => *v,
@@ -54,6 +56,7 @@ mod convergence_tests {
     /// Mock trained estimator
     #[derive(Clone, Debug)]
     struct MockTrainedEstimator {
+        #[allow(dead_code)]
         params: HashMap<String, GridParameterValue>,
     }
 
@@ -98,9 +101,9 @@ mod convergence_tests {
         param_space.add_float_param("y", -10.0, 10.0);
 
         // Create synthetic data
-        let x: Array2<f64> =
+        let _x: Array2<f64> =
             Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let y: Array1<f64> =
+        let _y: Array1<f64> =
             Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
 
         // Create grid search with high resolution
@@ -154,9 +157,9 @@ mod convergence_tests {
         param_space.add_float_param("y", -5.0, 5.0);
 
         // Create synthetic data
-        let x: Array2<f64> =
+        let _x: Array2<f64> =
             Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let y: Array1<f64> =
+        let _y: Array1<f64> =
             Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
 
         // Create simplified Bayesian optimization test
@@ -180,9 +183,9 @@ mod convergence_tests {
         param_space.add_float_param("y", -5.0, 5.0);
 
         // Create synthetic data
-        let x: Array2<f64> =
+        let _x: Array2<f64> =
             Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let y: Array1<f64> =
+        let _y: Array1<f64> =
             Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
 
         // Create simplified evolutionary algorithm test
@@ -205,9 +208,9 @@ mod convergence_tests {
         param_space.add_float_param("y", -3.0, 3.0);
 
         // Create synthetic data
-        let x: Array2<f64> =
+        let _x: Array2<f64> =
             Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let y: Array1<f64> =
+        let _y: Array1<f64> =
             Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
 
         // Create simplified bandit optimization test
@@ -221,7 +224,7 @@ mod convergence_tests {
     /// Test convergence rate analysis
     #[test]
     fn test_convergence_rate_analysis() {
-        let rng = seeded_rng(42);
+        let _rng = seeded_rng(42);
 
         // Test data for convergence analysis
         let scores = vec![
@@ -244,7 +247,7 @@ mod convergence_tests {
     /// Test convergence with different parameter spaces
     #[test]
     fn test_convergence_different_spaces() {
-        let rng = seeded_rng(42);
+        let _rng = seeded_rng(42);
 
         // Test with different parameter space sizes
         let space_sizes = vec![2, 4, 6, 8, 10];
@@ -348,11 +351,13 @@ mod convergence_tests {
     }
 
     /// Mock scorer for testing
+    #[allow(dead_code)]
     #[derive(Clone, Debug)]
     struct MockScorer {
         name: String,
     }
 
+    #[allow(dead_code)]
     impl MockScorer {
         fn new() -> Self {
             Self {

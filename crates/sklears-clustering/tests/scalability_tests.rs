@@ -4,7 +4,8 @@
 //! to evaluate performance, memory usage, and scalability characteristics.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{ChaCha8Rng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 use sklears_clustering::{
     AgglomerativeClustering, GaussianMixture, KMeans, KMeansConfig, LSHConfig, LSHFamily, LSHIndex,
     MemoryMappedConfig, MemoryMappedDistanceMatrix, SparseDistanceMatrix, SparseMatrixConfig,
@@ -18,13 +19,13 @@ use std::time::Instant;
 
 /// Generate synthetic datasets with controlled properties for scalability testing
 struct SyntheticDataGenerator {
-    rng: ChaCha8Rng,
+    rng: StdRng,
 }
 
 impl SyntheticDataGenerator {
     fn new(seed: u64) -> Self {
         Self {
-            rng: ChaCha8Rng::seed_from_u64(seed),
+            rng: StdRng::seed_from_u64(seed),
         }
     }
 
@@ -51,13 +52,13 @@ impl SyntheticDataGenerator {
             // Generate cluster center
             let mut center = Array1::zeros(n_features);
             for i in 0..n_features {
-                center[i] = (cluster_id as Float) * separation + self.rng.gen_range(-1.0..1.0);
+                center[i] = (cluster_id as Float) * separation + self.rng.random_range(-1.0..1.0);
             }
 
             // Generate points around the center
             for sample_idx in start_idx..end_idx {
                 for feature_idx in 0..n_features {
-                    let noise = self.rng.gen::<Float>() * cluster_std - cluster_std / 2.0;
+                    let noise = self.rng.random::<Float>() * cluster_std - cluster_std / 2.0;
                     data[[sample_idx, feature_idx]] = center[feature_idx] + noise;
                 }
             }
@@ -77,8 +78,8 @@ impl SyntheticDataGenerator {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.rng.gen::<Float>() > sparsity {
-                    data[[i, j]] = self.rng.gen_range(-5.0..5.0);
+                if self.rng.random::<Float>() > sparsity {
+                    data[[i, j]] = self.rng.random_range(-5.0..5.0);
                 }
             }
         }
@@ -112,13 +113,13 @@ impl SyntheticDataGenerator {
 
             for sample_idx in start_idx..end_idx {
                 data[[sample_idx, 0]] =
-                    center_x + self.rng.gen::<Float>() * density - density / 2.0;
+                    center_x + self.rng.random::<Float>() * density - density / 2.0;
                 data[[sample_idx, 1]] =
-                    center_y + self.rng.gen::<Float>() * density - density / 2.0;
+                    center_y + self.rng.random::<Float>() * density - density / 2.0;
 
                 // Fill remaining features with noise
                 for feature_idx in 2..n_features {
-                    data[[sample_idx, feature_idx]] = self.rng.gen_range(-1.0..1.0);
+                    data[[sample_idx, feature_idx]] = self.rng.random_range(-1.0..1.0);
                 }
             }
 
@@ -135,6 +136,7 @@ struct PerformanceMetrics {
     algorithm_name: String,
     n_samples: usize,
     n_features: usize,
+    #[allow(dead_code)]
     n_clusters: usize,
     execution_time_ms: u128,
     memory_usage_mb: f64,
@@ -472,8 +474,8 @@ fn print_results(results: &[PerformanceMetrics]) {
             continue;
         }
 
-        let times: Vec<_> = metrics.iter().map(|m| m.execution_time_ms as f64).collect();
-        let samples: Vec<_> = metrics.iter().map(|m| m.n_samples as f64).collect();
+        let _times: Vec<_> = metrics.iter().map(|m| m.execution_time_ms as f64).collect();
+        let _samples: Vec<_> = metrics.iter().map(|m| m.n_samples as f64).collect();
 
         eprintln!("{}:", algorithm);
         for metric in &metrics {

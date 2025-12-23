@@ -68,7 +68,7 @@ fn data_flow_example() -> Result<()> {
 
 // Example helper function for DataFrame to array conversion
 // This would be implemented in the integration layer
-fn dataframe_to_array_example(
+fn _dataframe_to_array_example(
     df: &PolarsDataFrame,
     columns: &[&str],
 ) -> std::result::Result<Array2<f64>, Box<dyn std::error::Error>> {

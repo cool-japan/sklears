@@ -12,7 +12,8 @@
 //! Run with: `cargo run --example advanced_covariance_analysis`
 
 use scirs2_core::ndarray::{Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
+use scirs2_core::random::Rng;
 use sklears_core::traits::Fit;
 use sklears_covariance::{
     adaptive_shrinkage,
@@ -101,7 +102,7 @@ fn generate_synthetic_data(
     let mut data = Array2::zeros((n_samples, n_features));
     for i in 0..n_samples {
         for j in 0..n_features {
-            let mut correlated_value = rng.gen::<f64>() * 2.0 - 1.0;
+            let mut correlated_value = rng.random::<f64>() * 2.0 - 1.0;
 
             // Add correlation based on previous features
             for k in 0..j {

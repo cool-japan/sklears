@@ -2,7 +2,7 @@
 
 use crate::{CrossValidator, ParameterValue};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::SliceRandomExt;
+// use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::Result,
     prelude::{Predict, SklearsError},
@@ -476,7 +476,7 @@ where
 
     // Calculate confidence level (default 95%)
     let confidence = confidence_level.unwrap_or(0.95);
-    let alpha = 1.0 - confidence;
+    let _alpha = 1.0 - confidence;
     let z_score = 1.96; // Approximate 95% confidence interval
 
     // Calculate statistics for each training size
@@ -702,8 +702,8 @@ where
     }
 
     // Calculate confidence level (default 95%)
-    let confidence = confidence_level.unwrap_or(0.95);
-    let z_score = 1.96; // Approximate 95% confidence interval
+    let _confidence = confidence_level.unwrap_or(0.95);
+    let _z_score = 1.96; // Approximate 95% confidence interval
 
     // Calculate statistics for each parameter value
     let mut train_scores_mean = Array1::<f64>::zeros(n_params);
@@ -869,6 +869,7 @@ pub struct PermutationTestResult {
 /// This implements nested cross-validation which provides an unbiased estimate of model
 /// performance by using separate CV loops for hyperparameter optimization (inner loop)
 /// and performance estimation (outer loop).
+#[allow(clippy::too_many_arguments)]
 pub fn nested_cross_validate<E, F, C>(
     estimator: E,
     x: &Array2<Float>,

@@ -36,6 +36,7 @@ pub struct ApproximateIsotonicRegression<State = Untrained> {
     x_bins_: Option<Array1<Float>>,
     y_fitted_: Option<Array1<Float>>,
     bin_edges_: Option<Array1<Float>>,
+    approximation_error_: Option<Float>,
 
     _state: PhantomData<State>,
 }
@@ -69,6 +70,7 @@ impl ApproximateIsotonicRegression<Untrained> {
             x_bins_: None,
             y_fitted_: None,
             bin_edges_: None,
+            approximation_error_: None,
             _state: PhantomData,
         }
     }
@@ -162,6 +164,17 @@ impl Fit<Array1<Float>, Array1<Float>> for ApproximateIsotonicRegression<Untrain
             }
         };
 
+        // Compute approximation error on training data
+        let y_pred = crate::algorithms::linear_interpolate(&x_bins, &y_fitted, &x_sorted);
+        let approximation_error = {
+            let squared_errors: Float = y_sorted
+                .iter()
+                .zip(y_pred.iter())
+                .map(|(y_true, y_pred)| (y_true - y_pred).powi(2))
+                .sum();
+            (squared_errors / y_sorted.len() as Float).sqrt() // RMSE
+        };
+
         Ok(ApproximateIsotonicRegression {
             constraint: self.constraint,
             n_bins: self.n_bins,
@@ -172,6 +185,7 @@ impl Fit<Array1<Float>, Array1<Float>> for ApproximateIsotonicRegression<Untrain
             x_bins_: Some(x_bins),
             y_fitted_: Some(y_fitted),
             bin_edges_: Some(bin_edges),
+            approximation_error_: Some(approximation_error),
             _state: PhantomData,
         })
     }
@@ -464,11 +478,13 @@ impl Predict<Array1<Float>, Array1<Float>> for ApproximateIsotonicRegression<Tra
 }
 
 impl ApproximateIsotonicRegression<Trained> {
-    /// Get the approximation error on training data
+    /// Get the approximation error (RMSE) on training data
+    ///
+    /// Returns the root mean squared error between the training labels
+    /// and the approximated predictions. This measures the quality of
+    /// the approximation.
     pub fn approximation_error(&self) -> Float {
-        // This would require storing the original training data
-        // For now, return a placeholder
-        0.0
+        self.approximation_error_.unwrap_or(0.0)
     }
 
     /// Get the bin edges used for approximation

@@ -12,8 +12,10 @@ use sklears_core::{
 use std::collections::HashMap;
 
 // Export existing modules
+pub mod advanced_sentiment;
 pub mod embeddings;
 pub mod preprocessing;
+pub mod trait_impls;
 
 /// Complete Count Vectorizer implementation for text feature extraction
 ///
@@ -748,7 +750,7 @@ impl SentimentAnalyzer {
             SentimentPolarity::Negative
         };
 
-        /// SentimentResult
+        // SentimentResult
         SentimentResult {
             polarity,
             score,
@@ -1076,6 +1078,905 @@ pub struct LSATrained {
 }
 
 impl Default for LSA {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Emotion Detection
+// ============================================================================
+
+/// Emotion types for classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EmotionType {
+    /// Joy, happiness, pleasure
+    Joy,
+    /// Sadness, sorrow, grief
+    Sadness,
+    /// Anger, rage, frustration
+    Anger,
+    /// Fear, anxiety, worry
+    Fear,
+    /// Surprise, amazement
+    Surprise,
+    /// Disgust, revulsion
+    Disgust,
+    /// Neutral, no strong emotion
+    Neutral,
+}
+
+impl EmotionType {
+    /// Get all emotion types (excluding Neutral)
+    pub fn all_emotions() -> Vec<EmotionType> {
+        vec![
+            EmotionType::Joy,
+            EmotionType::Sadness,
+            EmotionType::Anger,
+            EmotionType::Fear,
+            EmotionType::Surprise,
+            EmotionType::Disgust,
+        ]
+    }
+
+    /// Get emotion name as string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            EmotionType::Joy => "joy",
+            EmotionType::Sadness => "sadness",
+            EmotionType::Anger => "anger",
+            EmotionType::Fear => "fear",
+            EmotionType::Surprise => "surprise",
+            EmotionType::Disgust => "disgust",
+            EmotionType::Neutral => "neutral",
+        }
+    }
+}
+
+/// Result of emotion detection for a single text
+#[derive(Debug, Clone)]
+pub struct EmotionResult {
+    /// Primary detected emotion
+    pub primary_emotion: EmotionType,
+    /// Confidence score for primary emotion [0.0, 1.0]
+    pub confidence: f64,
+    /// Scores for all emotion types
+    pub emotion_scores: std::collections::HashMap<EmotionType, f64>,
+    /// Total emotion words detected
+    pub total_emotion_words: usize,
+    /// Total words in text
+    pub total_words: usize,
+}
+
+impl EmotionResult {
+    /// Get emotion intensity (normalized score)
+    pub fn intensity(&self) -> f64 {
+        if self.total_words == 0 {
+            0.0
+        } else {
+            self.total_emotion_words as f64 / self.total_words as f64
+        }
+    }
+
+    /// Get secondary emotion (second highest score)
+    pub fn secondary_emotion(&self) -> Option<(EmotionType, f64)> {
+        let mut sorted: Vec<_> = self
+            .emotion_scores
+            .iter()
+            .filter(|(e, _)| **e != self.primary_emotion)
+            .map(|(e, s)| (*e, *s))
+            .collect();
+        sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.first().copied()
+    }
+}
+
+/// Emotion Detection extractor for text
+///
+/// Provides multi-class emotion detection using lexicon-based approach
+/// with support for detecting joy, sadness, anger, fear, surprise, and disgust.
+///
+/// # Examples
+///
+/// ```
+/// use sklears_feature_extraction::text::EmotionDetector;
+///
+/// let detector = EmotionDetector::new();
+/// let result = detector.detect_emotion("I am so happy and excited!");
+/// println!("Primary emotion: {:?}", result.primary_emotion);
+/// ```
+#[derive(Debug, Clone)]
+pub struct EmotionDetector {
+    emotion_lexicons: std::collections::HashMap<EmotionType, std::collections::HashSet<String>>,
+    case_sensitive: bool,
+    min_confidence: f64,
+    intensity_weight: f64,
+}
+
+impl EmotionDetector {
+    /// Create a new emotion detector with default lexicons
+    pub fn new() -> Self {
+        let mut detector = Self {
+            emotion_lexicons: std::collections::HashMap::new(),
+            case_sensitive: false,
+            min_confidence: 0.1,
+            intensity_weight: 0.5,
+        };
+
+        // Initialize emotion lexicons
+        detector.initialize_lexicons();
+        detector
+    }
+
+    /// Initialize default emotion word lexicons
+    fn initialize_lexicons(&mut self) {
+        // Joy words
+        let joy_words = vec![
+            "happy",
+            "joy",
+            "joyful",
+            "cheerful",
+            "delighted",
+            "pleased",
+            "glad",
+            "excited",
+            "thrilled",
+            "ecstatic",
+            "elated",
+            "wonderful",
+            "amazing",
+            "fantastic",
+            "great",
+            "excellent",
+            "love",
+            "loving",
+            "loved",
+            "enjoy",
+            "fun",
+            "amusing",
+            "hilarious",
+            "laugh",
+            "laughter",
+            "smile",
+            "smiling",
+            "blessed",
+            "grateful",
+            "thankful",
+            "celebration",
+            "celebrate",
+            "victory",
+        ];
+        self.add_emotion_words(EmotionType::Joy, joy_words);
+
+        // Sadness words
+        let sadness_words = vec![
+            "sad",
+            "unhappy",
+            "depressed",
+            "miserable",
+            "sorrowful",
+            "gloomy",
+            "melancholy",
+            "dejected",
+            "downcast",
+            "heartbroken",
+            "crying",
+            "cry",
+            "tears",
+            "weeping",
+            "grief",
+            "grieving",
+            "mourning",
+            "loss",
+            "lost",
+            "lonely",
+            "loneliness",
+            "alone",
+            "isolated",
+            "hopeless",
+            "despair",
+            "disappointed",
+            "regret",
+            "sorry",
+            "hurt",
+            "pain",
+            "painful",
+        ];
+        self.add_emotion_words(EmotionType::Sadness, sadness_words);
+
+        // Anger words
+        let anger_words = vec![
+            "angry",
+            "mad",
+            "furious",
+            "enraged",
+            "outraged",
+            "livid",
+            "irate",
+            "annoyed",
+            "irritated",
+            "frustrated",
+            "rage",
+            "fury",
+            "wrath",
+            "hatred",
+            "hate",
+            "hating",
+            "hostile",
+            "aggravated",
+            "infuriated",
+            "resentful",
+            "bitter",
+            "indignant",
+            "offensive",
+            "insulting",
+            "provoked",
+            "incensed",
+            "exasperated",
+            "disgusted",
+            "contempt",
+        ];
+        self.add_emotion_words(EmotionType::Anger, anger_words);
+
+        // Fear words
+        let fear_words = vec![
+            "afraid",
+            "scared",
+            "fearful",
+            "frightened",
+            "terrified",
+            "horrified",
+            "panic",
+            "panicked",
+            "anxious",
+            "anxiety",
+            "worried",
+            "nervous",
+            "uneasy",
+            "alarmed",
+            "threatened",
+            "intimidated",
+            "dread",
+            "dreading",
+            "apprehensive",
+            "tense",
+            "stressed",
+            "stress",
+            "concern",
+            "concerned",
+            "phobia",
+            "terror",
+            "horror",
+            "nightmare",
+            "shock",
+            "shocked",
+        ];
+        self.add_emotion_words(EmotionType::Fear, fear_words);
+
+        // Surprise words
+        let surprise_words = vec![
+            "surprised",
+            "amazed",
+            "astonished",
+            "astounded",
+            "shocked",
+            "stunned",
+            "startled",
+            "unexpected",
+            "sudden",
+            "wow",
+            "incredible",
+            "unbelievable",
+            "remarkable",
+            "extraordinary",
+            "spectacular",
+            "breathtaking",
+            "dumbfounded",
+            "flabbergasted",
+            "bewildered",
+            "confused",
+            "puzzled",
+            "wonder",
+            "wondering",
+            "curious",
+            "odd",
+            "strange",
+            "unusual",
+        ];
+        self.add_emotion_words(EmotionType::Surprise, surprise_words);
+
+        // Disgust words
+        let disgust_words = vec![
+            "disgusted",
+            "disgusting",
+            "revolting",
+            "repulsive",
+            "repugnant",
+            "nauseating",
+            "sickening",
+            "gross",
+            "yuck",
+            "nasty",
+            "foul",
+            "vile",
+            "loathsome",
+            "offensive",
+            "appalling",
+            "abhorrent",
+            "detestable",
+            "horrible",
+            "terrible",
+            "awful",
+            "unpleasant",
+            "distasteful",
+            "repellent",
+            "obnoxious",
+            "hideous",
+            "ugly",
+            "grotesque",
+        ];
+        self.add_emotion_words(EmotionType::Disgust, disgust_words);
+    }
+
+    /// Add words to an emotion lexicon
+    fn add_emotion_words(&mut self, emotion: EmotionType, words: Vec<&str>) {
+        let word_set = self
+            .emotion_lexicons
+            .entry(emotion)
+            .or_insert_with(std::collections::HashSet::new);
+
+        for word in words {
+            word_set.insert(word.to_string());
+        }
+    }
+
+    /// Set case sensitivity
+    pub fn case_sensitive(mut self, case_sensitive: bool) -> Self {
+        self.case_sensitive = case_sensitive;
+        self
+    }
+
+    /// Set minimum confidence threshold for emotion detection
+    pub fn min_confidence(mut self, min_confidence: f64) -> Self {
+        self.min_confidence = min_confidence.max(0.0).min(1.0);
+        self
+    }
+
+    /// Set intensity weight (how much to weight emotion word density vs raw counts)
+    pub fn intensity_weight(mut self, weight: f64) -> Self {
+        self.intensity_weight = weight.max(0.0).min(1.0);
+        self
+    }
+
+    /// Add custom words to an emotion lexicon
+    pub fn add_custom_emotion_words(mut self, emotion: EmotionType, words: Vec<String>) -> Self {
+        let word_set = self
+            .emotion_lexicons
+            .entry(emotion)
+            .or_insert_with(std::collections::HashSet::new);
+
+        for word in words {
+            word_set.insert(word);
+        }
+        self
+    }
+
+    /// Detect emotion in a single text
+    pub fn detect_emotion(&self, text: &str) -> EmotionResult {
+        let text = if self.case_sensitive {
+            text.to_string()
+        } else {
+            text.to_lowercase()
+        };
+
+        let words: Vec<&str> = text.split_whitespace().collect();
+        let total_words = words.len();
+
+        // Count emotion words for each emotion type
+        let mut emotion_counts: std::collections::HashMap<EmotionType, usize> =
+            std::collections::HashMap::new();
+        let mut total_emotion_words = 0;
+
+        for word in &words {
+            // Remove punctuation
+            let clean_word = word.trim_matches(|c: char| c.is_ascii_punctuation());
+
+            // Check each emotion lexicon
+            for (emotion, lexicon) in &self.emotion_lexicons {
+                if lexicon.contains(clean_word) {
+                    *emotion_counts.entry(*emotion).or_insert(0) += 1;
+                    total_emotion_words += 1;
+                }
+            }
+        }
+
+        // Calculate emotion scores
+        let mut emotion_scores: std::collections::HashMap<EmotionType, f64> =
+            std::collections::HashMap::new();
+
+        for emotion in EmotionType::all_emotions() {
+            let count = *emotion_counts.get(&emotion).unwrap_or(&0) as f64;
+            let intensity = if total_words > 0 {
+                count / total_words as f64
+            } else {
+                0.0
+            };
+
+            // Combine raw count and intensity based on intensity_weight
+            let score = if total_emotion_words > 0 {
+                (1.0 - self.intensity_weight) * (count / total_emotion_words as f64)
+                    + self.intensity_weight * intensity
+            } else {
+                0.0
+            };
+
+            emotion_scores.insert(emotion, score);
+        }
+
+        // Determine primary emotion
+        let (primary_emotion, confidence) = if total_emotion_words == 0 {
+            (EmotionType::Neutral, 0.0)
+        } else {
+            let mut sorted: Vec<_> = emotion_scores.iter().map(|(e, s)| (*e, *s)).collect();
+            sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            let (emotion, score) = sorted[0];
+            if score >= self.min_confidence {
+                (emotion, score)
+            } else {
+                (EmotionType::Neutral, score)
+            }
+        };
+
+        EmotionResult {
+            primary_emotion,
+            confidence,
+            emotion_scores,
+            total_emotion_words,
+            total_words,
+        }
+    }
+
+    /// Extract emotion features from multiple documents
+    ///
+    /// Returns a feature matrix with shape (n_documents, 14) containing:
+    /// - Scores for each emotion (6 features: joy, sadness, anger, fear, surprise, disgust)
+    /// - Primary emotion one-hot encoding (6 features)
+    /// - Confidence score (1 feature)
+    /// - Emotion intensity (1 feature)
+    pub fn extract_features(&self, documents: &[String]) -> SklResult<Array2<Float>> {
+        if documents.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Empty document collection".to_string(),
+            ));
+        }
+
+        // Feature vector: [joy_score, sadness_score, anger_score, fear_score, surprise_score, disgust_score,
+        //                  joy_onehot, sadness_onehot, anger_onehot, fear_onehot, surprise_onehot, disgust_onehot,
+        //                  confidence, intensity]
+        let mut features = Array2::zeros((documents.len(), 14));
+
+        for (i, document) in documents.iter().enumerate() {
+            let result = self.detect_emotion(document);
+
+            // Emotion scores (0-5)
+            features[(i, 0)] = *result.emotion_scores.get(&EmotionType::Joy).unwrap_or(&0.0);
+            features[(i, 1)] = *result
+                .emotion_scores
+                .get(&EmotionType::Sadness)
+                .unwrap_or(&0.0);
+            features[(i, 2)] = *result
+                .emotion_scores
+                .get(&EmotionType::Anger)
+                .unwrap_or(&0.0);
+            features[(i, 3)] = *result
+                .emotion_scores
+                .get(&EmotionType::Fear)
+                .unwrap_or(&0.0);
+            features[(i, 4)] = *result
+                .emotion_scores
+                .get(&EmotionType::Surprise)
+                .unwrap_or(&0.0);
+            features[(i, 5)] = *result
+                .emotion_scores
+                .get(&EmotionType::Disgust)
+                .unwrap_or(&0.0);
+
+            // Primary emotion one-hot encoding (6-11)
+            let primary_idx = match result.primary_emotion {
+                EmotionType::Joy => 6,
+                EmotionType::Sadness => 7,
+                EmotionType::Anger => 8,
+                EmotionType::Fear => 9,
+                EmotionType::Surprise => 10,
+                EmotionType::Disgust => 11,
+                EmotionType::Neutral => continue, // Don't encode neutral
+            };
+            features[(i, primary_idx)] = 1.0;
+
+            // Confidence and intensity (12-13)
+            features[(i, 12)] = result.confidence;
+            features[(i, 13)] = result.intensity();
+        }
+
+        Ok(features)
+    }
+
+    /// Analyze emotion distribution across multiple documents
+    pub fn analyze_distribution(
+        &self,
+        documents: &[String],
+    ) -> std::collections::HashMap<EmotionType, usize> {
+        let mut distribution: std::collections::HashMap<EmotionType, usize> =
+            std::collections::HashMap::new();
+
+        for document in documents {
+            let result = self.detect_emotion(document);
+            *distribution.entry(result.primary_emotion).or_insert(0) += 1;
+        }
+
+        distribution
+    }
+}
+
+impl Default for EmotionDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Aspect-Based Sentiment Analysis
+// ============================================================================
+
+/// Aspect sentiment pair representing sentiment towards a specific aspect
+#[derive(Debug, Clone, PartialEq)]
+pub struct AspectSentiment {
+    /// The aspect or feature being discussed
+    pub aspect: String,
+    /// Sentiment polarity for this aspect
+    pub sentiment: SentimentPolarity,
+    /// Sentiment score for this aspect [-1.0, 1.0]
+    pub score: f64,
+    /// Confidence in the aspect-sentiment pairing [0.0, 1.0]
+    pub confidence: f64,
+    /// Opinion words associated with this aspect
+    pub opinion_words: Vec<String>,
+}
+
+/// Aspect-Based Sentiment Analysis extractor
+///
+/// Analyzes sentiment towards specific aspects or features mentioned in text.
+/// This is particularly useful for product reviews, customer feedback, and opinion mining.
+///
+/// # Examples
+///
+/// ```
+/// use sklears_feature_extraction::text::AspectBasedSentimentAnalyzer;
+///
+/// let analyzer = AspectBasedSentimentAnalyzer::new();
+/// let result = analyzer.analyze("The food was great but the service was terrible.");
+/// println!("Found {} aspects with sentiment", result.len());
+/// ```
+#[derive(Debug, Clone)]
+pub struct AspectBasedSentimentAnalyzer {
+    /// Predefined aspects to look for
+    aspects: std::collections::HashSet<String>,
+    /// Sentiment analyzer for sentiment detection
+    sentiment_analyzer: SentimentAnalyzer,
+    /// Context window size (words before and after aspect)
+    context_window: usize,
+    /// Minimum confidence threshold for aspect-sentiment pairs
+    min_confidence: f64,
+    /// Case sensitivity
+    case_sensitive: bool,
+    /// Use automatic aspect extraction
+    auto_extract_aspects: bool,
+}
+
+impl AspectBasedSentimentAnalyzer {
+    /// Create a new aspect-based sentiment analyzer with default settings
+    pub fn new() -> Self {
+        Self {
+            aspects: std::collections::HashSet::new(),
+            sentiment_analyzer: SentimentAnalyzer::new(),
+            context_window: 3,
+            min_confidence: 0.1,
+            case_sensitive: false,
+            auto_extract_aspects: true,
+        }
+    }
+
+    /// Add predefined aspects to look for
+    pub fn add_aspects(mut self, aspects: Vec<String>) -> Self {
+        for aspect in aspects {
+            self.aspects.insert(if self.case_sensitive {
+                aspect
+            } else {
+                aspect.to_lowercase()
+            });
+        }
+        self
+    }
+
+    /// Set context window size (number of words before and after aspect)
+    pub fn context_window(mut self, window: usize) -> Self {
+        self.context_window = window;
+        self
+    }
+
+    /// Set minimum confidence threshold
+    pub fn min_confidence(mut self, confidence: f64) -> Self {
+        self.min_confidence = confidence.max(0.0).min(1.0);
+        self
+    }
+
+    /// Set case sensitivity
+    pub fn case_sensitive(mut self, case_sensitive: bool) -> Self {
+        self.case_sensitive = case_sensitive;
+        self
+    }
+
+    /// Enable/disable automatic aspect extraction
+    pub fn auto_extract_aspects(mut self, auto_extract: bool) -> Self {
+        self.auto_extract_aspects = auto_extract;
+        self
+    }
+
+    /// Set custom sentiment analyzer
+    pub fn sentiment_analyzer(mut self, analyzer: SentimentAnalyzer) -> Self {
+        self.sentiment_analyzer = analyzer;
+        self
+    }
+
+    /// Analyze aspect-based sentiment in text
+    pub fn analyze(&self, text: &str) -> Vec<AspectSentiment> {
+        let normalized_text = if self.case_sensitive {
+            text.to_string()
+        } else {
+            text.to_lowercase()
+        };
+
+        let words: Vec<&str> = normalized_text.split_whitespace().collect();
+        let mut aspect_sentiments = Vec::new();
+
+        // Find all aspect occurrences
+        let mut aspect_positions: Vec<(usize, String)> = Vec::new();
+
+        // Look for predefined aspects
+        if !self.aspects.is_empty() {
+            for (i, word) in words.iter().enumerate() {
+                let clean_word = word.trim_matches(|c: char| c.is_ascii_punctuation());
+
+                // Check for single-word aspects
+                if self.aspects.contains(clean_word) {
+                    aspect_positions.push((i, clean_word.to_string()));
+                }
+
+                // Check for multi-word aspects (up to 3 words)
+                for window_size in 2..=3 {
+                    if i + window_size <= words.len() {
+                        let multi_word = words[i..i + window_size]
+                            .iter()
+                            .map(|w| w.trim_matches(|c: char| c.is_ascii_punctuation()))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
+                        if self.aspects.contains(&multi_word) {
+                            aspect_positions.push((i, multi_word));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Automatic aspect extraction using noun detection heuristics
+        if self.auto_extract_aspects && self.aspects.is_empty() {
+            aspect_positions.extend(self.extract_aspects_auto(&words));
+        }
+
+        // Analyze sentiment for each aspect
+        for (position, aspect) in aspect_positions {
+            let (context_words, opinion_words) = self.get_context(position, &words);
+
+            // Analyze sentiment of context
+            let context_text = context_words.join(" ");
+            let sentiment_result = self.sentiment_analyzer.analyze_sentiment(&context_text);
+
+            // Calculate confidence based on sentiment word density in context
+            let confidence = if context_words.is_empty() {
+                0.0
+            } else {
+                (sentiment_result.positive_words + sentiment_result.negative_words) as f64
+                    / context_words.len() as f64
+            };
+
+            if confidence >= self.min_confidence {
+                aspect_sentiments.push(AspectSentiment {
+                    aspect,
+                    sentiment: sentiment_result.polarity,
+                    score: sentiment_result.score,
+                    confidence,
+                    opinion_words,
+                });
+            }
+        }
+
+        aspect_sentiments
+    }
+
+    /// Extract context words around an aspect
+    fn get_context(&self, position: usize, words: &[&str]) -> (Vec<String>, Vec<String>) {
+        let start = position.saturating_sub(self.context_window);
+        let end = (position + self.context_window + 1).min(words.len());
+
+        let context_words: Vec<String> = words[start..end]
+            .iter()
+            .map(|w| {
+                w.trim_matches(|c: char| c.is_ascii_punctuation())
+                    .to_string()
+            })
+            .collect();
+
+        // Extract opinion words (words that express sentiment)
+        let opinion_words: Vec<String> = context_words
+            .iter()
+            .filter(|w| {
+                self.sentiment_analyzer.positive_words.contains(w.as_str())
+                    || self.sentiment_analyzer.negative_words.contains(w.as_str())
+            })
+            .cloned()
+            .collect();
+
+        (context_words, opinion_words)
+    }
+
+    /// Automatically extract aspect candidates using heuristics
+    fn extract_aspects_auto(&self, words: &[&str]) -> Vec<(usize, String)> {
+        let mut aspects = Vec::new();
+
+        // Common aspect indicators (nouns that often represent aspects)
+        let aspect_indicators = [
+            "food",
+            "service",
+            "price",
+            "quality",
+            "staff",
+            "location",
+            "room",
+            "product",
+            "delivery",
+            "support",
+            "performance",
+            "design",
+            "battery",
+            "screen",
+            "camera",
+            "sound",
+            "comfort",
+            "size",
+            "color",
+            "taste",
+            "menu",
+            "atmosphere",
+            "experience",
+            "value",
+            "selection",
+        ];
+
+        for (i, word) in words.iter().enumerate() {
+            let clean_word = word.trim_matches(|c: char| c.is_ascii_punctuation());
+
+            // Check if word matches aspect indicators
+            if aspect_indicators.contains(&clean_word) {
+                aspects.push((i, clean_word.to_string()));
+            }
+        }
+
+        aspects
+    }
+
+    /// Extract features from multiple documents
+    ///
+    /// Returns a feature matrix with aggregated aspect sentiments.
+    /// Features include: [avg_aspect_score, positive_aspects, negative_aspects,
+    ///                    neutral_aspects, aspect_diversity, avg_confidence]
+    pub fn extract_features(&self, documents: &[String]) -> SklResult<Array2<Float>> {
+        if documents.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Empty document collection".to_string(),
+            ));
+        }
+
+        let mut features = Array2::zeros((documents.len(), 6));
+
+        for (i, document) in documents.iter().enumerate() {
+            let aspect_sentiments = self.analyze(document);
+
+            if aspect_sentiments.is_empty() {
+                continue;
+            }
+
+            // Compute features
+            let avg_score = aspect_sentiments.iter().map(|a| a.score).sum::<f64>()
+                / aspect_sentiments.len() as f64;
+
+            let positive_count = aspect_sentiments
+                .iter()
+                .filter(|a| a.sentiment == SentimentPolarity::Positive)
+                .count() as f64;
+
+            let negative_count = aspect_sentiments
+                .iter()
+                .filter(|a| a.sentiment == SentimentPolarity::Negative)
+                .count() as f64;
+
+            let neutral_count = aspect_sentiments
+                .iter()
+                .filter(|a| a.sentiment == SentimentPolarity::Neutral)
+                .count() as f64;
+
+            // Aspect diversity (unique aspects / total aspects)
+            let unique_aspects: std::collections::HashSet<_> =
+                aspect_sentiments.iter().map(|a| &a.aspect).collect();
+            let diversity = unique_aspects.len() as f64 / aspect_sentiments.len() as f64;
+
+            let avg_confidence = aspect_sentiments.iter().map(|a| a.confidence).sum::<f64>()
+                / aspect_sentiments.len() as f64;
+
+            features[(i, 0)] = avg_score;
+            features[(i, 1)] = positive_count;
+            features[(i, 2)] = negative_count;
+            features[(i, 3)] = neutral_count;
+            features[(i, 4)] = diversity;
+            features[(i, 5)] = avg_confidence;
+        }
+
+        Ok(features)
+    }
+
+    /// Aggregate aspect sentiments across multiple documents
+    pub fn aggregate_aspects(
+        &self,
+        documents: &[String],
+    ) -> std::collections::HashMap<String, Vec<AspectSentiment>> {
+        let mut aggregated: std::collections::HashMap<String, Vec<AspectSentiment>> =
+            std::collections::HashMap::new();
+
+        for document in documents {
+            let sentiments = self.analyze(document);
+            for sentiment in sentiments {
+                aggregated
+                    .entry(sentiment.aspect.clone())
+                    .or_insert_with(Vec::new)
+                    .push(sentiment);
+            }
+        }
+
+        aggregated
+    }
+
+    /// Get summary statistics for each aspect
+    pub fn aspect_summary(&self, documents: &[String]) -> Vec<(String, f64, usize)> {
+        let aggregated = self.aggregate_aspects(documents);
+
+        let mut summary: Vec<(String, f64, usize)> = aggregated
+            .iter()
+            .map(|(aspect, sentiments)| {
+                let avg_score =
+                    sentiments.iter().map(|s| s.score).sum::<f64>() / sentiments.len() as f64;
+                let count = sentiments.len();
+                (aspect.clone(), avg_score, count)
+            })
+            .collect();
+
+        // Sort by frequency
+        summary.sort_by(|a, b| b.2.cmp(&a.2));
+        summary
+    }
+}
+
+impl Default for AspectBasedSentimentAnalyzer {
     fn default() -> Self {
         Self::new()
     }

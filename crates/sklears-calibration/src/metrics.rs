@@ -151,7 +151,7 @@ pub fn reliability_diagram(
     let mut bin_counts = Array1::zeros(config.n_bins);
 
     // Assign samples to bins and calculate statistics
-    for (i, (&prob, &true_label)) in y_prob.iter().zip(y_true.iter()).enumerate() {
+    for (&prob, &_true_label) in y_prob.iter().zip(y_true.iter()) {
         let bin_idx = find_bin_index(prob, &bin_boundaries);
         if bin_idx < config.n_bins {
             bin_counts[bin_idx] += 1;
@@ -466,7 +466,7 @@ pub fn kolmogorov_smirnov_calibration_test(
     let mut correct_probs = Vec::new();
     let mut incorrect_probs = Vec::new();
 
-    for (i, (&prob, &true_label)) in y_prob.iter().zip(y_true.iter()).enumerate() {
+    for (&prob, &true_label) in y_prob.iter().zip(y_true.iter()) {
         if true_label > 0 {
             correct_probs.push(prob);
         } else {

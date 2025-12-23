@@ -338,18 +338,6 @@ impl InformationTheoreticDiscriminantAnalysis<Untrained> {
                 // For now, fall back to entropy-based
                 self.entropy_based_discretization(&feature_values, n_bins)?
             }
-            _ => {
-                // Fallback to equal width for other methods
-                let min_val = feature_values[0];
-                let max_val = feature_values[feature_values.len() - 1];
-                let width = (max_val - min_val) / n_bins as Float;
-
-                let mut thresholds = Vec::new();
-                for i in 1..n_bins {
-                    thresholds.push(min_val + i as Float * width);
-                }
-                thresholds
-            }
         };
 
         // Apply discretization
@@ -373,7 +361,7 @@ impl InformationTheoreticDiscriminantAnalysis<Untrained> {
         &self,
         x: &Array2<i32>,
         y: &Array1<i32>,
-        classes: &Array1<i32>,
+        _classes: &Array1<i32>,
     ) -> Result<Vec<HashMap<(i32, i32), Float>>> {
         let n_features = x.ncols();
         let n_samples = x.nrows() as Float;
@@ -453,10 +441,6 @@ impl InformationTheoreticDiscriminantAnalysis<Untrained> {
                         class_priors,
                         *lambda,
                     )?,
-                _ => {
-                    // Default to mutual information for other criteria
-                    self.compute_mutual_information(&feature_column, y, classes, class_priors)?
-                }
             };
             scores[feature_idx] = score;
         }
@@ -1028,7 +1012,7 @@ impl InformationTheoreticDiscriminantAnalysis<Untrained> {
             .collect();
 
         // Refine thresholds to minimize entropy
-        for iteration in 0..10 {
+        for _iteration in 0..10 {
             // Maximum 10 refinement iterations
             let mut improved = false;
 

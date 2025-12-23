@@ -159,7 +159,7 @@ impl ElasticNetRegularization {
                 ),
             });
         }
-        if l1_ratio < 0.0 || l1_ratio > 1.0 {
+        if !(0.0..=1.0).contains(&l1_ratio) {
             return Err(SklearsError::InvalidParameter {
                 name: "l1_ratio".to_string(),
                 reason: format!("L1 ratio must be between 0 and 1, got {}", l1_ratio),
@@ -390,6 +390,12 @@ impl Regularization for GroupLassoRegularization {
 pub struct CompositeRegularization {
     /// List of regularization schemes with their weights
     regularizations: Vec<(Float, Box<dyn Regularization>)>,
+}
+
+impl Default for CompositeRegularization {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CompositeRegularization {

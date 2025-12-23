@@ -203,6 +203,7 @@ impl SemiSupervisedGMM<Untrained> {
         norm_factor * (-0.5 * mahalanobis).exp()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn expectation_step(
         &self,
         X: &Array2<f64>,
@@ -511,6 +512,7 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>>
             let mut likelihoods = vec![0.0; n_classes];
 
             // Compute likelihoods for each component
+            #[allow(clippy::needless_range_loop)]
             for k in 0..n_classes {
                 let mean = self.state.means.row(k).to_owned();
                 let likelihood =

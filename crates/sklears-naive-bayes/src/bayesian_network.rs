@@ -117,9 +117,9 @@ impl BayesianNetwork {
         let mut result = Vec::new();
 
         // Calculate in-degrees
-        for i in 0..self.n_features {
-            in_degree[i] = self.get_parents(i).len();
-            if in_degree[i] == 0 {
+        for (i, degree) in in_degree.iter_mut().enumerate() {
+            *degree = self.get_parents(i).len();
+            if *degree == 0 {
                 queue.push_back(i);
             }
         }

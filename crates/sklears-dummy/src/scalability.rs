@@ -13,8 +13,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Distribution, Rng};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::Estimator;
 use std::collections::HashMap;
@@ -962,7 +961,7 @@ impl SamplingBasedBaseline {
             if sample.len() < actual_samples {
                 sample.push(value);
             } else {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 if j < actual_samples {
                     sample[j] = value;
                 }

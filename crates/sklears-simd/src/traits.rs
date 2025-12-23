@@ -21,11 +21,11 @@ use alloc::boxed::Box;
 #[cfg(feature = "no-std")]
 use alloc::collections::BTreeMap as HashMap;
 #[cfg(feature = "no-std")]
+use alloc::format;
+#[cfg(feature = "no-std")]
 use alloc::string::{String, ToString};
 #[cfg(feature = "no-std")]
 use alloc::vec::Vec;
-#[cfg(feature = "no-std")]
-use alloc::{format, vec};
 #[cfg(feature = "no-std")]
 use core::any;
 #[cfg(feature = "no-std")]
@@ -531,9 +531,12 @@ pub mod utils {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     // Mock implementation for testing
     struct MockVectorAdd;

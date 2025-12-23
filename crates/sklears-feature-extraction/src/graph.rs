@@ -8,7 +8,7 @@
 //! processing pipelines.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use sklears_core::{error::Result as SklResult, prelude::SklearsError, traits::Estimator};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError};
 
 // Core graph types and base structures
 #[derive(Debug, Clone)]
@@ -461,7 +461,7 @@ impl GraphTopologicalFeatures {
         self
     }
 
-    pub fn extract_features(&self, adjacency_matrix: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
+    pub fn extract_features(&self, _adjacency_matrix: &ArrayView2<f64>) -> SklResult<Array1<f64>> {
         // Placeholder implementation - return topological features
         Ok(Array1::from_vec(vec![5.0, 3.0, 0.7, 0.3]))
     }

@@ -10,7 +10,8 @@
 // use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{Rng, thread_rng, Random, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -197,9 +198,12 @@ impl Fit<Array2<f64>, Array2<bool>> for MatrixCompletion<Untrained> {
         // Determine rank
         let rank = self.rank.unwrap_or((n_users.min(n_items) / 2).max(1));
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seed for reproducibility
+        let mut rng = if let Some(seed) = self.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut thread_rng())
+        };
 
         // Run matrix completion algorithm
         let (factors, user_bias, item_bias, global_bias, n_iter, reconstruction_error) =
@@ -378,13 +382,13 @@ impl MatrixCompletion<Untrained> {
 
         for i in 0..n_users {
             for k in 0..rank {
-                u[[i, k]] = rng.gen::<f64>() - 0.5;
+                u[[i, k]] = rng.gen() - 0.5;
             }
         }
 
         for j in 0..n_items {
             for k in 0..rank {
-                v[[j, k]] = rng.gen::<f64>() - 0.5;
+                v[[j, k]] = rng.gen() - 0.5;
             }
         }
 
@@ -1180,9 +1184,12 @@ impl LowRankMatrixRecovery<Untrained> {
         let (m, n) = x.dim();
         let target_rank = self.rank.unwrap_or((m.min(n) / 4).max(1));
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seed for reproducibility
+        let mut rng = if let Some(seed) = self.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut thread_rng())
+        };
 
         // Initialize factors randomly
         let mut u = Array2::zeros((m, target_rank));
@@ -1190,13 +1197,13 @@ impl LowRankMatrixRecovery<Untrained> {
 
         for i in 0..m {
             for j in 0..target_rank {
-                u[[i, j]] = rng.gen::<f64>() - 0.5;
+                u[[i, j]] = rng.gen() - 0.5;
             }
         }
 
         for i in 0..n {
             for j in 0..target_rank {
-                v[[i, j]] = rng.gen::<f64>() - 0.5;
+                v[[i, j]] = rng.gen() - 0.5;
             }
         }
 

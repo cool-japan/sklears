@@ -7,7 +7,9 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use std::time::{Duration, Instant};
 
 /// Performance metrics collector
@@ -86,7 +88,7 @@ mod scalability_datasets {
         for i in 0..n_samples {
             let cluster = i % n_clusters;
             for j in 0..n_features {
-                data[[i, j]] = centers[[cluster, j]] + rng.gen::<f64>() * 2.0 - 1.0 * 0.5;
+                data[[i, j]] = centers[[cluster, j]] + rng.gen() * 2.0 - 1.0 * 0.5;
             }
         }
 
@@ -106,8 +108,8 @@ mod scalability_datasets {
         // Generate intrinsic coordinates
         for i in 0..n_samples {
             // Primary manifold coordinates (like Swiss roll)
-            let t = 2.0 * std::f64::consts::PI * rng.gen::<f64>();
-            let s = 10.0 * rng.gen::<f64>();
+            let t = 2.0 * std::f64::consts::PI * rng.gen();
+            let s = 10.0 * rng.gen();
 
             // Map to embedding space
             if embedding_dim >= 3 {
@@ -138,7 +140,7 @@ mod scalability_datasets {
 
             // Add noise
             for d in 0..embedding_dim {
-                data[[i, d]] += noise * rng.gen::<f64>() * 2.0 - 1.0;
+                data[[i, d]] += noise * rng.gen() * 2.0 - 1.0;
             }
         }
 
@@ -156,8 +158,8 @@ mod scalability_datasets {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if rng.gen::<f64>() < sparsity {
-                    data[[i, j]] = rng.gen::<f64>() * 2.0 - 1.0;
+                if rng.gen() < sparsity {
+                    data[[i, j]] = rng.gen() * 2.0 - 1.0;
                 }
             }
         }

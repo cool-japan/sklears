@@ -265,6 +265,58 @@ pub fn combinations(n: usize, k: usize) -> usize {
     result
 }
 
+/// Generate samples from a multivariate normal distribution
+///
+/// Generates samples from a multivariate normal distribution with specified mean
+/// and identity covariance matrix (independent components with unit variance).
+///
+/// # Arguments
+/// * `mean` - Mean vector of the distribution
+/// * `n_samples` - Number of samples to generate
+/// * `rng` - Random number generator
+///
+/// # Returns
+/// Array of shape (n_samples, n_features) containing the generated samples
+///
+/// # Example
+/// ```
+/// use sklears_core::utils::multivariate_normal_samples;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::random::rngs::StdRng;
+/// use scirs2_core::random::SeedableRng;
+///
+/// let mean = array![0.0, 1.0];
+/// let mut rng = StdRng::seed_from_u64(42);
+/// let samples = multivariate_normal_samples(&mean, 100, &mut rng);
+/// assert_eq!(samples.shape(), &[100, 2]);
+/// ```
+pub fn multivariate_normal_samples<R: scirs2_core::random::Rng>(
+    mean: &Array1<Float>,
+    n_samples: usize,
+    rng: &mut R,
+) -> scirs2_core::ndarray::Array2<Float> {
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::Distribution;
+
+    let n_features = mean.len();
+    let mut samples = Array2::zeros((n_samples, n_features));
+
+    // Standard normal distribution (mean=0, std=1)
+    let standard_normal =
+        Normal::new(0.0, 1.0).expect("Failed to create standard normal distribution");
+
+    // Generate samples: X = μ + Z where Z ~ N(0, I)
+    for i in 0..n_samples {
+        for j in 0..n_features {
+            let z = standard_normal.sample(rng);
+            samples[(i, j)] = mean[j] + z;
+        }
+    }
+
+    samples
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -346,14 +398,44 @@ mod tests {
         assert!((dist - 7.0).abs() < 1e-10);
     }
 
-    // TODO: Implement multivariate_normal_samples function
-    // #[test]
-    // fn test_multivariate_normal_samples() {
-    //     let mean = array![0.0, 1.0];
-    //     let mut rng = StdRng::seed_from_u64(42);
-    //     let samples = multivariate_normal_samples(&mean, 100, &mut rng);
-    //     assert_eq!(samples.shape(), &[100, 2]);
-    // }
+    #[test]
+    fn test_multivariate_normal_samples() {
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
+
+        let mean = array![0.0, 1.0];
+        let mut rng = StdRng::seed_from_u64(42);
+        let samples = multivariate_normal_samples(&mean, 100, &mut rng);
+
+        // Check shape
+        assert_eq!(samples.shape(), &[100, 2]);
+
+        // Check that sample means are approximately correct
+        let sample_mean_0 = samples.column(0).mean().unwrap();
+        let sample_mean_1 = samples.column(1).mean().unwrap();
+
+        // With 100 samples, means should be within ~0.3 of true means (roughly 3 * std_err)
+        assert!(
+            (sample_mean_0 - 0.0).abs() < 0.3,
+            "Mean of first component should be close to 0.0"
+        );
+        assert!(
+            (sample_mean_1 - 1.0).abs() < 0.3,
+            "Mean of second component should be close to 1.0"
+        );
+
+        // Check that samples have reasonable variance (should be close to 1.0)
+        let sample_std_0 = samples.column(0).std(0.0);
+        let sample_std_1 = samples.column(1).std(0.0);
+        assert!(
+            sample_std_0 > 0.7 && sample_std_0 < 1.3,
+            "Std of first component should be close to 1.0"
+        );
+        assert!(
+            sample_std_1 > 0.7 && sample_std_1 < 1.3,
+            "Std of second component should be close to 1.0"
+        );
+    }
 
     #[test]
     fn test_is_zero() {

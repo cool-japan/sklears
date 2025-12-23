@@ -14,6 +14,8 @@ pub struct PolynomialConfig {
     pub degree: usize,
     /// Whether to include interaction terms
     pub include_interactions: bool,
+    /// Whether to generate interaction-only features (no self-interactions)
+    pub interaction_only: bool,
     /// Whether to include bias/intercept term (degree 0)
     pub include_bias: bool,
     /// Maximum number of features to interact (to control complexity)
@@ -31,6 +33,7 @@ impl Default for PolynomialConfig {
         Self {
             degree: 2,
             include_interactions: true,
+            interaction_only: false,
             include_bias: true,
             max_interaction_features: None,
             exclude_features: vec![],
@@ -55,22 +58,24 @@ pub struct FeatureInfo {
 
 impl FeatureInfo {
     fn new(feature_indices: Vec<usize>, powers: Vec<usize>) -> Self {
-        let degree = powers.iter().sum();
-        let description = if feature_indices.is_empty() {
+        let degree: usize = powers.iter().sum();
+        let mut terms = Vec::new();
+
+        for &idx in &feature_indices {
+            let power = powers.get(idx).copied().unwrap_or(0);
+            if power == 0 {
+                continue;
+            }
+            if power == 1 {
+                terms.push(format!("x{}", idx));
+            } else {
+                terms.push(format!("x{}^{}", idx, power));
+            }
+        }
+
+        let description = if feature_indices.is_empty() || terms.is_empty() {
             "bias".to_string()
         } else {
-            let terms: Vec<String> = feature_indices
-                .iter()
-                .zip(powers.iter())
-                .filter(|(_, &power)| power > 0)
-                .map(|(&idx, &power)| {
-                    if power == 1 {
-                        format!("x{}", idx)
-                    } else {
-                        format!("x{}^{}", idx, power)
-                    }
-                })
-                .collect();
             terms.join(" * ")
         };
 
@@ -126,6 +131,7 @@ impl PolynomialFeatures {
         Self::new(PolynomialConfig {
             degree,
             include_interactions: true,
+            interaction_only: true,
             include_bias: false,
             only_degrees: Some((2..=degree).collect()),
             ..Default::default()
@@ -158,7 +164,9 @@ impl PolynomialFeatures {
 
         // Add bias term if requested
         if self.config.include_bias {
-            let info = FeatureInfo::new(vec![], vec![]);
+            let mut bias_powers = vec![0; n_features];
+            bias_powers.push(0); // Placeholder for bias component
+            let info = FeatureInfo::new(vec![], bias_powers);
             feature_map.insert(vec![], output_idx);
             feature_info.push(info);
             output_idx += 1;
@@ -182,8 +190,11 @@ impl PolynomialFeatures {
                     }
                 }
 
-                let (feature_indices, powers) =
+                let (feature_indices, mut powers) =
                     self.combination_to_indices_and_powers(&combination, n_features);
+                if self.config.include_bias {
+                    powers.push(0);
+                }
                 let info = FeatureInfo::new(feature_indices.clone(), powers);
 
                 feature_map.insert(combination, output_idx);
@@ -247,11 +258,8 @@ impl PolynomialFeatures {
                 } else {
                     // Compute polynomial term
                     let mut product = 1.0;
-                    for (&orig_idx, &power) in feature_info
-                        .feature_indices
-                        .iter()
-                        .zip(feature_info.powers.iter())
-                    {
+                    for &orig_idx in &feature_info.feature_indices {
+                        let power = feature_info.powers.get(orig_idx).copied().unwrap_or(0);
                         if power > 0 {
                             product *= input_row[orig_idx].powi(power as i32);
                         }
@@ -392,7 +400,7 @@ impl PolynomialFeatures {
             })
             .unwrap_or(0);
 
-        for (i, &feature) in available_features.iter().enumerate().skip(start_idx) {
+        for (_i, &feature) in available_features.iter().enumerate().skip(start_idx) {
             current_combination.push(feature);
             self.generate_combinations_recursive(
                 available_features,
@@ -405,17 +413,17 @@ impl PolynomialFeatures {
     }
 
     fn should_include_combination(&self, combination: &[usize]) -> bool {
-        // Check if interactions are allowed
-        if !self.config.include_interactions {
-            let unique_features: std::collections::HashSet<_> = combination.iter().collect();
-            if unique_features.len() > 1 {
-                return false;
-            }
+        let unique_features: std::collections::HashSet<_> = combination.iter().collect();
+
+        if self.config.interaction_only && unique_features.len() != combination.len() {
+            return false;
         }
 
-        // Check max interaction features constraint
+        if !self.config.include_interactions && unique_features.len() > 1 {
+            return false;
+        }
+
         if let Some(max_interact) = self.config.max_interaction_features {
-            let unique_features: std::collections::HashSet<_> = combination.iter().collect();
             if unique_features.len() > max_interact {
                 return false;
             }
@@ -452,7 +460,13 @@ impl PolynomialFeatures {
 
         let available_features = n_features - self.config.exclude_features.len();
 
-        if !self.config.include_interactions {
+        if self.config.interaction_only {
+            if degree > available_features {
+                0
+            } else {
+                self.binomial_coefficient(available_features, degree)
+            }
+        } else if !self.config.include_interactions {
             // Only pure powers, not interactions
             available_features
         } else {
@@ -499,6 +513,11 @@ impl PolynomialFeaturesBuilder {
 
     pub fn include_interactions(mut self, include: bool) -> Self {
         self.config.include_interactions = include;
+        self
+    }
+
+    pub fn interaction_only(mut self, interaction_only: bool) -> Self {
+        self.config.interaction_only = interaction_only;
         self
     }
 

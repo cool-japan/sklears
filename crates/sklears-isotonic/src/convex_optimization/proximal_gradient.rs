@@ -4,7 +4,7 @@
 //! providing efficient optimization for various regularization types including L1, L2,
 //! Elastic Net, and Total Variation regularization.
 
-use scirs2_core::ndarray::{Array1};
+use scirs2_core::ndarray::Array1;
 use sklears_core::{prelude::SklearsError, types::Float};
 
 /// Proximal gradient method for regularized isotonic regression
@@ -24,11 +24,6 @@ use sklears_core::{prelude::SklearsError, types::Float};
 ///
 /// where f(x) is the smooth loss function, g(x) is the regularization term,
 /// and λ is the regularization parameter.
-///
-/// # Examples
-///
-/// ```rust
-/// use sklears_isotonic::convex_optimization::{
 #[derive(Debug, Clone)]
 pub struct ProximalGradientIsotonicRegression {
     increasing: bool,
@@ -49,7 +44,6 @@ pub struct ProximalGradientIsotonicRegression {
 /// - ElasticNet: Combination of L1 and L2
 /// - TotalVariation: Promotes piecewise constant solutions
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// RegularizationType
 pub enum RegularizationType {
     /// L1 regularization (Lasso) - promotes sparsity
     L1,
@@ -132,7 +126,7 @@ impl ProximalGradientIsotonicRegression {
             return Err(SklearsError::InvalidInput("Empty input data".to_string()));
         }
 
-        let n = x.len();
+        let _n = x.len();
 
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
@@ -635,8 +629,7 @@ mod tests {
         ];
 
         for reg_type in reg_types {
-            let mut model = ProximalGradientIsotonicRegression::new()
-                .regularization_type(reg_type);
+            let mut model = ProximalGradientIsotonicRegression::new().regularization_type(reg_type);
             assert!(model.fit(&x, &y).is_ok());
             assert!(model.predict(&x).is_ok());
         }

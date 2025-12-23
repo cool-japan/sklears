@@ -20,3 +20,4 @@ pub mod info_theory_tests;
 pub mod signal_tests;
 pub mod simd_tests;
 pub mod text_tests;
+pub mod trait_tests;

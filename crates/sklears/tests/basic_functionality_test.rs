@@ -2,11 +2,14 @@
 //!
 //! These tests focus on algorithms that don't require heavy linear algebra.
 
+#![allow(unexpected_cfgs)]
+
 use scirs2_core::ndarray::{array, Array2};
 
 // Test basic KNN functionality
 #[cfg(feature = "neighbors")]
 #[test]
+#[allow(non_snake_case)]
 fn test_knn_basic_functionality() {
     use sklears::neighbors::KNeighborsClassifier;
     use sklears::traits::{Fit, Predict};
@@ -34,6 +37,7 @@ fn test_knn_basic_functionality() {
 // Test metrics without BLAS
 #[cfg(feature = "metrics")]
 #[test]
+#[allow(non_snake_case)]
 fn test_basic_metrics() {
     use sklears::metrics::classification::accuracy_score;
 
@@ -49,6 +53,7 @@ fn test_basic_metrics() {
 // Test preprocessing without BLAS
 #[cfg(feature = "preprocessing")]
 #[test]
+#[allow(non_snake_case)]
 fn test_label_encoding() {
     use sklears::preprocessing::encoding::LabelEncoder;
     use sklears::traits::Transform;
@@ -67,23 +72,43 @@ fn test_label_encoding() {
 }
 
 // Test data generation
+#[cfg(feature = "datasets")]
 #[test]
+#[allow(non_snake_case)]
 fn test_simple_data_generation() {
-    use sklears::data_generation::make_classification;
+    use sklears::datasets::make_classification;
 
-    let (X, y) = make_classification(10, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    // Arguments: n_samples, n_features, n_informative, n_redundant, n_classes, random_state
+    let (X, y) = make_classification(
+        10,  // n_samples
+        3,   // n_features
+        2,   // n_informative
+        0,   // n_redundant
+        2,   // n_classes
+        Some(42),  // random_state
+    )
+    .unwrap();
 
     assert_eq!(X.shape(), &[10, 3]);
     assert_eq!(y.len(), 10);
 
     // Check reproducibility
-    let (X2, y2) = make_classification(10, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X2, y2) = make_classification(
+        10,  // n_samples
+        3,   // n_features
+        2,   // n_informative
+        0,   // n_redundant
+        2,   // n_classes
+        Some(42),  // random_state
+    )
+    .unwrap();
     assert_eq!(X, X2);
     assert_eq!(y, y2);
 }
 
 // Test basic validation functions
 #[test]
+#[allow(non_snake_case)]
 fn test_basic_validation() {
     // Skipping test due to validation API module not being re-exported
     // TODO: Update when validation module is properly re-exported in sklears facade
@@ -92,8 +117,9 @@ fn test_basic_validation() {
 
 // Test simple array utilities
 #[test]
+#[allow(non_snake_case)]
 fn test_array_utilities() {
-    use sklears::array_utils::label_counts;
+    use sklears::utils::array_utils::label_counts;
 
     let data = array![1, 2, 2, 3, 1, 3, 3];
 
@@ -107,6 +133,7 @@ fn test_array_utilities() {
 // Test tree algorithms if available (these might work without BLAS)
 #[cfg(feature = "tree")]
 #[test]
+#[allow(non_snake_case)]
 fn test_basic_decision_tree() {
     use sklears::traits::{Fit, Predict};
     use sklears::tree::DecisionTreeClassifier;
@@ -126,6 +153,7 @@ fn test_basic_decision_tree() {
 // Property-based test for KNN
 #[cfg(all(feature = "neighbors", test))]
 #[test]
+#[allow(non_snake_case)]
 fn test_knn_properties() {
     use sklears::neighbors::KNeighborsClassifier;
     use sklears::traits::{Fit, Predict};

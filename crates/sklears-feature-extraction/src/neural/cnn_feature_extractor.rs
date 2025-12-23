@@ -224,7 +224,7 @@ impl CNNFeatureExtractor {
         let mut result = input.clone();
 
         for elem in result.iter_mut() {
-            if rng.gen_range(0.0..1.0) < self.dropout_rate {
+            if rng.random_range(0.0, 1.0) < self.dropout_rate {
                 *elem = 0.0;
             } else {
                 *elem /= 1.0 - self.dropout_rate;

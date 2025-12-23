@@ -175,8 +175,6 @@ impl AutoMLFactory {
             .with_scaler(ScalerType::MinMaxScaler)
             .with_missing_value_strategy(MissingValueStrategy::Mean);
 
-        let optimizer = HyperparameterOptimizer::new();
-
         AutomatedFeatureSelectionPipeline::new().with_custom_preprocessing(preprocessing)
     }
 

@@ -199,7 +199,7 @@ where
         // Add Gaussian perturbations
         for j in 0..n_features {
             let std_dev = X_train.column(j).std(0.0) * 0.1; // 10% of feature std
-            let noise: Float = rng.gen_range(-std_dev..=std_dev);
+            let noise: Float = rng.gen_range(-std_dev..std_dev + 1.0);
             perturbed[j] += noise;
             distance += noise * noise;
         }
@@ -393,7 +393,7 @@ where
     let mut prototype_weights = Array1::zeros(prototypes.nrows());
     for i in 0..prototypes.nrows() {
         let prototype = prototypes.row(i);
-        let distance = euclidean_distance(&instance, &prototype);
+        let distance = euclidean_distance(instance, &prototype);
         prototype_weights[i] = calculate_kernel_weight(distance, config.kernel, config.bandwidth);
     }
 
@@ -452,7 +452,7 @@ where
     let mut distances_with_indices: Vec<(usize, Float)> = Vec::new();
 
     for i in 0..X_train.nrows() {
-        let distance = euclidean_distance(&instance, &X_train.row(i));
+        let distance = euclidean_distance(instance, &X_train.row(i));
         distances_with_indices.push((i, distance));
     }
 
@@ -585,7 +585,7 @@ fn find_neighborhood(
     let mut distances_with_indices: Vec<(usize, Float)> = Vec::new();
 
     for i in 0..X_train.nrows() {
-        let distance = euclidean_distance(&instance, &X_train.row(i));
+        let distance = euclidean_distance(instance, &X_train.row(i));
         distances_with_indices.push((i, distance));
     }
 

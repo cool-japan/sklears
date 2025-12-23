@@ -40,11 +40,11 @@ use pyo3::prelude::*;
 // mod datasets;
 // mod ensemble;
 mod linear;
-// mod metrics;
+// mod metrics; // TODO: Needs refactoring to use sklears-metrics directly
 // mod model_selection;
 // mod naive_bayes;
 // mod neural_network;
-// mod preprocessing;
+mod preprocessing;
 // mod tree;
 mod utils;
 
@@ -53,11 +53,11 @@ mod utils;
 // pub use datasets::*;
 // pub use ensemble::*;
 pub use linear::*;
-// pub use metrics::*;
+// pub use metrics::*; // TODO: Needs refactoring
 // pub use model_selection::*;
 // pub use naive_bayes::*;
 // pub use neural_network::*;
-// pub use preprocessing::*;
+pub use preprocessing::*;
 // pub use tree::*;
 pub use utils::*;
 
@@ -65,7 +65,7 @@ pub use utils::*;
 #[pymodule]
 fn sklears_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Set module metadata
-    m.add("__version__", "0.1.0-alpha.1")?;
+    m.add("__version__", "0.1.0-alpha.2")?;
     m.add(
         "__doc__",
         "High-performance machine learning library with scikit-learn compatibility",
@@ -75,6 +75,9 @@ fn sklears_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<linear::PyLinearRegression>()?;
     m.add_class::<linear::PyRidge>()?;
     m.add_class::<linear::PyLasso>()?;
+    m.add_class::<linear::PyElasticNet>()?;
+    m.add_class::<linear::PyBayesianRidge>()?;
+    m.add_class::<linear::PyARDRegression>()?;
     m.add_class::<linear::PyLogisticRegression>()?;
 
     // TEMPORARILY DISABLED - Ensemble methods
@@ -104,19 +107,20 @@ fn sklears_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // m.add_class::<clustering::PyKMeans>()?;
     // m.add_class::<clustering::PyDBSCAN>()?;
 
-    // TEMPORARILY DISABLED - Preprocessing
-    // m.add_class::<preprocessing::PyStandardScaler>()?;
-    // m.add_class::<preprocessing::PyMinMaxScaler>()?;
-    // m.add_class::<preprocessing::PyLabelEncoder>()?;
+    // Preprocessing
+    m.add_class::<preprocessing::PyStandardScaler>()?;
+    m.add_class::<preprocessing::PyMinMaxScaler>()?;
+    m.add_class::<preprocessing::PyLabelEncoder>()?;
 
-    // TEMPORARILY DISABLED - Metrics - Regression
+    // TODO: Re-enable metrics after refactoring to use sklears-metrics directly
+    // Metrics - Regression
     // m.add_function(wrap_pyfunction!(metrics::mean_squared_error, m)?)?;
     // m.add_function(wrap_pyfunction!(metrics::mean_absolute_error, m)?)?;
     // m.add_function(wrap_pyfunction!(metrics::r2_score, m)?)?;
     // m.add_function(wrap_pyfunction!(metrics::mean_squared_log_error, m)?)?;
     // m.add_function(wrap_pyfunction!(metrics::median_absolute_error, m)?)?;
 
-    // TEMPORARILY DISABLED - Metrics - Classification
+    // Metrics - Classification
     // m.add_function(wrap_pyfunction!(metrics::accuracy_score, m)?)?;
     // m.add_function(wrap_pyfunction!(metrics::precision_score, m)?)?;
     // m.add_function(wrap_pyfunction!(metrics::recall_score, m)?)?;

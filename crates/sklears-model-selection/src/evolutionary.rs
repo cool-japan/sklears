@@ -11,7 +11,7 @@ use crate::{CrossValidator, ParameterValue};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::IndexedRandom;
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::Result,
     traits::{Fit, Predict, Score},
@@ -422,8 +422,8 @@ where
             let mut new_population = Vec::new();
 
             // Elitism: preserve best individuals
-            for i in 0..self.config.elite_size {
-                new_population.push(population[i].clone());
+            for individual in population.iter().take(self.config.elite_size) {
+                new_population.push(individual.clone());
             }
 
             // Generate offspring
@@ -1026,7 +1026,7 @@ where
         let mut best_fitness = population[0].fitness.unwrap();
 
         // Evolution loop
-        for generation in 0..self.n_generations {
+        for _generation in 0..self.n_generations {
             // Selection and reproduction
             let mut new_population = Vec::new();
 
@@ -1089,7 +1089,7 @@ where
     /// Evaluate individual using cross-validation
     fn evaluate_individual(
         &self,
-        individual: &Individual,
+        _individual: &Individual,
         x: &Array2<Float>,
         y: &Array1<Float>,
     ) -> Result<f64> {

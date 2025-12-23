@@ -1289,7 +1289,7 @@ mod tests {
             .learning_to_rank_selection(&meta_features)
             .unwrap();
         assert!(!methods.is_empty());
-        assert!(confidence >= 0.0 && confidence <= 1.0);
+        assert!((0.0..=1.0).contains(&confidence));
     }
 
     #[test]

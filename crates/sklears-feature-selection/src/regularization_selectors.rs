@@ -99,7 +99,7 @@ impl Fit<Array2<Float>, Array1<Float>> for LassoSelector<Untrained> {
         }
 
         // Normalize features for LASSO
-        let (x_normalized, x_mean, x_std) = normalize_and_center(x)?;
+        let (x_normalized, _x_mean, x_std) = normalize_and_center(x)?;
         let y_mean = y.mean().unwrap_or(0.0);
         let y_centered: Array1<Float> = y - y_mean;
 
@@ -329,7 +329,7 @@ impl Fit<Array2<Float>, Array1<Float>> for ElasticNetSelector<Untrained> {
         }
 
         // Normalize features
-        let (x_normalized, x_mean, x_std) = normalize_and_center(x)?;
+        let (x_normalized, _x_mean, x_std) = normalize_and_center(x)?;
         let y_mean = y.mean().unwrap_or(0.0);
         let y_centered: Array1<Float> = y - y_mean;
 

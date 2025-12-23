@@ -17,7 +17,6 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 
 /// Neural network-based feature selection using importance scoring
-
 /// Neural network feature importance selector
 /// Uses a simple neural network to learn feature importances through gradient analysis
 #[derive(Debug, Clone)]
@@ -267,7 +266,7 @@ impl NeuralFeatureSelector<Untrained> {
 
     fn backward_pass(
         &self,
-        input: &Array1<Float>,
+        _input: &Array1<Float>,
         target: Float,
         activations: &[Array1<Float>],
         z_values: &[Array1<Float>],
@@ -406,7 +405,6 @@ impl SelectorMixin for NeuralFeatureSelector<Trained> {
 }
 
 /// Attention-based feature selection
-
 /// Attention mechanism for feature selection
 /// Uses attention weights to identify important features
 #[derive(Debug, Clone)]
@@ -558,7 +556,7 @@ impl Fit<Array2<Float>, Array1<Float>> for AttentionFeatureSelector<Untrained> {
 
                     let q_head = queries.slice(s![start_idx..end_idx]);
                     let k_head = keys.slice(s![start_idx..end_idx]);
-                    let v_head = values.slice(s![start_idx..end_idx]);
+                    let _v_head = values.slice(s![start_idx..end_idx]);
 
                     // Compute attention scores
                     let mut attention_scores = Array1::zeros(n_features);
@@ -691,7 +689,6 @@ impl SelectorMixin for AttentionFeatureSelector<Trained> {
 }
 
 /// Reinforcement learning-based feature selection
-
 /// Q-learning based feature selection
 /// Treats feature selection as a sequential decision problem
 #[derive(Debug, Clone)]
@@ -964,7 +961,6 @@ impl SelectorMixin for RLFeatureSelector<Trained> {
 }
 
 /// Meta-learning feature selector
-
 /// Meta-learning approach that learns from multiple feature selection tasks
 #[derive(Debug, Clone)]
 pub struct MetaLearningFeatureSelector<State = Untrained> {
@@ -1052,7 +1048,7 @@ impl Fit<Array2<Float>, Array1<Float>> for MetaLearningFeatureSelector<Untrained
     fn fit(self, x: &Array2<Float>, y: &Array1<Float>) -> SklResult<Self::Fitted> {
         validate::check_consistent_length(x, y)?;
 
-        let rng = match self.random_state {
+        let _rng = match self.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => StdRng::from_rng(&mut thread_rng()),
         };

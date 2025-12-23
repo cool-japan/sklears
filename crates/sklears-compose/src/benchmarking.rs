@@ -4,12 +4,14 @@
 //! and comparing the performance of different composition strategies.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::random::Rng;
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::Result as SklResult,
     traits::{Estimator, Transform},
 };
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::Write as FmtWrite;
 use std::time::{Duration, Instant};
 
 /// Advanced benchmark configuration
@@ -241,15 +243,23 @@ impl BenchmarkResult {
         let min_time = times.iter().min().copied().unwrap_or(Duration::ZERO);
         let max_time = times.iter().max().copied().unwrap_or(Duration::ZERO);
 
+        // Calculate percentiles
+        let mut sorted_times = times.clone();
+        sorted_times.sort();
+
+        let median_time = Self::calculate_percentile(&sorted_times, 50.0);
+        let p95_time = Self::calculate_percentile(&sorted_times, 95.0);
+        let p99_time = Self::calculate_percentile(&sorted_times, 99.0);
+
         Self {
             name,
             mean_time,
             std_dev_time,
             min_time,
             max_time,
-            median_time: Duration::ZERO, // TODO: Calculate actual median
-            p95_time: Duration::ZERO,    // TODO: Calculate actual p95
-            p99_time: Duration::ZERO,    // TODO: Calculate actual p99
+            median_time,
+            p95_time,
+            p99_time,
             throughput: None,
             memory_usage: None,
             cpu_metrics: None,
@@ -291,6 +301,45 @@ impl BenchmarkResult {
 
         // Weighted combination
         0.5 * time_score + 0.3 * throughput_score + 0.2 * memory_score
+    }
+
+    /// Calculate percentile from sorted duration vector
+    ///
+    /// Uses linear interpolation between closest values for fractional indices.
+    ///
+    /// # Arguments
+    /// * `sorted_times` - Pre-sorted vector of durations
+    /// * `percentile` - Percentile to calculate (0-100)
+    ///
+    /// # Returns
+    /// Duration at the specified percentile
+    fn calculate_percentile(sorted_times: &[Duration], percentile: f64) -> Duration {
+        if sorted_times.is_empty() {
+            return Duration::ZERO;
+        }
+
+        if sorted_times.len() == 1 {
+            return sorted_times[0];
+        }
+
+        // Calculate index using linear interpolation
+        // Percentile rank formula: index = (percentile / 100) * (n - 1)
+        let index = (percentile / 100.0) * (sorted_times.len() - 1) as f64;
+        let lower_index = index.floor() as usize;
+        let upper_index = index.ceil() as usize;
+
+        if lower_index == upper_index {
+            // Exact index
+            sorted_times[lower_index]
+        } else {
+            // Linear interpolation between two values
+            let lower_value = sorted_times[lower_index].as_nanos() as f64;
+            let upper_value = sorted_times[upper_index].as_nanos() as f64;
+            let fraction = index - lower_index as f64;
+            let interpolated = lower_value + fraction * (upper_value - lower_value);
+
+            Duration::from_nanos(interpolated as u64)
+        }
     }
 }
 
@@ -525,7 +574,7 @@ impl BenchmarkSuite {
     /// Generate test data
     fn generate_data(&self, n_samples: usize, n_features: usize) -> Array2<f64> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::SeedableRng;
 
         let mut rng = StdRng::seed_from_u64(42);
         Array2::from_shape_fn((n_samples, n_features), |_| rng.gen_range(-1.0..1.0))
@@ -709,15 +758,16 @@ impl BenchmarkReport {
 
         summary.push_str("Performance Rankings:\n");
         for (i, (strategy, score)) in self.performance_rankings.iter().enumerate() {
-            summary.push_str(&format!("{}. {} (score: {:.3})\n", i + 1, strategy, score));
+            let _ = write!(summary, "{}. {} (score: {:.3})\n", i + 1, strategy, score);
         }
 
         summary.push_str("\nScalability Analysis:\n");
         for (strategy, metrics) in &self.scalability_analysis {
-            summary.push_str(&format!(
+            let _ = write!(
+                summary,
                 "{}: Sample complexity: {:?}, Feature complexity: {:?}\n",
                 strategy, metrics.sample_complexity, metrics.feature_complexity
-            ));
+            );
         }
 
         summary

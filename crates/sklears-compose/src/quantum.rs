@@ -134,8 +134,7 @@ impl QuantumTransformer {
                     }
                 }
                 _ => {
-                    // Placeholder for other gates
-                    continue;
+                    // Placeholder for other gates - skip to next gate
                 }
             }
         }
@@ -291,8 +290,7 @@ impl QuantumPipeline {
                     data = data.mapv(|x| if x.abs() > 0.5 { 1.0 } else { 0.0 });
                 }
                 _ => {
-                    // Placeholder for other steps
-                    continue;
+                    // Placeholder for other steps - skip to next step
                 }
             }
         }

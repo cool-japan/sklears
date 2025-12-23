@@ -172,7 +172,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
             transformation[[i, i]] = 1.0; // Start with identity
             for j in 0..n_features {
                 if i != j {
-                    transformation[[i, j]] = rng.gen_range(-0.1..0.1);
+                    transformation[[i, j]] = rng.random_range(-0.1, 0.1);
                 }
             }
         }
@@ -512,7 +512,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for InformationBottleneck<U
         let mut projection = Array2::<f64>::zeros((n_features, self.n_components));
         for i in 0..n_features {
             for j in 0..self.n_components {
-                projection[[i, j]] = rng.gen_range(-0.1..0.1);
+                projection[[i, j]] = rng.random_range(-0.1, 0.1);
             }
         }
 
@@ -627,6 +627,574 @@ pub struct InformationBottleneckTrained {
     pub classes: Array1<i32>,
     /// projection
     pub projection: Array2<f64>,
+}
+
+/// Entropy-based Regularization for Semi-Supervised Learning
+///
+/// This method adds entropy regularization to encourage confident predictions
+/// on unlabeled data while minimizing classification error on labeled data.
+///
+/// # Parameters
+///
+/// * `entropy_weight` - Weight for entropy regularization term
+/// * `max_iter` - Maximum number of iterations
+/// * `learning_rate` - Learning rate for gradient descent
+/// * `n_neighbors` - Number of neighbors for graph construction
+#[derive(Debug, Clone)]
+pub struct EntropyRegularizedSemiSupervised<S = Untrained> {
+    state: S,
+    entropy_weight: f64,
+    max_iter: usize,
+    learning_rate: f64,
+    n_neighbors: usize,
+    random_state: Option<u64>,
+}
+
+impl EntropyRegularizedSemiSupervised<Untrained> {
+    /// Create a new EntropyRegularizedSemiSupervised instance
+    pub fn new() -> Self {
+        Self {
+            state: Untrained,
+            entropy_weight: 0.5,
+            max_iter: 100,
+            learning_rate: 0.01,
+            n_neighbors: 5,
+            random_state: None,
+        }
+    }
+
+    /// Set the entropy weight
+    pub fn entropy_weight(mut self, weight: f64) -> Self {
+        self.entropy_weight = weight;
+        self
+    }
+
+    /// Set the maximum number of iterations
+    pub fn max_iter(mut self, max_iter: usize) -> Self {
+        self.max_iter = max_iter;
+        self
+    }
+
+    /// Set the learning rate
+    pub fn learning_rate(mut self, learning_rate: f64) -> Self {
+        self.learning_rate = learning_rate;
+        self
+    }
+
+    /// Set the number of neighbors
+    pub fn n_neighbors(mut self, n_neighbors: usize) -> Self {
+        self.n_neighbors = n_neighbors;
+        self
+    }
+
+    /// Set the random state
+    pub fn random_state(mut self, random_state: u64) -> Self {
+        self.random_state = Some(random_state);
+        self
+    }
+}
+
+impl Default for EntropyRegularizedSemiSupervised<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Estimator for EntropyRegularizedSemiSupervised<Untrained> {
+    type Config = ();
+    type Error = SklearsError;
+    type Float = Float;
+
+    fn config(&self) -> &Self::Config {
+        &()
+    }
+}
+
+impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
+    for EntropyRegularizedSemiSupervised<Untrained>
+{
+    type Fitted = EntropyRegularizedSemiSupervised<EntropyRegularizedTrained>;
+
+    #[allow(non_snake_case)]
+    fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
+        let X = X.to_owned();
+        let y = y.to_owned();
+        let (n_samples, n_features) = X.dim();
+
+        // Identify labeled and unlabeled samples
+        let mut labeled_indices = Vec::new();
+        let mut unlabeled_indices = Vec::new();
+        let mut classes = std::collections::HashSet::new();
+
+        for (i, &label) in y.iter().enumerate() {
+            if label == -1 {
+                unlabeled_indices.push(i);
+            } else {
+                labeled_indices.push(i);
+                classes.insert(label);
+            }
+        }
+
+        if labeled_indices.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "No labeled samples provided".to_string(),
+            ));
+        }
+
+        let classes: Vec<i32> = classes.into_iter().collect();
+        let n_classes = classes.len();
+
+        // Initialize probability distributions
+        let mut prob_distributions = Array2::<f64>::zeros((n_samples, n_classes));
+
+        // Set labeled samples
+        for &idx in &labeled_indices {
+            if let Some(class_idx) = classes.iter().position(|&c| c == y[idx]) {
+                prob_distributions[[idx, class_idx]] = 1.0;
+            }
+        }
+
+        // Initialize unlabeled samples with uniform distribution
+        for &idx in &unlabeled_indices {
+            for class_idx in 0..n_classes {
+                prob_distributions[[idx, class_idx]] = 1.0 / n_classes as f64;
+            }
+        }
+
+        // Build k-NN graph
+        let mut adjacency = Array2::<f64>::zeros((n_samples, n_samples));
+        for i in 0..n_samples {
+            let mut distances: Vec<(usize, f64)> = Vec::new();
+            for j in 0..n_samples {
+                if i != j {
+                    let diff = &X.row(i) - &X.row(j);
+                    let dist = diff.mapv(|x| x * x).sum().sqrt();
+                    distances.push((j, dist));
+                }
+            }
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+            for &(j, dist) in distances.iter().take(self.n_neighbors) {
+                let weight = (-dist.powi(2) / 2.0).exp();
+                adjacency[[i, j]] = weight;
+                adjacency[[j, i]] = weight;
+            }
+        }
+
+        // Normalize adjacency matrix
+        for i in 0..n_samples {
+            let row_sum: f64 = adjacency.row(i).sum();
+            if row_sum > 0.0 {
+                for j in 0..n_samples {
+                    adjacency[[i, j]] /= row_sum;
+                }
+            }
+        }
+
+        // Optimize with entropy regularization
+        for _iter in 0..self.max_iter {
+            let prev_probs = prob_distributions.clone();
+
+            // Update unlabeled samples
+            for &idx in &unlabeled_indices {
+                // Smooth labels from neighbors
+                let mut smooth_dist = Array1::<f64>::zeros(n_classes);
+                for j in 0..n_samples {
+                    for k in 0..n_classes {
+                        smooth_dist[k] += adjacency[[idx, j]] * prob_distributions[[j, k]];
+                    }
+                }
+
+                // Compute entropy regularization gradient
+                let mut entropy_grad = Array1::<f64>::zeros(n_classes);
+                for k in 0..n_classes {
+                    let p = prob_distributions[[idx, k]].max(1e-10);
+                    entropy_grad[k] = -(p.ln() + 1.0);
+                }
+
+                // Update probabilities
+                for k in 0..n_classes {
+                    prob_distributions[[idx, k]] =
+                        smooth_dist[k] - self.learning_rate * self.entropy_weight * entropy_grad[k];
+                    prob_distributions[[idx, k]] = prob_distributions[[idx, k]].max(0.0);
+                }
+
+                // Normalize
+                let row_sum: f64 = prob_distributions.row(idx).sum();
+                if row_sum > 0.0 {
+                    for k in 0..n_classes {
+                        prob_distributions[[idx, k]] /= row_sum;
+                    }
+                }
+            }
+
+            // Check convergence
+            let diff = (&prob_distributions - &prev_probs).mapv(|x| x.abs()).sum();
+            if diff < 1e-6 {
+                break;
+            }
+        }
+
+        // Generate final labels
+        let mut final_labels = y.clone();
+        for &idx in &unlabeled_indices {
+            let class_idx = prob_distributions
+                .row(idx)
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .unwrap()
+                .0;
+            final_labels[idx] = classes[class_idx];
+        }
+
+        Ok(EntropyRegularizedSemiSupervised {
+            state: EntropyRegularizedTrained {
+                X_train: X,
+                y_train: final_labels,
+                classes: Array1::from(classes),
+                prob_distributions,
+                adjacency,
+            },
+            entropy_weight: self.entropy_weight,
+            max_iter: self.max_iter,
+            learning_rate: self.learning_rate,
+            n_neighbors: self.n_neighbors,
+            random_state: self.random_state,
+        })
+    }
+}
+
+impl Predict<ArrayView2<'_, Float>, Array1<i32>>
+    for EntropyRegularizedSemiSupervised<EntropyRegularizedTrained>
+{
+    #[allow(non_snake_case)]
+    fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
+        let X = X.to_owned();
+        let n_test = X.nrows();
+        let mut predictions = Array1::zeros(n_test);
+
+        for i in 0..n_test {
+            let mut min_dist = f64::INFINITY;
+            let mut best_label = self.state.classes[0];
+
+            for j in 0..self.state.X_train.nrows() {
+                let diff = &X.row(i) - &self.state.X_train.row(j);
+                let dist = diff.mapv(|x| x * x).sum().sqrt();
+
+                if dist < min_dist {
+                    min_dist = dist;
+                    best_label = self.state.y_train[j];
+                }
+            }
+
+            predictions[i] = best_label;
+        }
+
+        Ok(predictions)
+    }
+}
+
+/// KL-Divergence Optimization for Semi-Supervised Learning
+///
+/// This method optimizes a classifier by minimizing KL divergence between
+/// predictions on differently augmented versions of the same unlabeled data.
+///
+/// # Parameters
+///
+/// * `temperature` - Temperature for softmax
+/// * `max_iter` - Maximum number of iterations
+/// * `learning_rate` - Learning rate for optimization
+/// * `kl_weight` - Weight for KL divergence term
+#[derive(Debug, Clone)]
+pub struct KLDivergenceOptimization<S = Untrained> {
+    state: S,
+    temperature: f64,
+    max_iter: usize,
+    learning_rate: f64,
+    kl_weight: f64,
+    random_state: Option<u64>,
+}
+
+impl KLDivergenceOptimization<Untrained> {
+    /// Create a new KLDivergenceOptimization instance
+    pub fn new() -> Self {
+        Self {
+            state: Untrained,
+            temperature: 1.0,
+            max_iter: 100,
+            learning_rate: 0.01,
+            kl_weight: 1.0,
+            random_state: None,
+        }
+    }
+
+    /// Set the temperature
+    pub fn temperature(mut self, temperature: f64) -> Self {
+        self.temperature = temperature;
+        self
+    }
+
+    /// Set the maximum number of iterations
+    pub fn max_iter(mut self, max_iter: usize) -> Self {
+        self.max_iter = max_iter;
+        self
+    }
+
+    /// Set the learning rate
+    pub fn learning_rate(mut self, learning_rate: f64) -> Self {
+        self.learning_rate = learning_rate;
+        self
+    }
+
+    /// Set the KL weight
+    pub fn kl_weight(mut self, weight: f64) -> Self {
+        self.kl_weight = weight;
+        self
+    }
+
+    /// Set the random state
+    pub fn random_state(mut self, random_state: u64) -> Self {
+        self.random_state = Some(random_state);
+        self
+    }
+}
+
+impl Default for KLDivergenceOptimization<Untrained> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Estimator for KLDivergenceOptimization<Untrained> {
+    type Config = ();
+    type Error = SklearsError;
+    type Float = Float;
+
+    fn config(&self) -> &Self::Config {
+        &()
+    }
+}
+
+impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for KLDivergenceOptimization<Untrained> {
+    type Fitted = KLDivergenceOptimization<KLDivergenceTrained>;
+
+    #[allow(non_snake_case)]
+    fn fit(self, X: &ArrayView2<'_, Float>, y: &ArrayView1<'_, i32>) -> SklResult<Self::Fitted> {
+        let X = X.to_owned();
+        let y = y.to_owned();
+        let (n_samples, n_features) = X.dim();
+
+        // Identify labeled and unlabeled samples
+        let mut labeled_indices = Vec::new();
+        let mut unlabeled_indices = Vec::new();
+        let mut classes = std::collections::HashSet::new();
+
+        for (i, &label) in y.iter().enumerate() {
+            if label == -1 {
+                unlabeled_indices.push(i);
+            } else {
+                labeled_indices.push(i);
+                classes.insert(label);
+            }
+        }
+
+        if labeled_indices.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "No labeled samples provided".to_string(),
+            ));
+        }
+
+        let classes: Vec<i32> = classes.into_iter().collect();
+        let n_classes = classes.len();
+
+        // Initialize RNG
+        let mut rng = if let Some(seed) = self.random_state {
+            Random::seed(seed)
+        } else {
+            Random::seed(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            )
+        };
+
+        // Initialize classifier weights
+        let mut weights = Array2::<f64>::zeros((n_features, n_classes));
+        for i in 0..n_features {
+            for j in 0..n_classes {
+                weights[[i, j]] = rng.random_range(-0.1, 0.1);
+            }
+        }
+
+        // Training loop with KL divergence minimization
+        for _iter in 0..self.max_iter {
+            // Compute predictions for all samples
+            let logits = X.dot(&weights);
+            let mut predictions = Array2::<f64>::zeros((n_samples, n_classes));
+
+            // Apply softmax with temperature
+            for i in 0..n_samples {
+                let max_logit = logits
+                    .row(i)
+                    .iter()
+                    .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let mut exp_sum = 0.0;
+
+                for j in 0..n_classes {
+                    let exp_val = ((logits[[i, j]] - max_logit) / self.temperature).exp();
+                    predictions[[i, j]] = exp_val;
+                    exp_sum += exp_val;
+                }
+
+                if exp_sum > 0.0 {
+                    for j in 0..n_classes {
+                        predictions[[i, j]] /= exp_sum;
+                    }
+                }
+            }
+
+            // Compute gradient
+            let mut gradient = Array2::<f64>::zeros((n_features, n_classes));
+
+            // Supervised loss gradient (cross-entropy)
+            for &idx in &labeled_indices {
+                if let Some(class_idx) = classes.iter().position(|&c| c == y[idx]) {
+                    for j in 0..n_features {
+                        for k in 0..n_classes {
+                            let target = if k == class_idx { 1.0 } else { 0.0 };
+                            gradient[[j, k]] += X[[idx, j]] * (predictions[[idx, k]] - target);
+                        }
+                    }
+                }
+            }
+
+            // KL divergence term for unlabeled samples (encourage confident predictions)
+            for &idx in &unlabeled_indices {
+                // Create augmented version (simplified: add small noise)
+                let mut X_aug = X.row(idx).to_owned();
+                for j in 0..n_features {
+                    X_aug[j] += rng.random_range(-0.01, 0.01);
+                }
+
+                // Compute prediction on augmented sample
+                let logits_aug = X_aug.dot(&weights);
+                let max_logit = logits_aug.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let mut pred_aug = Array1::<f64>::zeros(n_classes);
+                let mut exp_sum = 0.0;
+
+                for j in 0..n_classes {
+                    let exp_val = ((logits_aug[j] - max_logit) / self.temperature).exp();
+                    pred_aug[j] = exp_val;
+                    exp_sum += exp_val;
+                }
+
+                if exp_sum > 0.0 {
+                    pred_aug /= exp_sum;
+                }
+
+                // KL divergence gradient
+                for j in 0..n_features {
+                    for k in 0..n_classes {
+                        let p = predictions[[idx, k]].max(1e-10);
+                        let q = pred_aug[k].max(1e-10);
+                        let kl_grad = p * (p / q).ln();
+                        gradient[[j, k]] += self.kl_weight * X[[idx, j]] * kl_grad;
+                    }
+                }
+            }
+
+            // Update weights
+            let scale = self.learning_rate / n_samples as f64;
+            for i in 0..n_features {
+                for j in 0..n_classes {
+                    weights[[i, j]] -= scale * gradient[[i, j]];
+                }
+            }
+        }
+
+        // Generate final predictions
+        let logits = X.dot(&weights);
+        let mut final_labels = y.clone();
+
+        for &idx in &unlabeled_indices {
+            let class_idx = logits
+                .row(idx)
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .unwrap()
+                .0;
+            final_labels[idx] = classes[class_idx];
+        }
+
+        Ok(KLDivergenceOptimization {
+            state: KLDivergenceTrained {
+                X_train: X,
+                y_train: final_labels,
+                classes: Array1::from(classes),
+                weights,
+            },
+            temperature: self.temperature,
+            max_iter: self.max_iter,
+            learning_rate: self.learning_rate,
+            kl_weight: self.kl_weight,
+            random_state: self.random_state,
+        })
+    }
+}
+
+impl Predict<ArrayView2<'_, Float>, Array1<i32>> for KLDivergenceOptimization<KLDivergenceTrained> {
+    #[allow(non_snake_case)]
+    fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
+        let X = X.to_owned();
+        let n_test = X.nrows();
+        let mut predictions = Array1::zeros(n_test);
+
+        let logits = X.dot(&self.state.weights);
+
+        for i in 0..n_test {
+            let class_idx = logits
+                .row(i)
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .unwrap()
+                .0;
+            predictions[i] = self.state.classes[class_idx];
+        }
+
+        Ok(predictions)
+    }
+}
+
+/// Trained state for EntropyRegularizedSemiSupervised
+#[derive(Debug, Clone)]
+pub struct EntropyRegularizedTrained {
+    /// X_train
+    pub X_train: Array2<f64>,
+    /// y_train
+    pub y_train: Array1<i32>,
+    /// classes
+    pub classes: Array1<i32>,
+    /// prob_distributions
+    pub prob_distributions: Array2<f64>,
+    /// adjacency
+    pub adjacency: Array2<f64>,
+}
+
+/// Trained state for KLDivergenceOptimization
+#[derive(Debug, Clone)]
+pub struct KLDivergenceTrained {
+    /// X_train
+    pub X_train: Array2<f64>,
+    /// y_train
+    pub y_train: Array1<i32>,
+    /// classes
+    pub classes: Array1<i32>,
+    /// weights
+    pub weights: Array2<f64>,
 }
 
 #[allow(non_snake_case)]
@@ -759,5 +1327,69 @@ mod tests {
         assert_eq!(predictions.len(), 4);
         // With only one labeled class, predictions should be stable
         assert!(predictions.iter().all(|&p| p == 0));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_entropy_regularized_basic() {
+        let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
+        let y = array![0, 1, -1, -1];
+
+        let er = EntropyRegularizedSemiSupervised::new()
+            .entropy_weight(0.5)
+            .max_iter(10)
+            .random_state(42);
+
+        let fitted = er.fit(&X.view(), &y.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).unwrap();
+
+        assert_eq!(predictions.len(), 4);
+        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+    }
+
+    #[test]
+    fn test_entropy_regularized_parameters() {
+        let er = EntropyRegularizedSemiSupervised::new()
+            .entropy_weight(0.5)
+            .max_iter(50)
+            .learning_rate(0.001)
+            .n_neighbors(10);
+
+        assert_eq!(er.entropy_weight, 0.5);
+        assert_eq!(er.max_iter, 50);
+        assert_eq!(er.learning_rate, 0.001);
+        assert_eq!(er.n_neighbors, 10);
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_kl_divergence_optimization_basic() {
+        let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
+        let y = array![0, 1, -1, -1];
+
+        let kl = KLDivergenceOptimization::new()
+            .max_iter(10)
+            .temperature(1.0)
+            .random_state(42);
+
+        let fitted = kl.fit(&X.view(), &y.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).unwrap();
+
+        assert_eq!(predictions.len(), 4);
+        assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
+    }
+
+    #[test]
+    fn test_kl_divergence_parameters() {
+        let kl = KLDivergenceOptimization::new()
+            .temperature(2.0)
+            .max_iter(200)
+            .learning_rate(0.001)
+            .kl_weight(0.5);
+
+        assert_eq!(kl.temperature, 2.0);
+        assert_eq!(kl.max_iter, 200);
+        assert_eq!(kl.learning_rate, 0.001);
+        assert_eq!(kl.kl_weight, 0.5);
     }
 }

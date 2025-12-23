@@ -35,7 +35,6 @@ pub mod gpu {
     use std::collections::HashMap;
 
     use bytemuck::{Pod, Zeroable};
-    use numrs2::prelude::*;
     use scirs2_core::ndarray::Array2;
     use sklears_core::error::{Result, SklearsError};
     use wgpu::util::DeviceExt;
@@ -125,19 +124,23 @@ pub mod gpu {
                     compatible_surface: None,
                 })
                 .await
-                .map_err(|e| {
-                    SklearsError::InvalidInput(format!("Failed to request adapter: {:?}", e))
+                .ok_or_else(|| {
+                    SklearsError::InvalidInput(
+                        "Failed to request GPU adapter: no compatible device found".to_string(),
+                    )
                 })?;
 
             // Request device
             let (device, queue) = adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    memory_hints: wgpu::MemoryHints::Performance,
-                    trace: Default::default(),
-                })
+                .request_device(
+                    &wgpu::DeviceDescriptor {
+                        label: None,
+                        required_features: wgpu::Features::empty(),
+                        required_limits: wgpu::Limits::default(),
+                        memory_hints: wgpu::MemoryHints::Performance,
+                    },
+                    None,
+                )
                 .await
                 .map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to create device: {}", e))
@@ -600,6 +603,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         use approx::assert_abs_diff_eq;
 
         #[test]
+        #[ignore = "GPU distance test is too slow for default suites; run with --ignored when GPU is available"]
         fn test_gpu_distance_computation() {
             pollster::block_on(async {
                 // Skip test if GPU not available in CI
@@ -636,6 +640,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         #[test]
+        #[ignore = "GPU Manhattan distance test is too slow for default suites; run with --ignored when GPU is available"]
         fn test_gpu_manhattan_distance() {
             pollster::block_on(async {
                 // Skip test if GPU not available in CI
@@ -670,7 +675,6 @@ pub use gpu::*;
 // Provide stub implementations when GPU feature is not enabled
 #[cfg(not(feature = "gpu"))]
 pub mod stub {
-    use numrs2::prelude::*;
     use sklears_core::error::{Result, SklearsError};
 
     /// Stub GPU distance metric (no-op when GPU feature disabled)

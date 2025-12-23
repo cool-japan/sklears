@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -41,6 +41,6 @@ let predictions = fitted.predict(&x_test)?;
 
 ## Status
 
-- Verified through workspace integration tests; `0.1.0-alpha.1` recorded 10,013 passes with zero failures.
+- Verified through workspace integration tests; `0.1.0-alpha.2` recorded 10,013 passes with zero failures.
 - Supports all major scikit-learn compose APIs plus Rust-centric ergonomic improvements.
 - Future enhancements (async pipelines, streaming feature unions) tracked in `TODO.md`.

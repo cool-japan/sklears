@@ -4,9 +4,10 @@
 //! and kernel-based approximations for non-linear feature transformation.
 
 use crate::*;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use sklears_core::prelude::{Fit, SklearsError, Transform};
+use sklears_core::error::Result as SklResult;
+use sklears_core::prelude::{SklearsError, Transform};
 
 /// Radial Basis Functions Generator
 ///
@@ -106,7 +107,7 @@ impl RadialBasisFunctions {
 
     /// Transform input data using radial basis functions
     pub fn transform(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Generate centers if not provided
         let centers = match &self.centers {

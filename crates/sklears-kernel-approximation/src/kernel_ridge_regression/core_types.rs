@@ -74,9 +74,10 @@ impl ApproximationMethod {
 }
 
 /// Solver for the linear system
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Solver {
     /// Direct solver using Cholesky decomposition
+    #[default]
     Direct,
     /// SVD-based solver (more stable but slower)
     SVD,
@@ -116,12 +117,6 @@ impl Solver {
     }
 }
 
-impl Default for Solver {
-    fn default() -> Self {
-        Solver::Direct
-    }
-}
-
 /// Wrapper for different feature transformers
 #[derive(Debug, Clone)]
 pub enum FeatureTransformer {
@@ -149,25 +144,22 @@ impl FeatureTransformer {
     /// Get the number of output features
     pub fn n_output_features(&self) -> usize {
         match self {
-            FeatureTransformer::Nystroem(_) => {
+            FeatureTransformer::Nystroem(transformer) => {
                 // For Nyström, the number of output features equals n_components
-                // TODO: Extract this information from the transformer
-                100 // Placeholder
+                transformer.n_components
             }
-            FeatureTransformer::RBFSampler(_) => {
+            FeatureTransformer::RBFSampler(transformer) => {
                 // For RBF sampler, output features = 2 * n_components
-                // TODO: Extract this information from the transformer
-                200 // Placeholder
+                // (one dimension for cos and one for sin)
+                2 * transformer.n_components
             }
-            FeatureTransformer::StructuredRFF(_) => {
+            FeatureTransformer::StructuredRFF(transformer) => {
                 // For structured RFF, output features = n_components
-                // TODO: Extract this information from the transformer
-                100 // Placeholder
+                transformer.n_components
             }
-            FeatureTransformer::Fastfood(_) => {
+            FeatureTransformer::Fastfood(transformer) => {
                 // For Fastfood, output features = n_components
-                // TODO: Extract this information from the transformer
-                100 // Placeholder
+                transformer.n_components
             }
         }
     }

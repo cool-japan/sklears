@@ -13,7 +13,7 @@ type DMatrix<T> = Array2<T>;
 type DVector<T> = Array1<T>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::ChaCha20Rng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::traits::Fit;
 use std::collections::HashMap;

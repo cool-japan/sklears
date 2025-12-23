@@ -148,7 +148,7 @@ impl ClusterSeparationResult {
 
     /// Assess separation quality based on multiple metrics
     pub fn separation_quality(&self) -> &'static str {
-        let gap_ratio_score = (self.gap_ratio - 1.0).max(0.0).min(3.0) / 3.0;
+        let gap_ratio_score = (self.gap_ratio - 1.0).clamp(0.0, 3.0) / 3.0;
         let boundary_score = self.boundary_clarity.min(1.0);
         let overlap_score = (1.0 - self.overlap_measure).max(0.0);
 

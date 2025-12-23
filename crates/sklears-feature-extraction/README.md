@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -39,6 +39,6 @@ let tfidf = vectorizer.fit_transform(&docs)?;
 
 ## Status
 
-- Extensively tested via the 10,013 passing workspace suites shipped in `0.1.0-alpha.1`.
+- Extensively tested via the 11,292 passing workspace suites shipped in `0.1.0-alpha.2`.
 - Offers >99% parity with scikit-learn’s feature extraction module, plus GPU paths.
 - Additional work (streaming text ingestion, audio-specific transforms) documented in `TODO.md`.

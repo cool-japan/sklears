@@ -449,7 +449,7 @@ impl Transform<Array3<Float>, Array3<Float>> for ImageAugmenter {
 
         // Apply rotation
         if let Some((min_angle, max_angle)) = self.config.rotation_range {
-            let angle = rng.random_range(min_angle..=max_angle);
+            let angle = rng.gen_range(min_angle..max_angle);
             if angle.abs() > 1e-6 {
                 result = self.rotate(&result, angle)?;
             }
@@ -457,7 +457,7 @@ impl Transform<Array3<Float>, Array3<Float>> for ImageAugmenter {
 
         // Apply brightness adjustment
         if let Some((min_brightness, max_brightness)) = self.config.brightness_range {
-            let brightness_factor = rng.random_range(min_brightness..=max_brightness);
+            let brightness_factor = rng.gen_range(min_brightness..max_brightness);
             if (brightness_factor - 1.0).abs() > 1e-6 {
                 result.mapv_inplace(|x| (x * brightness_factor).clamp(0.0, 1.0));
             }

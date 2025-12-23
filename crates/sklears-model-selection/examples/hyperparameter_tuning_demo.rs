@@ -28,11 +28,13 @@ impl MockLinearModel {
         }
     }
 
+    #[allow(dead_code)]
     fn with_alpha(mut self, alpha: f64) -> Self {
         self.alpha = alpha;
         self
     }
 
+    #[allow(dead_code)]
     fn with_fit_intercept(mut self, fit_intercept: bool) -> Self {
         self.fit_intercept = fit_intercept;
         self
@@ -55,7 +57,7 @@ impl Fit<Array2<f64>, Array1<f64>> for MockLinearModel {
     fn fit(
         mut self,
         x: &Array2<f64>,
-        y: &Array1<f64>,
+        _y: &Array1<f64>,
     ) -> Result<Self::Fitted, sklears_core::error::SklearsError> {
         let n_features = x.ncols();
 
@@ -157,7 +159,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🔹 Demo 3: Model Evaluation Utilities");
     println!("-------------------------------------");
 
-    let mock_model = MockLinearModel::new();
+    let _mock_model = MockLinearModel::new();
 
     // Cross-validation score
     println!("cross_val_score: Evaluates model performance across CV folds");

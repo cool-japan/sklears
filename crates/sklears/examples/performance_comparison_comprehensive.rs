@@ -5,7 +5,10 @@
 //!
 //! Run with: cargo run --example performance_comparison_comprehensive
 
+#![allow(unexpected_cfgs)]
+
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::Distribution;
 use sklears_clustering::{KMeans, KMeansConfig, DBSCAN};
 use sklears_core::traits::{Fit, Predict};
 use sklears_linear::LinearRegression;
@@ -33,13 +36,14 @@ impl PerformanceResult {
     }
 }
 
+#[allow(non_snake_case)]
 fn generate_classification_data(
     n_samples: usize,
     n_features: usize,
     n_classes: usize,
 ) -> (Array2<f64>, Array1<usize>) {
-    use scirs2_core::essentials::Normal;
-    use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::random::{rngs::StdRng, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -70,9 +74,10 @@ fn generate_classification_data(
     (X, y)
 }
 
+#[allow(non_snake_case)]
 fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
-    use scirs2_core::essentials::Normal;
-    use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::random::{rngs::StdRng, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -98,6 +103,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
     (X, y)
 }
 
+#[allow(non_snake_case)]
 fn benchmark_linear_regression(X: &Array2<f64>, y: &Array1<f64>) -> Vec<PerformanceResult> {
     let mut results = Vec::new();
     let dataset_info = format!("{}×{}", X.nrows(), X.ncols());
@@ -156,9 +162,10 @@ fn benchmark_linear_regression(X: &Array2<f64>, y: &Array1<f64>) -> Vec<Performa
     results
 }
 
-fn benchmark_classification(X: &Array2<f64>, y: &Array1<usize>) -> Vec<PerformanceResult> {
+#[allow(non_snake_case)]
+fn benchmark_classification(X: &Array2<f64>, _y: &Array1<usize>) -> Vec<PerformanceResult> {
     let results = Vec::new();
-    let dataset_info = format!("{}×{}", X.nrows(), X.ncols());
+    let _dataset_info = format!("{}×{}", X.nrows(), X.ncols());
 
     #[cfg(feature = "logistic-regression")]
     {
@@ -195,6 +202,7 @@ fn benchmark_classification(X: &Array2<f64>, y: &Array1<usize>) -> Vec<Performan
     results
 }
 
+#[allow(non_snake_case)]
 fn benchmark_clustering(X: &Array2<f64>) -> Vec<PerformanceResult> {
     let mut results = Vec::new();
     let dataset_info = format!("{}×{}", X.nrows(), X.ncols());
@@ -250,6 +258,7 @@ fn benchmark_clustering(X: &Array2<f64>) -> Vec<PerformanceResult> {
     results
 }
 
+#[allow(non_snake_case)]
 fn benchmark_preprocessing(_X: &Array2<f64>) -> Vec<PerformanceResult> {
     // Note: StandardScaler and MinMaxScaler are currently placeholders without
     // full implementations. Preprocessing benchmarks are disabled until these
@@ -384,6 +393,7 @@ fn print_python_comparison_code() {
     println!("```");
 }
 
+#[allow(non_snake_case)]
 fn main() {
     println!("Comprehensive Performance Comparison: sklears vs scikit-learn");
     println!("=============================================================");

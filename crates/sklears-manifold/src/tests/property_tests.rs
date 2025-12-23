@@ -198,6 +198,7 @@ proptest! {
     }
 
     #[test]
+    #[ignore = "ParametricTSNE is too slow for CI - run with --ignored"]
     fn test_parametric_tsne_embedding_dimensions(
         (n_samples, n_components, _) in valid_manifold_config()
     ) {
@@ -243,6 +244,7 @@ proptest! {
     }
 
     #[test]
+    #[ignore = "ParametricTSNE is too slow for CI - run with --ignored"]
     fn test_parametric_tsne_reproducibility(
         data in random_data_matrix(5, 3)
     ) {

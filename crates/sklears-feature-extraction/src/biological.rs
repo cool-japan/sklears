@@ -3,7 +3,7 @@
 //! This module provides tools for extracting features from biological sequences
 //! such as DNA, RNA, and protein sequences.
 
-use crate::*;
+// use crate::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 use std::collections::HashMap;
@@ -1978,7 +1978,7 @@ impl SecondaryStructureFeatures {
         self
     }
 
-    pub fn extract_features(&self, sequence: &str) -> SklResult<Vec<f64>> {
+    pub fn extract_features(&self, _sequence: &str) -> SklResult<Vec<f64>> {
         // Placeholder secondary structure features
         Ok(vec![
             0.3, // Alpha helix proportion
@@ -2014,7 +2014,7 @@ impl PhylogeneticFeatures {
         self
     }
 
-    pub fn extract_features(&self, sequence: &str) -> SklResult<Vec<f64>> {
+    pub fn extract_features(&self, _sequence: &str) -> SklResult<Vec<f64>> {
         // Placeholder phylogenetic features
         Ok(vec![
             0.1,  // Branch length
@@ -2055,7 +2055,7 @@ impl MotifFeatures {
         self
     }
 
-    pub fn extract_features(&self, sequence: &str) -> SklResult<Vec<f64>> {
+    pub fn extract_features(&self, _sequence: &str) -> SklResult<Vec<f64>> {
         // Placeholder motif features
         Ok(vec![
             0.02,  // Motif 1 score
@@ -2090,7 +2090,7 @@ impl CodonUsageFeatures {
         self
     }
 
-    pub fn extract_features(&self, sequence: &str) -> SklResult<Vec<f64>> {
+    pub fn extract_features(&self, _sequence: &str) -> SklResult<Vec<f64>> {
         // Placeholder codon usage features - 64 codons
         Ok(vec![1.0 / 64.0; 64])
     }

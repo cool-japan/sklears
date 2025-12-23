@@ -26,11 +26,11 @@
 
 use std::collections::HashMap;
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::Distribution;
+use scirs2_core::random::Rng;
 // Normal distribution via scirs2_core::random::RandNormal
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 
@@ -198,7 +198,7 @@ impl SphericalKMeans {
             }
 
             // Choose next centroid with probability proportional to squared distance
-            let target = rng.gen_range(0.0..total_distance);
+            let target = rng.random_range(0.0..total_distance);
             let mut cumulative = 0.0;
             let mut chosen_idx = 0;
 

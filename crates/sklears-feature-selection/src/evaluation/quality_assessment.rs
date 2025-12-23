@@ -92,12 +92,12 @@ impl SelectionQuality {
 
     /// Assess feature efficiency
     fn assess_efficiency(&self) -> f64 {
-        self.feature_efficiency.min(1.0).max(0.0)
+        self.feature_efficiency.clamp(0.0, 1.0)
     }
 
     /// Assess information density
     fn assess_information(&self) -> f64 {
-        self.information_density.min(1.0).max(0.0)
+        self.information_density.clamp(0.0, 1.0)
     }
 
     /// Assess balance between number of features and performance
@@ -276,7 +276,7 @@ impl QualityAssessmentResult {
             self.selection_ratio * 100.0
         ));
 
-        report.push_str(&"\nQuality Scores (0.0 - 1.0):\n".to_string());
+        report.push_str("\nQuality Scores (0.0 - 1.0):\n");
         report.push_str(&format!(
             "  Overall Quality:     {:.4} - {}\n",
             self.overall_quality_score,
@@ -303,7 +303,7 @@ impl QualityAssessmentResult {
             self.interpret_balance()
         ));
 
-        report.push_str(&"\nRecommendations:\n".to_string());
+        report.push_str("\nRecommendations:\n");
         report.push_str(&self.generate_recommendations());
 
         report
@@ -520,7 +520,7 @@ impl QualityAssessment {
     /// Compute information density (entropy-based approximation)
     fn compute_information_density(
         X: ArrayView2<f64>,
-        y: ArrayView1<f64>,
+        _y: ArrayView1<f64>,
         feature_indices: &[usize],
     ) -> Result<f64> {
         if feature_indices.is_empty() {

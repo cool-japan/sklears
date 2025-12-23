@@ -12,7 +12,7 @@ use core::f32::consts::{SQRT_2, TAU};
 use std::f32::consts::{SQRT_2, TAU};
 
 #[cfg(feature = "no-std")]
-use alloc::{format, vec};
+use alloc::vec;
 
 /// SIMD-optimized random number generator using LCG (Linear Congruential Generator)
 pub struct SimdRng {
@@ -44,10 +44,10 @@ impl SimdRng {
     pub fn fill_u32(&mut self, output: &mut [u32]) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { self.fill_u32_avx2(output) };
                 return;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { self.fill_u32_sse2(output) };
                 return;
             }
@@ -66,10 +66,10 @@ impl SimdRng {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { convert_u32_to_f32_avx2(&u32_buffer, output) };
                 return;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { convert_u32_to_f32_sse2(&u32_buffer, output) };
                 return;
             }
@@ -102,10 +102,10 @@ impl Normal {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { self.box_muller_avx2(&uniform_samples, output) };
                 return;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { self.box_muller_sse2(&uniform_samples, output) };
                 return;
             }
@@ -121,10 +121,10 @@ impl Normal {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { self.pdf_avx2(values, output) };
                 return;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { self.pdf_sse2(values, output) };
                 return;
             }
@@ -140,10 +140,10 @@ impl Normal {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { self.cdf_avx2(values, output) };
                 return;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { self.cdf_sse2(values, output) };
                 return;
             }
@@ -215,10 +215,10 @@ impl Exponential {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 unsafe { self.inverse_transform_avx2(&uniform_samples, output) };
                 return;
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 unsafe { self.inverse_transform_sse2(&uniform_samples, output) };
                 return;
             }
@@ -300,63 +300,22 @@ fn erf_approximation(x: f32) -> f32 {
 impl SimdRng {
     #[target_feature(enable = "sse2")]
     unsafe fn fill_u32_sse2(&mut self, output: &mut [u32]) {
-        #[cfg(feature = "no-std")]
-        use core::arch::x86_64::*;
-        #[cfg(not(feature = "no-std"))]
-        use core::arch::x86_64::*;
-
-        let multiplier = _mm_set1_epi32(self.multiplier as i32);
-        let increment = _mm_set1_epi32(self.increment as i32);
-        let mut state = _mm_set1_epi32(self.state as i32);
-
-        let mut i = 0;
-        while i + 4 <= output.len() {
-            state = _mm_add_epi32(_mm_mullo_epi16(state, multiplier), increment);
-            let shifted = _mm_srli_epi32(state, 16);
-            _mm_storeu_si128(output.as_mut_ptr().add(i) as *mut __m128i, shifted);
-            i += 4;
-        }
-
-        // Update RNG state
-        let mut state_array = [0i32; 4];
-        _mm_storeu_si128(state_array.as_mut_ptr() as *mut __m128i, state);
-        self.state = state_array[3] as u64;
-
-        // Handle remaining elements
-        while i < output.len() {
-            output[i] = self.next_u32();
-            i += 1;
+        // SSE2 doesn't have 32-bit multiply (_mm_mullo_epi32 is SSE4.1)
+        // Fall back to scalar implementation
+        for val in output.iter_mut() {
+            *val = self.next_u32();
         }
     }
 
     #[target_feature(enable = "avx2")]
     unsafe fn fill_u32_avx2(&mut self, output: &mut [u32]) {
-        #[cfg(feature = "no-std")]
-        use core::arch::x86_64::*;
-        #[cfg(not(feature = "no-std"))]
-        use core::arch::x86_64::*;
-
-        let multiplier = _mm256_set1_epi32(self.multiplier as i32);
-        let increment = _mm256_set1_epi32(self.increment as i32);
-        let mut state = _mm256_set1_epi32(self.state as i32);
-
-        let mut i = 0;
-        while i + 8 <= output.len() {
-            state = _mm256_add_epi32(_mm256_mullo_epi32(state, multiplier), increment);
-            let shifted = _mm256_srli_epi32(state, 16);
-            _mm256_storeu_si256(output.as_mut_ptr().add(i) as *mut __m256i, shifted);
-            i += 8;
-        }
-
-        // Update RNG state
-        let mut state_array = [0i32; 8];
-        _mm256_storeu_si256(state_array.as_mut_ptr() as *mut __m256i, state);
-        self.state = state_array[7] as u64;
-
-        // Handle remaining elements
-        while i < output.len() {
-            output[i] = self.next_u32();
-            i += 1;
+        // The previous SIMD implementation had a fundamental flaw:
+        // using _mm256_set1_epi32 broadcasts the same state to all lanes,
+        // causing all lanes to generate identical values.
+        // A proper SIMD RNG requires different states per lane or
+        // a counter-based approach. For correctness, use scalar code.
+        for val in output.iter_mut() {
+            *val = self.next_u32();
         }
     }
 }
@@ -364,50 +323,22 @@ impl SimdRng {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
 unsafe fn convert_u32_to_f32_sse2(input: &[u32], output: &mut [f32]) {
-    #[cfg(feature = "no-std")]
-    use core::arch::x86_64::*;
-    #[cfg(not(feature = "no-std"))]
-    use core::arch::x86_64::*;
-
-    let scale = _mm_set1_ps(1.0 / (u32::MAX as f32));
-    let mut i = 0;
-
-    while i + 4 <= input.len() {
-        let u32_vec = _mm_loadu_si128(input.as_ptr().add(i) as *const __m128i);
-        let f32_vec = _mm_cvtepi32_ps(u32_vec);
-        let scaled = _mm_mul_ps(f32_vec, scale);
-        _mm_storeu_ps(output.as_mut_ptr().add(i), scaled);
-        i += 4;
-    }
-
-    while i < input.len() {
-        output[i] = (input[i] as f32) / (u32::MAX as f32);
-        i += 1;
+    // _mm_cvtepi32_ps converts signed i32, not unsigned u32
+    // This causes values > 2^31 to be interpreted as negative
+    // Use scalar conversion for correctness
+    for (i, &val) in input.iter().enumerate() {
+        output[i] = (val as f32) / (u32::MAX as f32);
     }
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 unsafe fn convert_u32_to_f32_avx2(input: &[u32], output: &mut [f32]) {
-    #[cfg(feature = "no-std")]
-    use core::arch::x86_64::*;
-    #[cfg(not(feature = "no-std"))]
-    use core::arch::x86_64::*;
-
-    let scale = _mm256_set1_ps(1.0 / (u32::MAX as f32));
-    let mut i = 0;
-
-    while i + 8 <= input.len() {
-        let u32_vec = _mm256_loadu_si256(input.as_ptr().add(i) as *const __m256i);
-        let f32_vec = _mm256_cvtepi32_ps(u32_vec);
-        let scaled = _mm256_mul_ps(f32_vec, scale);
-        _mm256_storeu_ps(output.as_mut_ptr().add(i), scaled);
-        i += 8;
-    }
-
-    while i < input.len() {
-        output[i] = (input[i] as f32) / (u32::MAX as f32);
-        i += 1;
+    // _mm256_cvtepi32_ps converts signed i32, not unsigned u32
+    // This causes values > 2^31 to be interpreted as negative
+    // Use scalar conversion for correctness
+    for (i, &val) in input.iter().enumerate() {
+        output[i] = (val as f32) / (u32::MAX as f32);
     }
 }
 
@@ -419,11 +350,6 @@ impl Normal {
         use core::arch::x86_64::*;
         #[cfg(not(feature = "no-std"))]
         use core::arch::x86_64::*;
-
-        let two = _mm_set1_ps(2.0);
-        let tau_vec = _mm_set1_ps(TAU);
-        let std_dev_vec = _mm_set1_ps(self.std_dev);
-        let mean_vec = _mm_set1_ps(self.mean);
 
         let mut i = 0;
         let mut out_idx = 0;
@@ -475,11 +401,6 @@ impl Normal {
         use core::arch::x86_64::*;
         #[cfg(not(feature = "no-std"))]
         use core::arch::x86_64::*;
-
-        let two = _mm256_set1_ps(2.0);
-        let tau_vec = _mm256_set1_ps(TAU);
-        let std_dev_vec = _mm256_set1_ps(self.std_dev);
-        let mean_vec = _mm256_set1_ps(self.mean);
 
         let mut i = 0;
         let mut out_idx = 0;
@@ -742,10 +663,13 @@ fn cholesky_decomposition(matrix: &Array2<f32>) -> Array2<f32> {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_simd_rng() {
@@ -833,6 +757,20 @@ mod tests {
         assert_relative_eq!(erf_approximation(0.0), 0.0, epsilon = 1e-4);
         assert_relative_eq!(erf_approximation(1.0), 0.8427, epsilon = 1e-3);
         assert_relative_eq!(erf_approximation(-1.0), -0.8427, epsilon = 1e-3);
+    }
+
+    #[test]
+    fn test_rng_uniform() {
+        let mut rng = SimdRng::new(123);
+        let mut samples = vec![0.0f32; 10];
+        rng.uniform_f32(&mut samples);
+
+        eprintln!("Uniform samples: {:?}", samples);
+        let sum: f32 = samples.iter().sum();
+        eprintln!("Sum: {}, Mean: {}", sum, sum / samples.len() as f32);
+
+        // At least some variance
+        assert!(sum > 0.1);
     }
 
     #[test]

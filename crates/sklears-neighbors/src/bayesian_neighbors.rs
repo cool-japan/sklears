@@ -51,6 +51,19 @@ pub struct BayesianPrediction {
     pub entropy: Float,
 }
 
+/// Credible set of neighbors with uncertainty quantification
+#[derive(Debug, Clone)]
+pub struct CredibleNeighborSet {
+    /// Indices of neighbors in the credible set
+    pub neighbor_indices: Vec<usize>,
+    /// Distances to credible neighbors
+    pub distances: Vec<Float>,
+    /// Probability each neighbor is in true k-NN set
+    pub inclusion_probabilities: Vec<Float>,
+    /// Confidence level used to construct set
+    pub confidence_level: Float,
+}
+
 /// Untrained state for type safety
 #[derive(Debug, Clone)]
 pub struct Untrained;
@@ -372,6 +385,95 @@ impl BayesianKNeighborsClassifier<Trained> {
             .map(|&p| p * p.ln())
             .sum::<Float>()
     }
+
+    /// Compute credible neighbor set for a query point
+    ///
+    /// Returns a set of neighbors with high posterior probability of being
+    /// among the true k-nearest neighbors, accounting for uncertainty.
+    pub fn credible_neighbor_set(
+        &self,
+        query: &ArrayView1<Float>,
+        confidence: Float,
+    ) -> NeighborsResult<CredibleNeighborSet> {
+        // Find more neighbors than k to build credible set
+        let candidate_k = (self.k * 3).min(self.state.x_train.nrows());
+
+        let mut distances_indices: Vec<(Float, usize)> = self
+            .state
+            .x_train
+            .rows()
+            .into_iter()
+            .enumerate()
+            .map(|(i, row)| (self.distance.calculate(query, &row), i))
+            .collect();
+
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+        // Take candidate neighbors
+        let candidates: Vec<(Float, usize)> =
+            distances_indices.into_iter().take(candidate_k).collect();
+
+        // Bootstrap to estimate probability each candidate is in true k-NN set
+        let mut neighbor_inclusion_counts = vec![0; candidates.len()];
+        let mut rng = thread_rng();
+
+        for _ in 0..self.bootstrap_samples {
+            // Add noise to distances to simulate uncertainty
+            let mut noisy_distances: Vec<(Float, usize)> = candidates
+                .iter()
+                .enumerate()
+                .map(|(i, &(dist, _idx))| {
+                    let noise = rng.gen_range(-0.1..0.1) * dist.abs();
+                    (dist + noise, i)
+                })
+                .collect();
+
+            noisy_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+            // Mark which candidates are in top k
+            for (_, candidate_idx) in noisy_distances.iter().take(self.k) {
+                neighbor_inclusion_counts[*candidate_idx] += 1;
+            }
+        }
+
+        // Compute inclusion probabilities
+        let inclusion_probabilities: Vec<Float> = neighbor_inclusion_counts
+            .iter()
+            .map(|&count| count as Float / self.bootstrap_samples as Float)
+            .collect();
+
+        // Determine threshold for credible set
+        // We want neighbors with inclusion probability > (1 - confidence)
+        let threshold = 1.0 - confidence;
+
+        let credible_neighbors: Vec<usize> = candidates
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| inclusion_probabilities[*i] > threshold)
+            .map(|(_, &(_, idx))| idx)
+            .collect();
+
+        let credible_distances: Vec<Float> = candidates
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| inclusion_probabilities[*i] > threshold)
+            .map(|(_, &(dist, _))| dist)
+            .collect();
+
+        let credible_probabilities: Vec<Float> = inclusion_probabilities
+            .into_iter()
+            .enumerate()
+            .filter(|(_i, p)| *p > threshold)
+            .map(|(_, p)| p)
+            .collect();
+
+        Ok(CredibleNeighborSet {
+            neighbor_indices: credible_neighbors,
+            distances: credible_distances,
+            inclusion_probabilities: credible_probabilities,
+            confidence_level: confidence,
+        })
+    }
 }
 
 impl Predict<Array2<Float>, Array1<i32>> for BayesianKNeighborsClassifier<Trained> {
@@ -685,5 +787,70 @@ mod tests {
         let y_wrong = Array1::from_vec(vec![0, 1, 2]);
         let classifier = BayesianKNeighborsClassifier::new(1);
         assert!(classifier.fit(&x, &y_wrong).is_err());
+    }
+
+    #[test]
+    fn test_credible_neighbor_set() {
+        let x = Array2::from_shape_vec(
+            (10, 2),
+            vec![
+                -1.0, -1.0, -0.9, -1.0, -1.0, -0.9, -0.8, -0.8, 1.0, 1.0, 0.9, 1.0, 1.0, 0.9, 0.8,
+                0.8, -0.5, -0.5, 0.5, 0.5,
+            ],
+        )
+        .unwrap();
+        let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1, 0, 1]);
+
+        let classifier = BayesianKNeighborsClassifier::new(3);
+        let fitted = classifier.fit(&x, &y).unwrap();
+
+        // Test query point close to class 0
+        let query = Array1::from_vec(vec![-0.95, -0.95]);
+        let credible_set = fitted.credible_neighbor_set(&query.view(), 0.95).unwrap();
+
+        // Check that we got a credible set
+        assert!(!credible_set.neighbor_indices.is_empty());
+        assert_eq!(
+            credible_set.neighbor_indices.len(),
+            credible_set.distances.len()
+        );
+        assert_eq!(
+            credible_set.neighbor_indices.len(),
+            credible_set.inclusion_probabilities.len()
+        );
+        assert_eq!(credible_set.confidence_level, 0.95);
+
+        // Check that probabilities are valid
+        for &prob in &credible_set.inclusion_probabilities {
+            assert!(prob >= 0.0 && prob <= 1.0);
+        }
+
+        // Check that distances are sorted
+        for i in 1..credible_set.distances.len() {
+            assert!(credible_set.distances[i - 1] <= credible_set.distances[i]);
+        }
+    }
+
+    #[test]
+    fn test_credible_neighbor_set_different_confidence() {
+        let x = Array2::from_shape_vec(
+            (8, 2),
+            vec![
+                1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0, 5.0, 5.0, 6.0, 5.0, 5.0, 6.0, 6.0, 6.0,
+            ],
+        )
+        .unwrap();
+        let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
+
+        let classifier = BayesianKNeighborsClassifier::new(3);
+        let fitted = classifier.fit(&x, &y).unwrap();
+
+        let query = Array1::from_vec(vec![1.5, 1.5]);
+
+        // Higher confidence should give larger credible set
+        let set_90 = fitted.credible_neighbor_set(&query.view(), 0.90).unwrap();
+        let set_99 = fitted.credible_neighbor_set(&query.view(), 0.99).unwrap();
+
+        assert!(set_99.neighbor_indices.len() >= set_90.neighbor_indices.len());
     }
 }

@@ -57,7 +57,7 @@ pub struct SensorImputationFramework {
     /// Sensor specifications and capabilities
     sensor_config: SensorConfig,
     /// Environmental factor modeling
-    environmental_config: EnvironmentalConfig,
+    _environmental_config: EnvironmentalConfig,
     /// Temporal analysis configuration
     temporal_config: TemporalConfig,
     /// Spatial analysis configuration
@@ -214,7 +214,7 @@ pub enum SensorType {
     Vibration,
     Flow,
     Level,
-    pH,
+    PH,
     Conductivity,
     GPS,
     Accelerometer,
@@ -750,7 +750,7 @@ impl SensorImputationFramework {
         Self {
             network_config: NetworkConfig::default(),
             sensor_config: SensorConfig::default(),
-            environmental_config: EnvironmentalConfig::default(),
+            _environmental_config: EnvironmentalConfig::default(),
             temporal_config: TemporalConfig::default(),
             spatial_config: SpatialConfig::default(),
             edge_config: EdgeConfig::default(),
@@ -800,7 +800,7 @@ impl SensorImputationFramework {
             SensorType::Humidity,
             SensorType::Pressure,
             SensorType::AirQuality,
-            SensorType::pH,
+            SensorType::PH,
             SensorType::Conductivity,
         ];
         self.temporal_config.analysis_window = Duration::from_secs(3600 * 24); // 24 hours
@@ -1136,7 +1136,7 @@ impl SensorImputationFramework {
         }
 
         // Perform fusion for each sensor type with multiple sensors
-        for (sensor_type, sensor_indices) in sensor_groups {
+        for (_sensor_type, sensor_indices) in sensor_groups {
             if sensor_indices.len() > 1 {
                 data = self.fuse_redundant_sensors(data, &sensor_indices)?;
             }
@@ -1233,7 +1233,7 @@ impl SensorImputationFramework {
 
     fn detect_spatial_clusters(
         &self,
-        data: &SensorDataset,
+        _data: &SensorDataset,
     ) -> Result<Vec<SpatialCluster>, ImputationError> {
         // Simplified spatial clustering detection
         Ok(Vec::new())
@@ -1241,7 +1241,7 @@ impl SensorImputationFramework {
 
     fn detect_temporal_patterns(
         &self,
-        data: &SensorDataset,
+        _data: &SensorDataset,
     ) -> Result<Vec<TemporalPattern>, ImputationError> {
         // Simplified temporal pattern detection
         Ok(Vec::new())
@@ -1324,7 +1324,7 @@ impl SensorImputationFramework {
             if time_series[i].is_nan() && !time_series[i - 1].is_nan() {
                 // Simple forward fill with small random walk
                 let mut rng = thread_rng();
-                time_series[i] = time_series[i - 1] + rng.gen_range(-0.1..0.1);
+                time_series[i] = time_series[i - 1] + rng.random_range(-0.1..0.1);
             }
         }
 
@@ -1332,7 +1332,7 @@ impl SensorImputationFramework {
         for i in (0..time_series.len() - 1).rev() {
             if time_series[i].is_nan() && !time_series[i + 1].is_nan() {
                 let mut rng = thread_rng();
-                time_series[i] = time_series[i + 1] + rng.gen_range(-0.1..0.1);
+                time_series[i] = time_series[i + 1] + rng.random_range(-0.1..0.1);
             }
         }
 
@@ -1432,7 +1432,7 @@ impl SensorImputationFramework {
 
     fn validate_sensor_properties(
         &self,
-        data: &SensorDataset,
+        _data: &SensorDataset,
     ) -> Result<SensorValidation, ImputationError> {
         let physical_plausibility = PhysicalValidation {
             range_violations: 0,
@@ -1469,7 +1469,7 @@ impl SensorImputationFramework {
 
     fn validate_spatial_properties(
         &self,
-        data: &SensorDataset,
+        _data: &SensorDataset,
     ) -> Result<SpatialValidation, ImputationError> {
         let kriging_scores = KrigingValidation {
             cross_validation_score: 0.84,
@@ -1487,7 +1487,7 @@ impl SensorImputationFramework {
 
     fn validate_temporal_properties(
         &self,
-        data: &SensorDataset,
+        _data: &SensorDataset,
     ) -> Result<TemporalValidation, ImputationError> {
         Ok(TemporalValidation {
             trend_preservation: 0.91,
@@ -1785,7 +1785,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let environmental_framework = SensorImputationFramework::new().for_environmental_monitoring();
     println!("  🌿 Environmental: Configured for ecological monitoring");
 
-    let autonomous_framework = SensorImputationFramework::new().for_autonomous_vehicles();
+    let _autonomous_framework = SensorImputationFramework::new().for_autonomous_vehicles();
     println!("  🚗 Autonomous Vehicles: Configured for sensor fusion");
 
     // Perform imputation with different frameworks
@@ -1868,13 +1868,11 @@ fn create_synthetic_sensor_data() -> Result<SensorDataset, Box<dyn std::error::E
         .collect();
 
     // Create sensor locations (distributed in a 10km x 10km area)
-    let locations = Array2::from_shape_fn((n_sensors, 3), |(i, j)| {
-        match j {
-            0 => rng.gen_range(0.0..10000.0), // latitude (meters)
-            1 => rng.gen_range(0.0..10000.0), // longitude (meters)
-            2 => rng.gen_range(0.0..100.0),   // elevation (meters)
-            _ => 0.0,
-        }
+    let locations = Array2::from_shape_fn((n_sensors, 3), |(_, j)| match j {
+        0 => rng.random_range(0.0..10000.0), // latitude (meters)
+        1 => rng.random_range(0.0..10000.0), // longitude (meters)
+        2 => rng.random_range(0.0..100.0),   // elevation (meters)
+        _ => 0.0,
     });
 
     // Create timestamps (hourly data)
@@ -1887,7 +1885,7 @@ fn create_synthetic_sensor_data() -> Result<SensorDataset, Box<dyn std::error::E
     let mut measurements = Array3::zeros((n_sensors, n_timesteps, n_features));
 
     for s in 0..n_sensors {
-        let sensor_type = &sensor_specs[s].sensor_type;
+        let _sensor_type = &sensor_specs[s].sensor_type;
 
         for t in 0..n_timesteps {
             // Time-based patterns
@@ -1898,19 +1896,19 @@ fn create_synthetic_sensor_data() -> Result<SensorDataset, Box<dyn std::error::E
             let temp_base = 20.0;
             let daily_variation = 10.0 * (2.0 * std::f64::consts::PI * hour / 24.0).sin();
             let seasonal_variation = 5.0 * (2.0 * std::f64::consts::PI * day / 365.0).sin();
-            let noise = rng.gen_range(-2.0..2.0);
+            let noise = rng.random_range(-2.0..2.0);
             measurements[[s, t, 0]] = temp_base + daily_variation + seasonal_variation + noise;
 
             // Feature 1: Humidity-like (inverse correlation with temperature)
             let humidity_base = 60.0;
             let humidity_variation = -daily_variation * 0.8;
-            let humidity_noise = rng.gen_range(-5.0..5.0);
+            let humidity_noise = rng.random_range(-5.0..5.0);
             measurements[[s, t, 1]] =
                 (humidity_base + humidity_variation + humidity_noise).clamp(0.0, 100.0);
 
             // Feature 2: Pressure-like (more stable)
             let pressure_base = 1013.25;
-            let pressure_variation = rng.gen_range(-5.0..5.0);
+            let pressure_variation = rng.random_range(-5.0..5.0);
             measurements[[s, t, 2]] = pressure_base + pressure_variation;
         }
     }
@@ -1919,21 +1917,19 @@ fn create_synthetic_sensor_data() -> Result<SensorDataset, Box<dyn std::error::E
     introduce_sensor_missing_patterns(&mut measurements)?;
 
     // Create environmental data
-    let environmental_data = Array2::from_shape_fn((n_timesteps, 5), |(t, f)| {
-        match f {
-            0 => 20.0 + 5.0 * ((t as f64 * 2.0 * std::f64::consts::PI) / 24.0).sin(), // Temperature
-            1 => 60.0 + 20.0 * rng.gen_range(-1.0..1.0),                              // Humidity
-            2 => 1013.0 + rng.gen_range(-10.0..10.0),                                 // Pressure
-            3 => rng.gen_range(0.0..10.0),                                            // Wind speed
-            4 => {
-                if t % 24 > 6 && t % 24 < 18 {
-                    500.0
-                } else {
-                    0.0
-                }
-            } // Solar radiation
-            _ => 0.0,
-        }
+    let environmental_data = Array2::from_shape_fn((n_timesteps, 5), |(t, f)| match f {
+        0 => 20.0 + 5.0 * ((t as f64 * 2.0 * std::f64::consts::PI) / 24.0).sin(), // Temperature
+        1 => 60.0 + 20.0 * rng.random_range(-1.0..1.0),                           // Humidity
+        2 => 1013.0 + rng.random_range(-10.0..10.0),                              // Pressure
+        3 => rng.random_range(0.0..10.0),                                         // Wind speed
+        4 => {
+            if t % 24 > 6 && t % 24 < 18 {
+                500.0
+            } else {
+                0.0
+            }
+        } // Solar radiation
+        _ => 0.0,
     });
 
     // Create connectivity matrix (based on distance)
@@ -1951,7 +1947,7 @@ fn create_synthetic_sensor_data() -> Result<SensorDataset, Box<dyn std::error::E
 
     // Create quality flags (mostly good quality)
     let quality_flags = Array3::from_shape_fn((n_sensors, n_timesteps, n_features), |_| {
-        rng.gen_range(0.0..1.0) > 0.05 // 95% good quality
+        rng.random_range(0.0..1.0) > 0.05 // 95% good quality
     });
 
     Ok(SensorDataset {
@@ -1974,9 +1970,9 @@ fn introduce_sensor_missing_patterns(
 
     // Maintenance windows (scheduled downtime)
     for _ in 0..5 {
-        let sensor = rng.gen_range(0..n_sensors);
-        let start_time = rng.gen_range(0..n_timesteps - 10);
-        let duration = rng.gen_range(2..8);
+        let sensor = rng.random_range(0..n_sensors);
+        let start_time = rng.random_range(0..n_timesteps - 10);
+        let duration = rng.random_range(2..8);
 
         for t in start_time..std::cmp::min(start_time + duration, n_timesteps) {
             for f in 0..n_features {
@@ -1987,12 +1983,12 @@ fn introduce_sensor_missing_patterns(
 
     // Communication failures (clustered missing data)
     for _ in 0..3 {
-        let start_time = rng.gen_range(0..n_timesteps - 5);
-        let duration = rng.gen_range(1..4);
-        let affected_sensors = rng.gen_range(3..8);
+        let start_time = rng.random_range(0..n_timesteps - 5);
+        let duration = rng.random_range(1..4);
+        let affected_sensors = rng.random_range(3..8);
 
         for _ in 0..affected_sensors {
-            let sensor = rng.gen_range(0..n_sensors);
+            let sensor = rng.random_range(0..n_sensors);
             for t in start_time..std::cmp::min(start_time + duration, n_timesteps) {
                 for f in 0..n_features {
                     measurements[[sensor, t, f]] = f64::NAN;
@@ -2005,7 +2001,7 @@ fn introduce_sensor_missing_patterns(
     for s in 0..n_sensors {
         for t in 0..n_timesteps {
             for f in 0..n_features {
-                if rng.gen_range(0.0..1.0) < 0.01 {
+                if rng.random_range(0.0..1.0) < 0.01 {
                     measurements[[s, t, f]] = f64::NAN;
                 }
             }

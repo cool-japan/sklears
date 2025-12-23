@@ -83,7 +83,7 @@ pub fn create_missing_pattern_plot(
     missing_values: f64,
     feature_names: Option<Vec<String>>,
 ) -> SklResult<MissingPatternPlot> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     // Generate feature names if not provided
@@ -150,7 +150,7 @@ pub fn create_missing_correlation_heatmap(
     feature_names: Option<Vec<String>>,
     compute_p_values: bool,
 ) -> SklResult<MissingCorrelationHeatmap> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     // Generate feature names if not provided
@@ -238,7 +238,7 @@ pub fn create_completeness_matrix(
     missing_values: f64,
     feature_names: Option<Vec<String>>,
 ) -> SklResult<CompletenessMatrix> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     // Generate feature names if not provided
@@ -306,7 +306,7 @@ pub fn create_missing_distribution_plot(
     missing_values: f64,
     feature_names: Option<Vec<String>>,
 ) -> SklResult<MissingDistributionPlot> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     // Generate feature names if not provided
@@ -431,7 +431,7 @@ pub fn generate_missing_summary_stats(
     X: &ArrayView2<'_, Float>,
     missing_values: f64,
 ) -> SklResult<String> {
-    let X = X.mapv(|x| x as f64);
+    let X = X.mapv(|x| x);
     let (n_samples, n_features) = X.dim();
 
     let mut total_missing = 0;
@@ -554,7 +554,7 @@ fn compute_correlation(x: &Array1<f64>, y: &Array1<f64>) -> f64 {
     }
 }
 
-fn compute_correlation_p_value(x: &Array1<f64>, y: &Array1<f64>, correlation: f64) -> f64 {
+fn compute_correlation_p_value(x: &Array1<f64>, _y: &Array1<f64>, correlation: f64) -> f64 {
     let n = x.len() as f64;
     if n <= 2.0 {
         return 1.0;
@@ -571,7 +571,7 @@ fn compute_correlation_p_value(x: &Array1<f64>, y: &Array1<f64>, correlation: f6
 
     // Simplified p-value approximation (two-tailed test)
     // For a more accurate calculation, you would use the t-distribution CDF
-    let df = n - 2.0;
+    let _df = n - 2.0;
 
     // Very crude approximation - in practice, you'd want to use a proper statistical library
     if t_stat.abs() > 2.0 {

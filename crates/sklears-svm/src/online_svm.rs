@@ -303,6 +303,7 @@ impl<K: Kernel> OnlineSvm<K> {
                 continue;
             }
 
+            #[allow(clippy::needless_range_loop)]
             for j in (i + 1)..n_sv {
                 if !keep_mask[j] {
                     continue;

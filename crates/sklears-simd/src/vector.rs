@@ -52,7 +52,7 @@ pub mod math_functions;
 pub mod statistics_ops;
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 pub mod integration_test;
 
 // Re-export all public functions for unified API
@@ -127,7 +127,7 @@ impl Default for SimdConfig {
     }
 }
 
-/// Global SIMD configuration (thread-local for thread safety)
+// Global SIMD configuration (thread-local for thread safety)
 #[cfg(not(feature = "no-std"))]
 thread_local! {
     static SIMD_CONFIG: std::cell::RefCell<SimdConfig> = std::cell::RefCell::new(SimdConfig::default());
@@ -158,7 +158,7 @@ pub fn get_simd_config() -> SimdConfig {
     }
     #[cfg(feature = "no-std")]
     {
-        unsafe { SIMD_CONFIG.clone().unwrap_or_default() }
+        unsafe { core::ptr::addr_of!(SIMD_CONFIG).read().unwrap_or_default() }
     }
 }
 
@@ -186,7 +186,7 @@ pub fn detect_platform_info() -> PlatformInfo {
 }
 
 /// Optimized memory allocation for SIMD vectors
-pub fn allocate_aligned_vec(size: usize, alignment: usize) -> Vec<f32> {
+pub fn allocate_aligned_vec(size: usize, _alignment: usize) -> Vec<f32> {
     // Note: In a full implementation, would use aligned allocation
     // For now, return standard Vec which has reasonable alignment for most platforms
     vec![0.0; size]
@@ -523,9 +523,12 @@ pub mod constants {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_simd_config() {
@@ -610,9 +613,12 @@ mod tests {
 // Integration tests that verify the full SIMD operations work correctly
 // These will be completed when all modules are implemented
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod integration_tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_basic_workflow() {

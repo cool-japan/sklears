@@ -53,7 +53,7 @@ impl SparseMatrix {
     }
 
     /// Get a row as sparse representation
-    pub fn row(&self, row: usize) -> SparseRow {
+    pub fn row(&self, row: usize) -> SparseRow<'_> {
         let start = self.indptr[row];
         let end = self.indptr[row + 1];
         SparseRow {

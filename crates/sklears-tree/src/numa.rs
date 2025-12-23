@@ -290,6 +290,8 @@ impl NumaAllocator {
 
         // For now, use standard allocation
         // In a real implementation, this would use numa_alloc_onnode or similar
+        // SAFETY: We call alloc with a valid layout that we just created.
+        // The layout has correct size and alignment constraints.
         let ptr = unsafe { alloc(layout) };
 
         if ptr.is_null() {
@@ -323,6 +325,9 @@ impl NumaAllocator {
             })?
         };
 
+        // SAFETY: We verified that ptr was allocated by this allocator,
+        // and we have the correct layout from our tracking map.
+        // The caller has ensured that this pointer is still valid.
         unsafe {
             dealloc(ptr, layout);
         }

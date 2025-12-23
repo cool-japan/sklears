@@ -740,18 +740,13 @@ pub struct MemoryFootprint {
     pub cache_locality_score: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum OptimizationLevel {
     None,
+    #[default]
     Basic,
     Advanced,
     Maximum,
-}
-
-impl Default for OptimizationLevel {
-    fn default() -> Self {
-        Self::Basic
-    }
 }
 
 // Core utility types for integration

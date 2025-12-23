@@ -4,12 +4,12 @@
 //! All implementations follow the SciRS2 policy using scirs2-core for numerical computations.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 use super::automl_core::{AutoMLMethod, DataCharacteristics, TargetType};
 use sklears_core::error::Result as SklResult;
 use std::collections::HashMap;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 type Result<T> = SklResult<T>;
 
@@ -73,8 +73,8 @@ pub enum BenchmarkMetric {
     Recall,
     /// F1Score
     F1Score,
-    /// ROC_AUC
-    ROC_AUC,
+    /// RocAuc
+    RocAuc,
     /// MSE
     MSE,
     /// MAE
@@ -127,6 +127,7 @@ pub struct DetailedBenchmarkResults {
     pub method_comparison: MethodComparison,
     pub optimization_details: OptimizationDetails,
     pub error_analysis: ErrorAnalysis,
+    pub evaluation_time: Duration,
 }
 
 /// Comparison between methods on the same dataset
@@ -249,6 +250,7 @@ impl AutoMLBenchmark {
             let method_comparison = self.compare_with_baseline(method, &scores);
             let optimization_details = self.simulate_optimization_details(method, dataset);
             let error_analysis = self.analyze_errors(method, dataset, &scores);
+            let evaluation_time = start_time.elapsed();
 
             let detailed_result = DetailedBenchmarkResults {
                 method: method.clone(),
@@ -257,6 +259,7 @@ impl AutoMLBenchmark {
                 method_comparison,
                 optimization_details,
                 error_analysis,
+                evaluation_time,
             };
 
             results.push(detailed_result);
@@ -294,8 +297,7 @@ impl AutoMLBenchmark {
         };
 
         let accuracy = (base_accuracy + difficulty_modifier + rng.gen_range(-0.05..0.05))
-            .max(0.0_f64)
-            .min(1.0_f64);
+            .clamp(0.0_f64, 1.0_f64);
         scores.insert(BenchmarkMetric::Accuracy, accuracy);
         scores.insert(BenchmarkMetric::F1Score, accuracy * 0.95); // F1 typically slightly lower
 
@@ -341,15 +343,35 @@ impl AutoMLBenchmark {
     ) -> MethodComparison {
         let mut rng = thread_rng();
 
-        let baseline_accuracy = 0.7; // Assume baseline method accuracy
+        let baseline_accuracy = match method {
+            AutoMLMethod::UnivariateFiltering => 0.68,
+            AutoMLMethod::CorrelationBased => 0.7,
+            AutoMLMethod::TreeBased => 0.75,
+            AutoMLMethod::LassoBased => 0.73,
+            AutoMLMethod::WrapperBased => 0.78,
+            AutoMLMethod::EnsembleBased => 0.8,
+            AutoMLMethod::Hybrid => 0.72,
+            AutoMLMethod::NeuralArchitectureSearch => 0.82,
+            AutoMLMethod::TransferLearning => 0.81,
+            AutoMLMethod::MetaLearningEnsemble => 0.79,
+        };
+
         let accuracy = scores.get(&BenchmarkMetric::Accuracy).unwrap_or(&0.0);
-        let relative_performance = accuracy / baseline_accuracy;
+        let relative_performance = if baseline_accuracy > 0.0 {
+            accuracy / baseline_accuracy
+        } else {
+            1.0
+        };
+
+        let diff = (accuracy - baseline_accuracy).abs();
+        let statistical_significance =
+            (diff / (baseline_accuracy.max(*accuracy) + f64::EPSILON)).min(1.0);
 
         MethodComparison {
             relative_performance,
-            rank: rng.gen_range(1..=6), // Random rank for demo
+            rank: rng.gen_range(1..6 + 1), // Random rank for demo
             confidence_interval: (accuracy - 0.05, accuracy + 0.05),
-            statistical_significance: rng.gen_range(0.0..1.0),
+            statistical_significance,
         }
     }
 
@@ -360,11 +382,32 @@ impl AutoMLBenchmark {
     ) -> OptimizationDetails {
         let mut rng = thread_rng();
 
-        let iterations = match method {
-            AutoMLMethod::WrapperBased => rng.gen_range(50..200),
-            AutoMLMethod::EnsembleBased => rng.gen_range(30..100),
-            _ => rng.gen_range(10..50),
+        let ratio = dataset.characteristics.feature_to_sample_ratio.max(0.05);
+        let base_iterations = (ratio * 120.0).clamp(10.0, 300.0) as usize;
+
+        let difficulty_multiplier = match dataset.difficulty_level {
+            DifficultyLevel::Easy => 1.0,
+            DifficultyLevel::Medium => 1.2,
+            DifficultyLevel::Hard => 1.5,
+            DifficultyLevel::Extreme => 1.8,
         };
+
+        let half_base = std::cmp::max(base_iterations / 2, 1);
+        let third_base = std::cmp::max(base_iterations / 3, 1);
+
+        let iterations = match method {
+            AutoMLMethod::WrapperBased => rng.gen_range(base_iterations..base_iterations + 150 + 1),
+            AutoMLMethod::EnsembleBased => rng.gen_range(half_base..base_iterations + 60 + 1),
+            AutoMLMethod::NeuralArchitectureSearch => {
+                rng.gen_range(base_iterations + 100..base_iterations + 250 + 1)
+            }
+            AutoMLMethod::MetaLearningEnsemble => {
+                rng.gen_range(half_base..base_iterations + 120 + 1)
+            }
+            _ => rng.gen_range(third_base..base_iterations + 40 + 1),
+        };
+        let iterations = ((iterations as f64) * difficulty_multiplier) as usize;
+        let iterations = iterations.max(5);
 
         let mut score_history = Vec::new();
         for i in 0..iterations {
@@ -388,13 +431,57 @@ impl AutoMLBenchmark {
     ) -> ErrorAnalysis {
         let mut rng = thread_rng();
 
+        let difficulty_penalty = match dataset.difficulty_level {
+            DifficultyLevel::Easy => 0.0,
+            DifficultyLevel::Medium => 0.02,
+            DifficultyLevel::Hard => 0.05,
+            DifficultyLevel::Extreme => 0.08,
+        };
+
+        let ratio = dataset.characteristics.feature_to_sample_ratio.max(0.01);
+
+        let bias_base = match method {
+            AutoMLMethod::UnivariateFiltering => 0.04,
+            AutoMLMethod::CorrelationBased => 0.035,
+            AutoMLMethod::TreeBased => 0.025,
+            AutoMLMethod::LassoBased => 0.03,
+            AutoMLMethod::WrapperBased => 0.02,
+            AutoMLMethod::EnsembleBased => 0.022,
+            AutoMLMethod::Hybrid => 0.028,
+            AutoMLMethod::NeuralArchitectureSearch => 0.015,
+            AutoMLMethod::TransferLearning => 0.02,
+            AutoMLMethod::MetaLearningEnsemble => 0.018,
+        };
+
+        let variance_base = match method {
+            AutoMLMethod::TreeBased | AutoMLMethod::EnsembleBased => 0.018,
+            AutoMLMethod::NeuralArchitectureSearch => 0.02,
+            AutoMLMethod::WrapperBased => 0.016,
+            _ => 0.028,
+        };
+
+        let bias =
+            (bias_base + difficulty_penalty + ratio * 0.01 + rng.gen_range(0.0..0.02)).min(0.2);
+        let variance =
+            (variance_base + difficulty_penalty / 2.0 + rng.gen_range(0.0..0.015)).min(0.12);
+
+        let accuracy = scores
+            .get(&BenchmarkMetric::Accuracy)
+            .copied()
+            .unwrap_or(0.75);
+        let stability = scores
+            .get(&BenchmarkMetric::FeatureStability)
+            .copied()
+            .unwrap_or(0.7);
+        let overfitting_score =
+            ((accuracy - stability).abs() + difficulty_penalty * 1.5 + rng.gen_range(0.0..0.05))
+                .min(1.0);
+
         ErrorAnalysis {
-            bias: rng.gen_range(0.0..0.1),
-            variance: rng.gen_range(0.0..0.05),
-            overfitting_score: rng.gen_range(0.0..0.3),
-            feature_importance_stability: *scores
-                .get(&BenchmarkMetric::FeatureStability)
-                .unwrap_or(&0.8),
+            bias,
+            variance,
+            overfitting_score,
+            feature_importance_stability: stability,
         }
     }
 
@@ -541,17 +628,50 @@ impl AutoMLBenchmark {
     ) -> HashMap<(AutoMLMethod, AutoMLMethod), f64> {
         let mut significance = HashMap::new();
 
-        // Simplified - compute pairwise significance between all methods
-        for i in 0..self.methods.len() {
-            for j in (i + 1)..self.methods.len() {
-                let method1 = &self.methods[i];
-                let method2 = &self.methods[j];
+        for method1 in &self.methods {
+            for method2 in &self.methods {
+                if method1 == method2 {
+                    significance.insert((method1.clone(), method2.clone()), 1.0);
+                    continue;
+                }
 
-                let mut rng = thread_rng();
-                let p_value = rng.gen_range(0.001..0.1); // Simulated p-value
+                let method1_scores: Vec<f64> = results
+                    .iter()
+                    .filter(|r| r.method == *method1)
+                    .map(|r| *r.scores.get(&BenchmarkMetric::Accuracy).unwrap_or(&0.0))
+                    .collect();
 
-                significance.insert((method1.clone(), method2.clone()), p_value);
-                significance.insert((method2.clone(), method1.clone()), p_value);
+                let method2_scores: Vec<f64> = results
+                    .iter()
+                    .filter(|r| r.method == *method2)
+                    .map(|r| *r.scores.get(&BenchmarkMetric::Accuracy).unwrap_or(&0.0))
+                    .collect();
+
+                if method1_scores.is_empty() || method2_scores.is_empty() {
+                    significance.insert((method1.clone(), method2.clone()), 1.0);
+                    continue;
+                }
+
+                let mean1 = method1_scores.iter().sum::<f64>() / method1_scores.len() as f64;
+                let mean2 = method2_scores.iter().sum::<f64>() / method2_scores.len() as f64;
+
+                let var1 = method1_scores
+                    .iter()
+                    .map(|s| (s - mean1).powi(2))
+                    .sum::<f64>()
+                    / method1_scores.len() as f64;
+                let var2 = method2_scores
+                    .iter()
+                    .map(|s| (s - mean2).powi(2))
+                    .sum::<f64>()
+                    / method2_scores.len() as f64;
+
+                let pooled_std = (var1 + var2 + f64::EPSILON).sqrt();
+                let diff = (mean1 - mean2).abs();
+                let effect_size = diff / (pooled_std + f64::EPSILON);
+
+                let pseudo_p_value = (1.0 - effect_size / (effect_size + 1.0)).clamp(0.0, 1.0);
+                significance.insert((method1.clone(), method2.clone()), pseudo_p_value);
             }
         }
 

@@ -127,7 +127,7 @@ impl Fit<Array3<Float>, ()> for SparseTensorDecomposition<Untrained> {
             let mut factor = Array2::zeros((shape[mode], self.n_factors));
             for i in 0..shape[mode] {
                 for j in 0..self.n_factors {
-                    factor[[i, j]] = thread_rng().gen::<Float>() * 0.01;
+                    factor[[i, j]] = thread_rng().random::<Float>() * 0.01;
                 }
             }
             factor_matrices.push(factor);

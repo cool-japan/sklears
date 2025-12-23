@@ -1,6 +1,6 @@
 [package]
 name = "sklears-ensemble"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -16,7 +16,6 @@ categories = ["science", "mathematics", "algorithms"]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
@@ -33,7 +32,7 @@ serde = { workspace = true, optional = true }
 # ❌ rand - use scirs2_core::random instead
 # ❌ rand_distr - use scirs2_core::random instead
 # ❌ rand_chacha - use scirs2_core::random instead
-half = "2.3"
+half = "2.4"
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -46,4 +45,6 @@ default = ["std"]
 std = ["sklears-core/std"]
 parallel = ["rayon"]
 serde = ["dep:serde", "sklears-core/serde"]
+# SIMD support via scirs2-core::simd_ops (SciRS2 Policy compliant)
 simd = []
+nightly = []

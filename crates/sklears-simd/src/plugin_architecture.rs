@@ -23,8 +23,6 @@ use alloc::sync::Arc;
 #[cfg(feature = "no-std")]
 use alloc::vec::Vec;
 #[cfg(feature = "no-std")]
-use core::cmp::Ordering;
-#[cfg(feature = "no-std")]
 use core::fmt;
 #[cfg(feature = "no-std")]
 use spin::{Mutex, RwLock};
@@ -209,34 +207,34 @@ impl PluginRegistry {
 
     /// Helper function to handle RwLock read locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn read_plugins(&self) -> std::sync::RwLockReadGuard<HashMap<String, Arc<Plugin>>> {
+    fn read_plugins(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<Plugin>>> {
         self.plugins.read().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn read_plugins(&self) -> spin::RwLockReadGuard<HashMap<String, Arc<Plugin>>> {
+    fn read_plugins(&self) -> spin::RwLockReadGuard<'_, HashMap<String, Arc<Plugin>>> {
         self.plugins.read()
     }
 
     /// Helper function to handle RwLock write locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn write_plugins(&self) -> std::sync::RwLockWriteGuard<HashMap<String, Arc<Plugin>>> {
+    fn write_plugins(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<Plugin>>> {
         self.plugins.write().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn write_plugins(&self) -> spin::RwLockWriteGuard<HashMap<String, Arc<Plugin>>> {
+    fn write_plugins(&self) -> spin::RwLockWriteGuard<'_, HashMap<String, Arc<Plugin>>> {
         self.plugins.write()
     }
 
     /// Helper function to handle Mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn lock_stats(&self) -> std::sync::MutexGuard<HashMap<String, ExecutionStats>> {
+    fn lock_stats(&self) -> std::sync::MutexGuard<'_, HashMap<String, ExecutionStats>> {
         self.execution_stats.lock().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_stats(&self) -> spin::MutexGuard<HashMap<String, ExecutionStats>> {
+    fn lock_stats(&self) -> spin::MutexGuard<'_, HashMap<String, ExecutionStats>> {
         self.execution_stats.lock()
     }
 
@@ -566,7 +564,7 @@ pub mod examples {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::examples::*;
     use super::*;

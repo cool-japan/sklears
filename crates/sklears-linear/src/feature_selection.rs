@@ -718,10 +718,7 @@ impl FeatureSelector {
 
         for (&feature_val, &target_val) in feature_values.iter().zip(target.iter()) {
             let class = target_val.round() as i32;
-            class_groups
-                .entry(class)
-                .or_insert_with(Vec::new)
-                .push(feature_val);
+            class_groups.entry(class).or_default().push(feature_val);
         }
 
         if class_groups.len() < 2 {
@@ -735,7 +732,7 @@ impl FeatureSelector {
         let mut within_ss = 0.0;
         let mut total_count = 0;
 
-        for (_, group_values) in &class_groups {
+        for group_values in class_groups.values() {
             let group_mean = group_values.iter().sum::<f64>() / group_values.len() as f64;
             let group_size = group_values.len() as f64;
 

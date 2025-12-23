@@ -30,7 +30,7 @@ use crate::activation::Activation;
 use crate::utils::{initialize_weights, WeightInit};
 use crate::{NeuralResult, SklearsError};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng, StandardNormal};
+use scirs2_core::random::{thread_rng, StandardNormal};
 use sklears_core::{
     traits::{Estimator, Fit, Trained, Transform, Untrained},
     types::Float,

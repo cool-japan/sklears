@@ -177,7 +177,8 @@ where
                 }
                 OcclusionStrategy::Noise => {
                     let noise_std = feature_means[feature_idx] * 0.1; // 10% of mean as noise
-                    X_occluded[[sample_idx, feature_idx]] = rng.gen_range(-noise_std..=noise_std);
+                    X_occluded[[sample_idx, feature_idx]] =
+                        rng.gen_range(-noise_std..noise_std + 1.0);
                 }
                 OcclusionStrategy::Baseline => {
                     if let Some(ref baseline) = config.baseline {

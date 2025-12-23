@@ -5,13 +5,14 @@
 //!
 //! Run with: cargo run --example performance_comparison_linear
 
-use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
 use sklears::prelude::*;
 use sklears_linear::LinearRegression;
 use std::time::Instant;
 
+#[allow(non_snake_case)]
 fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
     let mut rng = StdRng::seed_from_u64(42);
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -40,6 +41,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
     (X, y)
 }
 
+#[allow(non_snake_case)]
 fn benchmark_sklears_linear_regression(X: &Array2<f64>, y: &Array1<f64>) -> (f64, f64) {
     println!("Benchmarking sklears LinearRegression...");
 
@@ -112,6 +114,7 @@ fn print_performance_summary(
     println!("  - Memory usage is typically 2-5x lower than scikit-learn");
 }
 
+#[allow(non_snake_case)]
 fn main() {
     println!("sklears vs scikit-learn Performance Comparison: Linear Regression");
     println!("================================================================");

@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use rayon::prelude::*;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
@@ -627,7 +627,7 @@ impl NaiveBayesModelSelector {
             };
 
             for i in (1..indices.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 indices.swap(i, j);
             }
         }
@@ -677,7 +677,7 @@ impl NaiveBayesModelSelector {
 
             for indices in class_indices.values_mut() {
                 for i in (1..indices.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     indices.swap(i, j);
                 }
             }

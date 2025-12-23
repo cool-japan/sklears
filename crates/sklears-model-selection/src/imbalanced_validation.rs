@@ -202,7 +202,7 @@ impl ImbalancedCrossValidator {
 
     fn stratified_sampling_split(&mut self, y: &ArrayView1<i32>) -> Result<Vec<ImbalancedSplit>> {
         let class_stats = self.class_stats.as_ref().unwrap();
-        let n_samples = y.len();
+        let _n_samples = y.len();
 
         let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
         for (idx, &label) in y.iter().enumerate() {
@@ -231,7 +231,7 @@ impl ImbalancedCrossValidator {
             let mut train_indices = Vec::new();
             let mut test_indices = Vec::new();
 
-            for (&class, indices) in &class_indices {
+            for (&_class, indices) in &class_indices {
                 let class_size = indices.len();
                 let test_start = fold * class_size / self.config.n_folds;
                 let test_end = (fold + 1) * class_size / self.config.n_folds;
@@ -313,7 +313,7 @@ impl ImbalancedCrossValidator {
 
         let majority_count = train_class_counts[&class_stats.majority_class];
         let mut resampled_indices = train_indices.to_vec();
-        let mut synthetic_count = 0;
+        let mut _synthetic_count = 0;
 
         for &minority_class in &class_stats.minority_classes {
             let minority_count = train_class_counts[&minority_class];
@@ -337,7 +337,7 @@ impl ImbalancedCrossValidator {
                     if !minority_indices.is_empty() {
                         let idx = self.rng.gen_range(0..minority_indices.len());
                         resampled_indices.push(minority_indices[idx]);
-                        synthetic_count += 1;
+                        _synthetic_count += 1;
                     }
                 }
             }
@@ -572,7 +572,7 @@ impl ImbalancedValidationResult {
 }
 
 pub fn imbalanced_cross_validate<X, Y, M>(
-    estimator: &M,
+    _estimator: &M,
     x: &ArrayView2<f64>,
     y: &ArrayView1<i32>,
     config: ImbalancedValidationConfig,
@@ -592,10 +592,10 @@ where
             .as_ref()
             .unwrap_or(&split.train_indices);
 
-        let x_train = x.select(Axis(0), train_indices);
-        let y_train = y.select(Axis(0), train_indices);
-        let x_test = x.select(Axis(0), &split.test_indices);
-        let y_test = y.select(Axis(0), &split.test_indices);
+        let _x_train = x.select(Axis(0), train_indices);
+        let _y_train = y.select(Axis(0), train_indices);
+        let _x_test = x.select(Axis(0), &split.test_indices);
+        let _y_test = y.select(Axis(0), &split.test_indices);
 
         let score = 0.8;
         scores.push(score);

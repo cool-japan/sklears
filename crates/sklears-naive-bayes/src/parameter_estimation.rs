@@ -315,9 +315,9 @@ impl CrossValidationSelector {
                     continue;
                 }
 
-                // This is a placeholder for actual cross-validation scoring
-                // In practice, you would train a model with this alpha and evaluate it
-                let score = alpha; // Placeholder - replace with actual scoring
+                // Train a Multinomial NB model with this alpha and evaluate it
+                let score =
+                    self.evaluate_fold(data, labels, &train_indices, &test_indices, alpha)?;
                 scores.push(score);
             }
 
@@ -332,6 +332,114 @@ impl CrossValidationSelector {
         }
 
         Ok(best_alpha)
+    }
+
+    /// Evaluate a single fold by training and testing a Multinomial NB model
+    fn evaluate_fold<F: Float + std::fmt::Debug + Copy>(
+        &self,
+        data: &Array2<F>,
+        labels: &Array1<i32>,
+        train_indices: &[usize],
+        test_indices: &[usize],
+        alpha: F,
+    ) -> Result<F, String> {
+        // Extract training data
+        let mut train_data = Vec::new();
+        let mut train_labels = Vec::new();
+        for &idx in train_indices {
+            train_data.push(data.row(idx).to_owned());
+            train_labels.push(labels[idx]);
+        }
+
+        // Get unique classes from training labels
+        let mut unique_classes: Vec<i32> = train_labels.clone();
+        unique_classes.sort_unstable();
+        unique_classes.dedup();
+
+        if unique_classes.is_empty() {
+            return Err("No classes found in training data".to_string());
+        }
+
+        // Compute class priors
+        let mut class_counts: std::collections::HashMap<i32, usize> =
+            std::collections::HashMap::new();
+        for &label in &train_labels {
+            *class_counts.entry(label).or_insert(0) += 1;
+        }
+
+        let total_samples = train_labels.len() as f64;
+        let mut class_priors: std::collections::HashMap<i32, F> = std::collections::HashMap::new();
+        for (&class, &count) in &class_counts {
+            class_priors.insert(class, F::from(count as f64 / total_samples).unwrap());
+        }
+
+        // Compute feature log probabilities for each class with smoothing
+        let n_features = data.ncols();
+        let mut class_feature_log_probs: std::collections::HashMap<i32, Vec<F>> =
+            std::collections::HashMap::new();
+
+        for &class in &unique_classes {
+            let mut feature_counts = vec![F::zero(); n_features];
+            let mut total_count = F::zero();
+
+            // Sum features for this class
+            for (i, &label) in train_labels.iter().enumerate() {
+                if label == class {
+                    for (j, count) in feature_counts.iter_mut().enumerate().take(n_features) {
+                        *count = *count + train_data[i][j];
+                        total_count = total_count + train_data[i][j];
+                    }
+                }
+            }
+
+            // Apply Laplace smoothing and compute log probabilities
+            let vocab_size = F::from(n_features).unwrap();
+            let smoothed_total = total_count + alpha * vocab_size;
+
+            let log_probs: Vec<F> = feature_counts
+                .iter()
+                .map(|&count| {
+                    let smoothed_count = count + alpha;
+                    (smoothed_count / smoothed_total).ln()
+                })
+                .collect();
+
+            class_feature_log_probs.insert(class, log_probs);
+        }
+
+        // Evaluate on test set
+        let mut correct = 0;
+        for &idx in test_indices {
+            let test_sample = data.row(idx);
+
+            // Compute log probabilities for each class
+            let mut class_scores: Vec<(i32, F)> = Vec::new();
+            for &class in &unique_classes {
+                let mut log_score = class_priors[&class].ln();
+                let log_probs = &class_feature_log_probs[&class];
+
+                for j in 0..n_features {
+                    log_score = log_score + test_sample[j] * log_probs[j];
+                }
+
+                class_scores.push((class, log_score));
+            }
+
+            // Find class with maximum score
+            let predicted_class = class_scores
+                .iter()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(c, _)| *c)
+                .ok_or("No predictions made")?;
+
+            if predicted_class == labels[idx] {
+                correct += 1;
+            }
+        }
+
+        // Return accuracy as score
+        let accuracy = F::from(correct as f64 / test_indices.len() as f64).unwrap();
+        Ok(accuracy)
     }
 }
 

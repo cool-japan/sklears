@@ -6,7 +6,7 @@
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::Distribution;
-use scirs2_core::random::{SeedableRng, thread_rng, Rng};
+use scirs2_core::random::{Seedablethread_rng};
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::traits::Fit;

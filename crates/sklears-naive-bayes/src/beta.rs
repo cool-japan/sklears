@@ -168,7 +168,7 @@ impl Fit<Array2<Float>, Array1<i32>> for BetaNB<Untrained> {
                     };
 
                     // Ensure mean is strictly between 0 and 1
-                    let safe_mean = mean.max(1e-10).min(1.0 - 1e-10);
+                    let safe_mean = mean.clamp(1e-10, 1.0 - 1e-10);
                     let safe_variance = variance
                         .max(1e-10)
                         .min(safe_mean * (1.0 - safe_mean) * 0.99);
@@ -345,7 +345,7 @@ fn beta_mle_estimate(values: &[f64]) -> (f64, f64) {
     let variance = values.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
 
     // Ensure mean is strictly between 0 and 1
-    let safe_mean = mean.max(1e-10).min(1.0 - 1e-10);
+    let safe_mean = mean.clamp(1e-10, 1.0 - 1e-10);
     let safe_variance = variance
         .max(1e-10)
         .min(safe_mean * (1.0 - safe_mean) * 0.99);

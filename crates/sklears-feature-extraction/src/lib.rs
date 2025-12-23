@@ -11,12 +11,7 @@
 
 use scirs2_core::ndarray::{s, Array1};
 use scirs2_core::numeric::Float as NumTraitsFloat;
-use sklears_core::{
-    error::Result as SklResult,
-    prelude::SklearsError,
-    traits::{Estimator, Untrained},
-    types::Float,
-};
+use sklears_core::{error::Result as SklResult, prelude::SklearsError, types::Float};
 
 // Module declarations
 pub mod audio;
@@ -24,6 +19,7 @@ pub mod basic_features;
 pub mod biological;
 pub mod dict_learning;
 pub mod engineering;
+pub mod feature_traits; // Trait-based feature extraction framework
 pub mod graph;
 pub mod image;
 pub mod image_advanced;
@@ -31,9 +27,10 @@ pub mod information_theory;
 pub mod manifold;
 pub mod neural_simple;
 pub use neural_simple as neural;
+pub mod pipelines; // Feature extraction pipelines
 pub mod signal_processing;
+pub mod simd_image; // SIMD modules now use SciRS2-Core (stable Rust compatible)
 pub mod simd_ops;
-// pub mod simd_image;  // Temporarily disabled due to unstable SIMD features
 pub mod text;
 
 // Extracted feature engineering modules

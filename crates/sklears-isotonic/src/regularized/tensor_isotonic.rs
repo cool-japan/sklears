@@ -291,7 +291,7 @@ impl TensorIsotonicRegression<Untrained> {
         target: &Array1<Float>,
     ) -> Result<Array1<Float>> {
         let shape = tensor_data.shape();
-        let n_samples = shape[0];
+        let _n_samples = shape[0];
 
         // For separable case, fit isotonic regression independently along each axis
         let mut fitted_values = target.clone();
@@ -322,12 +322,12 @@ impl TensorIsotonicRegression<Untrained> {
         target: &Array1<Float>,
     ) -> Result<Array1<Float>> {
         let shape = tensor_data.shape();
-        let n_samples = shape[0];
+        let _n_samples = shape[0];
 
         // For non-separable case, use iterative projection onto constraint sets
         let mut fitted_values = target.clone();
 
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let prev_values = fitted_values.clone();
 
             // Apply constraints for each axis sequentially

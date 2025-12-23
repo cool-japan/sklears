@@ -10,6 +10,54 @@ use sklears_core::error::Result as SklResult;
 
 type Result<T> = SklResult<T>;
 
+#[derive(Debug, Clone)]
+struct DatasetMetrics {
+    avg_feature_magnitude: f64,
+    target_variance: f64,
+    class_balance: f64,
+    sample_count: usize,
+    feature_count: usize,
+}
+
+impl DatasetMetrics {
+    fn from_data(X: &ArrayView2<f64>, y: &ArrayView1<f64>) -> Self {
+        let (sample_count, feature_count) = X.dim();
+        let total_entries = sample_count * feature_count;
+        let avg_feature_magnitude = if total_entries > 0 {
+            X.iter().map(|value| value.abs()).sum::<f64>() / total_entries as f64
+        } else {
+            0.0
+        };
+
+        let target_len = y.len();
+        let (target_variance, class_balance) = if target_len > 0 {
+            let target_mean = y.iter().copied().sum::<f64>() / target_len as f64;
+            let variance = if target_len > 1 {
+                y.iter()
+                    .map(|value| (value - target_mean).powi(2))
+                    .sum::<f64>()
+                    / (target_len - 1) as f64
+            } else {
+                0.0
+            };
+
+            let positives = y.iter().filter(|value| **value >= target_mean).count();
+            let balance = (positives as f64 / target_len as f64).clamp(0.0, 1.0);
+            (variance, balance)
+        } else {
+            (0.0, 0.5)
+        };
+
+        Self {
+            avg_feature_magnitude,
+            target_variance,
+            class_balance,
+            sample_count,
+            feature_count,
+        }
+    }
+}
+
 /// Hyperparameter optimizer for feature selection methods
 #[derive(Debug, Clone)]
 pub struct HyperparameterOptimizer {
@@ -28,7 +76,9 @@ impl HyperparameterOptimizer {
         y: ArrayView1<f64>,
         characteristics: &DataCharacteristics,
     ) -> Result<OptimizedMethod> {
-        let config = match method {
+        let metrics = DatasetMetrics::from_data(&X, &y);
+
+        let mut config = match method {
             AutoMLMethod::UnivariateFiltering => self.optimize_univariate(characteristics)?,
             AutoMLMethod::CorrelationBased => self.optimize_correlation(characteristics)?,
             AutoMLMethod::TreeBased => self.optimize_tree(characteristics)?,
@@ -41,7 +91,9 @@ impl HyperparameterOptimizer {
             AutoMLMethod::MetaLearningEnsemble => self.optimize_meta_learning(characteristics)?,
         };
 
-        let estimated_cost = self.estimate_computational_cost(method, characteristics);
+        self.adjust_config_for_data(&mut config, characteristics, &metrics);
+
+        let estimated_cost = self.estimate_computational_cost(method, characteristics, &metrics);
 
         Ok(OptimizedMethod {
             method_type: method.clone(),
@@ -197,26 +249,170 @@ impl HyperparameterOptimizer {
         })
     }
 
+    fn adjust_config_for_data(
+        &self,
+        config: &mut MethodConfig,
+        characteristics: &DataCharacteristics,
+        metrics: &DatasetMetrics,
+    ) {
+        match config {
+            MethodConfig::Univariate { k } => {
+                let feature_cap = std::cmp::max(metrics.feature_count, 1);
+                if metrics.target_variance < 1e-3 {
+                    let conservative_cap = std::cmp::max(feature_cap / 5, 1);
+                    *k = (*k).min(conservative_cap);
+                } else if metrics.target_variance > 1.0 {
+                    let bonus =
+                        ((metrics.target_variance.min(4.0)) * feature_cap as f64 * 0.05) as usize;
+                    *k = (*k + bonus).min(feature_cap);
+                } else {
+                    *k = (*k).min(feature_cap);
+                }
+                *k = (*k).max(1);
+            }
+            MethodConfig::Correlation { threshold } => {
+                let fluctuation = (metrics.avg_feature_magnitude - 1.0).abs().min(0.15);
+                if metrics.target_variance < 0.3 {
+                    *threshold = (*threshold - fluctuation).clamp(0.3, 0.95);
+                } else {
+                    *threshold = (*threshold + fluctuation).clamp(0.3, 0.95);
+                }
+            }
+            MethodConfig::Tree {
+                n_estimators,
+                max_depth,
+            } => {
+                if metrics.sample_count > 5_000 {
+                    *n_estimators = (*n_estimators).max(100);
+                }
+                if metrics.target_variance > 1.2 {
+                    *max_depth = (*max_depth + 2).min(20);
+                } else if metrics.target_variance < 0.2 {
+                    *max_depth = (*max_depth).max(4);
+                }
+            }
+            MethodConfig::Lasso { alpha } => {
+                let scale_adjustment = metrics.avg_feature_magnitude.clamp(0.5, 2.0);
+                *alpha = (*alpha * scale_adjustment).max(1e-4);
+                if matches!(characteristics.target_type, TargetType::Regression)
+                    && metrics.target_variance > 2.0
+                {
+                    *alpha *= 0.9;
+                }
+            }
+            MethodConfig::Wrapper { scoring, cv_folds } => {
+                let imbalance = (metrics.class_balance - 0.5).abs();
+                if matches!(characteristics.target_type, TargetType::Regression) {
+                    *scoring = "r2".to_string();
+                } else if imbalance > 0.2 {
+                    *scoring = "roc_auc".to_string();
+                } else {
+                    *scoring = "accuracy".to_string();
+                }
+
+                *cv_folds = if metrics.sample_count < 200 {
+                    3
+                } else if metrics.sample_count > 5_000 {
+                    7
+                } else {
+                    5
+                };
+            }
+            MethodConfig::Ensemble { n_methods, .. } => {
+                if metrics.feature_count > 500 {
+                    *n_methods = (*n_methods).max(4);
+                }
+                if metrics.class_balance < 0.35 || metrics.class_balance > 0.65 {
+                    *n_methods = (*n_methods).max(5);
+                }
+            }
+            MethodConfig::Hybrid {
+                stage1_features, ..
+            } => {
+                let feature_cap = std::cmp::max(metrics.feature_count, 1);
+                let mut desired = feature_cap / 3;
+                if metrics.target_variance < 0.2 {
+                    desired = std::cmp::max(feature_cap / 5, 1);
+                } else if metrics.target_variance > 1.0 {
+                    desired = std::cmp::max(feature_cap / 2, 1);
+                }
+                *stage1_features = desired.min(feature_cap);
+            }
+            MethodConfig::NeuralArchitectureSearch {
+                max_epochs,
+                population_size,
+                early_stopping_patience,
+                ..
+            } => {
+                if metrics.sample_count > 2_000 {
+                    *population_size = (*population_size).max(25);
+                }
+                if metrics.target_variance < 0.4 {
+                    *max_epochs = (*max_epochs).max(80);
+                    *early_stopping_patience = (*early_stopping_patience).max(15);
+                } else {
+                    *max_epochs = (*max_epochs).min(150);
+                }
+            }
+            MethodConfig::TransferLearning {
+                transfer_ratio,
+                fine_tuning_epochs,
+                ..
+            } => {
+                if matches!(characteristics.target_type, TargetType::Regression) {
+                    *transfer_ratio = 0.6;
+                } else if metrics.target_variance > 1.0 {
+                    *transfer_ratio = 0.8;
+                } else {
+                    *transfer_ratio = 0.7;
+                }
+
+                if metrics.sample_count > 2_500 {
+                    *fine_tuning_epochs = (*fine_tuning_epochs).max(25);
+                }
+            }
+            MethodConfig::MetaLearningEnsemble { ensemble_size, .. } => {
+                if metrics.feature_count > 1_000 {
+                    *ensemble_size = (*ensemble_size).max(6);
+                }
+                if metrics.sample_count < 500 {
+                    *ensemble_size = (*ensemble_size).min(4);
+                }
+            }
+        }
+    }
+
     fn estimate_computational_cost(
         &self,
         method: &AutoMLMethod,
         characteristics: &DataCharacteristics,
+        metrics: &DatasetMetrics,
     ) -> f64 {
         let base_cost =
             characteristics.n_samples as f64 * characteristics.n_features as f64 / 1_000_000.0;
 
-        match method {
-            AutoMLMethod::UnivariateFiltering => base_cost * 0.1,
-            AutoMLMethod::CorrelationBased => base_cost * 0.5,
-            AutoMLMethod::TreeBased => base_cost * 2.0,
-            AutoMLMethod::LassoBased => base_cost * 1.5,
-            AutoMLMethod::WrapperBased => base_cost * 10.0,
-            AutoMLMethod::EnsembleBased => base_cost * 5.0,
-            AutoMLMethod::Hybrid => base_cost * 3.0,
-            AutoMLMethod::NeuralArchitectureSearch => base_cost * 15.0,
-            AutoMLMethod::TransferLearning => base_cost * 8.0,
-            AutoMLMethod::MetaLearningEnsemble => base_cost * 12.0,
-        }
+        let scale_penalty = 1.0 + (metrics.avg_feature_magnitude - 1.0).abs().min(3.0) * 0.05;
+        let variance_discount = if metrics.target_variance < 1e-6 {
+            0.85
+        } else {
+            1.0
+        };
+        let imbalance_penalty = 1.0 + (metrics.class_balance - 0.5).abs() * 0.5;
+
+        let method_multiplier = match method {
+            AutoMLMethod::UnivariateFiltering => 0.1,
+            AutoMLMethod::CorrelationBased => 0.5,
+            AutoMLMethod::TreeBased => 2.0,
+            AutoMLMethod::LassoBased => 1.5,
+            AutoMLMethod::WrapperBased => 10.0,
+            AutoMLMethod::EnsembleBased => 5.0,
+            AutoMLMethod::Hybrid => 3.0,
+            AutoMLMethod::NeuralArchitectureSearch => 15.0,
+            AutoMLMethod::TransferLearning => 8.0,
+            AutoMLMethod::MetaLearningEnsemble => 12.0,
+        };
+
+        base_cost * method_multiplier * scale_penalty * variance_discount * imbalance_penalty
     }
 }
 
@@ -291,7 +487,7 @@ impl OptimizedMethod {
     /// Fit the method to training data (stub implementation)
     pub fn fit(self, X: ArrayView2<f64>, y: ArrayView1<f64>) -> Result<TrainedMethod> {
         // Simplified feature selection based on method type
-        let selected_features: Vec<usize> = match &self.method_type {
+        let mut selected_features: Vec<usize> = match &self.method_type {
             AutoMLMethod::UnivariateFiltering => {
                 if let MethodConfig::Univariate { k } = &self.config {
                     (0..*k.min(&X.ncols())).collect()
@@ -337,11 +533,31 @@ impl OptimizedMethod {
             }
         };
 
+        let metrics = DatasetMetrics::from_data(&X, &y);
+
+        if metrics.target_variance < 1e-6 && selected_features.len() > 10 {
+            selected_features.truncate(10);
+        }
+
+        let denom = std::cmp::max(selected_features.len(), 1) as f64;
+        let importance_scale = 1.0 + metrics.target_variance.sqrt().min(2.0);
+        let balance_adjustment = 1.0 + (0.5 - metrics.class_balance).abs() * 0.5;
+        let magnitude_adjustment = metrics.avg_feature_magnitude.max(0.1);
+
+        let feature_importances: Vec<f64> = selected_features
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
+                let rank = (denom - index as f64) / denom;
+                (rank * importance_scale * balance_adjustment * magnitude_adjustment).max(0.05)
+            })
+            .collect();
+
         Ok(TrainedMethod {
             method_type: self.method_type,
             config: self.config,
             selected_features: selected_features.clone(),
-            feature_importances: vec![1.0; selected_features.len()],
+            feature_importances,
         })
     }
 }

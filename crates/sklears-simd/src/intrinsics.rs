@@ -289,7 +289,7 @@ pub mod optimization {
             }
             #[cfg(not(feature = "no-std"))]
             {
-                std::arch::x86_64::_mm_prefetch(_ptr as *const i8, std::arch::x86_64::_MM_HINT_T0);
+                core::arch::x86_64::_mm_prefetch(_ptr as *const i8, core::arch::x86_64::_MM_HINT_T0);
             }
         }
     }
@@ -397,7 +397,7 @@ pub mod perf {
             }
             #[cfg(not(feature = "no-std"))]
             {
-                std::arch::x86_64::_rdtsc()
+                core::arch::x86_64::_rdtsc()
             }
         }
     }
@@ -416,9 +416,12 @@ pub mod perf {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_alignment_check() {
@@ -465,7 +468,7 @@ mod tests {
             #[cfg(feature = "no-std")]
             let v = core::arch::x86_64::_mm_setr_ps(1.0, 2.0, 3.0, 4.0);
             #[cfg(not(feature = "no-std"))]
-            let v = std::arch::x86_64::_mm_setr_ps(1.0, 2.0, 3.0, 4.0);
+            let v = core::arch::x86_64::_mm_setr_ps(1.0, 2.0, 3.0, 4.0);
 
             let sum = x86::sse2::horizontal_add_f32(v);
             assert!((sum - 10.0).abs() < 1e-6);

@@ -7,7 +7,7 @@
 
 Efficient nearest neighbor algorithms for Rust with advanced indexing structures, GPU acceleration, and production-ready tooling.
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -22,7 +22,7 @@ Efficient nearest neighbor algorithms for Rust with advanced indexing structures
 ## Status ✅
 
 - **Implementation**: Fully featured KNN, radius, and approximate search APIs aligned with scikit-learn 1.5.
-- **Validation**: Covered by the 10,013 passing workspace tests (69 skipped) from the 0.1.0-alpha.1 release.
+- **Validation**: Covered by the 11,292 passing workspace tests (69 skipped) from the 0.1.0-alpha.2 release.
 - **Performance**: SIMD-accelerated distance kernels, multi-threaded queries, and optional GPU offload.
 
 ## Quick Start

@@ -45,8 +45,8 @@ pub mod generators {
         // Generate random features using Box-Muller transform
         let mut x_data = Vec::with_capacity(n_samples * n_features);
         for _ in 0..(n_samples * n_features + 1) / 2 {
-            let u1: f64 = rng.random();
-            let u2: f64 = rng.random();
+            let u1: f64 = rng.gen();
+            let u2: f64 = rng.gen();
             let z0 = (-2.0f64 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             let z1 = (-2.0f64 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).sin();
             x_data.push(z0);
@@ -73,8 +73,8 @@ pub mod generators {
                 y_i += x[[i, j]] * coef[j];
             }
             // Add noise using Box-Muller transform
-            let u1: f64 = rng.random();
-            let u2: f64 = rng.random();
+            let u1: f64 = rng.gen();
+            let u2: f64 = rng.gen();
             let noise_val =
                 noise * (-2.0f64 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             y_i += noise_val;
@@ -129,8 +129,8 @@ pub mod generators {
                 for feature_idx in 0..n_features {
                     let center_value = centers[class_idx * n_features + feature_idx];
                     // Generate normal random value using Box-Muller transform
-                    let u1: f64 = rng.random();
-                    let u2: f64 = rng.random();
+                    let u1: f64 = rng.gen();
+                    let u2: f64 = rng.gen();
                     let normal_val = cluster_std
                         * (-2.0f64 * u1.ln()).sqrt()
                         * (2.0 * std::f64::consts::PI * u2).cos();
@@ -1288,7 +1288,7 @@ pub mod contract_testing {
         }
 
         /// Add a contract to the test suite
-        pub fn add_contract<T, C>(&mut self, contract: C)
+        pub fn add_contract<T, C>(&mut self, _contract: C)
         where
             T: 'static,
             C: Contract<T> + 'static,
@@ -1298,7 +1298,7 @@ pub mod contract_testing {
         }
 
         /// Run all contracts against an implementation
-        pub fn run_all<T>(&mut self, implementation: &T) -> Vec<ContractResult>
+        pub fn run_all<T>(&mut self, _implementation: &T) -> Vec<ContractResult>
         where
             T: 'static,
         {

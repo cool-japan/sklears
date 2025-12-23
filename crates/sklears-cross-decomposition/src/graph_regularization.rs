@@ -24,11 +24,13 @@
 //! - Graph Laplacian regularization
 //! - Random walk regularization
 //! - Diffusion-based regularization
-//! - Community structure preservation
+//! - Community structure preservation with detection algorithms
 //! - Graph neural network inspired regularization
 //! - Hypergraph Laplacian regularization (normalized, unnormalized, random walk)
 
+pub mod community_detection;
 pub mod hypergraph_methods;
+pub mod temporal_network_analysis;
 
 use scirs2_core::error::{CoreError, ErrorContext};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
@@ -36,9 +38,16 @@ use scirs2_core::random::{thread_rng, Rng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
+pub use community_detection::{
+    CommunityAlgorithm, CommunityDetectionConfig, CommunityDetector, CommunityStructure,
+};
 pub use hypergraph_methods::{
     Hypergraph, HypergraphCCA, HypergraphCCAResults, HypergraphCentrality, HypergraphConfig,
     HypergraphLaplacianType, MultiWayInteractionAnalyzer,
+};
+pub use temporal_network_analysis::{
+    MotifType, TemporalAnalysisResults, TemporalMotif, TemporalNetwork, TemporalNetworkAnalyzer,
+    TemporalNetworkConfig,
 };
 
 /// Graph regularization result type

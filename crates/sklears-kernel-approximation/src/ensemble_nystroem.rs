@@ -2,6 +2,7 @@
 use crate::nystroem::{Kernel, Nystroem, SamplingStrategy};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
+use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -9,7 +10,7 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, SeedableRng};
 /// Ensemble method for combining multiple Nyström approximations
 #[derive(Debug, Clone)]
 pub enum EnsembleMethod {
@@ -139,7 +140,7 @@ impl EnsembleNystroem<Untrained> {
         } else {
             // Generate diverse set of strategies
             let mut strategies = Vec::new();
-            let base_strategies = vec![
+            let base_strategies = [
                 SamplingStrategy::Random,
                 SamplingStrategy::KMeans,
                 SamplingStrategy::LeverageScore,
@@ -157,7 +158,7 @@ impl EnsembleNystroem<Untrained> {
     fn compute_quality_score(
         &self,
         estimator: &Nystroem<Trained>,
-        x: &Array2<Float>,
+        _x: &Array2<Float>,
     ) -> Result<Float> {
         match self.quality_metric {
             QualityMetric::FrobeniusNorm => {
@@ -338,7 +339,7 @@ impl Transform<Array2<Float>, Array2<Float>> for EnsembleNystroem<Trained> {
                 for (estimator, &weight) in estimators.iter().zip(weights.iter()) {
                     if weight > 0.0 {
                         let transformed = estimator.transform(x)?;
-                        result = result + &(transformed * weight);
+                        result += &(transformed * weight);
                     }
                 }
 
@@ -406,7 +407,7 @@ impl EnsembleNystroem<Trained> {
     fn compute_quality_score_for_estimator(
         &self,
         estimator: &Nystroem<Trained>,
-        x: &Array2<Float>,
+        _x: &Array2<Float>,
     ) -> Result<Float> {
         match self.quality_metric {
             QualityMetric::FrobeniusNorm => {

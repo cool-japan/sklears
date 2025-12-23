@@ -473,7 +473,7 @@ fn compute_local_variance(feature: &ArrayView1<Float>) -> Float {
     }
 
     let mut local_var = 0.0;
-    let window_size = 3; // Simple 3-point window
+    let _window_size = 3; // Simple 3-point window
 
     for i in 1..(n - 1) {
         let window = &feature.slice(s![i - 1..i + 2]);

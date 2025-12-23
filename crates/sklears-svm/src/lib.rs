@@ -3,6 +3,7 @@
 #![allow(missing_docs)]
 #![recursion_limit = "1048576"]
 #![allow(deprecated)]
+#![allow(ambiguous_glob_reexports)]
 //! Support Vector Machines for classification and regression
 //!
 //! This module provides Support Vector Machine implementations including:
@@ -44,8 +45,6 @@
 pub use sklears_core::prelude::*;
 
 pub mod adaptive_regularization;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod advanced_optimization;
 pub mod calibration;
 pub mod chunked_processing;
 pub mod compressed_kernels;
@@ -59,15 +58,12 @@ pub mod fuzzy_svm;
 pub mod gpu_kernels;
 pub mod graph_semi_supervised;
 pub mod group_lasso_svm;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod hyperparameter_optimization;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod kernel_pca;
+pub mod hyperparameter_optimization;
+pub mod kernel_pca;
 pub mod kernels;
 pub mod linear_svc;
 pub mod linear_svr;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod ls_svm;
+pub mod ls_svm;
 pub mod memory_mapped_kernels;
 pub mod metric_learning_svm;
 pub mod multi_label_svm;
@@ -120,18 +116,15 @@ pub use fuzzy_svm::*;
 pub use gpu_kernels::*;
 pub use graph_semi_supervised::*;
 pub use group_lasso_svm::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use hyperparameter_optimization::{
-//     BayesianOptimizationCV, EvolutionaryOptimizationCV, GridSearchCV, OptimizationConfig,
-//     OptimizationResult, ParameterSet, ParameterSpec, RandomSearchCV, ScoringMetric, SearchSpace,
-// };
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use kernel_pca::*;
+pub use hyperparameter_optimization::{
+    BayesianOptimizationCV, EvolutionaryOptimizationCV, GridSearchCV, OptimizationConfig,
+    OptimizationResult, ParameterSet, ParameterSpec, RandomSearchCV, ScoringMetric, SearchSpace,
+};
+pub use kernel_pca::*;
 pub use kernels::*;
 pub use linear_svc::*;
 pub use linear_svr::*;
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use ls_svm::*;
+pub use ls_svm::*;
 pub use memory_mapped_kernels::*;
 pub use metric_learning_svm::*;
 pub use multi_label_svm::*;

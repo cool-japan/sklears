@@ -8,8 +8,8 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     prelude::{Fit, Transform},
@@ -271,7 +271,7 @@ impl FastfoodTransform<Trained> {
         // Process each Fastfood block
         for block in 0..n_blocks {
             let block_start = block * padded_dim;
-            let block_end = block_start + padded_dim;
+            let _block_end = block_start + padded_dim;
 
             // Step 1: Pad input to power of 2
             let mut padded_input = Array1::zeros(padded_dim);

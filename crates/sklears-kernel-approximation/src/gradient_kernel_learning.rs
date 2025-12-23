@@ -4,7 +4,6 @@
 //! kernel parameters, including bandwidth selection, kernel combination weights,
 //! and hyperparameter tuning using automatic differentiation.
 
-use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use sklears_core::error::Result;
 
@@ -212,7 +211,7 @@ impl GradientKernelLearner {
 
     /// Compute kernel alignment gradient
     fn compute_kernel_alignment_gradient(&self, x: &Array2<f64>) -> Result<GradientResult> {
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let mut gradient = Array1::zeros(self.parameters.len());
 
         // Compute kernel matrix
@@ -244,7 +243,7 @@ impl GradientKernelLearner {
         x: &Array2<f64>,
         y: Option<&Array1<f64>>,
     ) -> Result<GradientResult> {
-        let y = y.ok_or_else(|| "Target values required for CV error gradient")?;
+        let y = y.ok_or("Target values required for CV error gradient")?;
         let n_samples = x.nrows();
         let n_folds = 5;
         let fold_size = n_samples / n_folds;
@@ -266,7 +265,7 @@ impl GradientKernelLearner {
             total_error += fold_gradient.objective_value;
         }
 
-        gradient = gradient / n_folds as f64;
+        gradient /= n_folds as f64;
         total_error /= n_folds as f64;
 
         Ok(GradientResult {
@@ -282,7 +281,7 @@ impl GradientKernelLearner {
         x: &Array2<f64>,
         y: Option<&Array1<f64>>,
     ) -> Result<GradientResult> {
-        let y = y.ok_or_else(|| "Target values required for marginal likelihood gradient")?;
+        let y = y.ok_or("Target values required for marginal likelihood gradient")?;
         let n_samples = x.nrows();
 
         // Compute kernel matrix
@@ -322,7 +321,7 @@ impl GradientKernelLearner {
         x: &Array2<f64>,
         y: Option<&Array1<f64>>,
     ) -> Result<GradientResult> {
-        let y = y.ok_or_else(|| "Target values required for kernel ridge gradient")?;
+        let y = y.ok_or("Target values required for kernel ridge gradient")?;
         let n_samples = x.nrows();
         let alpha = 1e-3; // Regularization parameter
 
@@ -388,7 +387,7 @@ impl GradientKernelLearner {
         x: &Array2<f64>,
         y: Option<&Array1<f64>>,
     ) -> Result<GradientResult> {
-        let y = y.ok_or_else(|| "Target values required for KTA gradient")?;
+        let y = y.ok_or("Target values required for KTA gradient")?;
 
         // Compute kernel matrix
         let kernel_matrix = self.compute_kernel_matrix(x)?;
@@ -617,7 +616,7 @@ impl GradientKernelLearner {
         derivatives.push(gamma_derivative);
 
         // Add derivatives for other parameters if needed
-        for param_idx in 1..self.parameters.len() {
+        for _param_idx in 1..self.parameters.len() {
             let derivative = Array2::zeros((n_samples, n_samples));
             derivatives.push(derivative);
         }
@@ -695,10 +694,10 @@ impl GradientKernelLearner {
     /// Compute fold gradient
     fn compute_fold_gradient(
         &self,
-        x_train: &Array2<f64>,
-        y_train: &Array1<f64>,
-        x_val: &Array2<f64>,
-        y_val: &Array1<f64>,
+        _x_train: &Array2<f64>,
+        _y_train: &Array1<f64>,
+        _x_val: &Array2<f64>,
+        _y_val: &Array1<f64>,
     ) -> Result<GradientResult> {
         // Simplified fold gradient computation
         let gradient = Array1::zeros(self.parameters.len());
@@ -714,8 +713,8 @@ impl GradientKernelLearner {
     /// Compute log marginal likelihood
     fn compute_log_marginal_likelihood(
         &self,
-        kernel_matrix: &Array2<f64>,
-        y: &Array1<f64>,
+        _kernel_matrix: &Array2<f64>,
+        _y: &Array1<f64>,
     ) -> Result<f64> {
         // Simplified log marginal likelihood
         Ok(0.0)
@@ -724,9 +723,9 @@ impl GradientKernelLearner {
     /// Compute marginal likelihood derivative
     fn compute_marginal_likelihood_derivative(
         &self,
-        kernel_matrix: &Array2<f64>,
-        y: &Array1<f64>,
-        kernel_derivative: &Array2<f64>,
+        _kernel_matrix: &Array2<f64>,
+        _y: &Array1<f64>,
+        _kernel_derivative: &Array2<f64>,
     ) -> Result<f64> {
         // Simplified derivative computation
         Ok(0.0)
@@ -735,8 +734,8 @@ impl GradientKernelLearner {
     /// Compute kernel ridge loss
     fn compute_kernel_ridge_loss(
         &self,
-        kernel_matrix: &Array2<f64>,
-        y: &Array1<f64>,
+        _kernel_matrix: &Array2<f64>,
+        _y: &Array1<f64>,
     ) -> Result<f64> {
         // Simplified kernel ridge loss
         Ok(0.0)
@@ -745,16 +744,16 @@ impl GradientKernelLearner {
     /// Compute kernel ridge derivative
     fn compute_kernel_ridge_derivative(
         &self,
-        kernel_matrix: &Array2<f64>,
-        y: &Array1<f64>,
-        kernel_derivative: &Array2<f64>,
+        _kernel_matrix: &Array2<f64>,
+        _y: &Array1<f64>,
+        _kernel_derivative: &Array2<f64>,
     ) -> Result<f64> {
         // Simplified derivative computation
         Ok(0.0)
     }
 
     /// Compute MMD
-    fn compute_mmd(&self, x1: &ArrayView2<f64>, x2: &ArrayView2<f64>) -> Result<f64> {
+    fn compute_mmd(&self, _x1: &ArrayView2<f64>, _x2: &ArrayView2<f64>) -> Result<f64> {
         // Simplified MMD computation
         Ok(0.0)
     }
@@ -762,8 +761,8 @@ impl GradientKernelLearner {
     /// Compute MMD derivatives
     fn compute_mmd_derivatives(
         &self,
-        x1: &ArrayView2<f64>,
-        x2: &ArrayView2<f64>,
+        _x1: &ArrayView2<f64>,
+        _x2: &ArrayView2<f64>,
     ) -> Result<Array1<f64>> {
         // Simplified derivative computation
         Ok(Array1::zeros(self.parameters.len()))
@@ -800,9 +799,9 @@ impl GradientKernelLearner {
     /// Compute KTA derivative
     fn compute_kta_derivative(
         &self,
-        kernel_matrix: &Array2<f64>,
-        target_kernel: &Array2<f64>,
-        kernel_derivative: &Array2<f64>,
+        _kernel_matrix: &Array2<f64>,
+        _target_kernel: &Array2<f64>,
+        _kernel_derivative: &Array2<f64>,
     ) -> f64 {
         // Simplified KTA derivative
         0.0
@@ -857,8 +856,8 @@ impl GradientMultiKernelLearner {
     /// Optimize combination weights
     fn optimize_combination_weights(
         &mut self,
-        x: &Array2<f64>,
-        y: Option<&Array1<f64>>,
+        _x: &Array2<f64>,
+        _y: Option<&Array1<f64>>,
     ) -> Result<()> {
         // Simplified combination weight optimization
         let n_kernels = self.base_learners.len();

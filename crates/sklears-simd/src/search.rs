@@ -26,9 +26,9 @@ pub fn binary_search_f32_simd(arr: &[f32], target: f32) -> Option<usize> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 16 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 16 {
             return unsafe { binary_search_avx2(arr, target) };
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 8 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 8 {
             return unsafe { binary_search_sse2(arr, target) };
         }
     }
@@ -149,9 +149,9 @@ pub fn linear_search_f32_simd(arr: &[f32], target: f32) -> Option<usize> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { linear_search_avx2(arr, target) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { linear_search_sse2(arr, target) };
         }
     }
@@ -394,7 +394,7 @@ pub fn range_search_simd(
     radius: f32,
 ) -> Vec<NearestNeighborResult> {
     let mut results = Vec::new();
-    let radius_squared = radius * radius;
+    let _radius_squared = radius * radius;
 
     for (i, point) in points.iter().enumerate() {
         let distance = euclidean_distance(query, point);
@@ -421,9 +421,9 @@ pub fn argmax_f32_simd(arr: &[f32]) -> Option<usize> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 8 {
             return Some(unsafe { argmax_avx2(arr) });
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 4 {
             return Some(unsafe { argmax_sse2(arr) });
         }
     }
@@ -529,9 +529,9 @@ pub fn argmin_f32_simd(arr: &[f32]) -> Option<usize> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && arr.len() >= 8 {
+        if crate::simd_feature_detected!("avx2") && arr.len() >= 8 {
             return Some(unsafe { argmin_avx2(arr) });
-        } else if is_x86_feature_detected!("sse2") && arr.len() >= 4 {
+        } else if crate::simd_feature_detected!("sse2") && arr.len() >= 4 {
             return Some(unsafe { argmin_sse2(arr) });
         }
     }
@@ -630,7 +630,7 @@ unsafe fn argmin_avx2(arr: &[f32]) -> usize {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

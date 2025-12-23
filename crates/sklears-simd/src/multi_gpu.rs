@@ -350,14 +350,14 @@ impl MultiGpuCoordinator {
 
         // Combine results
         let output = vec![0.0f32; a_rows * b_cols];
-        let mut current_row = 0;
+        let mut _current_row = 0;
 
         for result in results {
             if result.success {
                 // Extract result data from completed task
                 // This would involve copying from GPU memory
                 let device_rows = rows_per_device;
-                current_row += device_rows;
+                _current_row += device_rows;
             }
         }
 
@@ -413,7 +413,7 @@ impl MultiGpuCoordinator {
     fn execute_device_tasks(
         device_id: u32,
         tasks: Vec<GpuTask>,
-        memory_manager: Arc<Mutex<MultiGpuMemoryManager>>,
+        _memory_manager: Arc<Mutex<MultiGpuMemoryManager>>,
     ) -> Vec<CompletedTask> {
         let mut results = Vec::new();
 
@@ -476,7 +476,7 @@ impl LoadBalancer {
         self.strategy = strategy;
     }
 
-    pub fn select_device(&self, devices: &[GpuDevice], task: &GpuTask) -> Result<u32, SimdError> {
+    pub fn select_device(&self, devices: &[GpuDevice], _task: &GpuTask) -> Result<u32, SimdError> {
         if devices.is_empty() {
             return Err(SimdError::ExternalLibraryError(
                 "No devices available".to_string(),
@@ -679,7 +679,7 @@ impl SynchronizationManager {
 
     fn synchronize_devices(&self, device_ids: &[u32]) -> Result<(), SimdError> {
         // Synchronize all specified devices
-        for &device_id in device_ids {
+        for &_device_id in device_ids {
             // Device-specific synchronization
         }
         Ok(())
@@ -699,10 +699,17 @@ impl Default for SynchronizationManager {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use crate::gpu::GpuBackend;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_multi_gpu_coordinator_creation() {

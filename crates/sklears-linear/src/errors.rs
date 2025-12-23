@@ -368,10 +368,10 @@ impl LinearModelError {
     /// Check if error is recoverable
     pub fn is_recoverable(&self) -> bool {
         match self {
-            LinearModelError::DataError(e) => match e.kind {
-                DataErrorKind::EmptyData | DataErrorKind::MissingTargets => false,
-                _ => true,
-            },
+            LinearModelError::DataError(e) => !matches!(
+                e.kind,
+                DataErrorKind::EmptyData | DataErrorKind::MissingTargets
+            ),
             LinearModelError::NumericalError(e) => match e.kind {
                 NumericalErrorKind::SingularMatrix { .. } => true,
                 NumericalErrorKind::Overflow | NumericalErrorKind::Underflow => false,
@@ -383,10 +383,9 @@ impl LinearModelError {
             LinearModelError::FeatureError(_) => true,
             LinearModelError::MatrixError(_) => true,
             LinearModelError::CrossValidationError(_) => true,
-            LinearModelError::ResourceError(e) => match e.kind {
-                ResourceErrorKind::InsufficientMemory => false,
-                _ => true,
-            },
+            LinearModelError::ResourceError(e) => {
+                !matches!(e.kind, ResourceErrorKind::InsufficientMemory)
+            }
         }
     }
 }

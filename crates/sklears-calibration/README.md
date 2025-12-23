@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -41,6 +41,6 @@ let probas = fitted.predict_proba(&x_test)?;
 
 ## Status
 
-- Covered by the 10,013 passing workspace tests in `0.1.0-alpha.1`.
+- Covered by the 11,292 passing workspace tests in `0.1.0-alpha.2`.
 - API parity with scikit-learn 1.5, including multi-class calibration.
 - Future work (Bayesian calibration, streaming reliability) tracked in this crate’s `TODO.md`.

@@ -58,7 +58,7 @@ impl HistogramBinningCalibrator {
         let mut bin_total_counts = vec![0; self.n_bins];
 
         // Assign samples to bins and count positives
-        for (i, (&prob, &label)) in probabilities.iter().zip(y_true.iter()).enumerate() {
+        for (&prob, &label) in probabilities.iter().zip(y_true.iter()) {
             let bin_idx = self.find_bin_index(prob);
             if bin_idx < self.n_bins {
                 bin_total_counts[bin_idx] += 1;
@@ -95,7 +95,6 @@ impl HistogramBinningCalibrator {
             if bin_counts[i] == 0 {
                 // Find nearest non-empty bins
                 let mut left_rate = None;
-                let mut right_rate = None;
 
                 // Look left
                 for j in (0..i).rev() {
@@ -106,12 +105,11 @@ impl HistogramBinningCalibrator {
                 }
 
                 // Look right
-                for j in (i + 1)..self.n_bins {
-                    if bin_counts[j] > 0 {
-                        right_rate = Some(self.bin_positive_rates[j]);
-                        break;
-                    }
-                }
+                let right_rate = bin_counts[(i + 1)..self.n_bins]
+                    .iter()
+                    .enumerate()
+                    .find(|(_, &count)| count > 0)
+                    .map(|(idx, _)| self.bin_positive_rates[i + 1 + idx]);
 
                 // Interpolate or use available neighbor
                 self.bin_positive_rates[i] = match (left_rate, right_rate) {

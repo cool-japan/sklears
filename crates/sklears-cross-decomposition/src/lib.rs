@@ -32,7 +32,8 @@ pub mod bayesian;
 pub mod benchmarks;
 pub mod cca;
 pub mod consensus_pca;
-pub mod cross_validation;
+// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// pub mod cross_validation;
 pub mod deep_cca;
 pub mod deep_learning;
 pub mod differential_geometry;
@@ -56,7 +57,8 @@ pub mod neuroimaging;
 pub mod opls;
 pub mod out_of_core;
 pub mod parallel;
-pub mod permutation_tests;
+// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// pub mod permutation_tests;
 pub mod pls;
 pub mod pls_canonical;
 pub mod pls_da;
@@ -83,13 +85,18 @@ pub use benchmarks::{
 };
 pub use cca::{RidgeCCA, SparseCCA, CCA};
 pub use consensus_pca::ConsensusPCA;
-pub use cross_validation::{
-    CVResults, CVStrategy, CrossValidator, NestedCrossValidator, ScoringFunction,
-};
+// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// pub use cross_validation::{
+//     CVResults, CVStrategy, CrossValidator, NestedCrossValidator, ScoringFunction,
+// };
 pub use deep_cca::{ActivationFunction, DeepCCA};
 pub use deep_learning::{
-    ActivationFunction as DeepActivationFunction, CrossModalSimilarity, CrossModalVAE, VAEConfig,
-    VAETrainingResults,
+    ActivationFunction as DeepActivationFunction, AttentionActivation, AttentionConfig,
+    AttentionLayer, AttentionOutput, AttentionTensorDecomposition, AttentionType,
+    CrossModalAttention, CrossModalAttentionOutput, CrossModalSimilarity, CrossModalVAE,
+    MultiHeadAttention, NeuralActivation, NeuralParafacDecomposition, NeuralTensorConfig,
+    NeuralTensorResults, NeuralTuckerDecomposition, TransformerDecoderBlock,
+    TransformerEncoderBlock, VAEConfig, VAETrainingResults, VariationalTensorNetwork,
 };
 pub use federated_learning::{
     AggregationStrategy as FederatedAggregationStrategy, ClientId, CommunicationConfig,
@@ -115,20 +122,25 @@ pub use gpu_acceleration::{
     GpuAcceleratedContext, GpuCCA, GpuCCAFitted, GpuMatrixOps, GpuMemoryInfo,
 };
 pub use graph_regularization::{
+    CommunityAlgorithm, CommunityDetectionConfig, CommunityDetector, CommunityStructure,
     GraphBuilder, GraphRegularizationConfig, GraphRegularizationError, GraphRegularizedCCA,
     GraphStructure, GraphType, Hypergraph, HypergraphCCA, HypergraphCCAResults,
-    HypergraphCentrality, HypergraphConfig, HypergraphLaplacianType, MultiGraphCCA,
+    HypergraphCentrality, HypergraphConfig, HypergraphLaplacianType, MotifType, MultiGraphCCA,
     MultiWayInteractionAnalyzer, NetworkConstrainedPLS, RegularizationType,
+    TemporalAnalysisResults, TemporalMotif, TemporalNetwork, TemporalNetworkAnalyzer,
+    TemporalNetworkConfig,
 };
 pub use information_theory::{
     ComponentInterpretation, ComponentInterpreter, ComponentSelection, ComponentSimilarityAnalysis,
-    EntropyComponentSelection, EntropyEstimator, FeatureContribution, FeatureImportanceAnalyzer,
-    FeatureImportanceResults, FittedMutualInformationCCA, HigherOrderAnalyzer, HigherOrderConfig,
-    HigherOrderResults, ImportanceMethod, InformationGeometry, InformationMeasure,
-    InformationTheoreticRegularization, InformationTheoryError, KLDivergenceMethods,
-    ManifoldStructure, MutualInformationCCA, NonGaussianComponentAnalysis, NonGaussianResults,
-    PolyspectralCCA, PolyspectralResults, RegularizationMethod, RiemannianOptimizer,
-    SelectionCriteria, SingleComponentInterpretation, VariableInterpretation,
+    DistanceBasedConfig, DistanceBasedMetric, DistanceBasedResults, DistanceCCA,
+    DistanceCovariance, EntropyComponentSelection, EntropyEstimator, FeatureContribution,
+    FeatureImportanceAnalyzer, FeatureImportanceResults, FittedMutualInformationCCA,
+    HigherOrderAnalyzer, HigherOrderConfig, HigherOrderResults, ImportanceMethod,
+    InformationGeometry, InformationMeasure, InformationTheoreticRegularization,
+    InformationTheoryError, KLDivergenceMethods, ManifoldStructure, MutualInformationCCA,
+    NonGaussianComponentAnalysis, NonGaussianResults, PolyspectralCCA, PolyspectralResults,
+    RegularizationMethod, RiemannianOptimizer, SelectionCriteria, SingleComponentInterpretation,
+    VariableInterpretation, HSIC,
 };
 pub use interactive_visualization::{
     ColorScheme, InteractivePlot, InteractiveVisualizationConfig, InteractiveVisualizer, PlotData,
@@ -164,10 +176,11 @@ pub use parallel::{
     EigenMethod, OptimizedMatrixOps, ParallelEigenSolver, ParallelMatrixOps, ParallelSVD,
     SVDAlgorithm, WorkStealingThreadPool,
 };
-pub use permutation_tests::{
-    ComputeStatistic, PermutationTest, PermutationTestResults, StabilityResults,
-    StabilitySelection, TestStatistic,
-};
+// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// pub use permutation_tests::{
+//     ComputeStatistic, PermutationTest, PermutationTestResults, StabilityResults,
+//     StabilitySelection, TestStatistic,
+// };
 pub use pls::PLSRegression;
 pub use pls_canonical::PLSCanonical;
 pub use pls_da::PLSDA;

@@ -203,7 +203,7 @@ impl LocallyLinearEmbedding {
         // Compute M = (I - W)^T(I - W)
         let I: Array2<Float> = Array2::eye(n_samples);
         let I_minus_W = &I - &W;
-        let M = I_minus_W.t().dot(&I_minus_W);
+        let _M = I_minus_W.t().dot(&I_minus_W);
 
         // Find smallest eigenvalues and eigenvectors (simplified)
         // In practice, use proper eigenvalue solver
@@ -217,7 +217,7 @@ impl LocallyLinearEmbedding {
 
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.random_range(-1.0..1.0);
+                embedding[[i, j]] = rng.gen_range(-1.0..1.0);
             }
         }
 
@@ -258,7 +258,7 @@ impl Fit<Features, ()> for LocallyLinearEmbedding {
 }
 
 impl Transform<Features, Array2<Float>> for LocallyLinearEmbedding {
-    fn transform(&self, X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
         if let Some(ref components) = self.components {
             // For LLE, transformation is typically done during fit
             // This is a simplified version
@@ -406,7 +406,7 @@ impl Isomap {
 
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.random_range(-1.0..1.0);
+                embedding[[i, j]] = rng.gen_range(-1.0..1.0);
             }
         }
 
@@ -447,7 +447,7 @@ impl Fit<Features, ()> for Isomap {
 }
 
 impl Transform<Features, Array2<Float>> for Isomap {
-    fn transform(&self, X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
         if let Some(ref components) = self.components {
             // For Isomap, transformation is typically done during fit
             // This is a simplified version
@@ -634,7 +634,7 @@ impl LaplacianEigenmaps {
 
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.random_range(-1.0..1.0);
+                embedding[[i, j]] = rng.gen_range(-1.0..1.0);
             }
         }
 
@@ -675,7 +675,7 @@ impl Fit<Features, ()> for LaplacianEigenmaps {
 }
 
 impl Transform<Features, Array2<Float>> for LaplacianEigenmaps {
-    fn transform(&self, X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
         if let Some(ref components) = self.components {
             // For Laplacian Eigenmaps, transformation is typically done during fit
             // This is a simplified version
@@ -837,7 +837,7 @@ impl TSNENeighbors {
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.random_range(-1e-4..1e-4);
+                embedding[[i, j]] = rng.gen_range(-1e-4..1e-4);
             }
         }
 
@@ -921,7 +921,7 @@ impl Fit<Features, ()> for TSNENeighbors {
 }
 
 impl Transform<Features, Array2<Float>> for TSNENeighbors {
-    fn transform(&self, X: &Features) -> Result<Array2<Float>> {
+    fn transform(&self, _X: &Features) -> Result<Array2<Float>> {
         if let Some(ref embedding) = self.embedding {
             // For t-SNE, transformation is typically done during fit
             Ok(embedding.clone())

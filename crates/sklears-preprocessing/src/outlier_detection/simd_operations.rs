@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn test_simd_iqr_outliers() {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0]; // 100.0 is outlier
-        let (outliers, lower, upper, q1, q3) = simd_iqr_outliers(&data, 1.5);
+        let (outliers, _lower, upper, q1, q3) = simd_iqr_outliers(&data, 1.5);
 
         // 100.0 should be detected as outlier
         assert!(outliers[5]); // Last element should be outlier

@@ -470,7 +470,7 @@ impl LSHash {
         for _ in 0..table_count {
             let mut projection = Vec::with_capacity(dimension);
             for _ in 0..dimension {
-                projection.push(rng.random::<f64>() * 2.0 - 1.0); // Random values between -1 and 1
+                projection.push(rng.gen::<f64>() * 2.0 - 1.0); // Random values between -1 and 1
             }
             projections.push(projection);
         }

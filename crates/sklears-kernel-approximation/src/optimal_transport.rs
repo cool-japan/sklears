@@ -7,8 +7,8 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::rand_prelude::IteratorRandom;
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     prelude::{Fit, Transform},
@@ -523,7 +523,7 @@ impl Fit<Array2<f64>, ()> for GromovWassersteinSampler {
 
     fn fit(self, x: &Array2<f64>, _y: &()) -> SklResult<Self::Fitted> {
         let n_features = x.ncols();
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
 
         // Compute reference distance matrix
         let distance_matrix = self.compute_distance_matrix(x);

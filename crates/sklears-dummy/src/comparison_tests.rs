@@ -9,8 +9,7 @@ use crate::{
 };
 use approx::assert_abs_diff_eq;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::prelude::*;
-use scirs2_core::random::{thread_rng, Distribution, Rng, StandardNormal};
+use scirs2_core::random::{prelude::*, thread_rng, Distribution, Rng, StandardNormal};
 use sklears_core::traits::{Fit, Predict};
 use std::collections::HashMap;
 

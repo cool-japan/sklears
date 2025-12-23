@@ -4,7 +4,8 @@
 //! for BLAS operations while still providing efficient linear SVR training.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::{SeedableRng, StdRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},
@@ -185,7 +186,6 @@ impl LinearSVR {
             // Shuffle sample indices for better convergence
             let mut indices: Vec<usize> = (0..n_samples).collect();
             if self.random_state.is_some() {
-                use scirs2_core::rand_prelude::SliceRandom;
                 indices.shuffle(&mut rng);
             }
 

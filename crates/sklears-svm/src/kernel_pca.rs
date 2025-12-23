@@ -4,9 +4,8 @@
 //! to a higher-dimensional feature space using kernel functions, then performing
 //! PCA in that space. This is particularly useful as a preprocessing step for SVMs.
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::DMatrix;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
+use scirs2_linalg::eigh;
 use sklears_core::{error::SklearsError, types::Float};
 
 use crate::kernels::{create_kernel, Kernel, KernelType};
@@ -174,27 +173,11 @@ impl KernelPCA {
         // Center the kernel matrix
         let k_centered = self.center_kernel_matrix(&k, Some(&k));
 
-        // Convert to nalgebra for eigenvalue decomposition
-        let k_nalgebra = DMatrix::from_iterator(
-            k_centered.nrows(),
-            k_centered.ncols(),
-            k_centered.iter().cloned(),
-        );
-
-        // Compute eigenvalue decomposition
-        let eigen = k_nalgebra.symmetric_eigen();
-
-        // Extract eigenvalues and eigenvectors
-        let eigenvalues = Array1::from_vec(eigen.eigenvalues.as_slice().to_vec());
-        let eigenvectors_matrix = eigen.eigenvectors;
-
-        // Convert eigenvectors back to ndarray
-        let mut eigenvectors = Array2::zeros((n_samples, n_samples));
-        for i in 0..n_samples {
-            for j in 0..n_samples {
-                eigenvectors[[i, j]] = eigenvectors_matrix[(i, j)];
-            }
-        }
+        // Compute eigenvalue decomposition using scirs2-linalg
+        // eigh returns (eigenvalues, eigenvectors) for symmetric matrices
+        let (eigenvalues, eigenvectors) = eigh(&k_centered.view(), None).map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to compute eigendecomposition: {}", e))
+        })?;
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut indices: Vec<usize> = (0..n_samples).collect();

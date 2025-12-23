@@ -402,20 +402,18 @@ impl RocCurveDisplay {
 
     /// Create ROC curve display from predictions
     ///
-    /// Note: This function requires the ranking module to be available.
-    /// In a real implementation, you would call crate::ranking::roc_curve
-    /// and crate::ranking::roc_auc_score.
+    /// Uses the ranking module to calculate the actual ROC curve and AUC score.
     pub fn from_predictions(
-        _y_true: &Array1<i32>,
-        _y_score: &Array1<f64>,
+        y_true: &Array1<i32>,
+        y_score: &Array1<f64>,
         pos_label: Option<String>,
         name: Option<String>,
     ) -> MetricsResult<Self> {
-        // This is a placeholder - in practice you would implement ROC curve calculation
-        // or import from a ranking module
-        let fpr = Array1::linspace(0.0, 1.0, 10);
-        let tpr = Array1::linspace(0.0, 1.0, 10);
-        let roc_auc = 0.85; // Placeholder
+        use crate::ranking::{auc, roc_curve};
+
+        // Calculate ROC curve
+        let (fpr, tpr, _thresholds) = roc_curve(y_true, y_score)?;
+        let roc_auc = auc(&fpr, &tpr)?;
 
         let mut display = Self::new(fpr, tpr).with_roc_auc(roc_auc);
 
@@ -505,22 +503,20 @@ impl PrecisionRecallDisplay {
         self
     }
 
-    /// Create precision-recall curve display from predictions
+    /// Create Precision-Recall curve display from predictions
     ///
-    /// Note: This function requires the ranking module to be available.
-    /// In a real implementation, you would call crate::ranking::precision_recall_curve
-    /// and crate::ranking::average_precision_score.
+    /// Uses the ranking module to calculate the actual PR curve and average precision.
     pub fn from_predictions(
-        _y_true: &Array1<i32>,
-        _y_score: &Array1<f64>,
+        y_true: &Array1<i32>,
+        y_score: &Array1<f64>,
         pos_label: Option<String>,
         name: Option<String>,
     ) -> MetricsResult<Self> {
-        // This is a placeholder - in practice you would implement PR curve calculation
-        // or import from a ranking module
-        let precision = Array1::linspace(1.0, 0.0, 10);
-        let recall = Array1::linspace(0.0, 1.0, 10);
-        let avg_precision = 0.75; // Placeholder
+        use crate::ranking::{average_precision_score, precision_recall_curve};
+
+        // Calculate PR curve
+        let (precision, recall, _thresholds) = precision_recall_curve(y_true, y_score)?;
+        let avg_precision = average_precision_score(y_true, y_score)?;
 
         let mut display = Self::new(precision, recall).with_average_precision(avg_precision);
 
@@ -607,17 +603,21 @@ impl DetCurveDisplay {
 
     /// Create DET curve display from predictions
     ///
-    /// Note: This function requires the ranking module to be available.
-    /// In a real implementation, you would call crate::ranking::roc_curve.
+    /// Uses the ranking module to calculate the ROC curve, then derives DET curve.
+    /// DET curve plots FPR vs FNR (False Negative Rate = 1 - TPR).
     pub fn from_predictions(
-        _y_true: &Array1<i32>,
-        _y_score: &Array1<f64>,
+        y_true: &Array1<i32>,
+        y_score: &Array1<f64>,
         pos_label: Option<String>,
         name: Option<String>,
     ) -> MetricsResult<Self> {
-        // This is a placeholder - in practice you would compute the actual DET curve
-        let fpr = Array1::linspace(0.0, 1.0, 10);
-        let fnr = Array1::linspace(1.0, 0.0, 10);
+        use crate::ranking::roc_curve;
+
+        // Calculate ROC curve to get FPR and TPR
+        let (fpr, tpr, _thresholds) = roc_curve(y_true, y_score)?;
+
+        // DET curve uses FNR = 1 - TPR
+        let fnr: Array1<f64> = tpr.mapv(|x| 1.0 - x);
 
         let mut display = Self::new(fpr, fnr);
 

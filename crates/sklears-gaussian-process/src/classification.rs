@@ -339,11 +339,11 @@ fn laplace_approximation(
     let mut f = Array1::<f64>::zeros(n);
     let tol = 1e-6;
 
-    for iter in 0..max_iter {
+    for _iter in 0..max_iter {
         // Compute probabilities and their derivatives
         let pi = f.mapv(sigmoid);
         let W = f.mapv(sigmoid_derivative);
-        let W_sr = W.mapv(|w| w.sqrt());
+        let _W_sr = W.mapv(|w| w.sqrt());
 
         // Compute gradients
         let grad = &pi - y;
@@ -399,8 +399,8 @@ fn laplace_approximation(
 fn predict_latent_function(
     K_star: &Array2<f64>,
     f_train: &Array1<f64>,
-    W_sr: &Array1<f64>,
-    L: &Array2<f64>,
+    _W_sr: &Array1<f64>,
+    _L: &Array2<f64>,
 ) -> SklResult<Array1<f64>> {
     // Simplified prediction (should be more sophisticated)
     let f_star_values = K_star.dot(f_train);
@@ -1271,7 +1271,7 @@ fn compute_ep_log_marginal_likelihood(
     nu: &Array1<f64>,
     mu: &Array1<f64>,
     Sigma: &Array2<f64>,
-    y: &Array1<f64>,
+    _y: &Array1<f64>,
 ) -> SklResult<f64> {
     let n = K.nrows();
 

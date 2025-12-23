@@ -946,9 +946,17 @@ mod tests {
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
             .unwrap();
 
-        // Check that weights and biases have changed
-        assert!(!weights[0].abs_diff_eq(&original_weights, 1e-10));
-        assert!(!biases[0].abs_diff_eq(&original_biases, 1e-10));
+        // Check that weights and biases have changed (compare element by element)
+        let weights_changed = weights[0]
+            .iter()
+            .zip(original_weights.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
+        assert!(weights_changed);
+        let biases_changed = biases[0]
+            .iter()
+            .zip(original_biases.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
+        assert!(biases_changed);
     }
 
     #[test]
@@ -1047,9 +1055,17 @@ mod tests {
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
             .unwrap();
 
-        // Check that parameters have changed
-        assert!(!weights[0].abs_diff_eq(&original_weights, 1e-10));
-        assert!(!biases[0].abs_diff_eq(&original_biases, 1e-10));
+        // Check that parameters have changed (compare element by element)
+        let weights_changed = weights[0]
+            .iter()
+            .zip(original_weights.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
+        assert!(weights_changed);
+        let biases_changed = biases[0]
+            .iter()
+            .zip(original_biases.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
+        assert!(biases_changed);
     }
 
     #[test]
@@ -1069,9 +1085,17 @@ mod tests {
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
             .unwrap();
 
-        // Check that parameters have changed
-        assert!(!weights[0].abs_diff_eq(&original_weights, 1e-10));
-        assert!(!biases[0].abs_diff_eq(&original_biases, 1e-10));
+        // Check that parameters have changed (compare element by element)
+        let weights_changed = weights[0]
+            .iter()
+            .zip(original_weights.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
+        assert!(weights_changed);
+        let biases_changed = biases[0]
+            .iter()
+            .zip(original_biases.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
+        assert!(biases_changed);
     }
 
     #[test]

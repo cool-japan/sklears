@@ -5,7 +5,7 @@
 //! quantum-inspired calibration methods.
 
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{Rng, Distribution, Normal, Uniform};
+use scirs2_core::random::{Distribution, Normal, Uniform};
 use sklears_core::{
     error::{Result},
     types::Float,

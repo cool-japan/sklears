@@ -134,15 +134,16 @@ pub struct RegularizationPathSolver {
     config: RegularizationPathConfig,
 }
 
+impl Default for RegularizationPathSolver {
+    fn default() -> Self {
+        Self::new(RegularizationPathConfig::default())
+    }
+}
+
 impl RegularizationPathSolver {
     /// Create a new regularization path solver
     pub fn new(config: RegularizationPathConfig) -> Self {
         Self { config }
-    }
-
-    /// Create a new solver with default configuration
-    pub fn default() -> Self {
-        Self::new(RegularizationPathConfig::default())
     }
 
     /// Fit regularization path
@@ -161,7 +162,7 @@ impl RegularizationPathSolver {
         }
 
         // Standardize features if requested
-        let (x_processed, feature_means, feature_stds) = if self.config.standardize {
+        let (x_processed, _feature_means, feature_stds) = if self.config.standardize {
             self.standardize_features(x)?
         } else {
             (
@@ -1124,7 +1125,7 @@ mod tests {
         let config = RegularizationPathConfig::default();
         let solver = RegularizationPathSolver::new(config);
 
-        let (x_std, means, stds) = solver.standardize_features(&x).unwrap();
+        let (x_std, means, _stds) = solver.standardize_features(&x).unwrap();
 
         // Check means are approximately zero after standardization
         for j in 0..x_std.ncols() {

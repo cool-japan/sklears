@@ -257,6 +257,7 @@ impl ParallelSmo {
 
     /// Execute one iteration for a parallel worker
     #[cfg(feature = "parallel")]
+    #[allow(clippy::too_many_arguments)]
     fn worker_iteration<K: Kernel + Send + Sync>(
         &self,
         worker_id: usize,
@@ -362,9 +363,9 @@ impl ParallelSmo {
         &self,
         worker_results: &[WorkerResult],
         shared_state: Arc<SharedState>,
-        x: Arc<Array2<Float>>,
-        y: Arc<Array1<Float>>,
-        kernel: Arc<K>,
+        _x: Arc<Array2<Float>>,
+        _y: Arc<Array1<Float>>,
+        _kernel: Arc<K>,
     ) -> Result<SynchronizationResult> {
         let total_updates: usize = worker_results.iter().map(|r| r.n_updates).sum();
         let max_violation = worker_results

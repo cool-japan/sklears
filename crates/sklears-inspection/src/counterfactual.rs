@@ -307,8 +307,7 @@ where
             Ok(cf) => {
                 if cf.is_valid {
                     // Check if this counterfactual uses a different set of features
-                    let feature_signature: Vec<usize> =
-                        cf.changed_features.iter().cloned().collect();
+                    let feature_signature: Vec<usize> = cf.changed_features.to_vec();
                     if used_feature_sets.insert(feature_signature) {
                         counterfactuals.push(cf);
                         if counterfactuals.len() >= n_counterfactuals {

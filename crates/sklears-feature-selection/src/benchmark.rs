@@ -568,8 +568,8 @@ impl FeatureSelectionBenchmark {
         &self,
         X_train: ArrayView2<f64>,
         y_train: ArrayView1<f64>,
-        X_test: ArrayView2<f64>,
-        y_test: ArrayView1<f64>,
+        _X_test: ArrayView2<f64>,
+        _y_test: ArrayView1<f64>,
         selected_features: &[usize],
         ground_truth: &Option<Vec<usize>>,
     ) -> Result<EvaluationMetrics> {
@@ -1195,7 +1195,7 @@ impl BenchmarkSuiteResults {
         }
 
         // Performance summary
-        report.push_str(&"\n=== Overall Performance Summary ===\n".to_string());
+        report.push_str("\n=== Overall Performance Summary ===\n");
         let summary = &self.statistical_analysis.performance_summary;
         report.push_str(&format!(
             "Mean Score: {:.4} ± {:.4}\n",

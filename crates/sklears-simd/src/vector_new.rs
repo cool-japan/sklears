@@ -233,7 +233,7 @@ pub fn benchmark_vector_operations(sizes: &[usize]) -> Vec<VectorBenchmarkResult
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

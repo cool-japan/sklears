@@ -7,7 +7,7 @@
 
 High-performance matrix decomposition and dimensionality reduction algorithms for Rust, featuring streaming capabilities and 10-50x speedup over scikit-learn.
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 

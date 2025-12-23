@@ -7,7 +7,6 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
 use scirs2_core::random::{thread_rng, Rng, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use std::marker::PhantomData;
@@ -237,6 +236,7 @@ pub enum TransformationParameters<const N: usize> {
 /// Quality metrics for approximation assessment
 #[derive(Debug, Clone)]
 /// QualityMetrics
+#[derive(Default)]
 pub struct QualityMetrics {
     /// Approximation error estimate
     pub approximation_error: Option<f64>,
@@ -251,18 +251,18 @@ pub struct QualityMetrics {
     pub kernel_alignment: Option<f64>,
 }
 
-impl Default for QualityMetrics {
+// Implementation for untrained approximation
+impl<Kernel, Method, const N_COMPONENTS: usize> Default
+    for TypeSafeKernelApproximation<Untrained, Kernel, Method, N_COMPONENTS>
+where
+    Kernel: KernelType,
+    Method: ApproximationMethod,
+{
     fn default() -> Self {
-        Self {
-            approximation_error: None,
-            effective_rank: None,
-            condition_number: None,
-            kernel_alignment: None,
-        }
+        Self::new()
     }
 }
 
-// Implementation for untrained approximation
 impl<Kernel, Method, const N_COMPONENTS: usize>
     TypeSafeKernelApproximation<Untrained, Kernel, Method, N_COMPONENTS>
 where
@@ -441,7 +441,7 @@ where
 
         // Gaussian scaling
         let scaling = Array1::from_shape_fn(N_COMPONENTS, |_| {
-            use scirs2_core::random::{RandNormal, Rng};
+            use scirs2_core::random::RandNormal;
             let normal = RandNormal::new(0.0, 1.0).unwrap();
             rng.sample(normal)
         });
@@ -823,6 +823,12 @@ pub trait ParameterValidation<const MIN: usize, const MAX: usize> {
 /// ValidatedComponents
 pub struct ValidatedComponents<const N: usize>;
 
+impl<const N: usize> Default for ValidatedComponents<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize> ValidatedComponents<N> {
     /// Create validated components with compile-time checks
     pub fn new() -> Self {
@@ -938,6 +944,17 @@ where
 {
     inner: TypeSafeKernelApproximation<Untrained, K, M, N>,
     _validation: ValidatedComponents<N>,
+}
+
+impl<K, M, const N: usize> Default for ValidatedKernelApproximation<K, M, N>
+where
+    K: KernelType,
+    M: ApproximationMethod,
+    (): KernelMethodCompatibility<K, M>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<K, M, const N: usize> ValidatedKernelApproximation<K, M, N>
@@ -1184,6 +1201,15 @@ pub struct ValidatedFeatures<const N: usize> {
     _phantom: PhantomData<[f64; N]>,
 }
 
+impl<const N: usize> Default for ValidatedFeatures<N>
+where
+    (): ValidatedFeatureSize<N>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize> ValidatedFeatures<N>
 where
     (): ValidatedFeatureSize<N>,
@@ -1260,6 +1286,18 @@ where
     features: ValidatedFeatures<N>,
     bandwidth: f64,
     quality_threshold: f64,
+}
+
+impl<K: KernelType, M: ApproximationMethod, const N: usize> Default
+    for TypeSafeKernelConfig<K, M, N>
+where
+    (): ValidatedFeatureSize<N>,
+    (): KernelMethodCompatibility<K, M>,
+    (): ApproximationQualityBounds<M>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<K: KernelType, M: ApproximationMethod, const N: usize> TypeSafeKernelConfig<K, M, N>
@@ -1734,19 +1772,19 @@ mod preset_tests {
 
     #[test]
     fn test_kernel_presets() {
-        let fast_config = KernelPresets::fast_rbf_128();
+        let _fast_config = KernelPresets::fast_rbf_128();
         assert_eq!(
             ValidatedRBFRandomFourier::<128>::performance_tier(),
             PerformanceTier::Optimal
         );
 
-        let balanced_config = KernelPresets::balanced_rbf_256();
+        let _balanced_config = KernelPresets::balanced_rbf_256();
         assert_eq!(
             ValidatedRBFRandomFourier::<256>::performance_tier(),
             PerformanceTier::Optimal
         );
 
-        let accurate_config = KernelPresets::accurate_rbf_512();
+        let _accurate_config = KernelPresets::accurate_rbf_512();
         assert_eq!(
             ValidatedRBFRandomFourier::<512>::performance_tier(),
             PerformanceTier::Optimal

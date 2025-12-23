@@ -13,7 +13,7 @@
 //! - Cochran's Q test for comparing binary outcomes across multiple models
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float as FloatTrait;
+// use scirs2_core::numeric::Float as FloatTrait;
 use sklears_core::error::{Result, SklearsError};
 use std::fmt::Debug;
 
@@ -645,14 +645,14 @@ fn inverse_standard_normal(p: f64) -> f64 {
     let x = p - 0.5;
     if x.abs() < 0.42 {
         let x2 = x * x;
-        let num = a[4] * x2 + a[3];
+        let _num = a[4] * x2 + a[3];
         let den = b[4] * x2 + b[3];
         x * (((a[2] * x2 + a[1]) * x2 + a[0]) / ((den * x2 + b[2]) * x2 + b[1]))
     } else {
         let ln_p = if p > 0.5 { (1.0 - p).ln() } else { p.ln() };
         let t = (-2.0 * ln_p).sqrt();
 
-        let num = a[4] * t + a[3];
+        let _num = a[4] * t + a[3];
         let den = b[4] * t + b[3];
         let result = t - ((((a[2] * t + a[1]) * t + a[0]) / ((den * t + b[2]) * t + b[1])) / t);
 
@@ -733,7 +733,7 @@ fn bonferroni_correction(p_values: &[f64]) -> Vec<f64> {
     p_values.iter().map(|&p| (p * n).min(1.0)).collect()
 }
 
-fn benjamini_hochberg_correction(p_values: &[f64], alpha: f64) -> Vec<f64> {
+fn benjamini_hochberg_correction(p_values: &[f64], _alpha: f64) -> Vec<f64> {
     let n = p_values.len();
     let mut indexed_p: Vec<(usize, f64)> =
         p_values.iter().enumerate().map(|(i, &p)| (i, p)).collect();

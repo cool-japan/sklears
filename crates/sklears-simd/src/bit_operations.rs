@@ -3,21 +3,18 @@
 //! This module provides high-performance bit manipulation operations commonly used
 //! in machine learning for sparse data processing, feature hashing, and boolean indexing.
 
-#[cfg(feature = "no-std")]
-use alloc::vec::Vec;
-
 /// Population count (popcount) operations for counting set bits
 pub mod popcount {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     /// Count the number of set bits in a slice of u64 values using SIMD
     pub fn popcount_u64_slice(data: &[u64]) -> usize {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("popcnt") {
+            if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("popcnt") {
                 return unsafe { popcount_u64_slice_avx2(data) };
-            } else if is_x86_feature_detected!("sse4.2") && is_x86_feature_detected!("popcnt") {
+            } else if crate::simd_feature_detected!("sse4.2") && crate::simd_feature_detected!("popcnt") {
                 return unsafe { popcount_u64_slice_sse42(data) };
             }
         }
@@ -36,9 +33,9 @@ pub mod popcount {
     pub fn popcount_u32_slice(data: &[u32]) -> usize {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("popcnt") {
+            if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("popcnt") {
                 return unsafe { popcount_u32_slice_avx2(data) };
-            } else if is_x86_feature_detected!("sse4.2") && is_x86_feature_detected!("popcnt") {
+            } else if crate::simd_feature_detected!("sse4.2") && crate::simd_feature_detected!("popcnt") {
                 return unsafe { popcount_u32_slice_sse42(data) };
             }
         }
@@ -157,7 +154,7 @@ pub mod popcount {
 /// Bit manipulation operations for feature engineering and boolean indexing
 pub mod bit_manipulation {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     #[cfg(feature = "no-std")]
     use alloc::vec::Vec;
@@ -166,9 +163,9 @@ pub mod bit_manipulation {
     pub fn reverse_bits_u32_slice(data: &mut [u32]) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { reverse_bits_u32_slice_avx2(data) };
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 return unsafe { reverse_bits_u32_slice_sse2(data) };
             }
         }
@@ -182,7 +179,7 @@ pub mod bit_manipulation {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("bmi2") {
+            if crate::simd_feature_detected!("bmi2") {
                 return unsafe { parallel_bit_extract_bmi2(data, mask) };
             }
         }
@@ -200,7 +197,7 @@ pub mod bit_manipulation {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("lzcnt") {
+            if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("lzcnt") {
                 return unsafe { count_leading_zeros_slice_avx2(data) };
             }
         }
@@ -375,7 +372,7 @@ pub mod bit_manipulation {
 /// Hash functions for feature hashing and approximate algorithms
 pub mod hash_functions {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     #[cfg(feature = "no-std")]
     use alloc::vec::Vec;
@@ -384,7 +381,7 @@ pub mod hash_functions {
     pub fn crc32_hash(data: &[u8]) -> u32 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("sse4.2") {
+            if crate::simd_feature_detected!("sse4.2") {
                 return unsafe { crc32_hash_sse42(data) };
             }
         }
@@ -413,7 +410,7 @@ pub mod hash_functions {
     pub fn fast_hash_u64_slice(data: &[u64]) -> Vec<u64> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { fast_hash_u64_slice_avx2(data) };
             }
         }
@@ -447,7 +444,7 @@ pub mod hash_functions {
         let remainder = chunks.remainder();
 
         for chunk in chunks {
-            let val = std::ptr::read_unaligned(chunk.as_ptr() as *const u64);
+            let val = core::ptr::read_unaligned(chunk.as_ptr() as *const u64);
             crc = _mm_crc32_u64(crc as u64, val) as u32;
         }
 
@@ -552,7 +549,7 @@ pub mod hash_functions {
 /// Boolean indexing operations for filtering and selection
 pub mod boolean_indexing {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     #[cfg(feature = "no-std")]
     use alloc::vec::Vec;
@@ -563,7 +560,7 @@ pub mod boolean_indexing {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { compress_by_mask_f32_avx2(data, mask) };
             }
         }
@@ -575,7 +572,7 @@ pub mod boolean_indexing {
     pub fn create_mask_greater_than_f32(data: &[f32], threshold: f32) -> Vec<bool> {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { create_mask_greater_than_f32_avx2(data, threshold) };
             }
         }
@@ -587,7 +584,7 @@ pub mod boolean_indexing {
     pub fn count_true_mask(mask: &[bool]) -> usize {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { count_true_mask_avx2(mask) };
             }
         }
@@ -615,8 +612,6 @@ pub mod boolean_indexing {
         let remaining_mask = chunks_mask.remainder();
 
         for (data_chunk, mask_chunk) in chunks_data.zip(chunks_mask) {
-            let data_vec = _mm256_loadu_ps(data_chunk.as_ptr());
-
             // Create mask from boolean array
             let mut mask_bits = 0u8;
             for (i, &b) in mask_chunk.iter().enumerate() {
@@ -705,9 +700,12 @@ pub mod boolean_indexing {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_popcount_u64() {

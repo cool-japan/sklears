@@ -62,7 +62,7 @@ pub struct MultiLevelConfig {
     pub early_stopping: bool,
     /// Number of parallel jobs (-1 for all cores)
     pub n_jobs: Option<i32>,
-    /// Random state for reproducible results
+    /// StdRng state for reproducible results
     pub random_state: Option<u64>,
 }
 

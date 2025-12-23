@@ -32,7 +32,8 @@ pub mod error;
 pub mod config_management;
 pub mod configuration_validation;
 pub mod continual_learning;
-pub mod cross_validation;
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub mod cross_validation;
 pub mod cv_pipelines;
 pub mod dag_pipeline;
 pub mod debugging;
@@ -163,11 +164,12 @@ pub use continual_learning::{
     ContinualLearningPipeline, ContinualLearningPipelineTrained, ContinualLearningStrategy,
     MemoryBuffer, MemorySample as ContinualMemorySample, SamplingStrategy, Task, TaskStatistics,
 };
-pub use cross_validation::{
-    CVStrategy, CVSummary, ComposedModelCrossValidator, CrossValidationConfig,
-    CrossValidationResults, FoldResult, NestedCVResults, OuterFoldResult, ScoringConfig,
-    ScoringMetric as CVScoringMetric, TimeSeriesConfig,
-};
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub use cross_validation::{
+//     CVStrategy, CVSummary, ComposedModelCrossValidator, CrossValidationConfig,
+//     CrossValidationResults, FoldResult, NestedCVResults, OuterFoldResult, ScoringConfig,
+//     ScoringMetric as CVScoringMetric, TimeSeriesConfig,
+// };
 pub use cv_pipelines::{
     AdaptationAlgorithm, AdaptationMetric, AdaptiveQualityConfig, BoundingBox,
     BufferManagementConfig, CVConfig, CVMetrics, CVModel, CVPipeline, CVPipelineState,

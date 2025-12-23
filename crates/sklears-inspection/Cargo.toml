@@ -16,7 +16,6 @@ description = "Model inspection and interpretation tools"
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
 sklears-simd = { workspace = true, optional = true }
-numrs2 = { workspace = true }
 # ✅ SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true }
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
@@ -29,11 +28,11 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
+uuid = { version = "1.18", features = ["v4", "serde"] }
 rayon = { workspace = true, optional = true }
 num_cpus = { workspace = true, optional = true }
 memmap2 = { version = "0.9", optional = true }
-tokio = { version = "1.0", features = ["rt", "rt-multi-thread"], optional = true }
+tokio = { version = "1.47", features = ["rt", "rt-multi-thread"], optional = true }
 # WebAssembly dependencies
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
@@ -43,8 +42,8 @@ console_error_panic_hook = { version = "0.1", optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
-tempfile = "3.8"
-tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "macros"] }
+tempfile = "3.23"
+tokio = { version = "1.47", features = ["rt", "rt-multi-thread", "macros"] }
 
 [features]
 default = ["serde", "parallel", "mmap"]

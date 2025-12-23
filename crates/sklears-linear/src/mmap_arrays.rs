@@ -366,7 +366,7 @@ impl MmapMatrixMut {
             let chunk_size = (end_row - start_row) * self.cols;
 
             let start_idx = start_row * self.cols;
-            let end_idx = start_idx + chunk_size;
+            let _end_idx = start_idx + chunk_size;
 
             // We need to get mutable slice for each chunk separately
             // to avoid borrow checker issues
@@ -591,10 +591,7 @@ impl MmapUtils {
             .open(path)?;
 
         let bytes = unsafe {
-            slice::from_raw_parts(
-                data.as_ptr() as *const u8,
-                data.len() * std::mem::size_of::<f64>(),
-            )
+            slice::from_raw_parts(data.as_ptr() as *const u8, std::mem::size_of_val(data))
         };
 
         file.write_all(bytes)?;
@@ -623,11 +620,19 @@ impl MmapUtils {
 
         // Use 50% of available memory for chunks
         let target_chunk_bytes = available_bytes / 2;
-        let elements_per_chunk = target_chunk_bytes / element_size;
+        let mut elements_per_chunk = target_chunk_bytes / element_size;
 
         // Ensure we process at least one complete row
-        let min_chunk_size = matrix_cols;
-        elements_per_chunk.max(min_chunk_size)
+        let min_chunk_size = matrix_cols.max(1);
+        elements_per_chunk = elements_per_chunk.max(min_chunk_size);
+
+        // Never request more elements than exist in the matrix
+        let total_elements = matrix_rows.saturating_mul(matrix_cols).max(min_chunk_size);
+        elements_per_chunk = elements_per_chunk.min(total_elements);
+
+        // Clamp to a reasonable upper bound to avoid excessively large chunks
+        let max_reasonable = 1_000_000usize.max(min_chunk_size);
+        elements_per_chunk.min(max_reasonable)
     }
 }
 

@@ -214,7 +214,7 @@ impl CVKernelFunction {
         let mut kernel_value = 0.0;
         let mut offset = 0;
 
-        for level in 0..=levels {
+        for (level, weight) in weights.iter().enumerate().take(levels + 1) {
             let grid_size = 1 << (2 * level); // 4^level cells
             let level_span = grid_size * cell_hist_size;
             debug_assert!(offset + level_span <= x.len());
@@ -230,7 +230,7 @@ impl CVKernelFunction {
                 level_intersection += self.histogram_intersection(x_cell, y_cell);
             }
 
-            kernel_value += weights[level] * level_intersection;
+            kernel_value += weight * level_intersection;
             offset += level_span;
         }
 
@@ -272,7 +272,7 @@ impl CVKernelFunction {
         &self,
         x: &[f64],
         y: &[f64],
-        radius: f64,
+        _radius: f64,
         neighbors: usize,
     ) -> Result<f64, CVKernelError> {
         // LBP features are typically histograms of local binary patterns
@@ -512,10 +512,24 @@ pub mod cv_utils {
 pub mod specialized_cv_kernels {
     use super::*;
 
-    /// SIFT Descriptor Kernel
+    /// SIFT Descriptor Kernel with advanced matching
     pub struct SIFTKernel {
         pub sigma: f64,
         pub use_normalization: bool,
+        pub matching_method: DescriptorMatchingMethod,
+    }
+
+    /// Descriptor matching methods
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum DescriptorMatchingMethod {
+        /// Euclidean distance with RBF kernel
+        RBF,
+        /// Cosine similarity
+        CosineSimilarity,
+        /// L1 distance with Laplacian kernel
+        Laplacian,
+        /// Chi-square distance
+        ChiSquare,
     }
 
     impl SIFTKernel {
@@ -523,7 +537,13 @@ pub mod specialized_cv_kernels {
             Self {
                 sigma,
                 use_normalization,
+                matching_method: DescriptorMatchingMethod::RBF,
             }
+        }
+
+        pub fn with_matching_method(mut self, method: DescriptorMatchingMethod) -> Self {
+            self.matching_method = method;
+            self
         }
 
         pub fn compute(&self, x: &[f64], y: &[f64]) -> f64 {
@@ -546,7 +566,91 @@ pub mod specialized_cv_kernels {
                 }
             }
 
-            // RBF kernel on normalized descriptors
+            match self.matching_method {
+                DescriptorMatchingMethod::RBF => {
+                    // RBF kernel on normalized descriptors
+                    let squared_distance: f64 = x_norm
+                        .iter()
+                        .zip(y_norm.iter())
+                        .map(|(a, b)| (a - b).powi(2))
+                        .sum();
+                    (-squared_distance / (2.0 * self.sigma.powi(2))).exp()
+                }
+                DescriptorMatchingMethod::CosineSimilarity => {
+                    let dot_product: f64 =
+                        x_norm.iter().zip(y_norm.iter()).map(|(a, b)| a * b).sum();
+                    let x_norm_sq: f64 = x_norm.iter().map(|v| v * v).sum::<f64>().sqrt();
+                    let y_norm_sq: f64 = y_norm.iter().map(|v| v * v).sum::<f64>().sqrt();
+                    if x_norm_sq > 0.0 && y_norm_sq > 0.0 {
+                        dot_product / (x_norm_sq * y_norm_sq)
+                    } else {
+                        0.0
+                    }
+                }
+                DescriptorMatchingMethod::Laplacian => {
+                    let l1_distance: f64 = x_norm
+                        .iter()
+                        .zip(y_norm.iter())
+                        .map(|(a, b)| (a - b).abs())
+                        .sum();
+                    (-l1_distance / self.sigma).exp()
+                }
+                DescriptorMatchingMethod::ChiSquare => {
+                    let chi_square: f64 = x_norm
+                        .iter()
+                        .zip(y_norm.iter())
+                        .map(|(a, b)| {
+                            if a + b > 0.0 {
+                                (a - b).powi(2) / (a + b)
+                            } else {
+                                0.0
+                            }
+                        })
+                        .sum();
+                    (-chi_square / (2.0 * self.sigma)).exp()
+                }
+            }
+        }
+    }
+
+    /// SURF Descriptor Kernel (64 or 128 dimensional)
+    pub struct SURFKernel {
+        pub sigma: f64,
+        pub use_normalization: bool,
+        pub extended: bool, // 128-dimensional if true, 64 if false
+    }
+
+    impl SURFKernel {
+        pub fn new(sigma: f64, use_normalization: bool, extended: bool) -> Self {
+            Self {
+                sigma,
+                use_normalization,
+                extended,
+            }
+        }
+
+        pub fn compute(&self, x: &[f64], y: &[f64]) -> f64 {
+            let expected_dim = if self.extended { 128 } else { 64 };
+            if x.len() != y.len() || x.len() != expected_dim {
+                return 0.0;
+            }
+
+            let mut x_norm = x.to_vec();
+            let mut y_norm = y.to_vec();
+
+            if self.use_normalization {
+                let x_magnitude = x.iter().map(|v| v * v).sum::<f64>().sqrt();
+                let y_magnitude = y.iter().map(|v| v * v).sum::<f64>().sqrt();
+
+                if x_magnitude > 0.0 {
+                    x_norm.iter_mut().for_each(|v| *v /= x_magnitude);
+                }
+                if y_magnitude > 0.0 {
+                    y_norm.iter_mut().for_each(|v| *v /= y_magnitude);
+                }
+            }
+
+            // RBF kernel on normalized SURF descriptors
             let squared_distance: f64 = x_norm
                 .iter()
                 .zip(y_norm.iter())
@@ -626,6 +730,192 @@ pub mod specialized_cv_kernels {
                 neighbors: self.neighbors,
             });
             cv_kernel.compute(x, y)
+        }
+    }
+
+    /// Deep Feature Extraction Kernel
+    /// Supports features from pre-trained deep learning models
+    pub struct DeepFeatureKernel {
+        pub feature_dimension: usize,
+        pub kernel_type: DeepFeatureKernelType,
+        pub normalize: bool,
+    }
+
+    /// Types of kernels for deep features
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum DeepFeatureKernelType {
+        /// Linear kernel on deep features
+        Linear,
+        /// RBF kernel with specified gamma
+        RBF { gamma: f64 },
+        /// Cosine similarity kernel
+        Cosine,
+        /// Polynomial kernel
+        Polynomial { degree: f64, gamma: f64, coef0: f64 },
+    }
+
+    impl DeepFeatureKernel {
+        pub fn new(feature_dimension: usize, kernel_type: DeepFeatureKernelType) -> Self {
+            Self {
+                feature_dimension,
+                kernel_type,
+                normalize: true,
+            }
+        }
+
+        pub fn with_normalization(mut self, normalize: bool) -> Self {
+            self.normalize = normalize;
+            self
+        }
+
+        pub fn compute(&self, x: &[f64], y: &[f64]) -> Result<f64, CVKernelError> {
+            if x.len() != self.feature_dimension || y.len() != self.feature_dimension {
+                return Err(CVKernelError::DimensionMismatch {
+                    expected: self.feature_dimension,
+                    actual: x.len(),
+                });
+            }
+
+            let mut x_proc = x.to_vec();
+            let mut y_proc = y.to_vec();
+
+            if self.normalize {
+                let x_norm = x.iter().map(|v| v * v).sum::<f64>().sqrt();
+                let y_norm = y.iter().map(|v| v * v).sum::<f64>().sqrt();
+
+                if x_norm > 0.0 {
+                    x_proc.iter_mut().for_each(|v| *v /= x_norm);
+                }
+                if y_norm > 0.0 {
+                    y_proc.iter_mut().for_each(|v| *v /= y_norm);
+                }
+            }
+
+            let kernel_value = match &self.kernel_type {
+                DeepFeatureKernelType::Linear => {
+                    x_proc.iter().zip(y_proc.iter()).map(|(a, b)| a * b).sum()
+                }
+                DeepFeatureKernelType::RBF { gamma } => {
+                    let squared_dist: f64 = x_proc
+                        .iter()
+                        .zip(y_proc.iter())
+                        .map(|(a, b)| (a - b).powi(2))
+                        .sum();
+                    (-gamma * squared_dist).exp()
+                }
+                DeepFeatureKernelType::Cosine => {
+                    let dot_product: f64 =
+                        x_proc.iter().zip(y_proc.iter()).map(|(a, b)| a * b).sum();
+                    let x_magnitude = x_proc.iter().map(|v| v * v).sum::<f64>().sqrt();
+                    let y_magnitude = y_proc.iter().map(|v| v * v).sum::<f64>().sqrt();
+                    if x_magnitude > 0.0 && y_magnitude > 0.0 {
+                        dot_product / (x_magnitude * y_magnitude)
+                    } else {
+                        0.0
+                    }
+                }
+                DeepFeatureKernelType::Polynomial {
+                    degree,
+                    gamma,
+                    coef0,
+                } => {
+                    let dot_product: f64 =
+                        x_proc.iter().zip(y_proc.iter()).map(|(a, b)| a * b).sum();
+                    (gamma * dot_product + coef0).powf(*degree)
+                }
+            };
+
+            Ok(kernel_value)
+        }
+    }
+
+    /// Bag-of-Features Kernel for image classification
+    /// Uses visual vocabulary from clustered local descriptors
+    pub struct BagOfFeaturesKernel {
+        pub vocabulary_size: usize,
+        pub kernel_type: CVKernelType,
+    }
+
+    impl BagOfFeaturesKernel {
+        pub fn new(vocabulary_size: usize, kernel_type: CVKernelType) -> Self {
+            Self {
+                vocabulary_size,
+                kernel_type,
+            }
+        }
+
+        /// Compute kernel between bag-of-features histograms
+        pub fn compute(&self, x: &[f64], y: &[f64]) -> Result<f64, CVKernelError> {
+            if x.len() != self.vocabulary_size || y.len() != self.vocabulary_size {
+                return Err(CVKernelError::DimensionMismatch {
+                    expected: self.vocabulary_size,
+                    actual: x.len(),
+                });
+            }
+
+            let cv_kernel = CVKernelFunction::new(self.kernel_type.clone());
+            cv_kernel.compute(x, y)
+        }
+    }
+
+    /// Fisher Vector Kernel for image classification
+    /// Uses Gaussian Mixture Model encoding of local descriptors
+    pub struct FisherVectorKernel {
+        pub n_components: usize,
+        pub descriptor_dim: usize,
+        pub sigma: f64,
+    }
+
+    impl FisherVectorKernel {
+        pub fn new(n_components: usize, descriptor_dim: usize, sigma: f64) -> Self {
+            Self {
+                n_components,
+                descriptor_dim,
+                sigma,
+            }
+        }
+
+        /// Fisher vector dimension is 2 * n_components * descriptor_dim
+        pub fn fisher_vector_dim(&self) -> usize {
+            2 * self.n_components * self.descriptor_dim
+        }
+
+        pub fn compute(&self, x: &[f64], y: &[f64]) -> Result<f64, CVKernelError> {
+            let expected_dim = self.fisher_vector_dim();
+            if x.len() != expected_dim || y.len() != expected_dim {
+                return Err(CVKernelError::DimensionMismatch {
+                    expected: expected_dim,
+                    actual: x.len(),
+                });
+            }
+
+            // Normalize Fisher vectors (power normalization + L2 normalization)
+            let x_power: Vec<f64> = x.iter().map(|v| v.signum() * v.abs().sqrt()).collect();
+            let y_power: Vec<f64> = y.iter().map(|v| v.signum() * v.abs().sqrt()).collect();
+
+            let x_norm = x_power.iter().map(|v| v * v).sum::<f64>().sqrt();
+            let y_norm = y_power.iter().map(|v| v * v).sum::<f64>().sqrt();
+
+            let x_normalized: Vec<f64> = if x_norm > 0.0 {
+                x_power.iter().map(|v| v / x_norm).collect()
+            } else {
+                x_power
+            };
+
+            let y_normalized: Vec<f64> = if y_norm > 0.0 {
+                y_power.iter().map(|v| v / y_norm).collect()
+            } else {
+                y_power
+            };
+
+            // Linear kernel on normalized Fisher vectors
+            let kernel_value: f64 = x_normalized
+                .iter()
+                .zip(y_normalized.iter())
+                .map(|(a, b)| a * b)
+                .sum();
+
+            Ok(kernel_value)
         }
     }
 }
@@ -742,6 +1032,136 @@ mod tests {
         let y = vec![1.0; 24];
         let result = color_kernel.compute(&x, &y).unwrap();
         assert_eq!(result, 24.0);
+    }
+
+    #[test]
+    fn test_sift_kernel_advanced() {
+        use specialized_cv_kernels::{DescriptorMatchingMethod, SIFTKernel};
+
+        // Test RBF matching
+        let sift_rbf = SIFTKernel::new(1.0, true);
+        let x = vec![1.0; 128];
+        let y = vec![1.0; 128];
+        let result = sift_rbf.compute(&x, &y);
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test cosine similarity
+        let sift_cosine = SIFTKernel::new(1.0, true)
+            .with_matching_method(DescriptorMatchingMethod::CosineSimilarity);
+        let result = sift_cosine.compute(&x, &y);
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test Laplacian
+        let sift_laplacian =
+            SIFTKernel::new(1.0, true).with_matching_method(DescriptorMatchingMethod::Laplacian);
+        let result = sift_laplacian.compute(&x, &y);
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test different descriptors
+        let x = vec![1.0; 128];
+        let mut y = vec![1.0; 128];
+        y[0] = 0.5; // Make them different
+        let result = sift_rbf.compute(&x, &y);
+        assert!(result < 1.0 && result > 0.0);
+    }
+
+    #[test]
+    fn test_surf_kernel() {
+        use specialized_cv_kernels::SURFKernel;
+
+        // Test standard SURF (64 dimensions)
+        let surf_64 = SURFKernel::new(1.0, true, false);
+        let x = vec![1.0; 64];
+        let y = vec![1.0; 64];
+        let result = surf_64.compute(&x, &y);
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test extended SURF (128 dimensions)
+        let surf_128 = SURFKernel::new(1.0, true, true);
+        let x = vec![1.0; 128];
+        let y = vec![1.0; 128];
+        let result = surf_128.compute(&x, &y);
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test wrong dimension returns 0
+        let x = vec![1.0; 32];
+        let result = surf_64.compute(&x, &x);
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn test_deep_feature_kernel() {
+        use specialized_cv_kernels::{DeepFeatureKernel, DeepFeatureKernelType};
+
+        // Test linear kernel
+        let deep_linear = DeepFeatureKernel::new(512, DeepFeatureKernelType::Linear);
+        let x = vec![1.0; 512];
+        let y = vec![1.0; 512];
+        let result = deep_linear.compute(&x, &y).unwrap();
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test RBF kernel
+        let deep_rbf = DeepFeatureKernel::new(512, DeepFeatureKernelType::RBF { gamma: 0.5 });
+        let result = deep_rbf.compute(&x, &y).unwrap();
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test cosine similarity
+        let deep_cosine = DeepFeatureKernel::new(512, DeepFeatureKernelType::Cosine);
+        let result = deep_cosine.compute(&x, &y).unwrap();
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+
+        // Test polynomial kernel
+        let deep_poly = DeepFeatureKernel::new(
+            512,
+            DeepFeatureKernelType::Polynomial {
+                degree: 2.0,
+                gamma: 1.0,
+                coef0: 1.0,
+            },
+        );
+        let result = deep_poly.compute(&x, &y).unwrap();
+        assert!(result > 1.0); // (1*1 + 1)^2 = 4
+
+        // Test dimension mismatch
+        let x = vec![1.0; 256];
+        let result = deep_linear.compute(&x, &y);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_bag_of_features_kernel() {
+        use specialized_cv_kernels::BagOfFeaturesKernel;
+
+        let bof_kernel = BagOfFeaturesKernel::new(100, CVKernelType::HistogramIntersection);
+        let x = vec![1.0; 100];
+        let y = vec![1.0; 100];
+        let result = bof_kernel.compute(&x, &y).unwrap();
+        assert_eq!(result, 100.0);
+
+        // Test with chi-square kernel
+        let bof_chi = BagOfFeaturesKernel::new(100, CVKernelType::ChiSquare { gamma: 1.0 });
+        let result = bof_chi.compute(&x, &y).unwrap();
+        assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_fisher_vector_kernel() {
+        use specialized_cv_kernels::FisherVectorKernel;
+
+        let fisher_kernel = FisherVectorKernel::new(16, 64, 1.0);
+        let dim = fisher_kernel.fisher_vector_dim();
+        assert_eq!(dim, 2 * 16 * 64);
+
+        let x = vec![1.0; dim];
+        let y = vec![1.0; dim];
+        let result = fisher_kernel.compute(&x, &y).unwrap();
+        assert!(result > 0.0 && result <= 1.0);
+
+        // Test power normalization effect
+        let mut x_varied = vec![1.0; dim];
+        x_varied[0] = 0.5; // Make it different
+        let result_varied = fisher_kernel.compute(&x_varied, &y).unwrap();
+        assert!(result_varied < 1.0 && result_varied > 0.0);
     }
 
     #[test]

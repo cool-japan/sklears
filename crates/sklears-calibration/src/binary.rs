@@ -381,7 +381,7 @@ pub fn train_ensemble_temperature_calibrators(
 pub fn train_one_vs_one_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
-    classes: &[i32],
+    _classes: &[i32],
     _cv: usize,
 ) -> Result<Vec<Box<dyn CalibrationEstimator>>> {
     // For one-vs-one, we return a single calibrator that handles all classes
@@ -553,7 +553,6 @@ impl CalibrationEstimator for DirichletAdapter {
 }
 
 /// Training functions for local calibration methods
-
 /// Train local k-NN calibrators for multiclass problems using one-vs-rest strategy
 pub fn train_local_knn_calibrators(
     probabilities: &Array2<Float>,

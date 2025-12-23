@@ -1,6 +1,6 @@
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::seeded_rng;
+use scirs2_core::random::{seeded_rng, Rng};
 use sklears_model_selection::*;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -465,7 +465,7 @@ mod stress_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(42);
         // Mock random search with large parameter space
-        (0..n_iter).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..n_iter).map(|_| rng.random_range(-1.0..1.0)).collect()
     }
 
     fn run_bayesian_optimization_stress_test(
@@ -476,7 +476,7 @@ mod stress_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(42);
         // Mock Bayesian optimization with large parameter space
-        (0..n_iter).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..n_iter).map(|_| rng.random_range(-1.0..1.0)).collect()
     }
 
     fn run_optimization_with_large_data(
@@ -487,13 +487,13 @@ mod stress_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(42);
         // Mock optimization with large dataset
-        (0..n_iter).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..n_iter).map(|_| rng.random_range(-1.0..1.0)).collect()
     }
 
     fn run_high_fold_cv(_x: &Array2<f64>, _y: &Array2<f64>, n_folds: usize) -> Vec<f64> {
         let mut rng = seeded_rng(42);
         // Mock high fold cross-validation
-        (0..n_folds).map(|_| rng.gen_range(0.0..1.0)).collect()
+        (0..n_folds).map(|_| rng.random_range(0.0..1.0)).collect()
     }
 
     fn run_long_optimization(
@@ -508,7 +508,7 @@ mod stress_tests {
         let mut best_score: f64 = -1.0;
 
         for _ in 0..n_iter {
-            let score = best_score + rng.gen_range(-0.1..0.1);
+            let score = best_score + rng.random_range(-0.1..0.1);
             best_score = best_score.max(score);
             results.push(score);
         }
@@ -523,7 +523,7 @@ mod stress_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(42);
         // Mock memory-efficient grid search
-        (0..50).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..50).map(|_| rng.random_range(-1.0..1.0)).collect()
     }
 
     fn run_concurrent_optimization(
@@ -534,7 +534,9 @@ mod stress_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(42);
         // Mock concurrent optimization
-        (0..n_threads).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..n_threads)
+            .map(|_| rng.random_range(-1.0..1.0))
+            .collect()
     }
 
     fn run_sequential_optimization(
@@ -560,8 +562,11 @@ mod stress_tests {
             let mut params = HashMap::new();
             params.insert("tiny_param".to_string(), rng.gen_range(1e-10..1e-8));
             params.insert("huge_param".to_string(), rng.gen_range(1e6..1e8));
-            params.insert("large_int".to_string(), rng.gen_range(1.0..1000000.0));
-            params.insert("negative_param".to_string(), rng.gen_range(-1000.0..-0.001));
+            params.insert("large_int".to_string(), rng.random_range(1.0..1000000.0));
+            params.insert(
+                "negative_param".to_string(),
+                rng.random_range(-1000.0..-0.001),
+            );
             results.push(params);
         }
 
@@ -579,7 +584,7 @@ mod stress_tests {
         // Mock noisy optimization
         (0..n_iter)
             .map(|_| {
-                let base_score = rng.gen_range(-1.0..1.0);
+                let base_score = rng.random_range(-1.0..1.0);
                 let noise = rng.gen_range(-noise_level..noise_level);
                 base_score + noise
             })
@@ -598,7 +603,7 @@ mod stress_tests {
 
         // Run optimization until time limit
         while start.elapsed() < time_limit {
-            results.push(rng.gen_range(-1.0..1.0));
+            results.push(rng.random_range(-1.0..1.0));
             std::thread::sleep(Duration::from_millis(10)); // Simulate work
         }
 
@@ -616,7 +621,7 @@ mod stress_tests {
         let mut rng = seeded_rng(42);
 
         for _ in 0..n_concurrent {
-            let run_results: Vec<f64> = (0..10).map(|_| rng.gen_range(-1.0..1.0)).collect();
+            let run_results: Vec<f64> = (0..10).map(|_| rng.random_range(-1.0..1.0)).collect();
             results.push(run_results);
         }
 

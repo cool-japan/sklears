@@ -8,7 +8,8 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::ndarray_linalg::SVD;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Transform},
@@ -892,7 +893,7 @@ impl ParameterLearner {
     fn sample_log_uniform(&self, rng: &mut StdRng, min_val: f64, max_val: f64) -> f64 {
         let log_min = min_val.ln();
         let log_max = max_val.ln();
-        let log_val = rng.gen_range(log_min..=log_max);
+        let log_val = rng.gen_range(log_min..log_max);
         log_val.exp()
     }
 
@@ -905,7 +906,7 @@ impl ParameterLearner {
         // Simplified Upper Confidence Bound acquisition function
         // In practice, this would use a more sophisticated GP surrogate model
 
-        let best_score = parameter_history
+        let _best_score = parameter_history
             .iter()
             .map(|(_, score)| *score)
             .fold(f64::NEG_INFINITY, f64::max);

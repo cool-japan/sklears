@@ -1,0 +1,36 @@
+//! # BaselineConfig - Trait Implementations
+//!
+//! This module contains trait implementations for `BaselineConfig`.
+//!
+//! ## Implemented Traits
+//!
+//! - `Default`
+//!
+//! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
+
+use sklears_core::{
+    error::{Result as SklResult, SklearsError},
+    types::Float,
+};
+use std::collections::{HashMap, VecDeque, HashSet};
+use std::sync::{Arc, RwLock, Mutex};
+use std::time::{Duration, SystemTime, Instant};
+use std::fmt;
+use serde::{Serialize, Deserialize};
+use crate::fault_core::*;
+use super::types::*;
+use super::functions::*;
+
+use super::types::BaselineConfig;
+
+impl Default for BaselineConfig {
+    fn default() -> Self {
+        Self {
+            auto_baseline: true,
+            baseline_period: Duration::from_secs(86400 * 7),
+            update_frequency: Duration::from_secs(3600),
+            confidence_threshold: 0.95,
+        }
+    }
+}
+

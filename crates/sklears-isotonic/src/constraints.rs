@@ -7,6 +7,58 @@ use crate::{pool_adjacent_violators_l2, MonotonicityConstraint};
 use scirs2_core::ndarray::Array1;
 use sklears_core::{error::Result, types::Float};
 
+/// Apply piecewise monotonicity constraints based on breakpoints
+fn apply_piecewise_constraint(
+    values: &Array1<Float>,
+    breakpoints: &[Float],
+    segments: &[bool],
+    weights: Option<&Array1<Float>>,
+) -> Result<Array1<Float>> {
+    if breakpoints.is_empty() || segments.is_empty() {
+        return Ok(values.clone());
+    }
+
+    let n = values.len();
+    let mut result = values.clone();
+
+    // Create index ranges for each segment
+    // For simplicity, we treat indices as proxies for x-values
+    // In a real implementation, we'd need the x-values to map breakpoints
+    let segment_count = segments.len();
+    let segment_size = (n as f64 / segment_count as f64).ceil() as usize;
+
+    for (seg_idx, &is_increasing) in segments.iter().enumerate() {
+        let start_idx = seg_idx * segment_size;
+        let end_idx = ((seg_idx + 1) * segment_size).min(n);
+
+        if start_idx >= n {
+            break;
+        }
+
+        // Extract segment
+        let segment_values = result
+            .slice(scirs2_core::ndarray::s![start_idx..end_idx])
+            .to_owned();
+        let segment_weights = weights.map(|w| {
+            w.slice(scirs2_core::ndarray::s![start_idx..end_idx])
+                .to_owned()
+        });
+
+        // Apply monotonicity constraint to this segment
+        let constrained_segment =
+            pool_adjacent_violators_l2(&segment_values, segment_weights.as_ref(), is_increasing)?;
+
+        // Update result with constrained segment
+        for (i, &val) in constrained_segment.iter().enumerate() {
+            if start_idx + i < n {
+                result[start_idx + i] = val;
+            }
+        }
+    }
+
+    Ok(result)
+}
+
 /// Apply global monotonicity constraint to a sequence of values
 pub fn apply_global_constraint(
     values: &Array1<Float>,
@@ -20,25 +72,31 @@ pub fn apply_global_constraint(
             pool_adjacent_violators_l2(values, weights, increasing)
         }
         MonotonicityConstraint::None => Ok(values.clone()),
-        MonotonicityConstraint::Piecewise { .. } => {
-            // TODO: Implement piecewise constraints
-            pool_adjacent_violators_l2(values, weights, true)
+        MonotonicityConstraint::Piecewise {
+            breakpoints,
+            segments,
+        } => {
+            apply_piecewise_constraint(values, breakpoints.as_slice(), segments.as_slice(), weights)
         }
         MonotonicityConstraint::Convex => {
-            // TODO: Implement convex constraints
-            pool_adjacent_violators_l2(values, weights, true)
+            // Apply both increasing constraint and convexity constraint
+            let monotonic = pool_adjacent_violators_l2(values, weights, true)?;
+            apply_convexity_constraint(&monotonic, weights)
         }
         MonotonicityConstraint::Concave => {
-            // TODO: Implement concave constraints
-            pool_adjacent_violators_l2(values, weights, true)
+            // Apply both increasing constraint and concavity constraint
+            let monotonic = pool_adjacent_violators_l2(values, weights, true)?;
+            apply_concavity_constraint(&monotonic, weights)
         }
         MonotonicityConstraint::ConvexDecreasing => {
-            // TODO: Implement convex decreasing constraints
-            pool_adjacent_violators_l2(values, weights, false)
+            // Apply both decreasing constraint and convexity constraint
+            let monotonic = pool_adjacent_violators_l2(values, weights, false)?;
+            apply_convexity_constraint(&monotonic, weights)
         }
         MonotonicityConstraint::ConcaveDecreasing => {
-            // TODO: Implement concave decreasing constraints
-            pool_adjacent_violators_l2(values, weights, false)
+            // Apply both decreasing constraint and concavity constraint
+            let monotonic = pool_adjacent_violators_l2(values, weights, false)?;
+            apply_concavity_constraint(&monotonic, weights)
         }
     }
 }
@@ -87,25 +145,59 @@ pub fn validate_monotonicity(
             true
         }
         MonotonicityConstraint::None => true,
-        MonotonicityConstraint::Piecewise { .. } => {
-            // TODO: Implement piecewise validation
+        MonotonicityConstraint::Piecewise {
+            segments,
+            breakpoints: _,
+        } => {
+            // Validate each segment separately
+            let n = values.len();
+            if segments.is_empty() {
+                return true;
+            }
+
+            let segment_count = segments.len();
+            let segment_size = (n as f64 / segment_count as f64).ceil() as usize;
+
+            for (seg_idx, &is_increasing) in segments.iter().enumerate() {
+                let start_idx = seg_idx * segment_size;
+                let end_idx = ((seg_idx + 1) * segment_size).min(n);
+
+                if start_idx >= n {
+                    break;
+                }
+
+                // Check monotonicity within this segment
+                for i in start_idx..end_idx.saturating_sub(1) {
+                    if is_increasing {
+                        if values[i + 1] < values[i] - tolerance {
+                            return false;
+                        }
+                    } else if values[i + 1] > values[i] + tolerance {
+                        return false;
+                    }
+                }
+            }
             true
         }
         MonotonicityConstraint::Convex => {
-            // TODO: Implement convex validation
+            // Check both increasing and convexity
             validate_monotonicity(values, MonotonicityConstraint::Increasing, tolerance)
+                && validate_convexity(values, tolerance)
         }
         MonotonicityConstraint::Concave => {
-            // TODO: Implement concave validation
+            // Check both increasing and concavity
             validate_monotonicity(values, MonotonicityConstraint::Increasing, tolerance)
+                && validate_concavity(values, tolerance)
         }
         MonotonicityConstraint::ConvexDecreasing => {
-            // TODO: Implement convex decreasing validation
+            // Check both decreasing and convexity
             validate_monotonicity(values, MonotonicityConstraint::Decreasing, tolerance)
+                && validate_convexity(values, tolerance)
         }
         MonotonicityConstraint::ConcaveDecreasing => {
-            // TODO: Implement concave decreasing validation
+            // Check both decreasing and concavity
             validate_monotonicity(values, MonotonicityConstraint::Decreasing, tolerance)
+                && validate_concavity(values, tolerance)
         }
     }
 }
@@ -252,6 +344,38 @@ pub fn apply_concavity_constraint(
     Ok(result)
 }
 
+/// Count convexity violations (second derivative should be non-negative)
+fn count_convexity_violations(values: &Array1<Float>) -> usize {
+    if values.len() <= 2 {
+        return 0;
+    }
+
+    let mut violations = 0;
+    for i in 1..values.len() - 1 {
+        let second_deriv = values[i + 1] - 2.0 * values[i] + values[i - 1];
+        if second_deriv < 0.0 {
+            violations += 1;
+        }
+    }
+    violations
+}
+
+/// Count concavity violations (second derivative should be non-positive)
+fn count_concavity_violations(values: &Array1<Float>) -> usize {
+    if values.len() <= 2 {
+        return 0;
+    }
+
+    let mut violations = 0;
+    for i in 1..values.len() - 1 {
+        let second_deriv = values[i + 1] - 2.0 * values[i] + values[i - 1];
+        if second_deriv > 0.0 {
+            violations += 1;
+        }
+    }
+    violations
+}
+
 /// Count monotonicity violations in a sequence
 pub fn count_monotonicity_violations(
     values: &Array1<Float>,
@@ -294,24 +418,94 @@ pub fn count_monotonicity_violations(
             }
         }
         MonotonicityConstraint::None => {}
-        MonotonicityConstraint::Piecewise { .. } => {
-            // TODO: Implement piecewise violation counting
+        MonotonicityConstraint::Piecewise {
+            segments,
+            breakpoints: _,
+        } => {
+            // Count violations in each segment separately
+            let n = values.len();
+            if segments.is_empty() {
+                return violations;
+            }
+
+            let segment_count = segments.len();
+            let segment_size = (n as f64 / segment_count as f64).ceil() as usize;
+
+            for (seg_idx, &is_increasing) in segments.iter().enumerate() {
+                let start_idx = seg_idx * segment_size;
+                let end_idx = ((seg_idx + 1) * segment_size).min(n);
+
+                if start_idx >= n {
+                    break;
+                }
+
+                // Count violations within this segment
+                for i in start_idx..end_idx.saturating_sub(1) {
+                    if is_increasing {
+                        if values[i + 1] < values[i] {
+                            violations += 1;
+                        }
+                    } else if values[i + 1] > values[i] {
+                        violations += 1;
+                    }
+                }
+            }
         }
         MonotonicityConstraint::Convex => {
-            // TODO: Implement convex violation counting
+            // Count both monotonicity and convexity violations
+            violations += count_monotonicity_violations(values, MonotonicityConstraint::Increasing);
+            violations += count_convexity_violations(values);
         }
         MonotonicityConstraint::Concave => {
-            // TODO: Implement concave violation counting
+            // Count both monotonicity and concavity violations
+            violations += count_monotonicity_violations(values, MonotonicityConstraint::Increasing);
+            violations += count_concavity_violations(values);
         }
         MonotonicityConstraint::ConvexDecreasing => {
-            // TODO: Implement convex decreasing violation counting
+            // Count both decreasing and convexity violations
+            violations += count_monotonicity_violations(values, MonotonicityConstraint::Decreasing);
+            violations += count_convexity_violations(values);
         }
         MonotonicityConstraint::ConcaveDecreasing => {
-            // TODO: Implement concave decreasing violation counting
+            // Count both decreasing and concavity violations
+            violations += count_monotonicity_violations(values, MonotonicityConstraint::Decreasing);
+            violations += count_concavity_violations(values);
         }
     }
 
     violations
+}
+
+/// Calculate the magnitude of convexity violations
+fn calculate_convexity_violation_magnitude(values: &Array1<Float>) -> Float {
+    if values.len() <= 2 {
+        return 0.0;
+    }
+
+    let mut total_violation = 0.0;
+    for i in 1..values.len() - 1 {
+        let second_deriv = values[i + 1] - 2.0 * values[i] + values[i - 1];
+        if second_deriv < 0.0 {
+            total_violation += second_deriv.abs();
+        }
+    }
+    total_violation
+}
+
+/// Calculate the magnitude of concavity violations
+fn calculate_concavity_violation_magnitude(values: &Array1<Float>) -> Float {
+    if values.len() <= 2 {
+        return 0.0;
+    }
+
+    let mut total_violation = 0.0;
+    for i in 1..values.len() - 1 {
+        let second_deriv = values[i + 1] - 2.0 * values[i] + values[i - 1];
+        if second_deriv > 0.0 {
+            total_violation += second_deriv.abs();
+        }
+    }
+    total_violation
 }
 
 /// Calculate the magnitude of constraint violations
@@ -356,20 +550,62 @@ pub fn constraint_violation_magnitude(
             }
         }
         MonotonicityConstraint::None => {}
-        MonotonicityConstraint::Piecewise { .. } => {
-            // TODO: Implement piecewise violation magnitude
+        MonotonicityConstraint::Piecewise {
+            segments,
+            breakpoints: _,
+        } => {
+            // Calculate magnitude for each segment separately
+            let n = values.len();
+            if segments.is_empty() {
+                return total_violation;
+            }
+
+            let segment_count = segments.len();
+            let segment_size = (n as f64 / segment_count as f64).ceil() as usize;
+
+            for (seg_idx, &is_increasing) in segments.iter().enumerate() {
+                let start_idx = seg_idx * segment_size;
+                let end_idx = ((seg_idx + 1) * segment_size).min(n);
+
+                if start_idx >= n {
+                    break;
+                }
+
+                // Calculate violations within this segment
+                for i in start_idx..end_idx.saturating_sub(1) {
+                    if is_increasing {
+                        if values[i + 1] < values[i] {
+                            total_violation += values[i] - values[i + 1];
+                        }
+                    } else if values[i + 1] > values[i] {
+                        total_violation += values[i + 1] - values[i];
+                    }
+                }
+            }
         }
         MonotonicityConstraint::Convex => {
-            // TODO: Implement convex violation magnitude
+            // Sum both monotonicity and convexity violation magnitudes
+            total_violation +=
+                constraint_violation_magnitude(values, MonotonicityConstraint::Increasing);
+            total_violation += calculate_convexity_violation_magnitude(values);
         }
         MonotonicityConstraint::Concave => {
-            // TODO: Implement concave violation magnitude
+            // Sum both monotonicity and concavity violation magnitudes
+            total_violation +=
+                constraint_violation_magnitude(values, MonotonicityConstraint::Increasing);
+            total_violation += calculate_concavity_violation_magnitude(values);
         }
         MonotonicityConstraint::ConvexDecreasing => {
-            // TODO: Implement convex decreasing violation magnitude
+            // Sum both decreasing and convexity violation magnitudes
+            total_violation +=
+                constraint_violation_magnitude(values, MonotonicityConstraint::Decreasing);
+            total_violation += calculate_convexity_violation_magnitude(values);
         }
         MonotonicityConstraint::ConcaveDecreasing => {
-            // TODO: Implement concave decreasing violation magnitude
+            // Sum both decreasing and concavity violation magnitudes
+            total_violation +=
+                constraint_violation_magnitude(values, MonotonicityConstraint::Decreasing);
+            total_violation += calculate_concavity_violation_magnitude(values);
         }
     }
 

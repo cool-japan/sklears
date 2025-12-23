@@ -10,12 +10,18 @@ mod common;
 pub use common::*;
 
 // Individual model implementations
+mod ard_regression;
+mod bayesian_ridge;
+mod elastic_net;
 mod lasso;
 mod linear_regression;
 mod logistic_regression;
 mod ridge;
 
 // Re-export working model classes for PyO3
+pub use ard_regression::PyARDRegression;
+pub use bayesian_ridge::PyBayesianRidge;
+pub use elastic_net::PyElasticNet;
 pub use lasso::PyLasso;
 pub use linear_regression::PyLinearRegression;
 pub use logistic_regression::PyLogisticRegression;

@@ -234,6 +234,7 @@ impl PrototypicalNetworks<Untrained> {
     }
 
     /// Sample episode for training
+    #[allow(clippy::type_complexity)]
     fn sample_episode(
         &self,
         X: &Array2<f64>,
@@ -289,6 +290,7 @@ impl PrototypicalNetworks<Untrained> {
                     .cloned()
                     .collect();
 
+                #[allow(clippy::needless_range_loop)]
                 // Support set
                 for i in 0..self.n_shot {
                     let sample_idx = selected_samples[i];
@@ -297,6 +299,7 @@ impl PrototypicalNetworks<Untrained> {
                     support_idx += 1;
                 }
 
+                #[allow(clippy::needless_range_loop)]
                 // Query set
                 for i in self.n_shot..self.n_shot + self.n_query {
                     let sample_idx = selected_samples[i];

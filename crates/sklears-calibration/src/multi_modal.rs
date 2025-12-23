@@ -72,7 +72,7 @@ impl MultiModalCalibrator {
     fn learn_cross_modal_interactions(
         &mut self,
         modal_probabilities: &[Array1<Float>],
-        y_true: &Array1<i32>,
+        _y_true: &Array1<i32>,
     ) -> Result<()> {
         if modal_probabilities.len() != self.n_modalities {
             return Err(SklearsError::InvalidInput(
@@ -137,6 +137,7 @@ impl MultiModalCalibrator {
                     let mut weighted_sum = 0.0;
                     let mut total_weight = 0.0;
 
+                    #[allow(clippy::needless_range_loop)]
                     for j in 0..self.n_modalities {
                         let modal_pred = modal_predictions[j][i];
                         let weight = self.interaction_weights.row(j).sum();
@@ -186,8 +187,10 @@ impl MultiModalCalibrator {
                 for i in 0..n_samples {
                     let mut fused_pred = 0.0;
 
+                    #[allow(clippy::needless_range_loop)]
                     for j in 0..self.n_modalities {
                         let mut modal_contribution = 0.0;
+                        #[allow(clippy::needless_range_loop)]
                         for k in 0..self.n_modalities {
                             modal_contribution +=
                                 self.interaction_weights[[j, k]] * modal_predictions[k][i];
@@ -546,7 +549,7 @@ impl HeterogeneousEnsembleCalibrator {
 
             // Compute Brier score as performance metric
             let mut brier_score = 0.0;
-            for (i, (&pred, &target)) in predictions.iter().zip(y_true.iter()).enumerate() {
+            for (&pred, &target) in predictions.iter().zip(y_true.iter()) {
                 let target_float = target as Float;
                 brier_score += (pred - target_float).powi(2);
             }
@@ -986,7 +989,7 @@ impl TransferLearningCalibrator {
                     let pretrained_preds = pretrained.predict_proba(probabilities)?;
 
                     // Create synthetic targets based on pretrained predictions
-                    let mut synthetic_targets = Array1::zeros(probabilities.len() as usize);
+                    let mut synthetic_targets = Array1::zeros(probabilities.len());
                     for (i, (&pred, &true_target)) in
                         pretrained_preds.iter().zip(y_true.iter()).enumerate()
                     {

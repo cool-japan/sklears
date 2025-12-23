@@ -9,7 +9,7 @@ use crate::vector::sum;
 use scirs2_autograd::ndarray::{Array1, Array2};
 
 #[cfg(feature = "no-std")]
-use alloc::{format, vec};
+use alloc::vec;
 
 /// SIMD-optimized sigmoid activation function
 pub fn sigmoid(input: &[f32], output: &mut [f32]) {
@@ -21,10 +21,10 @@ pub fn sigmoid(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { sigmoid_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { sigmoid_sse2(input, output) };
             return;
         }
@@ -97,7 +97,7 @@ unsafe fn sigmoid_avx2(input: &[f32], output: &mut [f32]) {
 /// Fast exponential approximation for SSE2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn exp_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m128 {
+unsafe fn exp_approx_sse2(x: core::arch::x86_64::__m128) -> core::arch::x86_64::__m128 {
     use core::arch::x86_64::*;
 
     // Clamp input to reasonable range to avoid overflow
@@ -124,7 +124,7 @@ unsafe fn exp_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__
 /// Fast exponential approximation for AVX2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn exp_approx_avx2(x: std::arch::x86_64::__m256) -> std::arch::x86_64::__m256 {
+unsafe fn exp_approx_avx2(x: core::arch::x86_64::__m256) -> core::arch::x86_64::__m256 {
     use core::arch::x86_64::*;
 
     let min_val = _mm256_set1_ps(-10.0);
@@ -156,10 +156,10 @@ pub fn relu(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { relu_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { relu_sse2(input, output) };
             return;
         }
@@ -226,10 +226,10 @@ pub fn leaky_relu(input: &[f32], output: &mut [f32], alpha: f32) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { leaky_relu_avx2(input, output, alpha) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { leaky_relu_sse2(input, output, alpha) };
             return;
         }
@@ -316,10 +316,10 @@ pub fn tanh_activation(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { tanh_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { tanh_sse2(input, output) };
             return;
         }
@@ -377,7 +377,7 @@ unsafe fn tanh_avx2(input: &[f32], output: &mut [f32]) {
 /// Fast tanh approximation for SSE2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "sse2")]
-unsafe fn tanh_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::__m128 {
+unsafe fn tanh_approx_sse2(x: core::arch::x86_64::__m128) -> core::arch::x86_64::__m128 {
     use core::arch::x86_64::*;
 
     // Clamp input
@@ -397,7 +397,7 @@ unsafe fn tanh_approx_sse2(x: std::arch::x86_64::__m128) -> std::arch::x86_64::_
 /// Fast tanh approximation for AVX2
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn tanh_approx_avx2(x: std::arch::x86_64::__m256) -> std::arch::x86_64::__m256 {
+unsafe fn tanh_approx_avx2(x: core::arch::x86_64::__m256) -> core::arch::x86_64::__m256 {
     use core::arch::x86_64::*;
 
     let min_val = _mm256_set1_ps(-5.0);
@@ -452,10 +452,10 @@ pub fn elu(input: &[f32], output: &mut [f32], alpha: f32) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { elu_avx2(input, output, alpha) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { elu_sse2(input, output, alpha) };
             return;
         }
@@ -550,10 +550,10 @@ pub fn swish(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { swish_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { swish_sse2(input, output) };
             return;
         }
@@ -635,10 +635,10 @@ pub fn gelu(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { gelu_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { gelu_sse2(input, output) };
             return;
         }
@@ -761,10 +761,10 @@ pub fn relu_derivative(input: &[f32], output: &mut [f32]) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             unsafe { relu_derivative_avx2(input, output) };
             return;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             unsafe { relu_derivative_sse2(input, output) };
             return;
         }
@@ -912,10 +912,13 @@ pub enum ActivationFunction {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_sigmoid() {

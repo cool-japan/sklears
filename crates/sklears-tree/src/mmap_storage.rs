@@ -196,6 +196,9 @@ impl MMapTree {
             .open(&file_path)?;
 
         // Write metadata header
+        // SAFETY: TreeMetadata is a plain-old-data type with repr(C),
+        // and we're creating a slice view of its byte representation.
+        // The lifetime of the slice is bound to the metadata reference.
         let metadata_bytes = unsafe {
             std::slice::from_raw_parts(
                 &metadata as *const TreeMetadata as *const u8,
@@ -223,6 +226,9 @@ impl MMapTree {
         let mut metadata_bytes = vec![0u8; TreeMetadata::size()];
         file.read_exact(&mut metadata_bytes)?;
 
+        // SAFETY: We've read exactly TreeMetadata::size() bytes into metadata_bytes,
+        // and TreeMetadata is a repr(C) struct. The buffer is properly aligned
+        // and contains valid bytes that represent a TreeMetadata instance.
         let metadata = unsafe { std::ptr::read(metadata_bytes.as_ptr() as *const TreeMetadata) };
         metadata.validate()?;
 
@@ -241,6 +247,9 @@ impl MMapTree {
         let offset = self.file.seek(SeekFrom::End(0))?;
 
         // Write node data
+        // SAFETY: MMapTreeNode is a plain-old-data type with repr(C),
+        // and we're creating a slice view of its byte representation.
+        // The lifetime of the slice is bound to the node reference.
         let node_bytes = unsafe {
             std::slice::from_raw_parts(
                 node as *const MMapTreeNode as *const u8,
@@ -262,6 +271,9 @@ impl MMapTree {
         let mut node_bytes = vec![0u8; MMapTreeNode::size()];
         self.file.read_exact(&mut node_bytes)?;
 
+        // SAFETY: We've read exactly MMapTreeNode::size() bytes into node_bytes,
+        // and MMapTreeNode is a repr(C) struct. The buffer is properly sized
+        // and contains valid bytes that represent a MMapTreeNode instance.
         let node = unsafe { std::ptr::read(node_bytes.as_ptr() as *const MMapTreeNode) };
 
         Ok(node)
@@ -275,6 +287,9 @@ impl MMapTree {
 
         // Update metadata in file
         self.file.seek(SeekFrom::Start(0))?;
+        // SAFETY: TreeMetadata is a plain-old-data type with repr(C),
+        // and we're creating a slice view of its byte representation.
+        // The lifetime of the slice is bound to the metadata reference.
         let metadata_bytes = unsafe {
             std::slice::from_raw_parts(
                 &self.metadata as *const TreeMetadata as *const u8,
@@ -661,6 +676,9 @@ impl MMapUtils {
 
                 // Write updated node back
                 mmap_tree.file.seek(SeekFrom::Start(node_offset as u64))?;
+                // SAFETY: MMapTreeNode is a plain-old-data type with repr(C),
+                // and we're creating a slice view of its byte representation.
+                // The lifetime of the slice is bound to the mmap_node reference.
                 let node_bytes = unsafe {
                     std::slice::from_raw_parts(
                         &mmap_node as *const MMapTreeNode as *const u8,

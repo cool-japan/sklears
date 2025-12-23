@@ -249,7 +249,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for StructuredVariationalGMM<Untrained> {
     type Fitted = StructuredVariationalGMMTrained;
 
     fn fit(self, X: &ArrayView2<f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         if n_samples < self.n_components {
             return Err(SklearsError::InvalidInput(
@@ -321,7 +321,7 @@ impl StructuredVariationalGMM<Untrained> {
         Array3<f64>,
         Array3<f64>,
     )> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Initialize weight concentration parameters
         let weight_concentration = Array1::from_elem(self.n_components, self.weight_concentration);
@@ -522,7 +522,7 @@ impl StructuredVariationalGMM<Untrained> {
         let mut prev_lower_bound = f64::NEG_INFINITY;
         let mut lower_bound = f64::NEG_INFINITY;
 
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             // E-step with structured approximation
             self.structured_e_step(
                 X,
@@ -656,7 +656,7 @@ impl StructuredVariationalGMM<Untrained> {
         structured_cov: &mut Array3<f64>,
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<()> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
 
         // Compute effective sample sizes
         let n_k = responsibilities.sum_axis(Axis(0));
@@ -704,7 +704,7 @@ impl StructuredVariationalGMM<Untrained> {
         structured_cov: &mut Array3<f64>,
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<()> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
 
         match self.structured_family {
             StructuredFamily::WeightAssignment => {
@@ -785,10 +785,10 @@ impl StructuredVariationalGMM<Untrained> {
         n_k: &Array1<f64>,
         mean_precision: &mut Array1<f64>,
         mean_values: &mut Array2<f64>,
-        precision_values: &mut Array3<f64>,
+        _precision_values: &mut Array3<f64>,
         degrees_of_freedom: &mut Array1<f64>,
         scale_matrices: &mut Array3<f64>,
-        structured_cov: &mut Array3<f64>,
+        _structured_cov: &mut Array3<f64>,
         _rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> SklResult<()> {
         let (n_samples, n_features) = X.dim();
@@ -851,7 +851,7 @@ impl StructuredVariationalGMM<Untrained> {
         n_k: &Array1<f64>,
         mean_precision: &mut Array1<f64>,
         mean_values: &mut Array2<f64>,
-        precision_values: &mut Array3<f64>,
+        _precision_values: &mut Array3<f64>,
         degrees_of_freedom: &mut Array1<f64>,
         scale_matrices: &mut Array3<f64>,
         structured_cov: &mut Array3<f64>,
@@ -922,7 +922,7 @@ impl StructuredVariationalGMM<Untrained> {
         n_k: &Array1<f64>,
         mean_precision: &mut Array1<f64>,
         mean_values: &mut Array2<f64>,
-        precision_values: &mut Array3<f64>,
+        _precision_values: &mut Array3<f64>,
         degrees_of_freedom: &mut Array1<f64>,
         scale_matrices: &mut Array3<f64>,
         structured_cov: &mut Array3<f64>,
@@ -994,7 +994,7 @@ impl StructuredVariationalGMM<Untrained> {
         n_k: &Array1<f64>,
         mean_precision: &mut Array1<f64>,
         mean_values: &mut Array2<f64>,
-        precision_values: &mut Array3<f64>,
+        _precision_values: &mut Array3<f64>,
         degrees_of_freedom: &mut Array1<f64>,
         scale_matrices: &mut Array3<f64>,
         structured_cov: &mut Array3<f64>,
@@ -1079,7 +1079,7 @@ impl StructuredVariationalGMM<Untrained> {
         for k in 0..self.n_components {
             // Digamma function approximation
             expected_log_weights[k] =
-                self.digamma(weight_concentration[k]) - self.digamma(concentration_sum);
+                Self::digamma(weight_concentration[k]) - Self::digamma(concentration_sum);
         }
 
         Ok(expected_log_weights)
@@ -1092,7 +1092,7 @@ impl StructuredVariationalGMM<Untrained> {
         mean: &ArrayView1<f64>,
         precision: &ArrayView2<f64>,
         degrees_of_freedom: &f64,
-        scale_matrix: &ArrayView2<f64>,
+        _scale_matrix: &ArrayView2<f64>,
         structured_cov: &ArrayView2<f64>,
     ) -> SklResult<f64> {
         let n_features = x.len();
@@ -1101,7 +1101,7 @@ impl StructuredVariationalGMM<Untrained> {
         // Compute expected log determinant of precision matrix
         let mut expected_log_det = 0.0;
         for i in 0..n_features {
-            expected_log_det += self.digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
+            expected_log_det += Self::digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
         }
         expected_log_det += n_features as f64 * (2.0_f64).ln();
 
@@ -1134,14 +1134,14 @@ impl StructuredVariationalGMM<Untrained> {
         X: &ArrayView2<f64>,
         responsibilities: &Array2<f64>,
         weight_concentration: &Array1<f64>,
-        mean_precision: &Array1<f64>,
+        _mean_precision: &Array1<f64>,
         mean_values: &Array2<f64>,
         precision_values: &Array3<f64>,
         degrees_of_freedom: &Array1<f64>,
         scale_matrices: &Array3<f64>,
         structured_cov: &Array3<f64>,
     ) -> SklResult<f64> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let mut lower_bound = 0.0;
 
         // Expected log likelihood
@@ -1171,12 +1171,13 @@ impl StructuredVariationalGMM<Untrained> {
         let prior_concentration_sum = self.weight_concentration * self.n_components as f64;
 
         // Weight KL divergence
-        lower_bound += self.log_gamma(concentration_sum) - self.log_gamma(prior_concentration_sum);
+        lower_bound +=
+            Self::log_gamma(concentration_sum) - Self::log_gamma(prior_concentration_sum);
         for k in 0..self.n_components {
-            lower_bound +=
-                self.log_gamma(self.weight_concentration) - self.log_gamma(weight_concentration[k]);
+            lower_bound += Self::log_gamma(self.weight_concentration)
+                - Self::log_gamma(weight_concentration[k]);
             lower_bound += (weight_concentration[k] - self.weight_concentration)
-                * (self.digamma(weight_concentration[k]) - self.digamma(concentration_sum));
+                * (Self::digamma(weight_concentration[k]) - Self::digamma(concentration_sum));
         }
 
         // Structured correction to KL divergence
@@ -1232,9 +1233,9 @@ impl StructuredVariationalGMM<Untrained> {
     }
 
     /// Digamma function approximation
-    fn digamma(&self, x: f64) -> f64 {
+    fn digamma(x: f64) -> f64 {
         if x < 8.0 {
-            self.digamma(x + 1.0) - 1.0 / x
+            Self::digamma(x + 1.0) - 1.0 / x
         } else {
             let inv_x = 1.0 / x;
             let inv_x2 = inv_x * inv_x;
@@ -1243,9 +1244,9 @@ impl StructuredVariationalGMM<Untrained> {
     }
 
     /// Log gamma function approximation
-    fn log_gamma(&self, x: f64) -> f64 {
+    fn log_gamma(x: f64) -> f64 {
         if x < 0.5 {
-            (PI / (PI * x).sin()).ln() - self.log_gamma(1.0 - x)
+            (PI / (PI * x).sin()).ln() - Self::log_gamma(1.0 - x)
         } else {
             let g = 7.0;
             let c = [
@@ -1262,8 +1263,8 @@ impl StructuredVariationalGMM<Untrained> {
 
             let z = x - 1.0;
             let mut x_sum = c[0];
-            for i in 1..9 {
-                x_sum += c[i] / (z + i as f64);
+            for (i, &c_val) in c.iter().enumerate().skip(1) {
+                x_sum += c_val / (z + i as f64);
             }
             let t = z + g + 0.5;
             (2.0 * PI).sqrt().ln() + (z + 0.5) * t.ln() - t + x_sum.ln()
@@ -1435,7 +1436,7 @@ impl StructuredVariationalGMMTrained {
 
         for k in 0..self.n_components {
             expected_log_weights[k] =
-                self.digamma(self.weight_concentration[k]) - self.digamma(concentration_sum);
+                Self::digamma(self.weight_concentration[k]) - Self::digamma(concentration_sum);
         }
 
         Ok(expected_log_weights)
@@ -1447,7 +1448,7 @@ impl StructuredVariationalGMMTrained {
         mean: &ArrayView1<f64>,
         precision: &ArrayView2<f64>,
         degrees_of_freedom: &f64,
-        scale_matrix: &ArrayView2<f64>,
+        _scale_matrix: &ArrayView2<f64>,
         structured_cov: &ArrayView2<f64>,
     ) -> SklResult<f64> {
         let n_features = x.len();
@@ -1456,7 +1457,7 @@ impl StructuredVariationalGMMTrained {
         // Compute expected log determinant of precision matrix
         let mut expected_log_det = 0.0;
         for i in 0..n_features {
-            expected_log_det += self.digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
+            expected_log_det += Self::digamma((degrees_of_freedom + 1.0 - i as f64) / 2.0);
         }
         expected_log_det += n_features as f64 * (2.0_f64).ln();
 
@@ -1483,9 +1484,9 @@ impl StructuredVariationalGMMTrained {
         Ok(log_likelihood)
     }
 
-    fn digamma(&self, x: f64) -> f64 {
+    fn digamma(x: f64) -> f64 {
         if x < 8.0 {
-            self.digamma(x + 1.0) - 1.0 / x
+            Self::digamma(x + 1.0) - 1.0 / x
         } else {
             let inv_x = 1.0 / x;
             let inv_x2 = inv_x * inv_x;

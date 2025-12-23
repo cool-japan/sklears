@@ -68,6 +68,12 @@ pub struct OnlineSigmoidCalibrator {
     is_fitted: bool,
 }
 
+impl Default for OnlineSigmoidCalibrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OnlineSigmoidCalibrator {
     pub fn new() -> Self {
         Self {
@@ -111,7 +117,7 @@ impl OnlineSigmoidCalibrator {
 impl CalibrationEstimator for OnlineSigmoidCalibrator {
     fn fit(&mut self, probabilities: &Array1<Float>, y_true: &Array1<i32>) -> Result<()> {
         // Initialize with offline fit, then mark as fitted
-        let offline_calibrator = SigmoidCalibrator::new().fit(probabilities, y_true)?;
+        let _offline_calibrator = SigmoidCalibrator::new().fit(probabilities, y_true)?;
 
         // Use offline parameters as initialization
         self.a = 1.0; // Default from offline calibrator

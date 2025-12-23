@@ -1,6 +1,6 @@
 [package]
 name = "sklears-clustering"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -16,7 +16,6 @@ categories = ["science", "mathematics", "algorithms"]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 scirs2-cluster = { workspace = true }
 
@@ -30,11 +29,11 @@ serde = { workspace = true, optional = true }
 approx = { workspace = true }
 log = { workspace = true }
 memmap2 = "0.9"
-tempfile = "3.8"
+tempfile = "3.23"
 serde_json = { workspace = true }
-num_cpus = "1.16"
-wgpu = { version = "26.0", optional = true }
-bytemuck = { version = "1.19", optional = true }
+num_cpus = "1.17"
+wgpu = { version = "24.0", optional = true }
+bytemuck = { version = "1.24", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

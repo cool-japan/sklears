@@ -5,7 +5,6 @@
 //! separation, and overall structure quality.
 
 use super::validation_types::*;
-use numrs2::prelude::*;
 use scirs2_core::ndarray::Array2;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;

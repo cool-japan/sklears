@@ -471,7 +471,7 @@ impl MultiTaskGaussianProcessRegressor<MtgpTrained> {
             }
 
             // Add task-specific contribution only from the same task
-            if let Some((start_idx, end_idx)) = self._state.task_indices.get(task_name) {
+            if let Some((start_idx, _end_idx)) = self._state.task_indices.get(task_name) {
                 for j in 0..task_X_train.nrows() {
                     let global_j = start_idx + j;
                     pred += self.task_weight

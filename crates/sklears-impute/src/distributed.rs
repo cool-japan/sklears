@@ -354,7 +354,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for DistributedKNNImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples < self.config.num_workers {
@@ -427,8 +427,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
-        let (n_samples, n_features) = X.dim();
+        let X = X.mapv(|x| x);
+        let (_n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
             return Err(SklearsError::InvalidInput(format!(
@@ -453,7 +453,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 impl DistributedKNNImputer<DistributedKNNImputerTrained> {
     /// Partition data for distributed processing
     fn partition_data(&self, X: &Array2<f64>) -> Result<Vec<DataPartition>, ImputationError> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let chunk_size = self
             .state
             .config
@@ -507,7 +507,7 @@ impl DistributedKNNImputer<DistributedKNNImputerTrained> {
         let reference_data = self.state.reference_data.clone();
         let n_neighbors = self.n_neighbors;
         let weights = self.weights.clone();
-        let missing_values = self.missing_values;
+        let _missing_values = self.missing_values;
 
         // Process partitions in parallel
         let results: Result<Vec<_>, _> = partitions
@@ -787,7 +787,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for DistributedSimpleImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
         // Compute statistics in parallel across features
@@ -851,7 +851,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -963,7 +963,7 @@ mod tests {
         });
 
         let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let partitions = fitted.partition_data(&X.mapv(|x| x as f64)).unwrap();
+        let partitions = fitted.partition_data(&X.mapv(|x| x)).unwrap();
 
         assert_eq!(partitions.len(), 2);
         assert_eq!(partitions[0].data.nrows(), 2);

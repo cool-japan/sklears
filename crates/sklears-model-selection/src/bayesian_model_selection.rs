@@ -57,7 +57,7 @@ impl BayesianModelSelectionResult {
     /// Interpret the strength of evidence using Jeffreys' scale
     pub fn evidence_interpretation(&self, model1_idx: usize, model2_idx: usize) -> String {
         let log_bf = self.log_evidence[model1_idx] - self.log_evidence[model2_idx];
-        let bf = log_bf.exp();
+        let _bf = log_bf.exp();
 
         match log_bf {
             x if x < 1.0 => "Weak evidence".to_string(),
@@ -137,7 +137,7 @@ impl BayesianModelSelector {
         }
 
         let model_names: Vec<String> = model_results.iter().map(|(name, _)| name.clone()).collect();
-        let n_models = model_names.len();
+        let _n_models = model_names.len();
 
         // Estimate log evidence for each model
         let mut log_evidence = Vec::new();

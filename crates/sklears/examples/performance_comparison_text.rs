@@ -11,7 +11,9 @@ use std::time::Instant;
 
 fn generate_text_documents(n_documents: usize, avg_words_per_doc: usize) -> Vec<String> {
     use scirs2_core::rand_prelude::IndexedRandom;
-    use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::Rng;
+    use scirs2_core::random::SeedableRng;
 
     let mut rng = StdRng::seed_from_u64(42);
 
@@ -124,7 +126,8 @@ fn generate_text_documents(n_documents: usize, avg_words_per_doc: usize) -> Vec<
 
     for _ in 0..n_documents {
         let variance = (avg_words_per_doc / 4) as i32;
-        let doc_length = (avg_words_per_doc as i32 + rng.gen_range(-variance..variance)) as usize;
+        let doc_length =
+            (avg_words_per_doc as i32 + rng.random_range(-variance..variance)) as usize;
         let mut document_words = Vec::new();
 
         for _ in 0..doc_length {

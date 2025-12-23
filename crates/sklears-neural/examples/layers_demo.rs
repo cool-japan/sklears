@@ -143,7 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("---------------------------");
 
     // Custom batch normalization configuration
-    let custom_bn = BatchNorm1d::new(2)
+    let _custom_bn = BatchNorm1d::new(2)
         .momentum(0.01) // Slower moving average
         .epsilon(1e-3) // Larger epsilon for stability
         .affine(false) // No learnable parameters
@@ -156,7 +156,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("- Track running stats: true");
 
     // Custom dropout configuration
-    let custom_dropout = Dropout::new(0.2).seed(999);
+    let _custom_dropout = Dropout::new(0.2).seed(999);
 
     println!("\nCustom dropout configuration:");
     println!("- Rate: 0.2 (light regularization)");

@@ -431,7 +431,7 @@ impl NearestCentroid<Untrained> {
     fn apply_class_shrinkage(
         centroid: &Array1<Float>,
         all_centroids: &Array2<Float>,
-        class_idx: usize,
+        _class_idx: usize,
         threshold: Float,
     ) -> Result<Array1<Float>> {
         if threshold < 0.0 {
@@ -747,9 +747,7 @@ impl NearestCentroid<sklears_core::traits::Trained> {
                 running_sums.insert(new_label, new_sample.to_owned());
 
                 // Initialize class configuration if not exists
-                self.class_configs
-                    .entry(new_label)
-                    .or_insert_with(ClassConfig::default);
+                self.class_configs.entry(new_label).or_default();
 
                 new_class_idx
             };

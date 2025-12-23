@@ -84,11 +84,6 @@ impl<T: FloatBounds> PageHinkleyDetector<T> {
         }
     }
 
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(DriftDetectionConfig::default())
-    }
-
     /// Set the magnitude of change to detect
     pub fn with_delta(mut self, delta: f64) -> Self {
         self.delta = delta;
@@ -182,11 +177,6 @@ impl<T: FloatBounds> AdwinDetector<T> {
         }
     }
 
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(DriftDetectionConfig::default())
-    }
-
     /// Set the confidence parameter
     pub fn with_delta(mut self, delta: f64) -> Self {
         self.delta = delta;
@@ -200,7 +190,7 @@ impl<T: FloatBounds> AdwinDetector<T> {
         }
 
         let n = self.window.len();
-        let mean = self.total_sum / n as f64;
+        let _mean = self.total_sum / n as f64;
 
         // Simplified ADWIN: check if recent half differs significantly from older half
         if n >= 4 {
@@ -296,11 +286,6 @@ impl<T: FloatBounds> DriftDetector<T> {
             config,
         }
     }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(DriftDetectionConfig::default())
-    }
 }
 
 impl<T: FloatBounds> DriftDetection<T> for DriftDetector<T> {
@@ -347,16 +332,17 @@ mod tests {
 
     #[test]
     fn test_drift_detector_creation() {
-        let detector: DriftDetector<f64> = DriftDetector::default();
+        let detector: DriftDetector<f64> = DriftDetector::new(DriftDetectionConfig::default());
         assert_eq!(detector.status(), DriftStatus::Stable);
     }
 
     #[test]
     fn test_page_hinkley_detector() {
-        let mut detector: PageHinkleyDetector<f64> = PageHinkleyDetector::default();
+        let mut detector: PageHinkleyDetector<f64> =
+            PageHinkleyDetector::new(DriftDetectionConfig::default());
 
         // No drift with correct predictions
-        for i in 0..50 {
+        for _i in 0..50 {
             let status = detector.update(1.0, 1).unwrap();
             assert_ne!(status, DriftStatus::Drift);
         }
@@ -364,10 +350,10 @@ mod tests {
 
     #[test]
     fn test_adwin_detector() {
-        let mut detector: AdwinDetector<f64> = AdwinDetector::default();
+        let mut detector: AdwinDetector<f64> = AdwinDetector::new(DriftDetectionConfig::default());
 
         // No drift with correct predictions
-        for i in 0..50 {
+        for _i in 0..50 {
             let status = detector.update(0.0, 0).unwrap();
             assert_ne!(status, DriftStatus::Drift);
         }

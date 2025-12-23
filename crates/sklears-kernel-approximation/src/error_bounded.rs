@@ -86,6 +86,12 @@ pub struct ErrorBoundedRBFSampler {
     config: ErrorBoundedConfig,
 }
 
+impl Default for ErrorBoundedRBFSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ErrorBoundedRBFSampler {
     /// Create a new error-bounded RBF sampler
     pub fn new() -> Self {
@@ -122,14 +128,14 @@ impl ErrorBoundedRBFSampler {
     /// Find minimum number of components that satisfies error bound
     pub fn find_min_components(&self, x: &Array2<f64>) -> Result<(usize, ErrorBound)> {
         let n_samples = x.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         // Create test-validation split
         let split_idx = (n_samples as f64 * 0.8) as usize;
         let x_train = x
             .slice(scirs2_core::ndarray::s![..split_idx, ..])
             .to_owned();
-        let x_test = x
+        let _x_test = x
             .slice(scirs2_core::ndarray::s![split_idx.., ..])
             .to_owned();
 
@@ -214,7 +220,7 @@ impl ErrorBoundedRBFSampler {
         &self,
         k_exact: &Array2<f64>,
         x_transformed: &Array2<f64>,
-        x: &Array2<f64>,
+        _x: &Array2<f64>,
     ) -> Result<f64> {
         let n_samples = k_exact.nrows().min(x_transformed.nrows());
         let x_subset = x_transformed.slice(scirs2_core::ndarray::s![..n_samples, ..]);
@@ -361,7 +367,7 @@ impl ErrorBoundedRBFSampler {
     fn compute_perturbation_bound(
         &self,
         trial_errors: &[f64],
-        n_components: usize,
+        _n_components: usize,
     ) -> Result<ErrorBound> {
         let mean_error = trial_errors.iter().sum::<f64>() / trial_errors.len() as f64;
         let std_error = {
@@ -485,6 +491,12 @@ pub struct ErrorBoundedNystroem {
     config: ErrorBoundedConfig,
 }
 
+impl Default for ErrorBoundedNystroem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ErrorBoundedNystroem {
     /// Create a new error-bounded Nyström method
     pub fn new() -> Self {
@@ -514,7 +526,7 @@ impl ErrorBoundedNystroem {
 
     /// Find minimum number of components that satisfies error bound
     pub fn find_min_components(&self, x: &Array2<f64>) -> Result<(usize, ErrorBound)> {
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
 
         // Test different numbers of components
         for n_components in
@@ -582,7 +594,11 @@ impl ErrorBoundedNystroem {
     }
 
     /// Compute error bound (using same method as RBF sampler)
-    fn compute_error_bound(&self, trial_errors: &[f64], n_components: usize) -> Result<ErrorBound> {
+    fn compute_error_bound(
+        &self,
+        trial_errors: &[f64],
+        _n_components: usize,
+    ) -> Result<ErrorBound> {
         let mean_error = trial_errors.iter().sum::<f64>() / trial_errors.len() as f64;
         let std_error = {
             let variance = trial_errors

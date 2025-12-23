@@ -219,10 +219,9 @@ impl RobustGraphConstruction {
             // Sort by distance and take k nearest neighbors
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
-            for k in 0..self.k_neighbors.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = self.robust_weight(distances[k].0);
-                graph[[i, j]] = weight;
+            for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
+                let weight = self.robust_weight(*dist);
+                graph[[i, *j]] = weight;
             }
         }
 
@@ -933,7 +932,7 @@ impl BreakdownPointAnalysis {
                 let range = max_val - min_val;
 
                 // Generate outlier far from the data range
-                let outlier_multiplier = rng.gen_range(5.0..10.0);
+                let outlier_multiplier = rng.random_range(5.0, 10.0);
                 let outlier_value = if rng.gen_bool(0.5) {
                     min_val - outlier_multiplier * range
                 } else {

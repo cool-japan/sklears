@@ -88,6 +88,7 @@ impl MultiTaskFeatureSelector {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new(MultiTaskFeatureSelectionConfig::default())
     }
@@ -507,7 +508,7 @@ pub struct SelectionSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]

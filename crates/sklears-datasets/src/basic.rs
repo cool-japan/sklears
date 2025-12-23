@@ -23,7 +23,7 @@ pub fn make_blobs(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate random centers
@@ -91,7 +91,7 @@ pub fn make_classification(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;
@@ -155,7 +155,7 @@ pub fn make_regression(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;
@@ -218,7 +218,7 @@ pub fn make_circles(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let n_samples_out = n_samples / 2;
@@ -229,7 +229,7 @@ pub fn make_circles(
 
     // Generate outer circle
     for i in 0..n_samples_out {
-        let angle = rng.gen::<f64>() * 2.0 * PI;
+        let angle = rng.gen() * 2.0 * PI;
         x[[i, 0]] = angle.cos();
         x[[i, 1]] = angle.sin();
         y[i] = 0;
@@ -237,7 +237,7 @@ pub fn make_circles(
 
     // Generate inner circle
     for i in n_samples_out..n_samples {
-        let angle = rng.gen::<f64>() * 2.0 * PI;
+        let angle = rng.gen() * 2.0 * PI;
         x[[i, 0]] = angle.cos() * factor;
         x[[i, 1]] = angle.sin() * factor;
         y[i] = 1;
@@ -272,7 +272,7 @@ pub fn make_moons(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let n_samples_out = n_samples / 2;
@@ -283,7 +283,7 @@ pub fn make_moons(
 
     // Generate outer moon
     for i in 0..n_samples_out {
-        let angle = rng.gen::<f64>() * PI;
+        let angle = rng.gen() * PI;
         x[[i, 0]] = angle.cos();
         x[[i, 1]] = angle.sin();
         y[i] = 0;
@@ -291,7 +291,7 @@ pub fn make_moons(
 
     // Generate inner moon (rotated and shifted)
     for i in n_samples_out..n_samples {
-        let angle = rng.gen::<f64>() * PI;
+        let angle = rng.gen() * PI;
         x[[i, 0]] = 1.0 - angle.cos();
         x[[i, 1]] = 1.0 - angle.sin() - 0.5;
         y[i] = 1;
@@ -327,7 +327,7 @@ pub fn make_gaussian_quantiles(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;
@@ -402,7 +402,7 @@ pub fn make_hastie_10_2(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     let normal = StandardNormal;
@@ -448,14 +448,14 @@ pub fn make_friedman1(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate features uniformly between 0 and 1
     let mut x = Array2::zeros((n_samples, n_features));
     for i in 0..n_samples {
         for j in 0..n_features {
-            x[[i, j]] = rng.gen::<f64>();
+            x[[i, j]] = rng.gen();
         }
     }
 
@@ -495,7 +495,7 @@ pub fn make_friedman2(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate features - Friedman2 uses 4 features
@@ -505,7 +505,7 @@ pub fn make_friedman2(
     for i in 0..n_samples {
         x[[i, 0]] = rng.gen_range(0.0..100.0); // x1: uniform [0, 100]
         x[[i, 1]] = rng.gen_range(40.0 * PI..560.0 * PI); // x2: uniform [40π, 560π]
-        x[[i, 2]] = rng.gen::<f64>(); // x3: uniform [0, 1]
+        x[[i, 2]] = rng.gen(); // x3: uniform [0, 1]
         x[[i, 3]] = rng.gen_range(1.0..11.0); // x4: uniform [1, 11]
     }
 
@@ -548,7 +548,7 @@ pub fn make_friedman3(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate features - Friedman3 uses 4 features
@@ -558,7 +558,7 @@ pub fn make_friedman3(
     for i in 0..n_samples {
         x[[i, 0]] = rng.gen_range(0.0..100.0); // x1: uniform [0, 100]
         x[[i, 1]] = rng.gen_range(40.0 * PI..560.0 * PI); // x2: uniform [40π, 560π]
-        x[[i, 2]] = rng.gen::<f64>(); // x3: uniform [0, 1]
+        x[[i, 2]] = rng.gen(); // x3: uniform [0, 1]
         x[[i, 3]] = rng.gen_range(1.0..11.0); // x4: uniform [1, 11]
     }
 

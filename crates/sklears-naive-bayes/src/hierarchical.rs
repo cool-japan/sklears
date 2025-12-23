@@ -8,7 +8,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::SeedableRng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::Distribution;

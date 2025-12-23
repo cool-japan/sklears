@@ -4,15 +4,20 @@
 //! including version information and build details.
 
 // Use SciRS2-Core for array operations instead of direct ndarray
-use numpy::{IntoPyArray, PyArray1, PyArray2};
+use numpy::{PyArray1, PyArray2, PyArrayMethods};
+use pyo3::exceptions::PyValueError;
+use pyo3::ffi;
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
+use pyo3::Bound;
 use scirs2_autograd::ndarray::{Array1, Array2};
 // Use SciRS2-Core for random number generation instead of direct rand
 use scirs2_core::random::{thread_rng, Rng};
 use std::collections::HashMap;
 
-// Performance optimization imports
-// SIMD operations temporarily disabled due to dependency conflicts
+use crate::linear::{
+    core_array1_to_py, core_array2_to_py, pyarray_to_core_array1, pyarray_to_core_array2,
+};
 
 /// Get the version of sklears
 #[pyfunction]
@@ -254,24 +259,42 @@ pub fn benchmark_basic_operations() -> HashMap<String, f64> {
     results
 }
 
-/// Convert NumPy array to ndarray Array2<f64> - simplified implementation
-pub fn numpy_to_ndarray2(_py_array: &PyArray2<f64>) -> PyResult<Array2<f64>> {
-    // TODO: Implement proper conversion when PyArray API is working
-    Ok(Array2::zeros((1, 1)))
+/// Convert NumPy array to ndarray Array2<f64>
+pub fn numpy_to_ndarray2(py_array: &PyArray2<f64>) -> PyResult<Array2<f64>> {
+    Python::with_gil(|py| {
+        let ptr = py_array as *const PyArray2<f64> as *mut ffi::PyObject;
+        let bound_any = unsafe { Bound::<PyAny>::from_borrowed_ptr(py, ptr) };
+        let bound_array = bound_any.downcast::<PyArray2<f64>>()?;
+        let readonly = bound_array.try_readonly().map_err(|err| {
+            PyValueError::new_err(format!(
+                "Failed to borrow NumPy array as read-only view: {err}"
+            ))
+        })?;
+        pyarray_to_core_array2(readonly)
+    })
 }
 
-/// Convert NumPy array to ndarray Array1<f64> - simplified implementation
-pub fn numpy_to_ndarray1(_py_array: &PyArray1<f64>) -> PyResult<Array1<f64>> {
-    // TODO: Implement proper conversion when PyArray API is working
-    Ok(Array1::zeros(1))
+/// Convert NumPy array to ndarray Array1<f64>
+pub fn numpy_to_ndarray1(py_array: &PyArray1<f64>) -> PyResult<Array1<f64>> {
+    Python::with_gil(|py| {
+        let ptr = py_array as *const PyArray1<f64> as *mut ffi::PyObject;
+        let bound_any = unsafe { Bound::<PyAny>::from_borrowed_ptr(py, ptr) };
+        let bound_array = bound_any.downcast::<PyArray1<f64>>()?;
+        let readonly = bound_array.try_readonly().map_err(|err| {
+            PyValueError::new_err(format!(
+                "Failed to borrow NumPy array as read-only view: {err}"
+            ))
+        })?;
+        pyarray_to_core_array1(readonly)
+    })
 }
 
 /// Convert ndarray Array2<f64> to NumPy array
 pub fn ndarray_to_numpy<'py>(py: Python<'py>, array: Array2<f64>) -> Py<PyArray2<f64>> {
-    array.into_pyarray(py).into()
+    core_array2_to_py(py, &array).expect("Failed to convert ndarray to NumPy array")
 }
 
 /// Convert ndarray Array1<f64> to NumPy array
 pub fn ndarray1_to_numpy<'py>(py: Python<'py>, array: Array1<f64>) -> Py<PyArray1<f64>> {
-    array.into_pyarray(py).into()
+    core_array1_to_py(py, &array)
 }

@@ -9,8 +9,7 @@ use crate::genomics::pathway_analysis::{
 use crate::multi_omics::GenomicsError;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::Rng;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::types::Float;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -614,8 +613,8 @@ impl EnhancedPathwayAnalysis {
                 let pathway2 = &pathway_names[j];
 
                 if let (Some(activities1), Some(activities2)) = (
-                    pathway_activities.get(&pathway1.to_string()),
-                    pathway_activities.get(&pathway2.to_string()),
+                    pathway_activities.get(&**pathway1),
+                    pathway_activities.get(&**pathway2),
                 ) {
                     let correlation = self.compute_correlation(activities1, activities2)?;
                     pathway_interactions.insert(

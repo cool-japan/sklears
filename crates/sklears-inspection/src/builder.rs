@@ -523,7 +523,7 @@ impl ComparisonStudy {
             for dataset in &self.datasets {
                 for metric in &self.metrics {
                     // Placeholder comparison implementation
-                    let score = scirs2_core::random::thread_rng().gen::<Float>(); // Mock score
+                    let score = scirs2_core::random::thread_rng().random::<Float>(); // Mock score
                     results.push(ComparisonResult {
                         method: method.clone(),
                         dataset: dataset.clone(),

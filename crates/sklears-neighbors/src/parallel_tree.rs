@@ -571,7 +571,7 @@ impl ParallelTreeIndex {
     fn build_tree_for_unit(
         data: &Array2<Float>,
         distance: Distance,
-        leaf_size: usize,
+        _leaf_size: usize,
         tree_type: ParallelTreeType,
     ) -> NeighborsResult<ParallelTreeResult> {
         match tree_type {
@@ -595,7 +595,7 @@ impl ParallelTreeIndex {
     }
 
     fn split_work_unit(
-        data: &Array2<Float>,
+        _data: &Array2<Float>,
         unit: &WorkUnit,
         _distance: Distance,
     ) -> NeighborsResult<Vec<WorkUnit>> {
@@ -648,7 +648,7 @@ impl ParallelTreeIndex {
             .data_partitions
             .par_iter()
             .enumerate()
-            .map(|(partition_idx, partition)| {
+            .map(|(_partition_idx, partition)| {
                 self.query_partition_brute_force(query_point, k, partition)
             })
             .collect();

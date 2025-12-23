@@ -104,13 +104,13 @@ impl Default for SimdInstructionSet {
 pub fn detect_best_simd() -> SimdInstructionSet {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return SimdInstructionSet::Avx512;
-        } else if is_x86_feature_detected!("fma") {
+        } else if crate::simd_feature_detected!("fma") {
             return SimdInstructionSet::Fma;
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return SimdInstructionSet::Avx2;
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return SimdInstructionSet::Sse2;
         }
     }
@@ -560,19 +560,19 @@ impl ArchitectureInfo {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("sse2") {
+            if crate::simd_feature_detected!("sse2") {
                 available_simd.push(SimdInstructionSet::Sse2);
                 best_simd = SimdInstructionSet::Sse2;
             }
-            if is_x86_feature_detected!("fma") {
+            if crate::simd_feature_detected!("fma") {
                 available_simd.push(SimdInstructionSet::Fma);
                 best_simd = SimdInstructionSet::Fma;
             }
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 available_simd.push(SimdInstructionSet::Avx2);
                 best_simd = SimdInstructionSet::Avx2;
             }
-            if is_x86_feature_detected!("avx512f") {
+            if crate::simd_feature_detected!("avx512f") {
                 available_simd.push(SimdInstructionSet::Avx512);
                 best_simd = SimdInstructionSet::Avx512;
             }
@@ -618,7 +618,7 @@ impl ArchitectureInfo {
 pub fn supports_sse2() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("sse2")
+        crate::simd_feature_detected!("sse2")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -629,7 +629,7 @@ pub fn supports_sse2() -> bool {
 pub fn supports_avx2() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("avx2")
+        crate::simd_feature_detected!("avx2")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -640,7 +640,7 @@ pub fn supports_avx2() -> bool {
 pub fn supports_avx512() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("avx512f")
+        crate::simd_feature_detected!("avx512f")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -651,7 +651,7 @@ pub fn supports_avx512() -> bool {
 pub fn supports_fma() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("fma")
+        crate::simd_feature_detected!("fma")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -671,7 +671,7 @@ pub fn supports_neon() -> bool {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

@@ -9,7 +9,7 @@
 // use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{Rng, thread_rng, Random};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::traits::Fit;
@@ -245,21 +245,21 @@ impl CPDecomposition<Untrained> {
             {
                 let mut arr = Array2::zeros((n_mode1, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>() - 0.5;
+                    *elem = rng.gen() - 0.5;
                 }
                 arr
             },
             {
                 let mut arr = Array2::zeros((n_mode2, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>() - 0.5;
+                    *elem = rng.gen() - 0.5;
                 }
                 arr
             },
             {
                 let mut arr = Array2::zeros((n_mode3, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>() - 0.5;
+                    *elem = rng.gen() - 0.5;
                 }
                 arr
             },
@@ -363,21 +363,21 @@ impl CPDecomposition<Untrained> {
             {
                 let mut arr = Array2::zeros((n_mode1, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>().abs();
+                    *elem = rng.gen().abs();
                 }
                 arr
             },
             {
                 let mut arr = Array2::zeros((n_mode2, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>().abs();
+                    *elem = rng.gen().abs();
                 }
                 arr
             },
             {
                 let mut arr = Array2::zeros((n_mode3, r));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>().abs();
+                    *elem = rng.gen().abs();
                 }
                 arr
             },
@@ -750,21 +750,21 @@ impl TuckerDecomposition<Untrained> {
             {
                 let mut arr = Array2::zeros((n1, self.n_components[0]));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>() - 0.5;
+                    *elem = rng.gen() - 0.5;
                 }
                 arr
             },
             {
                 let mut arr = Array2::zeros((n2, self.n_components[1]));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>() - 0.5;
+                    *elem = rng.gen() - 0.5;
                 }
                 arr
             },
             {
                 let mut arr = Array2::zeros((n3, self.n_components[2]));
                 for elem in arr.iter_mut() {
-                    *elem = rng.gen::<f64>() - 0.5;
+                    *elem = rng.gen() - 0.5;
                 }
                 arr
             },

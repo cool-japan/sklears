@@ -779,7 +779,7 @@ impl SimulatedAnnealingOptimizer {
             }
 
             // Periodic local search
-            if self.rng.gen::<f64>() < self.local_search_probability {
+            if self.rng.gen() < self.local_search_probability {
                 current_solution = self.local_search(&current_solution, problem)?;
                 current_energy = problem.evaluate(&current_solution)?;
             }
@@ -909,12 +909,12 @@ impl SimulatedAnnealing for SimulatedAnnealingOptimizer {
             AcceptanceCriterion::Metropolis => {
                 let delta = new_energy - current_energy;
                 let probability = (-delta / temperature).exp();
-                self.rng.gen::<f64>() < probability
+                self.rng.gen() < probability
             },
             AcceptanceCriterion::Boltzmann => {
                 let delta = new_energy - current_energy;
                 let probability = (-delta / temperature).exp();
-                self.rng.gen::<f64>() < probability
+                self.rng.gen() < probability
             },
             AcceptanceCriterion::Threshold(threshold) => {
                 (new_energy - current_energy) <= threshold

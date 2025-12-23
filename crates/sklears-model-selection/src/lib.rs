@@ -9,7 +9,8 @@ mod adversarial_validation;
 mod automl_algorithm_selection;
 mod automl_feature_engineering;
 mod automl_pipeline;
-mod bandit_optimization;
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// mod bandit_optimization;
 mod bayes_search;
 mod bayesian_model_averaging;
 mod bayesian_model_selection;
@@ -24,25 +25,31 @@ mod early_stopping;
 mod ensemble_evaluation;
 mod ensemble_selection;
 mod epistemic_uncertainty;
-mod evolutionary;
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// mod evolutionary;
 mod grid_search;
 mod halving_grid_search;
 mod hierarchical_validation;
+mod hyperparameter_importance;
 mod imbalanced_validation;
 mod incremental_evaluation;
 mod information_criteria;
 mod memory_efficient;
 mod meta_learning;
+mod meta_learning_advanced;
 mod model_comparison;
 mod model_complexity;
+mod multi_fidelity_advanced;
 mod multi_fidelity_optimization;
 mod multilabel_validation;
 mod neural_architecture_search;
 mod noise_injection;
 mod ood_validation;
+mod optimizer_plugins;
 mod parallel_optimization;
 mod parameter_space;
-mod population_based_training;
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// mod population_based_training;
 mod scoring;
 mod spatial_validation;
 mod temporal_validation;
@@ -73,9 +80,10 @@ pub use automl_pipeline::{
     automl, automl_with_budget, AutoMLPipeline, AutoMLPipelineConfig, AutoMLPipelineResult,
     AutoMLProgressCallback, AutoMLStage, ConsoleProgressCallback, OptimizationLevel,
 };
-pub use bandit_optimization::{
-    BanditConfig, BanditOptimization, BanditOptimizationResult, BanditSearchCV, BanditStrategy,
-};
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub use bandit_optimization::{
+//     BanditConfig, BanditOptimization, BanditOptimizationResult, BanditSearchCV, BanditStrategy,
+// };
 pub use bayes_search::{
     AcquisitionFunction as BayesAcquisitionFunction, BayesSearchCV, BayesSearchConfig,
     ParamDistribution as BayesParamDistribution, TPEConfig, TPEOptimizer,
@@ -141,11 +149,12 @@ pub use epistemic_uncertainty::{
     UncertaintyDecompositionMethod, UncertaintyQuantificationConfig,
     UncertaintyQuantificationResult, UncertaintyQuantifier,
 };
-pub use evolutionary::{
-    EvolutionarySearchCV, EvolutionarySearchResult, GeneticAlgorithmCV, GeneticAlgorithmConfig,
-    GeneticAlgorithmResult, Individual, MultiObjectiveGA, MultiObjectiveResult, ParameterDef,
-    ParameterSpace as EvolutionaryParameterSpace,
-};
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub use evolutionary::{
+//     EvolutionarySearchCV, EvolutionarySearchResult, GeneticAlgorithmCV, GeneticAlgorithmConfig,
+//     GeneticAlgorithmResult, Individual, MultiObjectiveGA, MultiObjectiveResult, ParameterDef,
+//     ParameterSpace as EvolutionaryParameterSpace,
+// };
 pub use grid_search::{
     GridSearchCV, GridSearchResults, ParameterDistribution, ParameterDistributions, ParameterGrid,
     ParameterSet, ParameterValue as GridParameterValue, RandomizedSearchCV,
@@ -156,6 +165,12 @@ pub use halving_grid_search::{
 pub use hierarchical_validation::{
     hierarchical_cross_validate, ClusterInfo, HierarchicalCrossValidator, HierarchicalSplit,
     HierarchicalStrategy, HierarchicalValidationConfig, HierarchicalValidationResult,
+};
+pub use hyperparameter_importance::{
+    analyze_parameter_sensitivity, compute_shap_importance, AblationAnalyzer, AblationConfig,
+    AblationResult, ComprehensiveImportanceResult, FANOVAAnalyzer, FANOVAConfig, FANOVAResult,
+    HyperparameterImportanceAnalyzer, ParameterSensitivity, SHAPAnalyzer, SHAPConfig, SHAPResult,
+    SensitivityAnalyzer, SensitivityConfig, SensitivityResult,
 };
 pub use imbalanced_validation::{
     imbalanced_cross_validate, ClassStatistics, ImbalancedCrossValidator, ImbalancedSplit,
@@ -182,6 +197,16 @@ pub use meta_learning::{
     OptimizationRecord, ParameterValue, SimilarityMetric, StatisticalMeasures, SurrogateModel,
     TransferMethod,
 };
+pub use meta_learning_advanced::{
+    Experience as OptimizationExperience_Advanced, ExperienceReplayBuffer, ExperienceReplayConfig,
+    FewShotAlgorithm, FewShotConfig, FewShotOptimizer, FewShotResult, ImportanceWeightingMethod,
+    Learn2OptimizeConfig, Learn2OptimizeResult, LearnedOptimizer,
+    OptimizationExperience as MetaOptimizationExperience, OptimizationLearner,
+    OptimizationTask as MetaOptimizationTask, OptimizerArchitecture,
+    ParameterRange as MetaParameterRange, ParameterScale, PrioritizationStrategy, ReplayResult,
+    SamplingStrategy as ReplaySamplingStrategy, TaskCharacteristics as MetaTaskCharacteristics,
+    TransferLearningConfig, TransferLearningOptimizer, TransferResult, TransferStrategy,
+};
 pub use model_comparison::{
     friedman_test, mcnemar_test, multiple_model_comparison, nemenyi_post_hoc_test, paired_t_test,
     wilcoxon_signed_rank_test, ModelComparisonResult, MultipleTestingCorrection,
@@ -191,6 +216,12 @@ pub use model_complexity::{
     analyze_model_complexity, detect_overfitting_learning_curve, ComplexityAnalysisConfig,
     ComplexityAnalysisResult, ComplexityMeasure, ComplexityRecommendation, ModelComplexityAnalyzer,
     OverfittingDetector,
+};
+pub use multi_fidelity_advanced::{
+    AdaptiveFidelitySelector, AdaptiveFidelityStrategy, AllocationPlan, BudgetAllocationStrategy,
+    BudgetAllocator, CoarseToFineConfig, CoarseToFineOptimizer, CoarseToFineResult,
+    CoarseToFineStrategy, ConfigAllocation, ConfigurationWithPerformance,
+    ProgressiveAllocationConfig, ProgressiveAllocationStrategy, ProgressiveAllocator,
 };
 pub use multi_fidelity_optimization::{
     multi_fidelity_optimize, AcquisitionFunction, CorrelationModel, CostModel, FidelityEvaluation,
@@ -213,6 +244,13 @@ pub use ood_validation::{
     validate_ood, DistributionShiftMetrics, OODConfidenceIntervals, OODDetectionMethod,
     OODValidationConfig, OODValidationResult, OODValidator,
 };
+pub use optimizer_plugins::{
+    CustomMetric, Evaluation, HookError, HookManager, LoggingHook, MetricError, MetricRegistry,
+    MiddlewareError, MiddlewarePipeline, NormalizationMiddleware,
+    OptimizationHistory as PluginOptimizationHistory, OptimizationHook, OptimizationMiddleware,
+    OptimizerPlugin, ParameterConstraints as PluginParameterConstraints, PluginConfig, PluginError,
+    PluginFactory, PluginRegistry, StopReason,
+};
 pub use parallel_optimization::{
     parallel_optimize, BatchAcquisitionStrategy, CommunicationProtocol, ErrorHandlingStrategy,
     EvaluationResult, LoadBalancingStrategy, ParallelOptimizationConfig,
@@ -223,10 +261,11 @@ pub use parameter_space::{
     CategoricalParameter, ConditionalParameter, ParameterConstraint, ParameterImportanceAnalyzer,
     ParameterSpace,
 };
-pub use population_based_training::{
-    PBTConfig, PBTConfigFn, PBTParameterSpace, PBTParameters, PBTResult, PBTStatistics, PBTWorker,
-    PopulationBasedTraining, PopulationBasedTrainingCV,
-};
+// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// pub use population_based_training::{
+//     PBTConfig, PBTConfigFn, PBTParameterSpace, PBTParameters, PBTResult, PBTStatistics, PBTWorker,
+//     PopulationBasedTraining, PopulationBasedTrainingCV,
+// };
 pub use scoring::{
     paired_ttest, ClosureScorer, CustomScorer, EnhancedScorer, ScorerRegistry, ScoringConfig,
     ScoringResult, SignificanceTestResult, TaskType,

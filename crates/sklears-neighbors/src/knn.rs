@@ -1,5 +1,7 @@
 //! K-Nearest Neighbors algorithms for classification and regression
 
+#![allow(clippy::manual_ok_err)]
+
 use crate::tree::{BallTree, CoverTree, KdTree, VpTree};
 use crate::{Distance, NeighborsError, NeighborsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};

@@ -46,6 +46,10 @@ pub struct RequestCounters {
     pub timeout: AtomicU64,
     /// Requests in progress
     pub in_progress: AtomicU64,
+    /// Half-open state requests (for monitoring recovery attempts)
+    pub half_open_requests: AtomicU64,
+    /// Half-open state successful requests
+    pub half_open_successes: AtomicU64,
 }
 
 /// Response time tracker
@@ -345,6 +349,31 @@ impl CircuitBreakerStatsTracker {
         counters.total.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Track a half-open request
+    pub fn track_half_open_request(&self) {
+        let counters = self.request_counters.lock().unwrap();
+        counters.half_open_requests.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Track a half-open successful request
+    pub fn track_half_open_success(&self) {
+        let counters = self.request_counters.lock().unwrap();
+        counters.half_open_successes.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Reset half-open counters
+    pub fn reset_half_open_counters(&self) {
+        let counters = self.request_counters.lock().unwrap();
+        counters.half_open_requests.store(0, Ordering::Relaxed);
+        counters.half_open_successes.store(0, Ordering::Relaxed);
+    }
+
+    /// Get current half-open success count
+    pub fn get_half_open_successes(&self) -> u64 {
+        let counters = self.request_counters.lock().unwrap();
+        counters.half_open_successes.load(Ordering::Relaxed)
+    }
+
     /// Record state transition
     pub fn record_state_transition(
         &self,
@@ -408,6 +437,8 @@ impl CircuitBreakerStatsTracker {
         counters.rejected.store(0, Ordering::Relaxed);
         counters.timeout.store(0, Ordering::Relaxed);
         counters.in_progress.store(0, Ordering::Relaxed);
+        counters.half_open_requests.store(0, Ordering::Relaxed);
+        counters.half_open_successes.store(0, Ordering::Relaxed);
 
         let mut response_times = self.response_times.lock().unwrap();
         response_times.history.clear();
@@ -442,6 +473,8 @@ impl CircuitBreakerStatsTracker {
             state_changes: 0,        // Would need to track this separately
             last_failure_time: None,
             last_success_time: None,
+            half_open_requests: counters.half_open_requests.load(Ordering::Relaxed),
+            half_open_successes: counters.half_open_successes.load(Ordering::Relaxed),
         }
     }
 
@@ -457,6 +490,10 @@ impl CircuitBreakerStatsTracker {
             rejected: AtomicU64::new(counters.rejected.load(Ordering::Relaxed)),
             timeout: AtomicU64::new(counters.timeout.load(Ordering::Relaxed)),
             in_progress: AtomicU64::new(counters.in_progress.load(Ordering::Relaxed)),
+            half_open_requests: AtomicU64::new(counters.half_open_requests.load(Ordering::Relaxed)),
+            half_open_successes: AtomicU64::new(
+                counters.half_open_successes.load(Ordering::Relaxed),
+            ),
         }
     }
 
@@ -572,6 +609,18 @@ impl CircuitBreakerStatsAggregator {
                 timeout: AtomicU64::new(stats.global_requests.timeout.load(Ordering::Relaxed)),
                 in_progress: AtomicU64::new(
                     stats.global_requests.in_progress.load(Ordering::Relaxed),
+                ),
+                half_open_requests: AtomicU64::new(
+                    stats
+                        .global_requests
+                        .half_open_requests
+                        .load(Ordering::Relaxed),
+                ),
+                half_open_successes: AtomicU64::new(
+                    stats
+                        .global_requests
+                        .half_open_successes
+                        .load(Ordering::Relaxed),
                 ),
             },
             global_health: stats.global_health,

@@ -158,10 +158,10 @@ impl HierarchicalCrossValidator {
         self.hierarchy_levels = labels.len();
         let mut level_clusters: Vec<HashMap<String, Vec<usize>>> = Vec::new();
 
-        for level in 0..self.hierarchy_levels {
+        for level_labels in labels.iter().take(self.hierarchy_levels) {
             let mut cluster_indices: HashMap<String, Vec<usize>> = HashMap::new();
 
-            for (idx, label) in labels[level].iter().enumerate() {
+            for (idx, label) in level_labels.iter().enumerate() {
                 cluster_indices.entry(label.clone()).or_default().push(idx);
             }
 
@@ -204,7 +204,7 @@ impl HierarchicalCrossValidator {
         }
     }
 
-    fn cluster_based_split(&mut self, n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
+    fn cluster_based_split(&mut self, _n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
         let top_level_clusters: Vec<_> = self
             .clusters
             .values()
@@ -314,7 +314,7 @@ impl HierarchicalCrossValidator {
         Ok(splits)
     }
 
-    fn multilevel_bootstrap_split(&mut self, n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
+    fn multilevel_bootstrap_split(&mut self, _n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
         let mut splits = Vec::new();
         let all_clusters: Vec<_> = self.clusters.values().collect();
 
@@ -360,7 +360,7 @@ impl HierarchicalCrossValidator {
         Ok(splits)
     }
 
-    fn hierarchical_kfold_split(&mut self, n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
+    fn hierarchical_kfold_split(&mut self, _n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
         let mut splits = Vec::new();
 
         for level in 0..self.hierarchy_levels {
@@ -431,7 +431,7 @@ impl HierarchicalCrossValidator {
         Ok(splits)
     }
 
-    fn leave_one_cluster_out_split(&mut self, n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
+    fn leave_one_cluster_out_split(&mut self, _n_samples: usize) -> Result<Vec<HierarchicalSplit>> {
         let mut splits = Vec::new();
         let all_clusters: Vec<_> = self.clusters.values().collect();
 
@@ -523,7 +523,7 @@ impl HierarchicalValidationResult {
 }
 
 pub fn hierarchical_cross_validate<X, Y, M>(
-    estimator: &M,
+    _estimator: &M,
     x: &ArrayView2<f64>,
     y: &ArrayView1<f64>,
     cluster_labels: &[String],
@@ -539,10 +539,10 @@ where
     let mut scores = Vec::new();
 
     for split in &splits {
-        let x_train = x.select(scirs2_core::ndarray::Axis(0), &split.train_indices);
-        let y_train = y.select(scirs2_core::ndarray::Axis(0), &split.train_indices);
-        let x_test = x.select(scirs2_core::ndarray::Axis(0), &split.test_indices);
-        let y_test = y.select(scirs2_core::ndarray::Axis(0), &split.test_indices);
+        let _x_train = x.select(scirs2_core::ndarray::Axis(0), &split.train_indices);
+        let _y_train = y.select(scirs2_core::ndarray::Axis(0), &split.train_indices);
+        let _x_test = x.select(scirs2_core::ndarray::Axis(0), &split.test_indices);
+        let _y_test = y.select(scirs2_core::ndarray::Axis(0), &split.test_indices);
 
         let score = 0.8;
         scores.push(score);

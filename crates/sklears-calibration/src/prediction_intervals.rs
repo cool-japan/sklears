@@ -245,7 +245,7 @@ impl PredictionIntervalEstimator {
         // For simplicity, use bootstrap sampling to create ensemble estimates
         use scirs2_core::random::thread_rng;
 
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         let n = predictions.len();
         let mut ensemble_residuals = Vec::new();
@@ -275,7 +275,7 @@ impl PredictionIntervalEstimator {
         &mut self,
         predictions: &Array1<Float>,
         targets: &Array1<Float>,
-        n_neighbors: usize,
+        _n_neighbors: usize,
     ) -> Result<()> {
         // Store all training data for local quantile computation
         let residuals = targets - predictions;
@@ -621,7 +621,7 @@ fn normal_quantile(p: Float) -> Float {
         -3.969683028665376e+01,
         2.209460984245205e+02,
         -2.759285104469687e+02,
-        1.383577518672690e+02,
+        1.383_577_518_672_69e2,
         -3.066479806614716e+01,
         2.506628277459239e+00,
     ];
@@ -661,19 +661,19 @@ fn normal_quantile(p: Float) -> Float {
     if p < p_low {
         // Lower region
         let q = (2.0 * p).sqrt();
-        return -(((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6])
-            / ((((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1.0);
+        -(((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6])
+            / ((((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1.0)
     } else if p > p_high {
         // Upper region
         let q = (2.0 * (1.0 - p)).sqrt();
-        return (((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6])
-            / ((((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1.0);
+        (((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6])
+            / ((((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1.0)
     } else {
         // Central region
         let q = p - 0.5;
         let r = q * q;
-        return (((((a[1] * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * r + a[6]) * q
-            / (((((b[1] * r + b[2]) * r + b[3]) * r + b[4]) * r + b[5]) * r + 1.0);
+        (((((a[1] * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * r + a[6]) * q
+            / (((((b[1] * r + b[2]) * r + b[3]) * r + b[4]) * r + b[5]) * r + 1.0)
     }
 }
 

@@ -1,6 +1,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng, StandardNormal};
+use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::VecDeque;
 
@@ -397,7 +398,7 @@ impl StreamingRBFSampler {
                 if self.buffer.len() < *capacity {
                     self.buffer.push_back(sample);
                 } else {
-                    let replace_idx = self.rng.gen_range(0..=self.sample_count);
+                    let replace_idx = self.rng.gen_range(0..self.sample_count + 1);
                     if replace_idx < *capacity {
                         self.buffer[replace_idx] = sample;
                     }
@@ -967,7 +968,7 @@ mod tests {
             .with_random_state(42);
 
         sampler.fit(&x1).unwrap();
-        let drift_detected = sampler.detect_drift(&x2).unwrap();
+        let _drift_detected = sampler.detect_drift(&x2).unwrap();
 
         // Should detect some drift in feature statistics
         assert!(sampler.feature_stats().drift_score >= 0.0);

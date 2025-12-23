@@ -9,6 +9,7 @@
 #![allow(unused_doc_comments)]
 #![allow(unused_parens)]
 #![allow(unused_comparisons)]
+// SIMD operations are provided by scirs2-core::simd_ops (SciRS2 Policy compliant)
 //! Ensemble methods for sklears
 //!
 //! This crate provides implementations of ensemble machine learning algorithms including:
@@ -29,7 +30,8 @@ pub mod gradient_boosting;
 pub mod imbalanced;
 pub mod memory_efficient;
 pub mod mixed_precision;
-pub mod model_selection;
+// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// pub mod model_selection;
 pub mod monitoring;
 pub mod multi_label;
 pub mod multi_task;
@@ -83,12 +85,13 @@ pub use mixed_precision::{
     AMPContext, GradientScaler, Half, MixedPrecisionArray, MixedPrecisionConfig,
     MixedPrecisionGradientAccumulator, MixedPrecisionTrainer, ScalerState,
 };
-pub use model_selection::{
-    BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
-    BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
-    EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator, InterraterReliability,
-    ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
-};
+// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// pub use model_selection::{
+//     BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
+//     BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
+//     EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator, InterraterReliability,
+//     ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
+// };
 pub use monitoring::{
     DegradationIndicators, DriftDetectionResult, DriftType, EnsembleMonitor, ModelHealth,
     MonitoringConfig, MonitoringResults, PerformanceDataPoint, PerformanceMetric, PerformanceTrend,
@@ -185,12 +188,13 @@ pub mod prelude {
         AMPContext, GradientScaler, Half, MixedPrecisionArray, MixedPrecisionConfig,
         MixedPrecisionGradientAccumulator, MixedPrecisionTrainer, ScalerState,
     };
-    pub use crate::model_selection::{
-        BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
-        BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
-        EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator,
-        InterraterReliability, ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
-    };
+    // TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+    // pub use crate::model_selection::{
+    //     BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
+    //     BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
+    //     EnsembleCVStrategy, EnsembleConstructionConfig, EnsembleCrossValidator,
+    //     InterraterReliability, ModelSelectionLossFunction, SampleBiasVariance, ScoringMetric,
+    // };
     pub use crate::monitoring::{
         DegradationIndicators, DriftDetectionResult, DriftType, EnsembleMonitor, ModelHealth,
         MonitoringConfig, MonitoringResults, PerformanceDataPoint, PerformanceMetric,

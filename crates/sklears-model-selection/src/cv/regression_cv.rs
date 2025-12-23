@@ -2,7 +2,8 @@
 
 use super::RegressionCrossValidator;
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use scirs2_core::SliceRandomExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;

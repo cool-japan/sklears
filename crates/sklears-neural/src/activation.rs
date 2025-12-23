@@ -265,11 +265,23 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::{array, Array1, Array2};
 
+    /// Helper to compare arrays element-by-element since approx doesn't implement AbsDiffEq for Array
+    fn assert_arrays_close<D: scirs2_core::ndarray::Dimension>(
+        a: &scirs2_core::ndarray::Array<f64, D>,
+        b: &scirs2_core::ndarray::Array<f64, D>,
+        epsilon: f64,
+    ) {
+        assert_eq!(a.shape(), b.shape(), "Array shapes differ");
+        for (av, bv) in a.iter().zip(b.iter()) {
+            assert_abs_diff_eq!(*av, *bv, epsilon = epsilon);
+        }
+    }
+
     #[test]
     fn test_identity_activation() {
         let x = array![[1.0, -2.0, 3.0], [0.5, -1.5, 2.5]];
         let result = Activation::Identity.apply(&x);
-        assert_abs_diff_eq!(result, x, epsilon = 1e-10);
+        assert_arrays_close(&result, &x, 1e-10);
     }
 
     #[test]
@@ -306,7 +318,7 @@ mod tests {
         let result = Activation::Relu.apply(&x);
         let expected = array![[0.0, 0.0, 1.0, 2.0]];
 
-        assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
+        assert_arrays_close(&result, &expected, 1e-10);
     }
 
     #[test]
@@ -318,7 +330,7 @@ mod tests {
         let activated = Activation::Logistic.apply(&x);
         let expected = &activated * &(1.0 - &activated);
 
-        assert_abs_diff_eq!(derivative, expected, epsilon = 1e-10);
+        assert_arrays_close(&derivative, &expected, 1e-10);
     }
 
     #[test]
@@ -327,7 +339,7 @@ mod tests {
         let derivative = Activation::Relu.derivative(&x);
         let expected = array![[0.0, 0.0, 1.0, 1.0]];
 
-        assert_abs_diff_eq!(derivative, expected, epsilon = 1e-10);
+        assert_arrays_close(&derivative, &expected, 1e-10);
     }
 
     #[test]

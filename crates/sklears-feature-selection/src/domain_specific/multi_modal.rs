@@ -712,7 +712,7 @@ impl MultiModalFeatureSelector<Untrained> {
         // Perform both early and late fusion, then combine results
         let (
             early_selected,
-            early_combined,
+            _early_combined,
             early_scores,
             early_cross_modal,
             early_mapping,
@@ -722,12 +722,12 @@ impl MultiModalFeatureSelector<Untrained> {
 
         let (
             late_selected,
-            late_combined,
+            _late_combined,
             late_scores,
             late_cross_modal,
-            late_mapping,
-            late_total,
-            late_counts,
+            _late_mapping,
+            _late_total,
+            _late_counts,
         ) = self.late_fusion_selection(modalities, y, modality_weights)?;
 
         // Combine results with hybrid strategy

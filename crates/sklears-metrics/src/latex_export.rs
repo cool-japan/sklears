@@ -99,6 +99,8 @@ impl Default for LatexConfig {
                 "geometry".to_string(),
                 "hyperref".to_string(),
                 "xcolor".to_string(),
+                "tikz".to_string(),
+                "pgfplots".to_string(),
             ],
             page_numbers: true,
             table_of_contents: true,
@@ -142,6 +144,77 @@ pub struct LatexFigure {
     pub position: String, // e.g., "htbp"
 }
 
+/// Chart types that can be generated inline with tikz/pgfplots
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum ChartType {
+    /// Line plot with optional multiple series
+    LinePlot {
+        x_data: Vec<f64>,
+        y_data: Vec<Vec<f64>>,
+        series_labels: Vec<String>,
+        x_label: String,
+        y_label: String,
+    },
+    /// Bar chart for comparing values
+    BarChart {
+        labels: Vec<String>,
+        values: Vec<f64>,
+        x_label: String,
+        y_label: String,
+    },
+    /// Scatter plot with optional trend line
+    ScatterPlot {
+        x_data: Vec<f64>,
+        y_data: Vec<f64>,
+        x_label: String,
+        y_label: String,
+        show_trend_line: bool,
+    },
+    /// Confusion matrix heatmap
+    ConfusionMatrixHeatmap {
+        matrix: Vec<Vec<usize>>,
+        class_labels: Vec<String>,
+    },
+    /// ROC curve
+    RocCurve {
+        fpr: Vec<f64>,
+        tpr: Vec<f64>,
+        auc: f64,
+    },
+    /// Precision-Recall curve
+    PrecisionRecallCurve {
+        precision: Vec<f64>,
+        recall: Vec<f64>,
+        avg_precision: f64,
+    },
+    /// Box plot for distribution comparison
+    BoxPlot {
+        labels: Vec<String>,
+        data: Vec<Vec<f64>>,
+        y_label: String,
+    },
+    /// Histogram for distribution visualization
+    Histogram {
+        data: Vec<f64>,
+        bins: usize,
+        x_label: String,
+        y_label: String,
+    },
+}
+
+/// Chart figure with inline tikz/pgfplots generation
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LatexChart {
+    pub caption: String,
+    pub label: String,
+    pub chart_type: ChartType,
+    pub width: String,    // e.g., "0.8\\textwidth"
+    pub height: String,   // e.g., "6cm"
+    pub position: String, // e.g., "htbp"
+}
+
 /// Main LaTeX report structure
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -164,6 +237,8 @@ pub struct LatexReport {
     pub tables: Vec<LatexTable>,
     /// Figures to include
     pub figures: Vec<LatexFigure>,
+    /// Inline charts using tikz/pgfplots
+    pub charts: Vec<LatexChart>,
     /// Bibliography entries
     pub bibliography: Vec<BibEntry>,
 }
@@ -205,6 +280,7 @@ impl LatexReportBuilder {
                 metrics: Vec::new(),
                 tables: Vec::new(),
                 figures: Vec::new(),
+                charts: Vec::new(),
                 bibliography: Vec::new(),
             },
         }
@@ -425,6 +501,96 @@ impl LatexReportBuilder {
     /// Add a figure
     pub fn add_figure(mut self, figure: LatexFigure) -> Self {
         self.report.figures.push(figure);
+        self
+    }
+
+    /// Add a chart (generated inline with tikz/pgfplots)
+    pub fn add_chart(mut self, chart: LatexChart) -> Self {
+        self.report.charts.push(chart);
+        self
+    }
+
+    /// Add a ROC curve chart
+    pub fn add_roc_curve(mut self, fpr: Vec<f64>, tpr: Vec<f64>, auc: f64) -> Self {
+        self.report.charts.push(LatexChart {
+            caption: format!("ROC Curve (AUC = {:.4})", auc),
+            label: "fig:roc_curve".to_string(),
+            chart_type: ChartType::RocCurve { fpr, tpr, auc },
+            width: "0.7\\textwidth".to_string(),
+            height: "8cm".to_string(),
+            position: "htbp".to_string(),
+        });
+        self
+    }
+
+    /// Add a precision-recall curve chart
+    pub fn add_precision_recall_curve(
+        mut self,
+        precision: Vec<f64>,
+        recall: Vec<f64>,
+        avg_precision: f64,
+    ) -> Self {
+        self.report.charts.push(LatexChart {
+            caption: format!("Precision-Recall Curve (AP = {:.4})", avg_precision),
+            label: "fig:pr_curve".to_string(),
+            chart_type: ChartType::PrecisionRecallCurve {
+                precision,
+                recall,
+                avg_precision,
+            },
+            width: "0.7\\textwidth".to_string(),
+            height: "8cm".to_string(),
+            position: "htbp".to_string(),
+        });
+        self
+    }
+
+    /// Add a bar chart for metrics comparison
+    pub fn add_metrics_bar_chart(
+        mut self,
+        labels: Vec<String>,
+        values: Vec<f64>,
+        y_label: String,
+    ) -> Self {
+        self.report.charts.push(LatexChart {
+            caption: "Metrics Comparison".to_string(),
+            label: "fig:metrics_comparison".to_string(),
+            chart_type: ChartType::BarChart {
+                labels,
+                values,
+                x_label: "Metric".to_string(),
+                y_label,
+            },
+            width: "0.8\\textwidth".to_string(),
+            height: "8cm".to_string(),
+            position: "htbp".to_string(),
+        });
+        self
+    }
+
+    /// Add a scatter plot
+    pub fn add_scatter_plot(
+        mut self,
+        x_data: Vec<f64>,
+        y_data: Vec<f64>,
+        x_label: String,
+        y_label: String,
+        show_trend_line: bool,
+    ) -> Self {
+        self.report.charts.push(LatexChart {
+            caption: format!("{} vs {}", y_label, x_label),
+            label: "fig:scatter_plot".to_string(),
+            chart_type: ChartType::ScatterPlot {
+                x_data,
+                y_data,
+                x_label,
+                y_label,
+                show_trend_line,
+            },
+            width: "0.7\\textwidth".to_string(),
+            height: "8cm".to_string(),
+            position: "htbp".to_string(),
+        });
         self
     }
 
@@ -881,6 +1047,8 @@ impl LatexReport {
 
 {geometry}
 
+{pgfplots_settings}
+
 \title{{{title}}}
 \author{{{author}}}
 \date{{{date}}}
@@ -901,6 +1069,8 @@ impl LatexReport {
 
 {figures_section}
 
+{charts_section}
+
 \end{{document}}
 "#,
             font_size = self.config.font_size,
@@ -908,6 +1078,7 @@ impl LatexReport {
             document_class = self.config.document_class,
             packages = self.generate_packages(),
             geometry = r"\geometry{margin=1in}",
+            pgfplots_settings = r"\pgfplotsset{compat=1.18}",
             title = self.title,
             author = self.author,
             date = self.date,
@@ -921,6 +1092,7 @@ impl LatexReport {
             metrics_section = self.generate_metrics_section(),
             tables_section = self.generate_tables_section(),
             figures_section = self.generate_figures_section(),
+            charts_section = self.generate_charts_section(),
         )
     }
 
@@ -959,18 +1131,7 @@ impl LatexReport {
     }
 
     fn generate_subsections(&self, subsections: &[ReportSection]) -> String {
-        subsections
-            .iter()
-            .map(|subsection| {
-                format!(
-                    "\\subsection{{{}}}\n{}\n\n{}",
-                    subsection.title,
-                    subsection.content,
-                    self.generate_subsections(&subsection.subsections)
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+        generate_subsections_helper(subsections)
     }
 
     fn generate_metrics_section(&self) -> String {
@@ -1055,6 +1216,267 @@ impl LatexReport {
         content
     }
 
+    fn generate_charts_section(&self) -> String {
+        if self.charts.is_empty() {
+            return String::new();
+        }
+
+        let mut content = String::new();
+
+        for chart in &self.charts {
+            content.push_str(&self.generate_chart_tikz(chart));
+        }
+
+        content
+    }
+
+    fn generate_chart_tikz(&self, chart: &LatexChart) -> String {
+        let mut tikz_code = format!(
+            "\\begin{{figure}}[{}]\n\\centering\n\\begin{{tikzpicture}}\n",
+            chart.position
+        );
+
+        tikz_code.push_str(&format!(
+            "\\begin{{axis}}[width={}, height={},\n",
+            chart.width, chart.height
+        ));
+
+        match &chart.chart_type {
+            ChartType::LinePlot {
+                x_data,
+                y_data,
+                series_labels,
+                x_label,
+                y_label,
+            } => {
+                tikz_code.push_str(&format!(
+                    "xlabel={{{}}}, ylabel={{{}}},\nlegend pos=north west,\ngrid=major]\n",
+                    x_label, y_label
+                ));
+
+                for (i, y_series) in y_data.iter().enumerate() {
+                    tikz_code.push_str("\\addplot coordinates {\n");
+                    for (j, &y_val) in y_series.iter().enumerate() {
+                        if j < x_data.len() {
+                            tikz_code.push_str(&format!("({}, {})\n", x_data[j], y_val));
+                        }
+                    }
+                    tikz_code.push_str("};\n");
+                    if i < series_labels.len() {
+                        tikz_code.push_str(&format!("\\addlegendentry{{{}}}\n", series_labels[i]));
+                    }
+                }
+            }
+            ChartType::BarChart {
+                labels,
+                values,
+                x_label: _,
+                y_label,
+            } => {
+                tikz_code.push_str(&format!(
+                    "ylabel={{{}}},\nybar,\nenlarge x limits=0.15,\nbar width=20pt,\n",
+                    y_label
+                ));
+                tikz_code.push_str("symbolic x coords={");
+                for (i, label) in labels.iter().enumerate() {
+                    if i > 0 {
+                        tikz_code.push(',');
+                    }
+                    tikz_code.push_str(label);
+                }
+                tikz_code
+                    .push_str("},\nxtick=data,\nx tick label style={rotate=45,anchor=east}]\n");
+
+                tikz_code.push_str("\\addplot coordinates {\n");
+                for (i, &value) in values.iter().enumerate() {
+                    if i < labels.len() {
+                        tikz_code.push_str(&format!("({}, {})\n", labels[i], value));
+                    }
+                }
+                tikz_code.push_str("};\n");
+            }
+            ChartType::ScatterPlot {
+                x_data,
+                y_data,
+                x_label,
+                y_label,
+                show_trend_line,
+            } => {
+                tikz_code.push_str(&format!(
+                    "xlabel={{{}}}, ylabel={{{}}},\nonly marks,\nmark=*,\nmark size=2pt]\n",
+                    x_label, y_label
+                ));
+
+                tikz_code.push_str("\\addplot coordinates {\n");
+                for (i, &x_val) in x_data.iter().enumerate() {
+                    if i < y_data.len() {
+                        tikz_code.push_str(&format!("({}, {})\n", x_val, y_data[i]));
+                    }
+                }
+                tikz_code.push_str("};\n");
+
+                if *show_trend_line {
+                    // Simple linear regression for trend line
+                    if x_data.len() > 1 && x_data.len() == y_data.len() {
+                        let n = x_data.len() as f64;
+                        let sum_x: f64 = x_data.iter().sum();
+                        let sum_y: f64 = y_data.iter().sum();
+                        let sum_xy: f64 =
+                            x_data.iter().zip(y_data.iter()).map(|(&x, &y)| x * y).sum();
+                        let sum_x2: f64 = x_data.iter().map(|&x| x * x).sum();
+
+                        let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x);
+                        let intercept = (sum_y - slope * sum_x) / n;
+
+                        let x_min = x_data.iter().cloned().fold(f64::INFINITY, f64::min);
+                        let x_max = x_data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+                        tikz_code.push_str(&format!(
+                            "\\addplot[red, thick, dashed] coordinates {{({}, {}) ({}, {})}};\n",
+                            x_min,
+                            slope * x_min + intercept,
+                            x_max,
+                            slope * x_max + intercept
+                        ));
+                    }
+                }
+            }
+            ChartType::RocCurve { fpr, tpr, auc } => {
+                tikz_code.push_str(
+                    "xlabel={False Positive Rate}, ylabel={True Positive Rate},\nlegend pos=south east,\ngrid=major]\n"
+                );
+
+                // ROC curve
+                tikz_code.push_str("\\addplot[blue, thick] coordinates {\n");
+                for (i, &fpr_val) in fpr.iter().enumerate() {
+                    if i < tpr.len() {
+                        tikz_code.push_str(&format!("({}, {})\n", fpr_val, tpr[i]));
+                    }
+                }
+                tikz_code.push_str("};\n");
+                tikz_code.push_str(&format!("\\addlegendentry{{ROC (AUC = {:.4})}}\n", auc));
+
+                // Diagonal reference line
+                tikz_code.push_str("\\addplot[red, dashed] coordinates {(0, 0) (1, 1)};\n");
+                tikz_code.push_str("\\addlegendentry{Random Classifier}\n");
+            }
+            ChartType::PrecisionRecallCurve {
+                precision,
+                recall,
+                avg_precision,
+            } => {
+                tikz_code.push_str(
+                    "xlabel={Recall}, ylabel={Precision},\nlegend pos=north east,\ngrid=major]\n",
+                );
+
+                tikz_code.push_str("\\addplot[blue, thick] coordinates {\n");
+                for (i, &rec_val) in recall.iter().enumerate() {
+                    if i < precision.len() {
+                        tikz_code.push_str(&format!("({}, {})\n", rec_val, precision[i]));
+                    }
+                }
+                tikz_code.push_str("};\n");
+                tikz_code.push_str(&format!("\\addlegendentry{{AP = {:.4}}}\n", avg_precision));
+            }
+            ChartType::ConfusionMatrixHeatmap {
+                matrix,
+                class_labels,
+            } => {
+                // For confusion matrix, we'd ideally use a different visualization
+                // For simplicity, we'll create a bar chart showing diagonal vs off-diagonal
+                tikz_code.push_str("ylabel={Count},\nybar,\nenlarge x limits=0.15,\nbar width=15pt,\nsymbolic x coords={");
+                for (i, label) in class_labels.iter().enumerate() {
+                    if i > 0 {
+                        tikz_code.push(',');
+                    }
+                    tikz_code.push_str(label);
+                }
+                tikz_code
+                    .push_str("},\nxtick=data,\nx tick label style={rotate=45,anchor=east}]\n");
+
+                tikz_code.push_str("\\addplot coordinates {\n");
+                for (i, row) in matrix.iter().enumerate() {
+                    if i < class_labels.len() && i < row.len() {
+                        tikz_code.push_str(&format!("({}, {})\n", class_labels[i], row[i]));
+                    }
+                }
+                tikz_code.push_str("};\n");
+                tikz_code.push_str("\\addlegendentry{Diagonal (Correct)}\n");
+            }
+            ChartType::BoxPlot {
+                labels,
+                data,
+                y_label,
+            } => {
+                tikz_code.push_str(&format!(
+                    "ylabel={{{}}},\nboxplot/draw direction=y,\nxtick={{{}}},\nxticklabels={{{}}},\nx tick label style={{rotate=45,anchor=east}}]\n",
+                    y_label,
+                    (1..=labels.len()).map(|i| i.to_string()).collect::<Vec<_>>().join(","),
+                    labels.join(",")
+                ));
+
+                for (i, series) in data.iter().enumerate() {
+                    if !series.is_empty() {
+                        let mut sorted = series.clone();
+                        sorted
+                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                        let min = sorted[0];
+                        let max = sorted[sorted.len() - 1];
+                        let q1 = sorted[sorted.len() / 4];
+                        let median = sorted[sorted.len() / 2];
+                        let q3 = sorted[3 * sorted.len() / 4];
+
+                        tikz_code.push_str(&format!(
+                            "\\addplot+[boxplot prepared={{lower whisker={}, lower quartile={}, median={}, upper quartile={}, upper whisker={}}}] coordinates {{({},0)}};\n",
+                            min, q1, median, q3, max, i + 1
+                        ));
+                    }
+                }
+            }
+            ChartType::Histogram {
+                data,
+                bins,
+                x_label,
+                y_label,
+            } => {
+                if data.is_empty() {
+                    tikz_code.push_str("]\n");
+                } else {
+                    let min = data.iter().cloned().fold(f64::INFINITY, f64::min);
+                    let max = data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                    let bin_width = (max - min) / (*bins as f64);
+
+                    tikz_code.push_str(&format!(
+                        "xlabel={{{}}}, ylabel={{{}}},\nybar interval,\nxmin={}, xmax={}]\n",
+                        x_label, y_label, min, max
+                    ));
+
+                    let mut hist_counts = vec![0usize; *bins];
+                    for &val in data {
+                        let bin_idx = ((val - min) / bin_width).floor() as usize;
+                        let bin_idx = bin_idx.min(bins - 1);
+                        hist_counts[bin_idx] += 1;
+                    }
+
+                    tikz_code.push_str("\\addplot coordinates {\n");
+                    for (i, &count) in hist_counts.iter().enumerate() {
+                        let x = min + (i as f64) * bin_width;
+                        tikz_code.push_str(&format!("({}, {})\n", x, count));
+                    }
+                    tikz_code.push_str(&format!("({}, 0)\n", max));
+                    tikz_code.push_str("};\n");
+                }
+            }
+        }
+
+        tikz_code.push_str("\\end{axis}\n\\end{tikzpicture}\n");
+        tikz_code.push_str(&format!("\\caption{{{}}}\n", chart.caption));
+        tikz_code.push_str(&format!("\\label{{{}}}\n", chart.label));
+        tikz_code.push_str("\\end{figure}\n\n");
+
+        tikz_code
+    }
+
     fn run_pdflatex(&self, tex_path: &Path) -> MetricsResult<Output> {
         Command::new("pdflatex")
             .arg("-output-directory")
@@ -1084,6 +1506,21 @@ impl Default for LatexReportBuilder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn generate_subsections_helper(subsections: &[ReportSection]) -> String {
+    subsections
+        .iter()
+        .map(|subsection| {
+            format!(
+                "\\subsection{{{}}}\n{}\n\n{}",
+                subsection.title,
+                subsection.content,
+                generate_subsections_helper(&subsection.subsections)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[allow(non_snake_case)]

@@ -1,11 +1,16 @@
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Float;
+
+/// Type alias for uncertainty estimation results
+/// Returns: (predictions, uncertainties, variance_estimates, noise_estimates)
+type UncertaintyResult =
+    Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>;
 
 pub fn heteroskedastic_regression_uncertainty<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
-    n_ensemble: usize,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+    _n_ensemble: usize,
+) -> UncertaintyResult
 where
     E: Clone,
 {
@@ -35,10 +40,10 @@ where
 }
 
 pub fn mixture_density_network_uncertainty<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
     n_components: usize,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+) -> UncertaintyResult
 where
     E: Clone,
 {
@@ -67,10 +72,10 @@ where
 }
 
 pub fn quantile_regression_uncertainty<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
     quantiles: &[f64],
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+) -> UncertaintyResult
 where
     E: Clone,
 {
@@ -106,10 +111,10 @@ where
 }
 
 pub fn parametric_uncertainty_estimation<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
     distribution: &str,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+) -> UncertaintyResult
 where
     E: Clone,
 {
@@ -138,10 +143,10 @@ where
 }
 
 pub fn input_dependent_noise_uncertainty<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
     noise_model: &str,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+) -> UncertaintyResult
 where
     E: Clone,
 {
@@ -171,11 +176,11 @@ where
 }
 
 pub fn residual_based_uncertainty<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
     y_true: Option<&Array1<f64>>,
     window_size: usize,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+) -> UncertaintyResult
 where
     E: Clone,
 {
@@ -209,11 +214,11 @@ where
 }
 
 pub fn ensemble_aleatoric_uncertainty<E>(
-    models: &[E],
+    _models: &[E],
     x: &Array2<f64>,
     n_models: usize,
     noise_estimation: &str,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>), Box<dyn std::error::Error>>
+) -> UncertaintyResult
 where
     E: Clone,
 {

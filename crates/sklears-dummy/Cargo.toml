@@ -23,7 +23,6 @@ scirs2-stats = { workspace = true }  # For statistical dummy methods
 # ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
 # ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
 # ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
-numrs2 = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 rayon = { workspace = true }

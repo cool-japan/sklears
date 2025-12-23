@@ -14,7 +14,6 @@ use crate::{NeighborsError, NeighborsResult};
 use proptest::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::traits::{Fit, Predict, Transform};
 use sklears_core::types::Float;
 use std::collections::HashSet;
@@ -178,7 +177,7 @@ impl DistancePropertyTests {
                 ];
 
                 for distance in &distances {
-                    let knn_brute = KNeighborsClassifier::new(k).with_metric(distance.clone());
+                    let _knn_brute = KNeighborsClassifier::new(k).with_metric(distance.clone());
                     // Test that the classifier can be built and used with each distance metric
                     prop_assert!(true, "Distance consistency verified for all metrics");
                 }
@@ -399,7 +398,7 @@ impl RadiusNeighborsPropertyTests {
             if x.nrows() == y.len() && x.nrows() > 1 {
                 // Use very small radius to test empty neighborhoods
                 let classifier = RadiusNeighborsClassifier::new(1e-10);
-                let fitted = classifier.fit(&x, &y);
+                let _fitted = classifier.fit(&x, &y);
                 // This might fail due to empty neighborhoods, which is expected behavior
                 prop_assert!(true, "Empty neighborhood test completed");
             }
@@ -1395,6 +1394,330 @@ mod tests {
         assert!(
             result.is_ok(),
             "Robustness tests should complete successfully"
+        );
+    }
+
+    #[test]
+    #[ignore] // Ignored by default - run with --ignored for full scalability testing
+    fn test_very_large_dataset_scalability() {
+        // Test with 100k+ samples to verify scalability
+        let n_samples = 100_000;
+        let n_features = 10;
+        let k = 10;
+
+        println!(
+            "Testing very large dataset: {} samples, {} features",
+            n_samples, n_features
+        );
+
+        // Generate data
+        let start_gen = std::time::Instant::now();
+        let x = Array2::from_shape_simple_fn((n_samples, n_features), || {
+            thread_rng().gen_range(0.0..1.0) * 100.0
+        });
+        let y = Array1::from_shape_simple_fn(n_samples, || {
+            (thread_rng().gen_range(0.0..1.0) * 5.0) as i32
+        });
+        println!("Data generation: {:?}", start_gen.elapsed());
+
+        // Test KD-Tree at scale
+        let start_fit = std::time::Instant::now();
+        let knn = KNeighborsClassifier::new(k).with_algorithm(crate::knn::Algorithm::KdTree);
+        let fitted = knn.fit(&x, &y).expect("Fit should succeed");
+        let fit_time = start_fit.elapsed();
+        println!("KD-Tree fit time: {:?}", fit_time);
+
+        // Test prediction on 1000 queries
+        let query_indices: Vec<usize> = (0..1000).collect();
+        let x_query = x.select(Axis(0), &query_indices);
+
+        let start_pred = std::time::Instant::now();
+        let predictions = fitted.predict(&x_query).expect("Predict should succeed");
+        let pred_time = start_pred.elapsed();
+        println!("KD-Tree prediction time for 1000 queries: {:?}", pred_time);
+
+        assert_eq!(predictions.len(), 1000);
+
+        // Verify reasonable performance (tree methods should be sub-linear in queries)
+        assert!(
+            pred_time.as_secs() < 10,
+            "Prediction should complete within 10 seconds"
+        );
+    }
+
+    #[test]
+    #[ignore] // Ignored by default - high dimensional test
+    fn test_high_dimensional_scalability() {
+        // Test scalability with high-dimensional data
+        let n_samples = 10_000;
+        let n_features = 100; // High dimensional
+        let k = 5;
+
+        println!(
+            "Testing high-dimensional data: {} samples, {} features",
+            n_samples, n_features
+        );
+
+        let start_gen = std::time::Instant::now();
+        let x = Array2::from_shape_simple_fn((n_samples, n_features), || {
+            thread_rng().gen_range(0.0..1.0) * 10.0
+        });
+        let y = Array1::from_shape_simple_fn(n_samples, || {
+            (thread_rng().gen_range(0.0..1.0) * 3.0) as i32
+        });
+        println!("Data generation: {:?}", start_gen.elapsed());
+
+        // Ball tree should handle high dimensions better
+        let start_fit = std::time::Instant::now();
+        let knn = KNeighborsClassifier::new(k).with_algorithm(crate::knn::Algorithm::BallTree);
+        let fitted = knn.fit(&x, &y).expect("Fit should succeed");
+        let fit_time = start_fit.elapsed();
+        println!("Ball Tree fit time (high-dim): {:?}", fit_time);
+
+        // Test prediction
+        let query_indices: Vec<usize> = (0..100).collect();
+        let x_query = x.select(Axis(0), &query_indices);
+
+        let start_pred = std::time::Instant::now();
+        let predictions = fitted.predict(&x_query).expect("Predict should succeed");
+        let pred_time = start_pred.elapsed();
+        println!("Ball Tree prediction time (high-dim): {:?}", pred_time);
+
+        assert_eq!(predictions.len(), 100);
+    }
+
+    #[test]
+    fn test_incremental_scalability() {
+        // Test that incremental learning scales with streaming data
+        use crate::streaming::IncrementalKNeighborsClassifier;
+
+        let batch_size = 100;
+        let n_batches = 10;
+        let n_features = 5;
+
+        // Initial fit with first batch
+        let x_init = Array2::from_shape_simple_fn((batch_size, n_features), || {
+            thread_rng().gen_range(0.0..1.0) * 10.0
+        });
+        let y_init = Array1::from_shape_simple_fn(batch_size, || {
+            (thread_rng().gen_range(0.0..1.0) * 3.0) as i32
+        });
+
+        let incremental = IncrementalKNeighborsClassifier::new(3, 5000);
+        let mut fitted = incremental
+            .fit(&x_init, &y_init)
+            .expect("Initial fit should succeed");
+
+        let mut total_fit_time = std::time::Duration::ZERO;
+
+        // Process remaining batches incrementally
+        for batch in 1..n_batches {
+            let x_batch = Array2::from_shape_simple_fn((batch_size, n_features), || {
+                thread_rng().gen_range(0.0..1.0) * 10.0 + (batch as Float)
+            });
+            let y_batch = Array1::from_shape_simple_fn(batch_size, || {
+                ((thread_rng().gen_range(0.0..1.0) * 3.0) as i32 + (batch as i32 % 3)) % 3
+            });
+
+            let start = std::time::Instant::now();
+            fitted
+                .partial_fit(&x_batch, &y_batch)
+                .expect("Partial fit should succeed");
+            let batch_time = start.elapsed();
+            total_fit_time += batch_time;
+
+            println!(
+                "Batch {}: fit time {:?}, total samples: {}",
+                batch, batch_time, fitted.n_samples_seen
+            );
+        }
+
+        println!("Total incremental fit time: {:?}", total_fit_time);
+        assert_eq!(
+            fitted.n_samples_seen,
+            batch_size * n_batches,
+            "Should process all samples"
+        );
+    }
+
+    #[test]
+    fn test_distance_metric_scalability() {
+        // Test different distance metrics at moderate scale
+        let n_samples = 5_000;
+        let n_features = 10;
+        let k = 10;
+
+        let x = Array2::from_shape_simple_fn((n_samples, n_features), || {
+            thread_rng().gen_range(0.0..1.0) * 10.0
+        });
+        let y = Array1::from_shape_simple_fn(n_samples, || {
+            (thread_rng().gen_range(0.0..1.0) * 5.0) as i32
+        });
+
+        let metrics = vec![
+            ("Euclidean", Distance::Euclidean),
+            ("Manhattan", Distance::Manhattan),
+            ("Minkowski(3)", Distance::Minkowski(3.0)),
+        ];
+
+        for (name, metric) in metrics {
+            let start = std::time::Instant::now();
+
+            let knn = KNeighborsClassifier::new(k).with_metric(metric);
+            let fitted = knn.fit(&x, &y).expect("Fit should succeed");
+
+            // Quick prediction test
+            let query_indices: Vec<usize> = (0..100).collect();
+            let x_query = x.select(Axis(0), &query_indices);
+            let _ = fitted.predict(&x_query).expect("Predict should succeed");
+
+            let total_time = start.elapsed();
+            println!("{} distance metric: {:?}", name, total_time);
+
+            // All metrics should complete in reasonable time
+            assert!(
+                total_time.as_secs() < 30,
+                "{} should complete within 30 seconds",
+                name
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn test_parallel_scalability() {
+        // Test that parallel processing improves performance
+        let n_samples = 10_000;
+        let n_features = 10;
+        let k = 10;
+
+        let x = Array2::from_shape_simple_fn((n_samples, n_features), || {
+            thread_rng().gen_range(0.0..1.0) * 10.0
+        });
+        let y = Array1::from_shape_simple_fn(n_samples, || {
+            (thread_rng().gen_range(0.0..1.0) * 5.0) as i32
+        });
+
+        // Test with parallel processing
+        let start_parallel = std::time::Instant::now();
+        let knn = KNeighborsClassifier::new(k);
+        let fitted = knn.fit(&x, &y).expect("Fit should succeed");
+
+        let query_indices: Vec<usize> = (0..1000).collect();
+        let x_query = x.select(Axis(0), &query_indices);
+        let _ = fitted.predict(&x_query).expect("Predict should succeed");
+
+        let parallel_time = start_parallel.elapsed();
+        println!("Parallel processing time: {:?}", parallel_time);
+
+        // Just verify it completes successfully
+        // (Actual speedup depends on CPU cores and workload)
+        assert!(
+            parallel_time.as_secs() < 60,
+            "Parallel processing should complete reasonably"
+        );
+    }
+
+    #[test]
+    fn test_memory_efficient_operations() {
+        // Test memory-efficient operations with moderate data
+        use crate::sparse_neighbors::{SparseIndexType, SparseNeighborMatrix};
+
+        let n_samples = 100; // Reduced for test speed
+        let _n_features = 10;
+        let k = 5;
+
+        // Create dummy neighbor data for sparse matrix
+        let start = std::time::Instant::now();
+        let mut neighbor_indices = Array2::zeros((n_samples, k));
+        let mut neighbor_distances = Array2::zeros((n_samples, k));
+
+        for i in 0..n_samples {
+            for j in 0..k {
+                let idx = ((i + j + 1) % n_samples) as u32;
+                neighbor_indices[[i, j]] = idx;
+                neighbor_distances[[i, j]] = (j + 1) as Float;
+            }
+        }
+
+        // Create sparse neighbor matrix (memory efficient)
+        let sparse_matrix = SparseNeighborMatrix::from_dense(
+            &neighbor_indices,
+            &neighbor_distances,
+            SparseIndexType::HashMap,
+            0.1,
+            Some(k),
+        )
+        .expect("Sparse matrix creation should succeed");
+
+        println!("Sparse matrix creation: {:?}", start.elapsed());
+
+        // Check memory efficiency through sparsity
+        let stats = sparse_matrix.stats();
+        println!("Sparsity: {:.2}%", stats.sparsity * 100.0);
+
+        // With k=5 out of 100 samples, sparsity should be high (95%)
+        assert!(
+            stats.sparsity > 0.90,
+            "Should achieve high sparsity: {}",
+            stats.sparsity
+        );
+    }
+
+    #[test]
+    fn test_online_metric_learning_scalability() {
+        // Test online metric learning with multiple batches
+        use crate::metric_learning::OnlineMetricLearning;
+
+        let n_batches = 20;
+        let batch_size = 50;
+        let n_features = 5;
+
+        let mut online = OnlineMetricLearning::new(3)
+            .with_learning_rate(0.01)
+            .with_window_size(100);
+
+        let mut total_time = std::time::Duration::ZERO;
+
+        for batch_idx in 0..n_batches {
+            let x_batch = Array2::from_shape_simple_fn((batch_size, n_features), || {
+                thread_rng().gen_range(0.0..1.0) * 10.0 + (batch_idx as Float)
+            });
+            let y_batch = Array1::from_shape_simple_fn(batch_size, || {
+                ((thread_rng().gen_range(0.0..1.0) * 3.0) as i32 + (batch_idx as i32 % 3)) % 3
+            });
+
+            let start = std::time::Instant::now();
+            online
+                .partial_fit(&x_batch.view(), &y_batch.view())
+                .expect("Partial fit should succeed");
+            let batch_time = start.elapsed();
+            total_time += batch_time;
+
+            if batch_idx % 5 == 0 {
+                println!(
+                    "Batch {}: time {:?}, samples seen: {}, learning rate: {:.6}",
+                    batch_idx,
+                    batch_time,
+                    online.n_samples_seen(),
+                    online.current_learning_rate()
+                );
+            }
+        }
+
+        println!("Total online learning time: {:?}", total_time);
+        println!("Average batch time: {:?}", total_time / n_batches as u32);
+
+        assert_eq!(
+            online.n_samples_seen(),
+            n_batches * batch_size,
+            "Should process all batches"
+        );
+
+        // Learning rate should have decayed
+        assert!(
+            online.current_learning_rate() < 0.01,
+            "Learning rate should decay over time"
         );
     }
 }

@@ -652,7 +652,7 @@ impl CategoricalProcessor {
 
         for category in unique_categories {
             let embedding: Vec<f64> = (0..embedding_dim)
-                .map(|_| rng.gen_range(-1.0..1.0))
+                .map(|_| rng.random_range(-1.0, 1.0))
                 .collect();
             mapping.insert(category, embedding);
         }

@@ -1,11 +1,11 @@
 //! Polynomial kernel approximation via Tensor Sketch
 use rustfft::num_complex::Complex;
-use rustfft::{Fft, FftPlanner};
+use rustfft::FftPlanner;
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},

@@ -797,24 +797,24 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 handle_censoring,
             )?,
             CalibrationMethod::NeuralCalibration {
-                ref hidden_dims,
-                ref activation,
-                learning_rate,
-                epochs,
+                hidden_dims: _,
+                activation: _,
+                learning_rate: _,
+                epochs: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::MixupCalibration {
-                ref base_method,
-                alpha,
-                num_mixup_samples,
+                base_method: _,
+                alpha: _,
+                num_mixup_samples: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::DropoutCalibration {
-                ref hidden_dims,
-                dropout_prob,
-                mc_samples,
+                hidden_dims: _,
+                dropout_prob: _,
+                mc_samples: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::EnsembleNeuralCalibration {
                 n_estimators,
-                ref hidden_dims,
+                hidden_dims: _,
             } => train_ensemble_temperature_calibrators(
                 &probabilities,
                 y,
@@ -823,9 +823,9 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 n_estimators,
             )?,
             CalibrationMethod::StructuredPrediction {
-                ref structure_type,
+                structure_type: _,
                 use_mrf,
-                temperature,
+                temperature: _,
             } => train_regression_calibrators(
                 &probabilities,
                 y,
@@ -834,49 +834,49 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 use_mrf, // Use use_mrf as the distributional parameter
             )?,
             CalibrationMethod::OnlineSigmoid {
-                learning_rate,
-                use_momentum,
-                momentum,
+                learning_rate: _,
+                use_momentum: _,
+                momentum: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::AdaptiveOnline {
-                window_size,
-                retrain_frequency,
-                drift_threshold,
+                window_size: _,
+                retrain_frequency: _,
+                drift_threshold: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::IncrementalUpdate {
-                update_frequency,
-                learning_rate,
-                use_smoothing,
+                update_frequency: _,
+                learning_rate: _,
+                use_smoothing: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::CalibrationAwareFocal {
-                gamma,
-                temperature,
-                learning_rate,
-                max_epochs,
+                gamma: _,
+                temperature: _,
+                learning_rate: _,
+                max_epochs: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::CalibrationAwareCrossEntropy {
-                lambda,
-                learning_rate,
-                max_epochs,
+                lambda: _,
+                learning_rate: _,
+                max_epochs: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::CalibrationAwareBrier {
-                learning_rate,
-                max_epochs,
+                learning_rate: _,
+                max_epochs: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::CalibrationAwareECE {
-                n_bins,
-                learning_rate,
-                max_epochs,
+                n_bins: _,
+                learning_rate: _,
+                max_epochs: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::MultiModal {
-                n_modalities,
-                ref fusion_strategy,
+                n_modalities: _,
+                fusion_strategy: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::CrossModal {
-                ref adaptation_weights,
+                adaptation_weights: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::HeterogeneousEnsemble {
-                ref combination_strategy,
+                combination_strategy: _,
             } => train_ensemble_temperature_calibrators(
                 &probabilities,
                 y,
@@ -885,12 +885,12 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 5, // Default number of estimators
             )?,
             CalibrationMethod::DomainAdaptation {
-                adaptation_strength,
+                adaptation_strength: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::TransferLearning {
-                ref transfer_strategy,
-                learning_rate,
-                finetune_iterations,
+                transfer_strategy: _,
+                learning_rate: _,
+                finetune_iterations: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
             CalibrationMethod::TokenLevel {
                 max_seq_length: _,
@@ -901,30 +901,30 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?
             }
             CalibrationMethod::SequenceLevel {
-                ref aggregation_method,
+                aggregation_method: _,
             } => {
                 // For now, return a simple sigmoid calibrator as placeholder
                 // In practice, this would need sequence-level data
                 train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?
             }
             CalibrationMethod::VerbalizedConfidence {
-                ref confidence_patterns,
+                confidence_patterns: _,
             } => {
                 // For now, return a simple sigmoid calibrator as placeholder
                 // In practice, this would need text data with verbalized confidence
                 train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?
             }
             CalibrationMethod::AttentionBased {
-                ref aggregation_method,
+                aggregation_method: _,
             } => {
                 // For now, return a simple sigmoid calibrator as placeholder
                 // In practice, this would need attention weight data
                 train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?
             }
             CalibrationMethod::DPPlattScaling {
-                epsilon,
-                delta,
-                sensitivity,
+                epsilon: _,
+                delta: _,
+                sensitivity: _,
             } => {
                 // For now, return a simple sigmoid calibrator as placeholder
                 // In practice, this would use DP Platt scaling
@@ -939,14 +939,17 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 // In practice, this would use DP histogram binning
                 train_histogram_calibrators(&probabilities, y, &classes, self.config.cv, n_bins)?
             }
-            CalibrationMethod::DPTemperatureScaling { epsilon, delta } => {
+            CalibrationMethod::DPTemperatureScaling {
+                epsilon: _,
+                delta: _,
+            } => {
                 // For now, return a simple temperature calibrator as placeholder
                 // In practice, this would use DP temperature scaling
                 train_temperature_calibrators(&probabilities, y, &classes, self.config.cv)?
             }
             CalibrationMethod::ContinualLearning {
-                ref base_method,
-                ref replay_strategy,
+                base_method: _,
+                replay_strategy: _,
                 max_memory_size: _,
                 regularization_strength: _,
             } => {
@@ -955,11 +958,11 @@ impl Fit<Array2<Float>, Array1<i32>> for CalibratedClassifierCV<Untrained> {
                 train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?
             }
             CalibrationMethod::DifferentiableECE {
-                n_bins,
-                learning_rate,
-                max_iterations,
-                tolerance,
-                use_adaptive_bins,
+                n_bins: _,
+                learning_rate: _,
+                max_iterations: _,
+                tolerance: _,
+                use_adaptive_bins: _,
             } => train_sigmoid_calibrators(&probabilities, y, &classes, self.config.cv)?,
         };
 

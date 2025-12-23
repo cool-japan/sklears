@@ -235,7 +235,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for TSNE<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut y = match self.init.as_str() {

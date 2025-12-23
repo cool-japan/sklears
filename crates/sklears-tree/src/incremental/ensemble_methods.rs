@@ -411,7 +411,7 @@ impl IncrementalRandomForest {
             let mut tree_config = self.config.base_tree_config.clone();
 
             // Randomize some tree parameters for diversity
-            tree_config.confidence = self.rng.gen_range(0.9..0.99);
+            tree_config.confidence = self.rng.random_range(0.9, 0.99);
             tree_config.grace_period = self.rng.gen_range(150..250);
 
             let tree = HoeffdingTree::new(tree_config, n_features);
@@ -596,7 +596,7 @@ impl IncrementalRandomForest {
 
             for i in current_size..target_size {
                 let mut tree_config = self.config.base_tree_config.clone();
-                tree_config.confidence = self.rng.gen_range(0.9..0.99);
+                tree_config.confidence = self.rng.random_range(0.9, 0.99);
 
                 let tree = HoeffdingTree::new(tree_config, self.n_features.unwrap_or(1));
                 let stats = RandomForestTreeStats::new(i);

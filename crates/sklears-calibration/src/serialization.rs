@@ -283,14 +283,15 @@ impl CalibrationSerializer {
     /// Serialize to binary format using bincode
     #[cfg(feature = "serde")]
     pub fn to_binary(model: &SerializableCalibrationModel) -> Result<Vec<u8>> {
-        bincode::serialize(model)
+        bincode::serde::encode_to_vec(model, bincode::config::standard())
             .map_err(|e| sklears_core::error::SklearsError::SerializationError(e.to_string()))
     }
 
     /// Deserialize from binary format using bincode
     #[cfg(feature = "serde")]
     pub fn from_binary(data: &[u8]) -> Result<SerializableCalibrationModel> {
-        bincode::deserialize(data)
+        bincode::serde::decode_from_slice(data, bincode::config::standard())
+            .map(|(model, _size)| model)
             .map_err(|e| sklears_core::error::SklearsError::SerializationError(e.to_string()))
     }
 }
@@ -301,15 +302,15 @@ impl SerializableCalibrationModel {
     #[cfg(feature = "serde")]
     pub fn save_json(&self, path: &std::path::Path) -> Result<()> {
         let json = CalibrationSerializer::to_json(self)?;
-        std::fs::write(path, json).map_err(|e| sklears_core::error::SklearsError::IoError(e))?;
+        std::fs::write(path, json).map_err(sklears_core::error::SklearsError::IoError)?;
         Ok(())
     }
 
     /// Load model from JSON file
     #[cfg(feature = "serde")]
     pub fn load_json(path: &std::path::Path) -> Result<Self> {
-        let json = std::fs::read_to_string(path)
-            .map_err(|e| sklears_core::error::SklearsError::IoError(e))?;
+        let json =
+            std::fs::read_to_string(path).map_err(sklears_core::error::SklearsError::IoError)?;
         CalibrationSerializer::from_json(&json)
     }
 
@@ -317,15 +318,14 @@ impl SerializableCalibrationModel {
     #[cfg(feature = "serde")]
     pub fn save_binary(&self, path: &std::path::Path) -> Result<()> {
         let binary = CalibrationSerializer::to_binary(self)?;
-        std::fs::write(path, binary).map_err(|e| sklears_core::error::SklearsError::IoError(e))?;
+        std::fs::write(path, binary).map_err(sklears_core::error::SklearsError::IoError)?;
         Ok(())
     }
 
     /// Load model from binary file
     #[cfg(feature = "serde")]
     pub fn load_binary(path: &std::path::Path) -> Result<Self> {
-        let binary =
-            std::fs::read(path).map_err(|e| sklears_core::error::SklearsError::IoError(e))?;
+        let binary = std::fs::read(path).map_err(sklears_core::error::SklearsError::IoError)?;
         CalibrationSerializer::from_binary(&binary)
     }
 }

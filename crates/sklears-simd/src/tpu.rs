@@ -304,7 +304,7 @@ pub fn tpu_matmul(
     m: usize,
     n: usize,
     k: usize,
-    config: &TpuConfig,
+    _config: &TpuConfig,
 ) -> Result<(), SimdError> {
     // Fallback to CPU SIMD implementation
     matrix_multiply_fallback(a, b, c, m, n, k)
@@ -312,12 +312,12 @@ pub fn tpu_matmul(
 
 /// TPU-optimized convolution
 pub fn tpu_conv2d(
-    input: &[f32],
-    kernel: &[f32],
-    output: &mut [f32],
-    input_shape: &[usize],
-    kernel_shape: &[usize],
-    config: &TpuConfig,
+    _input: &[f32],
+    _kernel: &[f32],
+    _output: &mut [f32],
+    _input_shape: &[usize],
+    _kernel_shape: &[usize],
+    _config: &TpuConfig,
 ) -> Result<(), SimdError> {
     // Fallback to CPU SIMD implementation
     // This would need to be implemented in the image processing module
@@ -334,7 +334,7 @@ pub mod batch {
     pub fn process_batch<T, F>(
         inputs: &[&[T]],
         outputs: &mut [&mut [T]],
-        batch_size: usize,
+        _batch_size: usize,
         op: F,
     ) -> Result<(), SimdError>
     where
@@ -393,9 +393,16 @@ fn matrix_multiply_fallback(
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_tpu_runtime_creation() {

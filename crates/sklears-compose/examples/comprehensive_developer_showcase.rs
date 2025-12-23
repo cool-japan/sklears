@@ -27,10 +27,15 @@ use std::collections::HashMap;
 /// Configuration for our showcase pipeline
 #[derive(Debug, Clone)]
 pub struct ShowcaseConfig {
+    /// Enable debug mode with step-by-step execution tracking
     pub use_debug_mode: bool,
+    /// Enable result caching for improved performance
     pub enable_caching: bool,
+    /// Enable performance profiling and monitoring
     pub performance_monitoring: bool,
+    /// Enable API consistency validation checks
     pub api_consistency_checks: bool,
+    /// Enable enhanced error messages with actionable suggestions
     pub error_enhancement: bool,
 }
 
@@ -154,7 +159,7 @@ fn demo_enhanced_error_handling(config: &ShowcaseConfig) -> SklResult<()> {
     println!("{}", "=".repeat(60));
 
     // Simulate realistic ML pipeline errors with context
-    let context = ErrorContext {
+    let _context = ErrorContext {
         pipeline_stage: "customer_churn_prediction".to_string(),
         component_name: "feature_engineering".to_string(),
         input_shape: Some((15, 5)),
@@ -217,7 +222,7 @@ fn demo_comprehensive_debugging(config: &ShowcaseConfig) -> SklResult<()> {
     println!("\n🐛 Comprehensive Debugging Session");
     println!("{}", "=".repeat(60));
 
-    let (X, y) = generate_comprehensive_dataset();
+    let (X, _y) = generate_comprehensive_dataset();
     let mut debugger = DeveloperPipelineDebugger::new();
 
     // Start debug session with comprehensive monitoring
@@ -668,7 +673,7 @@ fn demo_comprehensive_dag_pipeline(config: &ShowcaseConfig) -> SklResult<()> {
     println!("✅ Comprehensive DAG structure is valid");
 
     // Execute the DAG
-    let fitted_dag = dag.fit(&X.view(), &Some(&y.view()))?;
+    let _fitted_dag = dag.fit(&X.view(), &Some(&y.view()))?;
     println!("✅ Comprehensive DAG pipeline execution completed");
 
     // Show execution summary

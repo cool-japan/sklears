@@ -172,7 +172,7 @@ impl CurriculumScheduler {
             DifficultyStrategy::Random => {
                 use scirs2_core::random::prelude::*;
                 let mut rng = thread_rng();
-                Array1::from_shape_fn(n_samples, |_| rng.gen::<f64>())
+                Array1::from_shape_fn(n_samples, |_| rng.gen())
             }
             DifficultyStrategy::SelfPaced { .. } => losses
                 .ok_or_else(|| SklearsError::InvalidParameter {

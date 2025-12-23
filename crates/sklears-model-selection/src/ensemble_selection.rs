@@ -568,12 +568,12 @@ impl EnsembleSelector {
     /// Evaluate an ensemble candidate
     fn evaluate_ensemble_candidate<E, X, Y>(
         &self,
-        models: &[(E, String)],
+        _models: &[(E, String)],
         candidate: &EnsembleCandidate,
         x: &[X],
-        y: &[Y],
+        _y: &[Y],
         cv: &dyn CrossValidator,
-        scoring: &dyn Scoring,
+        _scoring: &dyn Scoring,
     ) -> Result<EnsemblePerformance>
     where
         E: Estimator + Clone,
@@ -584,7 +584,7 @@ impl EnsembleSelector {
         let splits = cv.split(n_samples, None);
         let mut fold_scores = Vec::with_capacity(splits.len());
 
-        for (train_indices, test_indices) in &splits {
+        for (train_indices, _test_indices) in &splits {
             // Placeholder implementation - in a real implementation, this would:
             // 1. Create train and test sets from indices
             // 2. Train ensemble models on training data

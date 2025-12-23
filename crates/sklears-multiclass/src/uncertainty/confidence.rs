@@ -302,7 +302,7 @@ impl ConfidenceEstimator {
         // Convert probabilities to logits
         let mut logits = Array1::zeros(probabilities.len());
         for (i, &p) in probabilities.iter().enumerate() {
-            let p_clipped = p.max(1e-15).min(1.0 - 1e-15);
+            let p_clipped = p.clamp(1e-15, 1.0 - 1e-15);
             logits[i] = p_clipped.ln();
         }
 

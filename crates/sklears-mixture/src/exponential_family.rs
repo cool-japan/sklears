@@ -186,7 +186,7 @@ impl ExponentialFamilyMixture<Untrained> {
 
     /// Initialize natural parameters for the distribution
     fn initialize_natural_parameters(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
 
         match &self.family_type {
             ExponentialFamilyType::Poisson => {
@@ -287,7 +287,7 @@ impl ExponentialFamilyMixture<Untrained> {
                 let x_val = x[0];
                 Ok(
                     natural_params[0] * x_val.ln() + natural_params[1] * x_val + alpha * beta.ln()
-                        - self.log_gamma(alpha),
+                        - Self::log_gamma(alpha),
                 )
             }
             ExponentialFamilyType::Bernoulli => {
@@ -329,12 +329,12 @@ impl ExponentialFamilyMixture<Untrained> {
     }
 
     /// Simple log gamma implementation using Stirling's approximation
-    fn log_gamma(&self, x: f64) -> f64 {
+    fn log_gamma(x: f64) -> f64 {
         if x < 12.0 {
             if x < 0.5 {
-                (PI / ((PI * x).sin())).ln() - self.log_gamma(1.0 - x)
+                (PI / ((PI * x).sin())).ln() - Self::log_gamma(1.0 - x)
             } else {
-                self.log_gamma(x + 1.0) - x.ln()
+                Self::log_gamma(x + 1.0) - x.ln()
             }
         } else {
             0.5 * (2.0 * PI).ln() - 0.5 * x.ln() + x * x.ln() - x
@@ -483,7 +483,7 @@ impl ExponentialFamilyMixture<Untrained> {
                     }
 
                     if weight_sum > 1e-10 {
-                        let p = (weighted_sum / weight_sum).max(1e-10).min(1.0 - 1e-10);
+                        let p = (weighted_sum / weight_sum).clamp(1e-10, 1.0 - 1e-10);
                         params[[k, 0]] = (p / (1.0 - p)).ln();
                     }
                 }
@@ -552,7 +552,7 @@ impl ExponentialFamilyMixture<Untrained> {
     }
 
     /// Get number of parameters for the distribution
-    fn n_parameters(&self, n_features: usize) -> usize {
+    fn n_parameters(&self, _n_features: usize) -> usize {
         let component_params = match &self.family_type {
             ExponentialFamilyType::Poisson => 1,
             ExponentialFamilyType::Exponential => 1,
@@ -867,7 +867,7 @@ impl ExponentialFamilyMixture<ExponentialFamilyMixtureTrained> {
                 let x_val = x[0];
                 Ok(
                     natural_params[0] * x_val.ln() + natural_params[1] * x_val + alpha * beta.ln()
-                        - self.log_gamma(alpha),
+                        - Self::log_gamma(alpha),
                 )
             }
             ExponentialFamilyType::Bernoulli => {
@@ -907,12 +907,12 @@ impl ExponentialFamilyMixture<ExponentialFamilyMixtureTrained> {
         }
     }
 
-    fn log_gamma(&self, x: f64) -> f64 {
+    fn log_gamma(x: f64) -> f64 {
         if x < 12.0 {
             if x < 0.5 {
-                (PI / ((PI * x).sin())).ln() - self.log_gamma(1.0 - x)
+                (PI / ((PI * x).sin())).ln() - Self::log_gamma(1.0 - x)
             } else {
-                self.log_gamma(x + 1.0) - x.ln()
+                Self::log_gamma(x + 1.0) - x.ln()
             }
         } else {
             0.5 * (2.0 * PI).ln() - 0.5 * x.ln() + x * x.ln() - x

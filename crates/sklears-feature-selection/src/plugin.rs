@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use sklears_core::traits::{Estimator, Fit, Transform};
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -345,7 +344,7 @@ impl PluginRegistry {
     }
 }
 
-/// Global plugin registry instance (commented out due to missing lazy_static dependency)
+// Global plugin registry instance (commented out due to missing lazy_static dependency)
 // lazy_static::lazy_static! {
 //     pub static ref GLOBAL_REGISTRY: PluginRegistry = PluginRegistry::new();
 // }
@@ -496,7 +495,7 @@ impl PluginPipeline {
                         selected_features,
                     });
                 }
-                PipelineStep::Transformation { name, config } => {
+                PipelineStep::Transformation { name, config: _ } => {
                     let transformation = self.registry.get_transformation(name)?;
                     let input_features = current_X.ncols();
                     current_X = transformation.transform(current_X.view())?;

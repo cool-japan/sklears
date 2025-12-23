@@ -2,6 +2,7 @@
 
 use std::marker::PhantomData;
 
+use scirs2_core::ndarray::Axis;
 use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
@@ -42,38 +43,117 @@ impl KFold {
         n_samples: usize,
         _groups: Option<&[usize]>,
     ) -> Vec<(Vec<usize>, Vec<usize>)> {
-        // Simple placeholder implementation for k-fold splits
-        let fold_size = n_samples / self.n_folds;
-        let mut splits = Vec::new();
+        if n_samples == 0 || self.n_folds == 0 {
+            return Vec::new();
+        }
 
-        for i in 0..self.n_folds {
-            let start = i * fold_size;
-            let end = if i == self.n_folds - 1 {
-                n_samples // Include remainder in last fold
-            } else {
-                (i + 1) * fold_size
-            };
+        // Create index order (deterministic placeholder for now)
+        let mut indices: Vec<usize> = (0..n_samples).collect();
+        if self.shuffle && n_samples > 1 {
+            // Simple deterministic rotation to mimic shuffling when enabled
+            let rotation = (self.n_folds % n_samples).max(1);
+            indices.rotate_left(rotation);
 
-            let test_indices: Vec<usize> = (start..end).collect();
-            let train_indices: Vec<usize> = (0..start).chain(end..n_samples).collect();
+            // Distribute indices in a round-robin fashion to encourage balanced folds
+            let mut fold_bins: Vec<Vec<usize>> = vec![Vec::new(); self.n_folds];
+            for (idx, &sample_idx) in indices.iter().enumerate() {
+                fold_bins[idx % self.n_folds].push(sample_idx);
+            }
+
+            let mut splits = Vec::with_capacity(self.n_folds);
+            for fold_idx in 0..self.n_folds {
+                let test_indices = fold_bins[fold_idx].clone();
+                let train_indices = fold_bins
+                    .iter()
+                    .enumerate()
+                    .filter(|(idx, _)| *idx != fold_idx)
+                    .flat_map(|(_, fold)| fold.iter())
+                    .copied()
+                    .collect();
+
+                splits.push((train_indices, test_indices));
+            }
+
+            return splits;
+        }
+
+        let mut splits = Vec::with_capacity(self.n_folds);
+        let base_size = n_samples / self.n_folds;
+        let remainder = n_samples % self.n_folds;
+        let mut current = 0;
+
+        for fold_idx in 0..self.n_folds {
+            let mut fold_size = base_size;
+            if base_size == 0 {
+                // When there are fewer samples than folds, assign one sample per fold until we run out
+                fold_size = if fold_idx < n_samples { 1 } else { 0 };
+            } else if fold_idx < remainder {
+                fold_size += 1;
+            }
+
+            let end = (current + fold_size).min(n_samples);
+            let test_indices = indices[current..end].to_vec();
+            let train_indices = indices
+                .iter()
+                .take(current)
+                .chain(indices.iter().skip(end))
+                .copied()
+                .collect();
 
             splits.push((train_indices, test_indices));
+            current = end;
         }
 
         splits
     }
 }
 
-pub fn cross_val_score<E>(
-    _estimator: E,
-    _x: &Array2<Float>,
-    _y: &Array1<Float>,
-    _cv: &KFold,
+/// Cross-validation score calculation for LinearRegression
+/// Note: This is a simplified version specifically for LinearRegression to avoid
+/// complex trait bound issues with ndarray 0.17
+pub fn cross_val_score(
+    estimator: LinearRegression<Untrained>,
+    x: &Array2<Float>,
+    y: &Array1<Float>,
+    cv: &KFold,
     _scoring: Option<()>,
     _n_jobs: Option<()>,
 ) -> Result<Array1<Float>> {
-    // Placeholder implementation - returns dummy scores
-    Ok(Array1::from_vec(vec![0.8; _cv.n_folds]))
+    validate::check_consistent_length(x, y)?;
+
+    let n_samples = x.nrows();
+    let splits = cv.split(n_samples, None);
+
+    if splits.is_empty() {
+        return Err(SklearsError::InvalidInput(
+            "KFold split produced no folds".to_string(),
+        ));
+    }
+
+    let mut scores = Vec::with_capacity(splits.len());
+
+    for (train_idx, test_idx) in splits {
+        if test_idx.is_empty() {
+            continue; // Skip empty test folds (can happen when n_samples < n_folds)
+        }
+
+        let x_train = x.select(Axis(0), &train_idx);
+        let y_train = y.select(Axis(0), &train_idx);
+        let x_test = x.select(Axis(0), &test_idx);
+        let y_test = y.select(Axis(0), &test_idx);
+
+        let model = estimator.clone().fit(&x_train, &y_train)?;
+        let score = model.score(&x_test, &y_test)?;
+        scores.push(score);
+    }
+
+    if scores.is_empty() {
+        return Err(SklearsError::InvalidInput(
+            "KFold split resulted in no evaluable folds".to_string(),
+        ));
+    }
+
+    Ok(Array1::from_vec(scores))
 }
 
 use crate::LinearRegression;

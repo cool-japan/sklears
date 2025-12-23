@@ -520,6 +520,7 @@ impl FormatConverter {
     /// Convert XML string to simplified map structure
     #[cfg(feature = "xml")]
     pub fn xml_to_simple_map(xml_str: &str) -> UtilsResult<HashMap<String, String>> {
+        use quick_xml::escape::unescape;
         use quick_xml::events::Event;
         use quick_xml::Reader;
 
@@ -537,13 +538,19 @@ impl FormatConverter {
                 }
                 Ok(Event::Text(e)) => {
                     if !current_element.is_empty() {
-                        let text = e.unescape().map_err(|e| {
+                        let raw_text = e.decode().map_err(|e| {
+                            UtilsError::InvalidParameter(format!(
+                                "Failed to decode XML text: {}",
+                                e
+                            ))
+                        })?;
+                        let text = unescape(&raw_text).map_err(|e| {
                             UtilsError::InvalidParameter(format!(
                                 "Failed to unescape XML text: {}",
                                 e
                             ))
                         })?;
-                        result.insert(current_element.clone(), text.to_string());
+                        result.insert(current_element.clone(), text.into_owned());
                     }
                 }
                 Ok(Event::End(_)) => {

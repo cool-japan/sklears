@@ -236,7 +236,7 @@ pub mod capabilities {
         fn is_supported() -> bool {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                is_x86_feature_detected!("sse")
+                crate::simd_feature_detected!("sse")
             }
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             {
@@ -247,11 +247,11 @@ pub mod capabilities {
         fn best_width() -> usize {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                if is_x86_feature_detected!("avx512f") {
+                if crate::simd_feature_detected!("avx512f") {
                     16
-                } else if is_x86_feature_detected!("avx2") {
+                } else if crate::simd_feature_detected!("avx2") {
                     8
-                } else if is_x86_feature_detected!("sse") {
+                } else if crate::simd_feature_detected!("sse") {
                     4
                 } else {
                     1
@@ -268,7 +268,7 @@ pub mod capabilities {
         fn is_supported() -> bool {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                is_x86_feature_detected!("avx2")
+                crate::simd_feature_detected!("avx2")
             }
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             {
@@ -279,11 +279,11 @@ pub mod capabilities {
         fn best_width() -> usize {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                if is_x86_feature_detected!("avx512f") {
+                if crate::simd_feature_detected!("avx512f") {
                     16
-                } else if is_x86_feature_detected!("avx2") {
+                } else if crate::simd_feature_detected!("avx2") {
                     8
-                } else if is_x86_feature_detected!("sse") {
+                } else if crate::simd_feature_detected!("sse") {
                     4
                 } else {
                     1
@@ -300,7 +300,7 @@ pub mod capabilities {
         fn is_supported() -> bool {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                is_x86_feature_detected!("avx512f")
+                crate::simd_feature_detected!("avx512f")
             }
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             {
@@ -311,11 +311,11 @@ pub mod capabilities {
         fn best_width() -> usize {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
-                if is_x86_feature_detected!("avx512f") {
+                if crate::simd_feature_detected!("avx512f") {
                     16
-                } else if is_x86_feature_detected!("avx2") {
+                } else if crate::simd_feature_detected!("avx2") {
                     8
-                } else if is_x86_feature_detected!("sse") {
+                } else if crate::simd_feature_detected!("sse") {
                     4
                 } else {
                     1
@@ -554,9 +554,12 @@ impl SafeMathOps {
 // Removed static assertions module - using runtime checks instead
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_safe_simd_vector_creation() {

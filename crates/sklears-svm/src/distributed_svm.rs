@@ -412,6 +412,7 @@ impl DistributedSVM<Untrained> {
     }
 
     /// Worker thread function
+    #[allow(clippy::too_many_arguments)]
     fn worker_thread(
         worker_id: usize,
         x: Array2<Float>,

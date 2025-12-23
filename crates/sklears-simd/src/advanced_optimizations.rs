@@ -85,9 +85,9 @@ impl AdvancedSimdOptimizer {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { self.dot_product_avx2(a, b) };
-            } else if is_x86_feature_detected!("sse2") {
+            } else if crate::simd_feature_detected!("sse2") {
                 return unsafe { self.dot_product_sse2(a, b) };
             }
         }
@@ -160,7 +160,7 @@ impl AdvancedSimdOptimizer {
 
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            if is_x86_feature_detected!("avx2") {
+            if crate::simd_feature_detected!("avx2") {
                 return unsafe { self.reduction_avx2(data, op) };
             }
         }
@@ -176,7 +176,7 @@ impl AdvancedSimdOptimizer {
 
     // Private helper methods
 
-    fn calculate_optimal_block_size(&self, m: usize, n: usize, k: usize) -> usize {
+    fn calculate_optimal_block_size(&self, _m: usize, _n: usize, _k: usize) -> usize {
         // Estimate optimal block size based on cache size and data dimensions
         let cache_size = 32768; // L1 cache size estimate
         let element_size = 4; // f32 size
@@ -197,7 +197,7 @@ impl AdvancedSimdOptimizer {
         i_end: usize,
         j_end: usize,
         k_end: usize,
-        m: usize,
+        _m: usize,
         n: usize,
         k: usize,
     ) -> Result<(), SimdError> {
@@ -438,7 +438,7 @@ impl CacheAwareSort {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

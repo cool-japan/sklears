@@ -178,11 +178,7 @@ impl Fit<Array2<Float>, Array1<Int>> for PassiveAggressiveClassifier<Untrained> 
 
         // Initialize weights and intercept
         let mut coef = Array2::zeros((n_classes, n_features));
-        let mut intercept = if self.config.fit_intercept {
-            Array1::zeros(n_classes)
-        } else {
-            Array1::zeros(n_classes)
-        };
+        let mut intercept = Array1::zeros(n_classes);
 
         // Create indices for shuffling
         let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -530,7 +526,7 @@ impl Fit<Array2<Float>, Array1<Float>> for PassiveAggressiveRegressor<Untrained>
                 let y_pred = coef.dot(&x_i) + intercept;
 
                 // Compute loss
-                let (loss, epsilon) = match self.config.loss {
+                let (loss, _epsilon) = match self.config.loss {
                     PassiveAggressiveLoss::Epsilon(eps) => (epsilon_loss(y_i, y_pred, eps), eps),
                     PassiveAggressiveLoss::SquaredEpsilon(eps) => {
                         (squared_epsilon_loss(y_i, y_pred, eps), eps)
@@ -710,7 +706,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let predictions = model.predict(&x).unwrap();
+        let _predictions = model.predict(&x).unwrap();
         let r2 = model.score(&x, &y).unwrap();
 
         assert!(r2 > 0.9);

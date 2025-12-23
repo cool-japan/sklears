@@ -195,6 +195,12 @@ where
     }
 }
 
+impl Default for LazyComputationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LazyComputationManager {
     /// Create a new lazy computation manager
     pub fn new() -> Self {
@@ -381,7 +387,7 @@ impl LazyFeatureImportance {
                 let mut column = X_permuted.column_mut(feature_idx);
                 let mut rng = scirs2_core::random::thread_rng();
                 for i in (1..column.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     column.swap(i, j);
                 }
             } // Drop mutable borrow here

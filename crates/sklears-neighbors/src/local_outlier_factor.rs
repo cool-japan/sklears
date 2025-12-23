@@ -295,7 +295,7 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
     fn compute_lof_scores_novelty(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
         let x_train = self.x_train.as_ref().unwrap();
         let n_queries = x.nrows();
-        let n_train = x_train.nrows();
+        let _n_train = x_train.nrows();
 
         // Pre-compute k-distances and LRDs for training data
         let training_lof_data =

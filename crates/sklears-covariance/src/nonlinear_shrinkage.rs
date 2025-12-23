@@ -445,6 +445,6 @@ mod tests {
     #[test]
     fn test_optimal_shrinkage_function() {
         let shrinkage = optimal_shrinkage_function(1.0, 0.5);
-        assert!(shrinkage >= 0.1 && shrinkage <= 1.0);
+        assert!((0.1..=1.0).contains(&shrinkage));
     }
 }

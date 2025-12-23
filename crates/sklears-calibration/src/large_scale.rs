@@ -389,7 +389,7 @@ impl MemoryEfficientCalibrator {
         } else {
             // Reservoir full, use reservoir sampling
             use scirs2_core::random::thread_rng;
-            let rng_instance = thread_rng();
+            let _rng_instance = thread_rng();
             let replace_idx = 0;
 
             if replace_idx < self.max_reservoir_size {

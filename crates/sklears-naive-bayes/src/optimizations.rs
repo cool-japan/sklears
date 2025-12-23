@@ -542,6 +542,13 @@ pub mod unsafe_optimizations {
     use super::*;
     use std::ptr;
 
+    /// Compute log-sum-exp without bounds checking for maximum performance.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that:
+    /// - `values` slice is not empty
+    /// - All indices accessed are within bounds of the slice
     pub unsafe fn unsafe_log_sum_exp_unchecked(values: &[f64]) -> f64 {
         debug_assert!(!values.is_empty(), "values must not be empty");
 

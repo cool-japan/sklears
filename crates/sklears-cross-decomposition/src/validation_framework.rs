@@ -6,7 +6,7 @@
 use crate::{MultiOmicsIntegration, PLSCanonical, PLSRegression, TensorCCA, CCA, PLSDA};
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::{thread_rng, RandNormal, RandUniform, Random};
+use scirs2_core::random::{thread_rng, RandNormal, RandUniform, Random, Rng};
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::Float;
 use std::collections::HashMap;

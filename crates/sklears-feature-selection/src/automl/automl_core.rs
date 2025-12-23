@@ -5,7 +5,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use sklears_core::traits::{Estimator, Fit};
 use thiserror::Error;
 
 // Re-export from other modules
@@ -402,8 +401,14 @@ impl AutomatedFeatureSelectionPipeline {
         y: ArrayView1<f64>,
         n_splits: usize,
     ) -> Result<MethodPerformance> {
-        // For now, use holdout validation as time series validation stub
-        self.holdout_validate_method(method, X, y, 0.2)
+        // Approximate rolling-origin evaluation by adjusting holdout proportion
+        let holdout_ratio = if n_splits > 0 {
+            (1.0 / (n_splits as f64 + 1.0)).clamp(0.1, 0.5)
+        } else {
+            0.2
+        };
+
+        self.holdout_validate_method(method, X, y, holdout_ratio)
     }
 
     /// Compute validation score (simplified implementation)
@@ -419,23 +424,46 @@ impl AutomatedFeatureSelectionPipeline {
             return Ok(0.0);
         }
 
-        // Simple correlation-based score as placeholder
-        let mut total_correlation = 0.0;
+        // Combine train and test correlations as a simple generalization proxy
+        let mut train_total = 0.0;
+        let mut train_count = 0;
+        let mut test_total = 0.0;
+        let mut test_count = 0;
 
         for &feature_idx in selected_features {
             if feature_idx < X_train.ncols() {
                 let feature_train = X_train.column(feature_idx);
                 let correlation = self.compute_correlation(feature_train, y_train);
-                total_correlation += correlation.abs();
+                train_total += correlation.abs();
+                train_count += 1;
+            }
+
+            if feature_idx < X_test.ncols() {
+                let feature_test = X_test.column(feature_idx);
+                let correlation = self.compute_correlation(feature_test, y_test);
+                test_total += correlation.abs();
+                test_count += 1;
             }
         }
 
-        let avg_correlation = total_correlation / selected_features.len() as f64;
+        let train_avg = if train_count > 0 {
+            train_total / train_count as f64
+        } else {
+            0.0
+        };
+
+        let test_avg = if test_count > 0 {
+            test_total / test_count as f64
+        } else {
+            0.0
+        };
+
+        let combined = (train_avg + test_avg) / 2.0;
 
         // Penalize for too many features
         let feature_penalty = (selected_features.len() as f64 / X_train.ncols() as f64) * 0.1;
 
-        Ok((avg_correlation - feature_penalty).max(0.0).min(1.0))
+        Ok((combined - feature_penalty).clamp(0.0, 1.0))
     }
 
     /// Generate recommendation based on results
@@ -463,15 +491,22 @@ impl AutomatedFeatureSelectionPipeline {
         }
 
         // Method recommendation
-        recommendation.push_str(&format!(
-            "✅ Recommended method: {}\n",
-            "OptimalPipeline" // TODO: Extract method name from pipeline
-        ));
+        let method_name = format!("{:?}", final_model.method.method_type);
+        recommendation.push_str(&format!("✅ Recommended method: {}\n", method_name));
+
+        if let Some(target) = final_model.target_n_features {
+            recommendation.push_str(&format!(
+                "🎯 Target feature count after selection: {} (from {} original)\n",
+                target, characteristics.n_features
+            ));
+        }
 
         // Performance insights
+        let performance_pct = final_model.performance.score * 100.0;
         recommendation.push_str(&format!(
-            "📊 Expected performance improvement: {:.1}%\n",
-            10.0 // TODO: Calculate actual performance improvement
+            "📊 Estimated validation score: {:.1}% (±{:.1}%)\n",
+            performance_pct,
+            final_model.performance.score_std * 100.0
         ));
 
         recommendation.push_str("\n💡 Next steps:\n");

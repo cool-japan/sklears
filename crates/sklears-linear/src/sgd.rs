@@ -267,7 +267,7 @@ fn compute_classification_loss_gradient(
     loss: SGDLoss,
     y_true: Float,
     y_pred: Float,
-    epsilon: Float,
+    _epsilon: Float,
 ) -> (Float, Float) {
     match loss {
         SGDLoss::Hinge => {
@@ -944,7 +944,7 @@ impl SGDRegressor<Trained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -967,7 +967,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let predictions = model.predict(&x).unwrap();
+        let _predictions = model.predict(&x).unwrap();
         let accuracy = model.score(&x, &y).unwrap();
 
         // Should achieve good classification on this simple data
@@ -1013,7 +1013,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let predictions = model.predict(&x).unwrap();
+        let _predictions = model.predict(&x).unwrap();
         let r2 = model.score(&x, &y).unwrap();
 
         assert!(r2 > 0.95);

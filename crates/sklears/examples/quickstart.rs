@@ -23,7 +23,7 @@ fn main() -> Result<()> {
 fn linear_regression_example() -> Result<()> {
     // Generate synthetic regression data
     let dataset = make_regression(100, 5, 0.1)?;
-    let (x_train, y_train) = (&dataset.data, &dataset.target);
+    let (x_train, _y_train) = (&dataset.data, &dataset.target);
 
     // This would work once LinearRegression is implemented:
     /*

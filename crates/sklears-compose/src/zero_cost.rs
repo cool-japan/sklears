@@ -914,7 +914,11 @@ impl MemoryLeakDetector {
     }
 
     /// Track a new allocation
-    pub fn track_allocation<T>(&self, size: usize, location: &'static str) -> TrackedAllocation {
+    pub fn track_allocation<T>(
+        &self,
+        size: usize,
+        location: &'static str,
+    ) -> TrackedAllocation<'_> {
         let id = self
             .next_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);

@@ -63,7 +63,7 @@ pub fn validate_dataset(
 pub fn calculate_dataset_quality_metrics(
     data: &[Vec<f64>],
     targets: Option<&[f64]>,
-    config: &ValidationConfig,
+    _config: &ValidationConfig,
 ) -> DatasetQualityMetrics {
     let mut metrics = DatasetQualityMetrics {
         overall_quality_score: 0.0,
@@ -226,7 +226,7 @@ pub fn calculate_dataset_quality_metrics(
 pub fn detect_data_drift(
     reference_data: &[Vec<f64>],
     current_data: &[Vec<f64>],
-    config: &ValidationConfig,
+    _config: &ValidationConfig,
 ) -> DataDriftReport {
     let mut report = DataDriftReport::new();
 
@@ -275,7 +275,7 @@ pub fn detect_data_drift(
 }
 
 /// Detect anomalies in generated data
-pub fn detect_anomalies(data: &[Vec<f64>], config: &ValidationConfig) -> AnomalyDetectionResult {
+pub fn detect_anomalies(data: &[Vec<f64>], _config: &ValidationConfig) -> AnomalyDetectionResult {
     let mut result = AnomalyDetectionResult::new();
 
     if data.is_empty() {

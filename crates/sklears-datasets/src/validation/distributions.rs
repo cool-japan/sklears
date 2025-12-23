@@ -9,22 +9,17 @@ use super::types::{ValidationConfig, ValidationReport, ValidationResult};
 #[derive(Debug, Clone)]
 pub enum DistributionType {
     /// Normal
-
-    Normal(f64, f64),  // mean, std
+    Normal(f64, f64), // mean, std
     /// Uniform
-
     Uniform(f64, f64), // min, max
     /// Exponential
-
-    Exponential(f64),  // rate
+    Exponential(f64), // rate
     /// Custom
-
-    Custom(Vec<f64>),  // reference samples
+    Custom(Vec<f64>), // reference samples
 }
 
 /// Kolmogorov-Smirnov test for distribution comparison
 pub fn kolmogorov_smirnov_test(
-
     data: &[f64],
 
     expected_dist: &DistributionType,

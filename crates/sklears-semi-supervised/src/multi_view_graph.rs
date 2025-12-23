@@ -145,10 +145,9 @@ impl MultiViewGraphLearning {
             // Sort by distance and take k nearest neighbors
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-            for k in 0..self.k_neighbors.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = (-distances[k].0.powi(2) / 2.0).exp(); // RBF kernel
-                graph[[i, j]] = weight;
+            for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
+                let weight = (-dist.powi(2) / 2.0).exp(); // RBF kernel
+                graph[[i, *j]] = weight;
             }
         }
 
@@ -399,7 +398,7 @@ impl HeterogeneousGraphLearning {
             let mut embedding = Array2::<f64>::zeros((n_nodes, *embed_dim));
             for i in 0..n_nodes {
                 for j in 0..*embed_dim {
-                    embedding[[i, j]] = rng.gen_range(-1.0..1.0);
+                    embedding[[i, j]] = rng.random_range(-1.0, 1.0);
                 }
             }
 
@@ -542,10 +541,9 @@ impl TemporalGraphLearning {
             // Sort by distance and take k nearest neighbors
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-            for k in 0..self.k_neighbors.min(distances.len()) {
-                let j = distances[k].1;
-                let weight = (-distances[k].0.powi(2) / 2.0).exp(); // RBF kernel
-                graph[[i, j]] = weight;
+            for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
+                let weight = (-dist.powi(2) / 2.0).exp(); // RBF kernel
+                graph[[i, *j]] = weight;
             }
         }
 

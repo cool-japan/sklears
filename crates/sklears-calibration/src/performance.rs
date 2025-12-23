@@ -17,7 +17,7 @@ impl SIMDCalibrationOps {
     pub fn simd_sigmoid(x: &Array1<Float>) -> Array1<Float> {
         let mut result = Array1::<Float>::zeros(x.len());
         let chunks = x.len() / 4;
-        let remainder = x.len() % 4;
+        let _remainder = x.len() % 4;
 
         unsafe {
             // Process 4 elements at a time using AVX (4 x f64)
@@ -67,6 +67,7 @@ impl SIMDCalibrationOps {
 
     /// SIMD-optimized softmax function
     #[cfg(target_arch = "x86_64")]
+    #[allow(unused_assignments)]
     pub fn simd_softmax(x: &Array1<Float>) -> Array1<Float> {
         let mut result = Array1::<Float>::zeros(x.len());
 
@@ -121,6 +122,7 @@ impl SIMDCalibrationOps {
 
     /// SIMD-optimized Brier score computation
     #[cfg(target_arch = "x86_64")]
+    #[allow(unused_assignments)]
     pub fn simd_brier_score(predictions: &Array1<Float>, targets: &Array1<i32>) -> Result<Float> {
         if predictions.len() != targets.len() {
             return Err(SklearsError::InvalidInput(
@@ -220,7 +222,7 @@ unsafe fn simd_sigmoid_avx(x: __m256d) -> __m256d {
 #[cfg(target_arch = "x86_64")]
 unsafe fn simd_tanh_avx(x: __m256d) -> __m256d {
     // Fast tanh approximation using polynomial
-    let one = _mm256_set1_pd(1.0);
+    let _one = _mm256_set1_pd(1.0);
     let x2 = _mm256_mul_pd(x, x);
     let x3 = _mm256_mul_pd(x2, x);
     let x5 = _mm256_mul_pd(x3, x2);
@@ -245,7 +247,7 @@ unsafe fn simd_exp_avx(x: __m256d) -> __m256d {
     let x4 = _mm256_mul_pd(x3, x);
 
     // exp(x) ≈ 1 + x + x^2/2 + x^3/6 + x^4/24 for small x
-    let c1 = _mm256_set1_pd(1.0);
+    let _c1 = _mm256_set1_pd(1.0);
     let c2 = _mm256_set1_pd(0.5);
     let c3 = _mm256_set1_pd(1.0 / 6.0);
     let c4 = _mm256_set1_pd(1.0 / 24.0);
@@ -617,7 +619,7 @@ impl AdaptivePerformanceController {
         let strategy = self.select_optimal_strategy("sigmoid", size);
 
         match strategy {
-            ComputationStrategy::SIMD => {
+            ComputationStrategy::Simd => {
                 self.profiler.time_operation("adaptive_simd_sigmoid", || {
                     SIMDCalibrationOps::simd_sigmoid(probabilities)
                 })
@@ -664,7 +666,7 @@ impl AdaptivePerformanceController {
         let strategy = self.select_optimal_strategy("temperature_scaling", size);
 
         match strategy {
-            ComputationStrategy::SIMD if self.hardware_capabilities.has_avx => self
+            ComputationStrategy::Simd if self.hardware_capabilities.has_avx => self
                 .profiler
                 .time_operation("adaptive_simd_temperature", || {
                     SIMDCalibrationOps::simd_temperature_scaling(logits, temperature)
@@ -714,7 +716,7 @@ impl AdaptivePerformanceController {
                 } else if threshold_size >= self.simd_threshold
                     && self.hardware_capabilities.has_avx
                 {
-                    ComputationStrategy::SIMD
+                    ComputationStrategy::Simd
                 } else {
                     ComputationStrategy::CacheFriendly
                 };
@@ -729,7 +731,7 @@ impl AdaptivePerformanceController {
         if size >= self.parallel_threshold && self.hardware_capabilities.logical_cores > 2 {
             ComputationStrategy::Parallel
         } else if size >= self.simd_threshold && self.hardware_capabilities.has_avx {
-            ComputationStrategy::SIMD
+            ComputationStrategy::Simd
         } else if size > 1000 {
             ComputationStrategy::CacheFriendly
         } else {
@@ -744,9 +746,9 @@ impl AdaptivePerformanceController {
         a: Float,
         b: Float,
     ) -> Array1<Float> {
-        use rayon::prelude::*;
+        //         use rayon::prelude::*;
 
-        let chunk_size = probabilities.len() / self.hardware_capabilities.logical_cores.max(1);
+        let _chunk_size = probabilities.len() / self.hardware_capabilities.logical_cores.max(1);
         let mut result = Array1::zeros(probabilities.len());
 
         // Process in sequential chunks since parallel chunk operations aren't directly available
@@ -886,7 +888,7 @@ enum ComputationStrategy {
     /// Standard single-threaded computation
     Standard,
     /// SIMD-optimized computation
-    SIMD,
+    Simd,
     /// Parallel computation across multiple cores
     Parallel,
     /// Cache-friendly blocked computation
@@ -1063,15 +1065,19 @@ mod tests {
         let small_strategy = controller.heuristic_strategy_selection(10);
         assert_eq!(small_strategy, ComputationStrategy::Standard);
 
-        // Medium arrays should use cache-friendly strategy
+        // Medium arrays: if AVX available, use SIMD; otherwise cache-friendly
         let medium_strategy = controller.heuristic_strategy_selection(5000);
-        assert_eq!(medium_strategy, ComputationStrategy::CacheFriendly);
+        if controller.hardware_capabilities.has_avx {
+            assert_eq!(medium_strategy, ComputationStrategy::Simd);
+        } else {
+            assert_eq!(medium_strategy, ComputationStrategy::CacheFriendly);
+        }
 
         // Large arrays should potentially use SIMD or parallel strategies
         let large_strategy = controller.heuristic_strategy_selection(50000);
         assert!(matches!(
             large_strategy,
-            ComputationStrategy::SIMD | ComputationStrategy::Parallel
+            ComputationStrategy::Simd | ComputationStrategy::Parallel
         ));
     }
 
@@ -1171,7 +1177,7 @@ mod tests {
         // Test that all strategy variants are distinct
         let strategies = vec![
             ComputationStrategy::Standard,
-            ComputationStrategy::SIMD,
+            ComputationStrategy::Simd,
             ComputationStrategy::Parallel,
             ComputationStrategy::CacheFriendly,
         ];

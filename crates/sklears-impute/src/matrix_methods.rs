@@ -4,7 +4,7 @@
 //! and factor analysis techniques.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -192,7 +192,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MatrixFactorizationImputer<Untrained> {
     type Fitted = MatrixFactorizationImputer<MatrixFactorizationImputerTrained>;
 
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if self.n_components > n_features.min(n_samples) {
@@ -248,13 +248,13 @@ impl Fit<ArrayView2<'_, Float>, ()> for MatrixFactorizationImputer<Untrained> {
         // Random initialization
         for i in 0..n_samples {
             for k in 0..self.n_components {
-                U[[i, k]] = rng.gen::<f64>() * 0.1;
+                U[[i, k]] = rng.gen() * 0.1;
             }
         }
 
         for k in 0..self.n_components {
             for j in 0..n_features {
-                V[[k, j]] = rng.gen::<f64>() * 0.1;
+                V[[k, j]] = rng.gen() * 0.1;
             }
         }
 
@@ -381,7 +381,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
     for MatrixFactorizationImputer<MatrixFactorizationImputerTrained>
 {
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {

@@ -521,7 +521,7 @@ impl BART<Untrained> {
 
         let acceptance_prob = prior_grow * likelihood_ratio;
 
-        if rng.gen::<f64>() < acceptance_prob {
+        if rng.gen() < acceptance_prob {
             // Accept the grow proposal
             self.execute_grow(tree, leaf_node_id, feature, split_value, X)?;
         }

@@ -473,9 +473,7 @@ impl SimdOps {
         _mm256_storeu_ps(result_array.as_mut_ptr(), sum);
         let mut total = result_array.iter().sum::<f32>();
 
-        for i in simd_len..len {
-            total += array[i];
-        }
+        total += array.iter().skip(simd_len).take(len - simd_len).sum::<f32>();
 
         total
     }
@@ -497,9 +495,7 @@ impl SimdOps {
         _mm_storeu_ps(result_array.as_mut_ptr(), sum);
         let mut total = result_array.iter().sum::<f32>();
 
-        for i in simd_len..len {
-            total += array[i];
-        }
+        total += array.iter().skip(simd_len).take(len - simd_len).sum::<f32>();
 
         total
     }
@@ -629,7 +625,7 @@ mod tests {
         let expected = a.dot(&b);
 
         assert_eq!(result.shape(), expected.shape());
-        for ((actual, expected)) in result.iter().zip(expected.iter()) {
+        for (actual, expected) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(*actual, *expected, epsilon = 1e-6);
         }
     }

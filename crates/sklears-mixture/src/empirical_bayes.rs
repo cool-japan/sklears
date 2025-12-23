@@ -307,7 +307,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for EmpiricalBayesGMM<Untrained> {
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
         let X = X.to_owned();
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
@@ -346,7 +346,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for EmpiricalBayesGMM<Untrained> {
             n_iter = iteration + 1;
 
             // Estimate model parameters given current hyperparameters
-            let (weights, means, covariances, variational_params, marginal_likelihood) =
+            let (_weights, _means, _covariances, variational_params, marginal_likelihood) =
                 self.estimate_model_parameters(&X, &current_hyperparams)?;
 
             current_hyperparams.marginal_likelihood = marginal_likelihood;
@@ -474,7 +474,7 @@ impl EmpiricalBayesGMM<Untrained> {
         VariationalParameters,
         f64, // marginal likelihood
     )> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Initialize variational parameters with current hyperparameters
         let (mut pi_alpha, mut mu_mean, mut mu_precision, mut lambda_nu, mut lambda_w) =
@@ -804,8 +804,8 @@ impl EmpiricalBayesGMM<Untrained> {
         responsibilities: &Array2<f64>,
         pi_alpha: &Array1<f64>,
         mu_precision: &Array2<f64>,
-        lambda_nu: &Array1<f64>,
-        lambda_w: &Vec<Array2<f64>>,
+        _lambda_nu: &Array1<f64>,
+        _lambda_w: &Vec<Array2<f64>>,
     ) -> f64 {
         let mut entropy = 0.0;
 
@@ -838,10 +838,10 @@ impl EmpiricalBayesGMM<Untrained> {
         variational_params: &VariationalParameters,
         current_hyperparams: &HyperparameterState,
     ) -> SklResult<HyperparameterState> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Compute sufficient statistics
-        let total_responsibility: f64 = variational_params.pi_alpha.sum()
+        let _total_responsibility: f64 = variational_params.pi_alpha.sum()
             - self.n_components as f64 * current_hyperparams.alpha_concentration;
 
         // Update alpha concentration (Dirichlet parameter)
@@ -927,11 +927,11 @@ impl EmpiricalBayesGMM<Untrained> {
     fn em_hyperparameter_update(
         &self,
         X: &Array2<f64>,
-        variational_params: &VariationalParameters,
+        _variational_params: &VariationalParameters,
         current_hyperparams: &HyperparameterState,
     ) -> SklResult<HyperparameterState> {
         // For EM approach, use sample moments to update hyperparameters
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
 
         // Use sample statistics to estimate hyperparameters
         let sample_var = X.var_axis(Axis(0), 0.0);
@@ -1058,7 +1058,7 @@ impl EmpiricalBayesGMM<Untrained> {
     fn compute_hyperparameter_gradients(
         &self,
         X: &Array2<f64>,
-        variational_params: &VariationalParameters,
+        _variational_params: &VariationalParameters,
         hyperparams: &HyperparameterState,
     ) -> SklResult<(f64, f64, f64, f64)> {
         let eps = 1e-6;
@@ -1125,7 +1125,7 @@ impl EmpiricalBayesGMM<Untrained> {
         &self,
         k: usize,
         lambda_nu: &Array1<f64>,
-        lambda_w: &Vec<Array2<f64>>,
+        lambda_w: &[Array2<f64>],
     ) -> f64 {
         let n_features = lambda_w[k].nrows();
         let mut log_det = 0.0;
@@ -1150,7 +1150,7 @@ impl EmpiricalBayesGMM<Untrained> {
     fn compute_covariances(
         &self,
         lambda_nu: &Array1<f64>,
-        lambda_w: &Vec<Array2<f64>>,
+        lambda_w: &[Array2<f64>],
     ) -> SklResult<Vec<Array2<f64>>> {
         let mut covariances = Vec::new();
 

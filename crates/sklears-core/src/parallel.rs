@@ -521,7 +521,9 @@ mod tests {
 
     #[test]
     fn test_optimal_chunk_size() {
-        assert_eq!(utils::optimal_chunk_size(1000, 10), 125); // 1000 / 8 threads
+        let num_threads = rayon::current_num_threads();
+        let expected = (1000 / num_threads).max(10);
+        assert_eq!(utils::optimal_chunk_size(1000, 10), expected);
         assert_eq!(utils::optimal_chunk_size(100, 50), 50); // min_chunk_size takes precedence
     }
 

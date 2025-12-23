@@ -1351,7 +1351,6 @@ mod tests {
         let _arr2: Array2<f64> = Array2::zeros((5, 5));
 
         // This test passes if we can successfully use SciRS2 components
-        assert!(true);
     }
 
     #[test]

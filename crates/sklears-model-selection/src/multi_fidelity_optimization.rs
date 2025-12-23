@@ -6,7 +6,9 @@
 //! are more expensive but more accurate.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -778,7 +780,7 @@ impl MultiFidelityOptimizer {
         let mut config = HashMap::new();
 
         for (i, &(low, high)) in parameter_bounds.iter().enumerate() {
-            let value = self.rng.gen_range(low..=high);
+            let value = self.rng.gen_range(low..high + 1.0);
             config.insert(format!("param_{}", i), value);
         }
 
@@ -894,17 +896,17 @@ impl MultiFidelityOptimizer {
                 // Mock EI calculation
                 let config_vec: Vec<Float> = config.values().cloned().collect();
                 let config_sum = config_vec.iter().sum::<Float>();
-                Ok(config_sum + self.rng.gen::<Float>() * 0.1)
+                Ok(config_sum + self.rng.random::<Float>() * 0.1)
             }
             AcquisitionFunction::UpperConfidenceBound { beta } => {
                 // Mock UCB calculation
                 let config_vec: Vec<Float> = config.values().cloned().collect();
                 let config_sum = config_vec.iter().sum::<Float>();
-                Ok(config_sum + beta * self.rng.gen::<Float>())
+                Ok(config_sum + beta * self.rng.random::<Float>())
             }
             _ => {
                 // Default to random value
-                Ok(self.rng.gen::<Float>())
+                Ok(self.rng.random::<Float>())
             }
         }
     }

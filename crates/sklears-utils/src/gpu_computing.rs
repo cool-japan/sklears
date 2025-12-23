@@ -1597,7 +1597,7 @@ mod tests {
         let operation_handle = handle.unwrap();
 
         // Test completion checking
-        let is_complete_before = async_ops.is_complete(&operation_handle);
+        let _is_complete_before = async_ops.is_complete(&operation_handle);
 
         // Test waiting for completion
         let execution = async_ops.wait_for_completion(&operation_handle);
@@ -1667,7 +1667,7 @@ mod tests {
     #[test]
     fn test_stream_priorities() {
         let mut async_ops = AsyncGpuOps::new();
-        let stream_id = async_ops.create_stream(0).unwrap();
+        let _stream_id = async_ops.create_stream(0).unwrap();
 
         // Verify stream was created with default priority
         let streams = async_ops.streams.get(&0).unwrap();

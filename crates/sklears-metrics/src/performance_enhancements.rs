@@ -385,7 +385,7 @@ impl AdaptiveMetricsComputer {
         {
             use crate::optimized::{parallel_mean_absolute_error, OptimizedConfig};
             let _config = OptimizedConfig::default();
-            return parallel_mean_absolute_error(y_true, y_pred, &_config);
+            let _ = parallel_mean_absolute_error(y_true, y_pred, &_config);
         }
 
         // Fall back to regular regression function in all cases
@@ -1052,9 +1052,8 @@ mod tests {
 
         assert_eq!(result, 42);
 
-        let recommendations = optimizer.get_recommendations();
+        let _recommendations = optimizer.get_recommendations();
         // Recommendations will be empty for such a short execution
-        assert!(recommendations.len() >= 0);
     }
 
     #[test]

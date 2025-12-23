@@ -152,8 +152,8 @@ impl SVMPropertyTester {
             result.total += 1;
 
             // Generate random dataset
-            let n_samples = self.rng.random_range(10..=100);
-            let n_features = self.rng.random_range(2..=10);
+            let n_samples = self.rng.gen_range(10..100 + 1);
+            let n_features = self.rng.gen_range(2..10 + 1);
             let (x, y) = self.generate_linearly_separable_dataset(n_samples, n_features);
 
             // Test convexity by checking that linear combinations of solutions
@@ -185,8 +185,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(20..=200);
-            let n_features = self.rng.random_range(2..=20);
+            let n_samples = self.rng.gen_range(20..200 + 1);
+            let n_features = self.rng.gen_range(2..20 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_kkt_conditions_single_case(&x, &y) {
@@ -214,8 +214,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(20..=100);
-            let n_features = self.rng.random_range(2..=10);
+            let n_samples = self.rng.gen_range(20..100 + 1);
+            let n_features = self.rng.gen_range(2..10 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_dual_gap_single_case(&x, &y) {
@@ -261,8 +261,8 @@ impl SVMPropertyTester {
             for _ in 0..self.config.test_cases / 4 {
                 result.total += 1;
 
-                let n_samples = self.rng.random_range(10..=50);
-                let n_features = self.rng.random_range(2..=10);
+                let n_samples = self.rng.gen_range(10..50 + 1);
+                let n_features = self.rng.gen_range(2..10 + 1);
                 let x = self.generate_random_matrix(n_samples, n_features);
 
                 match self.test_kernel_properties_single_case(&x, &kernel_type) {
@@ -296,7 +296,7 @@ impl SVMPropertyTester {
             result.total += 1;
 
             // Generate dataset with various numerical challenges
-            let (x, y) = match self.rng.random_range(0..4) {
+            let (x, y) = match self.rng.gen_range(0..4) {
                 0 => self.generate_ill_conditioned_dataset(50, 5),
                 1 => self.generate_very_small_values_dataset(50, 5),
                 2 => self.generate_very_large_values_dataset(50, 5),
@@ -330,8 +330,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(50..=200);
-            let n_features = self.rng.random_range(2..=20);
+            let n_samples = self.rng.gen_range(50..200 + 1);
+            let n_features = self.rng.gen_range(2..20 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_convergence_single_case(&x, &y) {
@@ -361,8 +361,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(20..=100);
-            let n_features = self.rng.random_range(2..=10);
+            let n_samples = self.rng.gen_range(20..100 + 1);
+            let n_features = self.rng.gen_range(2..10 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_scale_invariance_single_case(&x, &y) {
@@ -392,8 +392,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(50..=200);
-            let n_features = self.rng.random_range(2..=10);
+            let n_samples = self.rng.gen_range(50..200 + 1);
+            let n_features = self.rng.gen_range(2..10 + 1);
             let (x, y) = self.generate_dataset_with_outliers(
                 n_samples, n_features, 0.1, // 10% outliers
             );
@@ -425,8 +425,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(50..=200);
-            let n_features = self.rng.random_range(2..=10);
+            let n_samples = self.rng.gen_range(50..200 + 1);
+            let n_features = self.rng.gen_range(2..10 + 1);
             let (x, y) = self.generate_noisy_dataset(
                 n_samples, n_features, 0.1, // 10% noise level
             );
@@ -496,8 +496,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(100..=500);
-            let n_features = self.rng.random_range(5..=20);
+            let n_samples = self.rng.gen_range(100..500 + 1);
+            let n_features = self.rng.gen_range(5..20 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_training_time_single_case(&x, &y) {
@@ -527,8 +527,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(100..=1000);
-            let n_features = self.rng.random_range(5..=50);
+            let n_samples = self.rng.gen_range(100..1000 + 1);
+            let n_features = self.rng.gen_range(5..50 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_memory_usage_single_case(&x, &y) {
@@ -558,8 +558,8 @@ impl SVMPropertyTester {
         for _ in 0..self.config.test_cases {
             result.total += 1;
 
-            let n_samples = self.rng.random_range(50..=200);
-            let n_features = self.rng.random_range(2..=10);
+            let n_samples = self.rng.gen_range(50..200 + 1);
+            let n_features = self.rng.gen_range(2..10 + 1);
             let (x, y) = self.generate_random_dataset(n_samples, n_features);
 
             match self.test_prediction_consistency_single_case(&x, &y) {
@@ -1005,10 +1005,10 @@ impl SVMPropertyTester {
         n_features: usize,
     ) -> (DMatrix<f64>, DVector<f64>) {
         let x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.random_range(-1.0..=1.0)
+            self.rng.gen_range(-1.0..1.0 + 1)
         });
         let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1023,9 +1023,9 @@ impl SVMPropertyTester {
         n_features: usize,
     ) -> (DMatrix<f64>, DVector<f64>) {
         let mut x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.random_range(-1.0..=1.0)
+            self.rng.gen_range(-1.0..1.0 + 1)
         });
-        let w = DVector::from_fn(n_features, |_, _| self.rng.random_range(-1.0..=1.0));
+        let w = DVector::from_fn(n_features, |_, _| self.rng.gen_range(-1.0..1.0 + 1));
 
         // Create linearly separable labels
         let mut y = DVector::zeros(n_samples);
@@ -1047,7 +1047,7 @@ impl SVMPropertyTester {
     }
 
     fn generate_random_matrix(&mut self, n_rows: usize, n_cols: usize) -> DMatrix<f64> {
-        DMatrix::from_fn(n_rows, n_cols, |_, _| self.rng.random_range(-1.0..=1.0))
+        DMatrix::from_fn(n_rows, n_cols, |_, _| self.rng.gen_range(-1.0..1.0 + 1))
     }
 
     fn generate_ill_conditioned_dataset(
@@ -1065,14 +1065,14 @@ impl SVMPropertyTester {
                     i,
                     &(x.column(0)
                         + DVector::from_fn(n_samples, |_, _| {
-                            self.rng.random_range(-noise_scale..=noise_scale)
+                            self.rng.gen_range(-noise_scale..noise_scale + 1)
                         })),
                 );
             }
         }
 
         let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1088,10 +1088,10 @@ impl SVMPropertyTester {
     ) -> (DMatrix<f64>, DVector<f64>) {
         let scale = 1e-10;
         let x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.random_range(-scale..=scale)
+            self.rng.gen_range(-scale..scale + 1)
         });
         let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1107,10 +1107,10 @@ impl SVMPropertyTester {
     ) -> (DMatrix<f64>, DVector<f64>) {
         let scale = 1e10;
         let x = DMatrix::from_fn(n_samples, n_features, |_, _| {
-            self.rng.random_range(-scale..=scale)
+            self.rng.gen_range(-scale..scale + 1)
         });
         let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1124,19 +1124,19 @@ impl SVMPropertyTester {
         n_samples: usize,
         n_features: usize,
     ) -> (DMatrix<f64>, DVector<f64>) {
-        let base_sample = DVector::from_fn(n_features, |_, _| self.rng.random_range(-1.0..=1.0));
+        let base_sample = DVector::from_fn(n_features, |_, _| self.rng.gen_range(-1.0..1.0 + 1));
         let noise_scale = 1e-8;
 
         let mut x = DMatrix::zeros(n_samples, n_features);
         for i in 0..n_samples {
             let noise = DVector::from_fn(n_features, |_, _| {
-                self.rng.random_range(-noise_scale..=noise_scale)
+                self.rng.gen_range(-noise_scale..noise_scale + 1)
             });
             x.set_row(i, &(base_sample.clone() + noise).transpose());
         }
 
         let y = DVector::from_fn(n_samples, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1156,10 +1156,10 @@ impl SVMPropertyTester {
 
         // Generate normal samples
         let x_normal = DMatrix::from_fn(n_normal, n_features, |_, _| {
-            self.rng.random_range(-1.0..=1.0)
+            self.rng.gen_range(-1.0..1.0 + 1)
         });
         let y_normal = DVector::from_fn(n_normal, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1169,10 +1169,10 @@ impl SVMPropertyTester {
         // Generate outliers
         let outlier_scale = 10.0;
         let x_outliers = DMatrix::from_fn(n_outliers, n_features, |_, _| {
-            self.rng.random_range(-outlier_scale..=outlier_scale)
+            self.rng.gen_range(-outlier_scale..outlier_scale + 1)
         });
         let y_outliers = DVector::from_fn(n_outliers, |_, _| {
-            if self.rng.random::<f64>() > 0.5 {
+            if self.rng.gen() > 0.5 {
                 1.0
             } else {
                 -1.0
@@ -1202,14 +1202,14 @@ impl SVMPropertyTester {
         // Add noise to features
         for i in 0..n_samples {
             for j in 0..n_features {
-                x[(i, j)] += self.rng.random_range(-noise_level..=noise_level);
+                x[(i, j)] += self.rng.gen_range(-noise_level..noise_level + 1);
             }
         }
 
         // Add label noise
         let n_label_flips = (n_samples as f64 * noise_level) as usize;
         for _ in 0..n_label_flips {
-            let idx = self.rng.random_range(0..n_samples);
+            let idx = self.rng.gen_range(0..n_samples);
             y[idx] = -y[idx];
         }
 

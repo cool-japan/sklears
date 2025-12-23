@@ -2,8 +2,10 @@
 
 // ✅ SciRS2 Policy Compliant Imports
 use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, Axis};
+use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,

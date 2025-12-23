@@ -316,7 +316,7 @@ pub mod utils {
         let weight = 1.0 / (1.0 + ratio);
 
         // Clamp to reasonable range
-        Ok(weight.max(0.01).min(0.5))
+        Ok(weight.clamp(0.01, 0.5))
     }
 }
 

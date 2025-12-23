@@ -339,7 +339,7 @@ impl MinimumVolumeEllipsoidDiscriminantAnalysis<Untrained> {
 
             // Compute initial estimates from subsample
             if let Ok((location, covariance)) = self.compute_sample_statistics(&subsample) {
-                if let Ok(precision) = self.invert_matrix(&covariance) {
+                if let Ok(_precision) = self.invert_matrix(&covariance) {
                     // C-step iterations to improve the estimate
                     let (refined_location, refined_covariance, support) =
                         self.c_step_iterations(x, &location, &covariance, h)?;

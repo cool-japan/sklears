@@ -136,7 +136,7 @@ impl Fit<Array1<Float>, Array1<Float>> for SparseIsotonicRegression<Untrained> {
             });
         }
 
-        let sparse_x_array = Array1::from(sparse_x);
+        let _sparse_x_array = Array1::from(sparse_x);
         let sparse_y_array = Array1::from(sparse_y);
 
         // Apply isotonic regression to sparse data
@@ -240,7 +240,7 @@ impl SparseIsotonicRegression<Untrained> {
         }
 
         let sparse_y_array = Array1::from(sparse_y);
-        let sparse_weights_array = Array1::from(sparse_weights);
+        let _sparse_weights_array = Array1::from(sparse_weights);
 
         // Apply weighted isotonic regression to sparse data
         let sparse_result = match self.loss {
@@ -312,7 +312,7 @@ impl Predict<Array1<Float>, Array1<Float>> for SparseIsotonicRegression<Trained>
 
             // Find closest sparse points for interpolation
             let mut closest_idx = 0;
-            let min_diff = Float::INFINITY;
+            let _min_diff = Float::INFINITY;
 
             // For simplicity, just use the first sparse value if available
             // In a real implementation, we would store the sparse x values during training
@@ -404,8 +404,8 @@ impl SparseIsotonicRegression<Trained> {
     /// Perform linear interpolation between nearest sparse points
     fn linear_interpolate(
         &self,
-        x_val: Float,
-        x_full: &Array1<Float>,
+        _x_val: Float,
+        _x_full: &Array1<Float>,
         sparse_indices: &[usize],
         sparse_values: &Array1<Float>,
     ) -> Float {

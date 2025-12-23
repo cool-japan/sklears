@@ -602,7 +602,7 @@ impl DocumentSimilaritySearch {
             };
 
             // Compute confidence score
-            let confidence = similarity.max(0.0).min(1.0);
+            let confidence = similarity.clamp(0.0, 1.0);
 
             results.push(DocumentSearchResult {
                 metadata,

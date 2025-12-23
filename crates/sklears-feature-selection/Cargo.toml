@@ -16,7 +16,6 @@ description = "Feature selection algorithms for sklears - scikit-learn compatibl
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
 # sklears-model-selection = { workspace = true }
-numrs2 = { workspace = true }
 # SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true }
 scirs2-stats = { workspace = true }  # For statistical feature selection methods
@@ -28,7 +27,7 @@ serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 num_cpus = { workspace = true }
 rayon = { workspace = true }
-statrs = "0.16"
+statrs = "0.18"
 
 [dev-dependencies]
 approx = { workspace = true }

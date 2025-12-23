@@ -5,7 +5,8 @@
 //! and numerically stable algorithms.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
+use scirs2_core::random::Rng;
 use sklears_core::prelude::{Result, SklearsError};
 
 /// Numerical stability monitor for kernel approximation methods
@@ -693,7 +694,7 @@ pub fn stable_kernel_matrix(
     monitor: &mut NumericalStabilityMonitor,
 ) -> Result<Array2<f64>> {
     let data2 = data2.unwrap_or(data1);
-    let (n1, n_features) = data1.dim();
+    let (n1, _n_features) = data1.dim();
     let (n2, _) = data2.dim();
 
     let mut kernel = Array2::zeros((n1, n2));

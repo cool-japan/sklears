@@ -32,24 +32,31 @@ pub mod adaptive;
 pub mod automated_feature_engineering;
 pub mod binarization;
 pub mod column_transformer;
+pub mod cross_validation;
+pub mod data_quality;
 pub mod dimensionality_reduction;
 pub mod encoding;
 pub mod feature_engineering;
 pub mod feature_union;
 pub mod functional;
+pub mod geospatial;
 // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
 // pub mod gpu_acceleration;
 pub mod image_preprocessing;
 pub mod imputation;
+pub mod information_theory;
 pub mod kernel_centerer;
 pub mod label_binarization;
 // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
 // pub mod lazy_evaluation;
 // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
 // pub mod memory_management;
+pub mod monitoring;
 pub mod outlier_detection;
 pub mod outlier_transformation;
 pub mod pipeline;
+pub mod pipeline_validation;
+pub mod probabilistic_imputation;
 pub mod quantile_transformer;
 pub mod robust_preprocessing;
 pub mod scaling;
@@ -58,6 +65,7 @@ pub mod sparse_optimizations;
 pub mod streaming;
 pub mod temporal;
 pub mod text;
+pub mod type_safety;
 pub mod winsorization;
 
 pub use adaptive::{
@@ -78,6 +86,15 @@ pub use column_transformer::{
     ColumnSelector, ColumnTransformer, ColumnTransformerConfig, DataType, RemainderStrategy,
     TransformerStep, TransformerWrapper,
 };
+pub use cross_validation::{
+    CVScore, InformationPreservationMetric, KFold, ParameterDistribution, ParameterGrid,
+    PreprocessingMetric, StratifiedKFold, VariancePreservationMetric,
+};
+pub use data_quality::{
+    CorrelationWarning, DataQualityConfig, DataQualityReport, DataQualityValidator,
+    DistributionStats, IssueCategory, IssueSeverity, MissingStats, OutlierMethod, OutlierStats,
+    QualityIssue,
+};
 pub use dimensionality_reduction::{
     ICAConfig, ICAFitted, IcaAlgorithm, IcaFunction, LDAConfig, LDAFitted, LdaSolver, NMFConfig,
     NMFFitted, NmfInit, NmfSolver, PCAConfig, PCAFitted, PcaSolver, ICA, LDA, NMF, PCA,
@@ -92,6 +109,16 @@ pub use feature_engineering::{
     PowerTransformer, PowerTransformerConfig, SplineTransformer, SplineTransformerConfig,
 };
 pub use feature_union::{FeatureUnion, FeatureUnionConfig, FeatureUnionStep};
+pub use geospatial::{
+    calculate_distance, haversine_distance, vincenty_distance, Coordinate, CoordinateSystem,
+    CoordinateTransformer, CoordinateTransformerConfig, CoordinateTransformerFitted, Geohash,
+    GeohashEncoder, GeohashEncoderConfig, GeohashEncoderFitted, ProximityFeatures,
+    ProximityFeaturesConfig, ProximityFeaturesFitted, SpatialAutocorrelation,
+    SpatialAutocorrelationConfig, SpatialAutocorrelationFitted, SpatialBinning,
+    SpatialBinningConfig, SpatialBinningFitted, SpatialClustering, SpatialClusteringConfig,
+    SpatialClusteringFitted, SpatialClusteringMethod, SpatialDistanceFeatures,
+    SpatialDistanceFeaturesConfig, SpatialDistanceFeaturesFitted, SpatialDistanceMetric,
+};
 // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
 // pub use gpu_acceleration::{
 //     GpuBackend, GpuConfig, GpuContextManager, GpuMinMaxScaler, GpuMinMaxScalerFitted,
@@ -110,6 +137,12 @@ pub use imputation::{
     OutlierAwareImputer, OutlierAwareImputerConfig, OutlierAwareStatistics, OutlierAwareStrategy,
     OverallMissingStats, SimpleImputer,
 };
+pub use information_theory::{
+    approximate_entropy, conditional_entropy, joint_entropy, lempel_ziv_complexity,
+    mutual_information, normalized_mutual_information, permutation_entropy, renyi_entropy,
+    sample_entropy, shannon_entropy, transfer_entropy, InformationFeatureSelector,
+    InformationFeatureSelectorConfig, InformationFeatureSelectorFitted, InformationMetric,
+};
 pub use kernel_centerer::KernelCenterer;
 pub use label_binarization::{
     LabelBinarizer, LabelBinarizerConfig, MultiLabelBinarizer, MultiLabelBinarizerConfig,
@@ -122,6 +155,9 @@ pub use label_binarization::{
 //     CompressedData, CopyOnWriteArray, MemoryCompressor, MemoryMappedDataset, MemoryPool,
 //     MemoryPoolConfig, MemoryStats, PrefetchPattern, StreamingMemoryTransformer,
 // };
+pub use monitoring::{
+    LogLevel, MonitoringConfig, MonitoringSession, MonitoringSummary, TransformationMetrics,
+};
 pub use outlier_detection::{
     FeatureOutlierParams, OutlierDetectionMethod, OutlierDetectionResult, OutlierDetector,
     OutlierDetectorConfig, OutlierStatistics, OutlierSummary,
@@ -135,6 +171,16 @@ pub use pipeline::{
     CacheConfig, CacheStats, ConditionalStep, ConditionalStepConfig, DynamicPipeline,
     ErrorHandlingStrategy, ParallelBranchConfig, ParallelBranches, PipelineStep,
     TransformationCache,
+};
+pub use pipeline_validation::{
+    PerformanceRecommendation, PipelineValidator, PipelineValidatorConfig, RecommendationCategory,
+    ValidationError, ValidationErrorType, ValidationResult, ValidationWarning, WarningSeverity,
+};
+pub use probabilistic_imputation::{
+    BayesianImputer, BayesianImputerConfig, BayesianImputerFitted, EMImputer, EMImputerConfig,
+    EMImputerFitted, GaussianProcessImputer, GaussianProcessImputerConfig,
+    GaussianProcessImputerFitted, MonteCarloBaseMethod, MonteCarloImputer, MonteCarloImputerConfig,
+    MonteCarloImputerFitted,
 };
 pub use quantile_transformer::{QuantileOutput, QuantileTransformer, QuantileTransformerConfig};
 pub use robust_preprocessing::{
@@ -179,6 +225,10 @@ pub use text::{
     NormalizationStrategy, SimilarityMetric, TextSimilarity, TextSimilarityConfig, TextTokenizer,
     TextTokenizerConfig, TfIdfVectorizer, TfIdfVectorizerConfig, TokenizationStrategy,
 };
+pub use type_safety::{
+    Dimension, Dynamic, Fitted, Known, TransformState, TypeSafeConfig, TypeSafePipeline,
+    TypeSafeTransformer, Unfitted,
+};
 pub use winsorization::{NanStrategy, WinsorizationStats, Winsorizer, WinsorizerConfig};
 
 // Re-export functional APIs (excluding complex transformations that are commented out)
@@ -208,6 +258,15 @@ pub mod prelude {
         ColumnSelector, ColumnTransformer, ColumnTransformerConfig, DataType, RemainderStrategy,
         TransformerStep, TransformerWrapper,
     };
+    pub use crate::cross_validation::{
+        CVScore, InformationPreservationMetric, KFold, ParameterDistribution, ParameterGrid,
+        PreprocessingMetric, StratifiedKFold, VariancePreservationMetric,
+    };
+    pub use crate::data_quality::{
+        CorrelationWarning, DataQualityConfig, DataQualityReport, DataQualityValidator,
+        DistributionStats, IssueCategory, IssueSeverity, MissingStats, OutlierMethod, OutlierStats,
+        QualityIssue,
+    };
     pub use crate::dimensionality_reduction::{
         ICAConfig, ICAFitted, IcaAlgorithm, IcaFunction, LDAConfig, LDAFitted, LdaSolver,
         NMFConfig, NMFFitted, NmfInit, NmfSolver, PCAConfig, PCAFitted, PcaSolver, ICA, LDA, NMF,
@@ -223,6 +282,16 @@ pub mod prelude {
         PowerTransformer, PowerTransformerConfig, SplineTransformer, SplineTransformerConfig,
     };
     pub use crate::feature_union::{FeatureUnion, FeatureUnionConfig, FeatureUnionStep};
+    pub use crate::geospatial::{
+        calculate_distance, haversine_distance, vincenty_distance, Coordinate, CoordinateSystem,
+        CoordinateTransformer, CoordinateTransformerConfig, CoordinateTransformerFitted, Geohash,
+        GeohashEncoder, GeohashEncoderConfig, GeohashEncoderFitted, ProximityFeatures,
+        ProximityFeaturesConfig, ProximityFeaturesFitted, SpatialAutocorrelation,
+        SpatialAutocorrelationConfig, SpatialAutocorrelationFitted, SpatialBinning,
+        SpatialBinningConfig, SpatialBinningFitted, SpatialClustering, SpatialClusteringConfig,
+        SpatialClusteringFitted, SpatialClusteringMethod, SpatialDistanceFeatures,
+        SpatialDistanceFeaturesConfig, SpatialDistanceFeaturesFitted, SpatialDistanceMetric,
+    };
     // TODO: Depends on scirs2_core::memory::BufferPool which doesn't exist yet
     // pub use crate::gpu_acceleration::{
     //     GpuBackend, GpuConfig, GpuContextManager, GpuMinMaxScaler, GpuMinMaxScalerFitted,
@@ -241,6 +310,12 @@ pub mod prelude {
         OutlierAwareImputer, OutlierAwareImputerConfig, OutlierAwareStatistics,
         OutlierAwareStrategy, OverallMissingStats, SimpleImputer,
     };
+    pub use crate::information_theory::{
+        approximate_entropy, conditional_entropy, joint_entropy, lempel_ziv_complexity,
+        mutual_information, normalized_mutual_information, permutation_entropy, renyi_entropy,
+        sample_entropy, shannon_entropy, transfer_entropy, InformationFeatureSelector,
+        InformationFeatureSelectorConfig, InformationFeatureSelectorFitted, InformationMetric,
+    };
     pub use crate::kernel_centerer::KernelCenterer;
     pub use crate::label_binarization::{
         LabelBinarizer, LabelBinarizerConfig, MultiLabelBinarizer, MultiLabelBinarizerConfig,
@@ -253,6 +328,9 @@ pub mod prelude {
     //     CompressedData, CopyOnWriteArray, MemoryCompressor, MemoryMappedDataset, MemoryPool,
     //     MemoryPoolConfig, MemoryStats, PrefetchPattern, StreamingMemoryTransformer,
     // };
+    pub use crate::monitoring::{
+        LogLevel, MonitoringConfig, MonitoringSession, MonitoringSummary, TransformationMetrics,
+    };
     pub use crate::outlier_detection::{
         FeatureOutlierParams, OutlierDetectionMethod, OutlierDetectionResult, OutlierDetector,
         OutlierDetectorConfig, OutlierStatistics, OutlierSummary,
@@ -266,6 +344,17 @@ pub mod prelude {
         BranchCombinationStrategy, CacheConfig, CacheStats, ConditionalStep, ConditionalStepConfig,
         DynamicPipeline, ErrorHandlingStrategy, ParallelBranchConfig, ParallelBranches,
         PipelineStep, TransformationCache,
+    };
+    pub use crate::pipeline_validation::{
+        PerformanceRecommendation, PipelineValidator, PipelineValidatorConfig,
+        RecommendationCategory, ValidationError, ValidationErrorType, ValidationResult,
+        ValidationWarning, WarningSeverity,
+    };
+    pub use crate::probabilistic_imputation::{
+        BayesianImputer, BayesianImputerConfig, BayesianImputerFitted, EMImputer, EMImputerConfig,
+        EMImputerFitted, GaussianProcessImputer, GaussianProcessImputerConfig,
+        GaussianProcessImputerFitted, MonteCarloBaseMethod, MonteCarloImputer,
+        MonteCarloImputerConfig, MonteCarloImputerFitted,
     };
     pub use crate::quantile_transformer::{
         QuantileOutput, QuantileTransformer, QuantileTransformerConfig,
@@ -314,6 +403,10 @@ pub mod prelude {
         NormalizationStrategy, SimilarityMetric, TextSimilarity, TextSimilarityConfig,
         TextTokenizer, TextTokenizerConfig, TfIdfVectorizer, TfIdfVectorizerConfig,
         TokenizationStrategy,
+    };
+    pub use crate::type_safety::{
+        Dimension, Dynamic, Fitted, Known, TransformState, TypeSafeConfig, TypeSafePipeline,
+        TypeSafeTransformer, Unfitted,
     };
     pub use crate::winsorization::{NanStrategy, WinsorizationStats, Winsorizer, WinsorizerConfig};
 

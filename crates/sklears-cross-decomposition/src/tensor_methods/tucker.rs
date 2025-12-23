@@ -218,7 +218,7 @@ impl TuckerDecomposition<Untrained> {
                     let mut factor = Array2::zeros((shape[mode], self.n_components[mode]));
                     for i in 0..shape[mode] {
                         for j in 0..self.n_components[mode] {
-                            factor[[i, j]] = thread_rng().gen::<Float>();
+                            factor[[i, j]] = thread_rng().random::<Float>();
                         }
                     }
                     factors.push(factor);
@@ -316,7 +316,7 @@ impl TuckerDecomposition<Untrained> {
         // Initialize with random values for now
         for i in 0..shape[mode] {
             for j in 0..self.n_components[mode] {
-                new_factor[[i, j]] = thread_rng().gen::<Float>();
+                new_factor[[i, j]] = thread_rng().random::<Float>();
             }
         }
 

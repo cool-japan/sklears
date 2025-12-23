@@ -59,14 +59,20 @@ pub mod simd_operations {
         let mut overlap_counts: Array2<f64> = Array2::zeros((height, width));
 
         // Calculate patch positions
-        let max_row = height.saturating_sub(patch_height);
-        let max_col = width.saturating_sub(patch_width);
+        // max_row/max_col represent the number of positions where a patch can be placed
+        // For a 4x4 image with 2x2 patches, max_row = max_col = 3 (positions 0, 1, 2)
+        // For a 2x2 image with 2x2 patches, max_row = max_col = 1 (position 0 only)
+        let max_row = height.saturating_sub(patch_height).saturating_add(1);
+        let max_col = width.saturating_sub(patch_width).saturating_add(1);
 
-        if max_row == 0 || max_col == 0 {
-            return Ok(Array2::zeros((height, width)));
+        if patch_height > height || patch_width > width {
+            return Err(SklearsError::InvalidInput(format!(
+                "Patch size ({}, {}) cannot be larger than image size ({}, {})",
+                patch_height, patch_width, height, width
+            )));
         }
 
-        let total_positions = (max_row + 1) * (max_col + 1);
+        let total_positions = max_row * max_col;
         let step = if n_patches < total_positions {
             total_positions / n_patches
         } else {
@@ -80,8 +86,8 @@ pub mod simd_operations {
                 break;
             }
 
-            let row = i / (max_col + 1);
-            let col = i % (max_col + 1);
+            let row = i / max_col;
+            let col = i % max_col;
 
             // Add patch to reconstruction
             for py in 0..patch_height {

@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
-use sklears_core::traits::Fit;
 use std::marker::PhantomData;
 
 type Result<T> = SklResult<T>;
@@ -275,12 +274,12 @@ where
     }
 
     /// Get a view of the underlying data
-    pub fn view(&self) -> ArrayView2<T> {
+    pub fn view(&self) -> ArrayView2<'_, T> {
         self.data.view()
     }
 
     /// Get a feature column by type-safe index
-    pub fn feature(&self, index: FeatureIndex<N_FEATURES>) -> ArrayView1<T> {
+    pub fn feature(&self, index: FeatureIndex<N_FEATURES>) -> ArrayView1<'_, T> {
         self.data.column(index.get())
     }
 
@@ -340,12 +339,12 @@ impl<T> DynamicFeatureMatrix<T> {
     }
 
     /// Get a view of the underlying data
-    pub fn view(&self) -> ArrayView2<T> {
+    pub fn view(&self) -> ArrayView2<'_, T> {
         self.data.view()
     }
 
     /// Get a feature column by runtime index
-    pub fn feature(&self, index: RuntimeFeatureIndex) -> Result<ArrayView1<T>> {
+    pub fn feature(&self, index: RuntimeFeatureIndex) -> Result<ArrayView1<'_, T>> {
         if index.is_valid(self.n_features()) {
             Ok(self.data.column(index.get()))
         } else {
@@ -812,7 +811,10 @@ impl<const N_FEATURES: usize> TypeSafeSelectionPipeline<N_FEATURES, data_states:
                     let mut selector = CorrelationSelector::new(*threshold);
                     selector.fit(X)?
                 }
-                PipelineStep::UnivariateSelection { k, score_function } => {
+                PipelineStep::UnivariateSelection {
+                    k: _,
+                    score_function,
+                } => {
                     // This is a simplification - in practice we'd need to handle different K values
                     // For demonstration, we'll use a fixed K
                     const DEFAULT_K: usize = 10;
@@ -943,8 +945,23 @@ macro_rules! impl_type_safe_selector {
             const INPUT_FEATURES: usize = $n_features;
 
             fn select_features_typed(data: Self::FeatureMatrix) -> Result<Self::SelectionResult> {
-                // Implementation would go here
-                todo!("Implement type-safe feature selection")
+                // Default implementation using variance threshold
+                // This can be overridden by implementing the trait directly
+                use crate::type_safe::VarianceThresholdSelector;
+
+                let mut selector = VarianceThresholdSelector::<$n_features>::new(0.0);
+                let mask = selector.fit(&data)?;
+
+                // Verify we have the expected number of selected features
+                if mask.count_selected() != $n_selected {
+                    return Err(SklearsError::InvalidInput(format!(
+                        "Expected {} selected features, got {}. Consider adjusting selection parameters.",
+                        $n_selected,
+                        mask.count_selected()
+                    )));
+                }
+
+                data.select_features(&mask)
             }
         }
     };

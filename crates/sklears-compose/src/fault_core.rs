@@ -1204,6 +1204,10 @@ pub struct CircuitBreakerStats {
     pub last_failure_time: Option<SystemTime>,
     /// Last success time
     pub last_success_time: Option<SystemTime>,
+    /// Half-open state requests (for monitoring half-open behavior)
+    pub half_open_requests: u64,
+    /// Half-open state successful requests
+    pub half_open_successes: u64,
 }
 
 /// Recovery history entry

@@ -650,7 +650,7 @@ impl Estimator for CorrelationThreshold {
 
 impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for CorrelationThreshold {
     type Fitted = CorrelationThresholdTrained;
-    fn fit(self, X: &ArrayView2<'a, f64>, y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
+    fn fit(self, X: &ArrayView2<'a, f64>, _y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
         let selected_features = (0..X.ncols().min(10)).collect(); // Stub
         Ok(CorrelationThresholdTrained { selected_features })
     }

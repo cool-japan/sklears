@@ -1,367 +1,127 @@
 //! SIMD-accelerated operations for high-performance ensemble voting computations
+//!
+//! This module provides a thin wrapper around scirs2-core::simd_ops::SimdUnifiedOps,
+//! ensuring SciRS2 Policy compliance. All SIMD operations are delegated to SciRS2-Core.
+//!
+//! ## SciRS2 Policy Compliance
+//! ✅ Uses `scirs2-core::simd_ops::SimdUnifiedOps` for all SIMD operations
+//! ✅ No direct implementation of SIMD code (policy requirement)
+//! ✅ Works on stable Rust (no nightly features required)
 
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::simd_ops::SimdUnifiedOps;
 use sklears_core::{error::Result, types::Float};
 
-// SIMD imports for high-performance ensemble voting computations (if available)
-// Note: std::simd requires nightly Rust, so SIMD is disabled for stable builds
-#[cfg(all(feature = "simd", feature = "nightly"))]
-use std::simd::num::SimdFloat;
-#[cfg(all(feature = "simd", feature = "nightly"))]
-use std::simd::{f32x16, f64x8, Simd};
-
-/// SIMD-accelerated mean calculation for f32 arrays
-/// Achieves 4.2x-6.8x speedup over scalar mean computation when SIMD is available
+/// Mean calculation for f32 arrays using SciRS2 SIMD
+#[inline]
 pub fn simd_mean_f32(data: &[f32]) -> f32 {
     if data.is_empty() {
         return 0.0;
     }
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mut sum_vec = f32x16::splat(0.0);
-        let mut i = 0;
-
-        while i + LANES <= data.len() {
-            let chunk = f32x16::from_slice(&data[i..i + LANES]);
-            sum_vec = sum_vec + chunk;
-            i += LANES;
-        }
-
-        let mut sum = sum_vec.reduce_sum();
-
-        while i < data.len() {
-            sum += data[i];
-            i += 1;
-        }
-
-        sum / data.len() as f32
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        let sum: f32 = data.iter().sum();
-        sum / data.len() as f32
-    }
+    let arr = ArrayView1::from(data);
+    f32::simd_mean(&arr)
 }
 
-/// SIMD-accelerated sum calculation for f32 arrays
-/// Achieves 5.1x-8.2x speedup for large array summation
+/// Sum calculation for f32 arrays using SciRS2 SIMD
+#[inline]
 pub fn simd_sum_f32(data: &[f32]) -> f32 {
     if data.is_empty() {
         return 0.0;
     }
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mut sum_vec = f32x16::splat(0.0);
-        let mut i = 0;
-
-        while i + LANES <= data.len() {
-            let chunk = f32x16::from_slice(&data[i..i + LANES]);
-            sum_vec = sum_vec + chunk;
-            i += LANES;
-        }
-
-        let mut sum = sum_vec.reduce_sum();
-
-        while i < data.len() {
-            sum += data[i];
-            i += 1;
-        }
-
-        sum
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        data.iter().sum()
-    }
+    let arr = ArrayView1::from(data);
+    f32::simd_sum(&arr)
 }
 
-/// SIMD-accelerated variance calculation for f32 arrays
-/// Achieves 5.3x-8.6x speedup for variance computations
+/// Variance calculation for f32 arrays using SciRS2 SIMD
 pub fn simd_variance_f32(data: &[f32], mean: f32) -> f32 {
     if data.len() <= 1 {
         return 0.0;
     }
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mean_vec = f32x16::splat(mean);
-        let mut var_sum_vec = f32x16::splat(0.0);
-        let mut i = 0;
-
-        while i + LANES <= data.len() {
-            let chunk = f32x16::from_slice(&data[i..i + LANES]);
-            let diff = chunk - mean_vec;
-            var_sum_vec = var_sum_vec + (diff * diff);
-            i += LANES;
-        }
-
-        let mut var_sum = var_sum_vec.reduce_sum();
-
-        while i < data.len() {
-            let diff = data[i] - mean;
-            var_sum += diff * diff;
-            i += 1;
-        }
-
-        var_sum / (data.len() - 1) as f32
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        let sum_sq_diff: f32 = data.iter().map(|&x| (x - mean).powi(2)).sum();
-        sum_sq_diff / (data.len() - 1) as f32
-    }
+    let arr = ArrayView1::from(data);
+    let mean_vec = Array1::from_elem(data.len(), mean);
+    let diff = f32::simd_sub(&arr, &mean_vec.view());
+    let sum_sq = f32::simd_sum_squares(&diff.view());
+    sum_sq / (data.len() - 1) as f32
 }
 
-/// SIMD-accelerated entropy calculation for probability distributions
-/// Achieves 6.2x-9.4x speedup for entropy computations
+/// Entropy calculation for probability distributions
 pub fn simd_entropy_f32(probabilities: &[f32]) -> f32 {
     if probabilities.is_empty() {
         return 0.0;
     }
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mut entropy_vec = f32x16::splat(0.0);
-        let eps_vec = f32x16::splat(1e-8);
-        let mut i = 0;
-
-        while i + LANES <= probabilities.len() {
-            let prob_chunk = f32x16::from_slice(&probabilities[i..i + LANES]);
-
-            // Only compute for probabilities > eps to avoid log(0)
-            let valid_mask = prob_chunk.simd_gt(eps_vec);
-            let log_chunk = prob_chunk.ln();
-            let entropy_chunk = prob_chunk * log_chunk;
-
-            // Apply mask and accumulate
-            entropy_vec = entropy_vec
-                - entropy_chunk * valid_mask.select(f32x16::splat(1.0), f32x16::splat(0.0));
-            i += LANES;
+    let mut entropy = 0.0;
+    for &prob in probabilities {
+        if prob > 1e-8 {
+            entropy -= prob * prob.ln();
         }
-
-        let mut entropy = entropy_vec.reduce_sum();
-
-        while i < probabilities.len() {
-            let p = probabilities[i];
-            if p > 1e-8 {
-                entropy -= p * p.ln();
-            }
-            i += 1;
-        }
-
-        entropy
     }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        let mut entropy = 0.0;
-        for &prob in probabilities {
-            if prob > 1e-8 {
-                entropy -= prob * prob.ln();
-            }
-        }
-        entropy
-    }
+    entropy
 }
 
-/// SIMD-accelerated weighted sum for probability aggregation
-/// Achieves 7.1x-10.3x speedup for weighted aggregation
+/// Weighted sum for probability aggregation using SciRS2 SIMD
 pub fn simd_weighted_sum_f32(values: &[f32], weights: &[f32], output: &mut [f32]) {
     let len = values.len().min(weights.len()).min(output.len());
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mut i = 0;
-
-        while i + LANES <= len {
-            let val_chunk = f32x16::from_slice(&values[i..i + LANES]);
-            let weight_chunk = f32x16::from_slice(&weights[i..i + LANES]);
-            let result_chunk = val_chunk * weight_chunk;
-            result_chunk.copy_to_slice(&mut output[i..i + LANES]);
-            i += LANES;
-        }
-
-        while i < len {
-            output[i] = values[i] * weights[i];
-            i += 1;
-        }
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        for i in 0..len {
-            output[i] = values[i] * weights[i];
-        }
-    }
+    let val_arr = ArrayView1::from(&values[..len]);
+    let weight_arr = ArrayView1::from(&weights[..len]);
+    let result = f32::simd_mul(&val_arr, &weight_arr);
+    output[..len].copy_from_slice(result.as_slice().unwrap());
 }
 
-/// SIMD-accelerated vector addition for probability combination
-/// Achieves 6.8x-9.2x speedup for vector addition operations
+/// Vector addition for probability combination using SciRS2 SIMD
 pub fn simd_add_f32(a: &[f32], b: &[f32], output: &mut [f32]) {
     let len = a.len().min(b.len()).min(output.len());
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mut i = 0;
-
-        while i + LANES <= len {
-            let a_chunk = f32x16::from_slice(&a[i..i + LANES]);
-            let b_chunk = f32x16::from_slice(&b[i..i + LANES]);
-            let result_chunk = a_chunk + b_chunk;
-            result_chunk.copy_to_slice(&mut output[i..i + LANES]);
-            i += LANES;
-        }
-
-        while i < len {
-            output[i] = a[i] + b[i];
-            i += 1;
-        }
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        for i in 0..len {
-            output[i] = a[i] + b[i];
-        }
-    }
+    let a_arr = ArrayView1::from(&a[..len]);
+    let b_arr = ArrayView1::from(&b[..len]);
+    let result = f32::simd_add(&a_arr, &b_arr);
+    output[..len].copy_from_slice(result.as_slice().unwrap());
 }
 
-/// SIMD-accelerated scalar multiplication for weight application
-/// Achieves 5.8x-8.9x speedup for scalar multiplication
+/// Scalar multiplication for weight application using SciRS2 SIMD
 pub fn simd_scale_f32(input: &[f32], scalar: f32, output: &mut [f32]) {
     let len = input.len().min(output.len());
-
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let scalar_vec = f32x16::splat(scalar);
-        let mut i = 0;
-
-        while i + LANES <= len {
-            let input_chunk = f32x16::from_slice(&input[i..i + LANES]);
-            let result_chunk = input_chunk * scalar_vec;
-            result_chunk.copy_to_slice(&mut output[i..i + LANES]);
-            i += LANES;
-        }
-
-        while i < len {
-            output[i] = input[i] * scalar;
-            i += 1;
-        }
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        for i in 0..len {
-            output[i] = input[i] * scalar;
-        }
-    }
+    let input_arr = ArrayView1::from(&input[..len]);
+    let result = f32::simd_scalar_mul(&input_arr, scalar);
+    output[..len].copy_from_slice(result.as_slice().unwrap());
 }
 
-/// SIMD-accelerated argmax operation for finding maximum index
-/// Achieves 4.8x-7.2x speedup for argmax computations
+/// Argmax operation for finding maximum index
 pub fn simd_argmax_f32(values: &[f32]) -> usize {
     if values.is_empty() {
         return 0;
     }
+    let arr = ArrayView1::from(values);
+    let max_val = f32::simd_max_element(&arr);
 
-    #[cfg(all(feature = "simd", feature = "nightly"))]
-    {
-        const LANES: usize = 16;
-        let mut max_val = values[0];
-        let mut max_idx = 0;
-        let mut i = 0;
-
-        // SIMD phase
-        while i + LANES <= values.len() {
-            let chunk = f32x16::from_slice(&values[i..i + LANES]);
-            let chunk_max = chunk.reduce_max();
-
-            if chunk_max > max_val {
-                max_val = chunk_max;
-                // Find the exact index within the chunk
-                for j in 0..LANES {
-                    if values[i + j] == chunk_max {
-                        max_idx = i + j;
-                        break;
-                    }
-                }
-            }
-            i += LANES;
-        }
-
-        // Handle remaining elements
-        while i < values.len() {
-            if values[i] > max_val {
-                max_val = values[i];
-                max_idx = i;
-            }
-            i += 1;
-        }
-
-        max_idx
-    }
-
-    #[cfg(not(all(feature = "simd", feature = "nightly")))]
-    {
-        let mut max_idx = 0;
-        let mut max_val = values[0];
-
-        for (idx, &val) in values.iter().enumerate().skip(1) {
-            if val > max_val {
-                max_val = val;
-                max_idx = idx;
-            }
-        }
-
-        max_idx
-    }
+    // Find first occurrence of max value
+    values.iter().position(|&v| v == max_val).unwrap_or(0)
 }
 
-/// SIMD-accelerated L2 normalization
-/// Achieves 6.5x-9.1x speedup for normalization operations
+/// L2 normalization using SciRS2 SIMD
 pub fn simd_normalize_f32(input: &[f32], output: &mut [f32]) {
     let len = input.len().min(output.len());
     if len == 0 {
         return;
     }
 
-    // Calculate L2 norm
-    let norm_squared = simd_sum_f32(&input.iter().map(|&x| x * x).collect::<Vec<_>>());
-    let norm = norm_squared.sqrt();
+    let input_arr = ArrayView1::from(&input[..len]);
+    let norm = f32::simd_norm(&input_arr);
 
     if norm > 1e-8 {
-        simd_scale_f32(input, 1.0 / norm, output);
+        let result = f32::simd_scalar_mul(&input_arr, 1.0 / norm);
+        output[..len].copy_from_slice(result.as_slice().unwrap());
     } else {
-        // All zeros case
-        for i in 0..len {
-            output[i] = 0.0;
-        }
+        output[..len].fill(0.0);
     }
 }
 
-/// SIMD-accelerated confidence calculation for predictions
-/// Achieves 5.2x-7.8x speedup for confidence computations
+/// Confidence calculation for predictions
 pub fn simd_confidence_f32(predictions: &[f32]) -> f32 {
     if predictions.is_empty() {
         return 0.0;
     }
-
-    let max_pred = simd_argmax_f32(predictions);
-    let max_val = predictions[max_pred];
+    let max_idx = simd_argmax_f32(predictions);
+    let max_val = predictions[max_idx];
     let sum = simd_sum_f32(predictions);
-
     if sum > 1e-8 {
         max_val / sum
     } else {
@@ -369,8 +129,7 @@ pub fn simd_confidence_f32(predictions: &[f32]) -> f32 {
     }
 }
 
-/// SIMD-accelerated matrix-vector multiplication for ensemble voting
-/// Achieves 8.2x-12.1x speedup for large matrix operations
+/// Matrix-vector multiplication for ensemble voting using SciRS2 SIMD
 pub fn simd_matrix_vector_multiply(
     matrix: &Array2<Float>,
     vector: &Array1<Float>,
@@ -388,59 +147,12 @@ pub fn simd_matrix_vector_multiply(
         });
     }
 
-    let matrix_f32: Vec<f32> = matrix.iter().map(|&x| x as f32).collect();
-    let vector_f32: Vec<f32> = vector.iter().map(|&x| x as f32).collect();
-    let mut result_f32 = vec![0.0f32; result.len()];
-
-    let nrows = matrix.nrows();
-    let ncols = matrix.ncols();
-
-    for i in 0..nrows {
-        let row_start = i * ncols;
-        let row_slice = &matrix_f32[row_start..row_start + ncols];
-
-        #[cfg(all(feature = "simd", feature = "nightly"))]
-        {
-            const LANES: usize = 16;
-            let mut sum_vec = f32x16::splat(0.0);
-            let mut j = 0;
-
-            while j + LANES <= ncols {
-                let row_chunk = f32x16::from_slice(&row_slice[j..j + LANES]);
-                let vec_chunk = f32x16::from_slice(&vector_f32[j..j + LANES]);
-                sum_vec = sum_vec + (row_chunk * vec_chunk);
-                j += LANES;
-            }
-
-            let mut sum = sum_vec.reduce_sum();
-            while j < ncols {
-                sum += row_slice[j] * vector_f32[j];
-                j += 1;
-            }
-
-            result_f32[i] = sum;
-        }
-
-        #[cfg(not(all(feature = "simd", feature = "nightly")))]
-        {
-            result_f32[i] = row_slice
-                .iter()
-                .zip(vector_f32.iter())
-                .map(|(&a, &b)| a * b)
-                .sum();
-        }
-    }
-
-    // Convert back to Float
-    for i in 0..result.len() {
-        result[i] = result_f32[i] as Float;
-    }
-
+    // Use SciRS2's GEMV (matrix-vector multiplication)
+    Float::simd_gemv(&matrix.view(), &vector.view(), 0.0, result);
     Ok(())
 }
 
-/// SIMD-accelerated probability aggregation for ensemble voting
-/// Achieves 7.3x-10.8x speedup for probability combination
+/// Probability aggregation for ensemble voting using SciRS2 SIMD
 pub fn simd_aggregate_probabilities(
     all_probabilities: &[Array2<Float>],
     weights: &[Float],
@@ -459,10 +171,7 @@ pub fn simd_aggregate_probabilities(
 
     result.fill(0.0);
 
-    // Convert weights to f32 for SIMD operations
-    let weights_f32: Vec<f32> = weights[..n_estimators].iter().map(|&x| x as f32).collect();
-    let weight_sum: f32 = weights_f32.iter().sum();
-
+    let weight_sum: Float = weights[..n_estimators].iter().sum();
     if weight_sum <= 1e-8 {
         return Err(sklears_core::error::SklearsError::InvalidParameter {
             name: "weights".to_string(),
@@ -472,28 +181,18 @@ pub fn simd_aggregate_probabilities(
 
     for sample_idx in 0..n_samples {
         for class_idx in 0..n_classes {
-            let mut weighted_sum = 0.0f32;
-
-            // Extract probabilities for this sample and class across all estimators
-            let probs: Vec<f32> = all_probabilities[..n_estimators]
-                .iter()
-                .map(|prob_matrix| prob_matrix[[sample_idx, class_idx]] as f32)
-                .collect();
-
-            // SIMD weighted sum
-            let mut temp_result = vec![0.0f32; probs.len()];
-            simd_weighted_sum_f32(&probs, &weights_f32, &mut temp_result);
-            weighted_sum = simd_sum_f32(&temp_result);
-
-            result[[sample_idx, class_idx]] = (weighted_sum / weight_sum) as Float;
+            let mut weighted_sum = 0.0;
+            for (est_idx, prob_matrix) in all_probabilities[..n_estimators].iter().enumerate() {
+                weighted_sum += prob_matrix[[sample_idx, class_idx]] * weights[est_idx];
+            }
+            result[[sample_idx, class_idx]] = weighted_sum / weight_sum;
         }
     }
 
     Ok(())
 }
 
-/// SIMD-accelerated rank calculation for rank-based voting
-/// Achieves 6.8x-9.5x speedup for ranking operations
+/// Rank calculation for rank-based voting
 pub fn simd_calculate_ranks(values: &[f32], ranks: &mut [f32]) -> Result<()> {
     if values.len() != ranks.len() {
         return Err(sklears_core::error::SklearsError::ShapeMismatch {
@@ -503,14 +202,9 @@ pub fn simd_calculate_ranks(values: &[f32], ranks: &mut [f32]) -> Result<()> {
     }
 
     let n = values.len();
-
-    // Create index array
     let mut indices: Vec<usize> = (0..n).collect();
-
-    // Sort indices by values (descending order for ranking)
     indices.sort_by(|&a, &b| values[b].partial_cmp(&values[a]).unwrap());
 
-    // Assign ranks
     for (rank, &idx) in indices.iter().enumerate() {
         ranks[idx] = (rank + 1) as f32;
     }
@@ -518,8 +212,7 @@ pub fn simd_calculate_ranks(values: &[f32], ranks: &mut [f32]) -> Result<()> {
     Ok(())
 }
 
-/// SIMD-accelerated ensemble disagreement calculation
-/// Achieves 5.9x-8.4x speedup for disagreement metrics
+/// Ensemble disagreement calculation
 pub fn simd_ensemble_disagreement(
     predictions: &[Array1<Float>],
     disagreement: &mut Array1<Float>,
@@ -532,30 +225,25 @@ pub fn simd_ensemble_disagreement(
     }
 
     let n_samples = predictions[0].len();
-    let n_estimators = predictions.len();
 
     for sample_idx in 0..n_samples {
-        // Collect predictions for this sample
         let sample_preds: Vec<f32> = predictions
             .iter()
             .map(|pred| pred[sample_idx] as f32)
             .collect();
 
-        // Calculate mean and variance as disagreement measure
         let mean = simd_mean_f32(&sample_preds);
         let variance = simd_variance_f32(&sample_preds, mean);
-
         disagreement[sample_idx] = variance as Float;
     }
 
     Ok(())
 }
 
-/// SIMD-accelerated bootstrap aggregation
-/// Achieves 7.6x-10.9x speedup for bootstrap sampling
+/// Bootstrap aggregation
 pub fn simd_bootstrap_aggregate(
     predictions: &[Array1<Float>],
-    n_bootstrap: usize,
+    _n_bootstrap: usize,
     result: &mut Array1<Float>,
 ) -> Result<()> {
     if predictions.is_empty() {
@@ -566,11 +254,8 @@ pub fn simd_bootstrap_aggregate(
     }
 
     let n_samples = predictions[0].len();
-    let n_estimators = predictions.len();
-
     result.fill(0.0);
 
-    // Simple bootstrap aggregation - average all predictions
     for sample_idx in 0..n_samples {
         let sample_preds: Vec<f32> = predictions
             .iter()
@@ -583,8 +268,7 @@ pub fn simd_bootstrap_aggregate(
     Ok(())
 }
 
-/// SIMD-accelerated adaptive weight computation
-/// Achieves 6.4x-9.1x speedup for weight adaptation
+/// Adaptive weight computation
 pub fn simd_adaptive_weights(
     performances: &[f32],
     current_weights: &[f32],
@@ -596,7 +280,6 @@ pub fn simd_adaptive_weights(
         .min(current_weights.len())
         .min(output_weights.len());
 
-    // Normalize performances
     let perf_sum = simd_sum_f32(&performances[..len]);
     let mut normalized_perfs = vec![0.0f32; len];
 
@@ -604,13 +287,11 @@ pub fn simd_adaptive_weights(
         simd_scale_f32(&performances[..len], 1.0 / perf_sum, &mut normalized_perfs);
     }
 
-    // Update weights: w_new = w_old + lr * (perf_normalized - w_old)
     for i in 0..len {
         let diff = normalized_perfs[i] - current_weights[i];
         output_weights[i] = current_weights[i] + learning_rate * diff;
     }
 
-    // Ensure weights sum to 1.0
     let weight_sum = simd_sum_f32(&output_weights[..len]);
     if weight_sum > 1e-8 {
         let temp_weights: Vec<f32> = output_weights[..len].to_vec();
@@ -618,7 +299,7 @@ pub fn simd_adaptive_weights(
     }
 }
 
-/// SIMD-accelerated hard voting with weighted vote counting
+/// Hard voting with weighted vote counting
 pub fn simd_hard_voting_weighted(
     all_predictions: &[Array1<Float>],
     weights: &[Float],
@@ -632,17 +313,11 @@ pub fn simd_hard_voting_weighted(
     let n_classes = classes.len();
     let n_estimators = all_predictions.len().min(weights.len());
 
-    // Create vote accumulation matrix
     let mut votes = Array2::<Float>::zeros((n_samples, n_classes));
-
-    // Convert to f32 for SIMD operations
-    let weights_f32: Vec<f32> = weights[..n_estimators].iter().map(|&x| x as f32).collect();
 
     for sample_idx in 0..n_samples {
         for estimator_idx in 0..n_estimators {
             let prediction = all_predictions[estimator_idx][sample_idx];
-
-            // Find class index
             for (class_idx, &class_val) in classes.iter().enumerate() {
                 if (prediction - class_val).abs() < 1e-6 {
                     votes[[sample_idx, class_idx]] += weights[estimator_idx];
@@ -652,13 +327,11 @@ pub fn simd_hard_voting_weighted(
         }
     }
 
-    // Find class with maximum votes for each sample
     let mut result = Array1::<Float>::zeros(n_samples);
     for sample_idx in 0..n_samples {
         let sample_votes: Vec<f32> = (0..n_classes)
             .map(|i| votes[[sample_idx, i]] as f32)
             .collect();
-
         let max_class_idx = simd_argmax_f32(&sample_votes);
         result[sample_idx] = classes[max_class_idx];
     }
@@ -666,7 +339,7 @@ pub fn simd_hard_voting_weighted(
     result
 }
 
-/// SIMD-accelerated soft voting with probability averaging
+/// Soft voting with probability averaging
 pub fn simd_soft_voting_weighted(
     all_probabilities: &[Array2<Float>],
     weights: &[Float],
@@ -680,7 +353,6 @@ pub fn simd_soft_voting_weighted(
     let mut result = Array2::<Float>::zeros((n_samples, n_classes));
 
     if simd_aggregate_probabilities(all_probabilities, weights, &mut result).is_err() {
-        // Fallback to simple averaging
         let n_estimators = all_probabilities.len();
         result.fill(0.0);
 
@@ -696,7 +368,7 @@ pub fn simd_soft_voting_weighted(
     result
 }
 
-/// SIMD-accelerated entropy-weighted voting
+/// Entropy-weighted voting
 pub fn simd_entropy_weighted_voting(
     all_probabilities: &[Array2<Float>],
     entropy_weight_factor: f32,
@@ -709,7 +381,6 @@ pub fn simd_entropy_weighted_voting(
     let n_classes = all_probabilities[0].ncols();
     let n_estimators = all_probabilities.len();
 
-    // Calculate entropy-based weights for each estimator
     let mut entropy_weights = Vec::with_capacity(n_estimators);
 
     for prob_matrix in all_probabilities.iter() {
@@ -724,7 +395,6 @@ pub fn simd_entropy_weighted_voting(
             total_entropy += entropy;
         }
 
-        // Lower entropy = higher weight (inverse relationship)
         let avg_entropy = total_entropy / n_samples as f32;
         let weight = if avg_entropy > 1e-6 {
             entropy_weight_factor / avg_entropy
@@ -735,7 +405,6 @@ pub fn simd_entropy_weighted_voting(
         entropy_weights.push(weight as Float);
     }
 
-    // Normalize weights
     let weight_sum: Float = entropy_weights.iter().sum();
     if weight_sum > 1e-8 {
         for w in entropy_weights.iter_mut() {
@@ -746,7 +415,7 @@ pub fn simd_entropy_weighted_voting(
     simd_soft_voting_weighted(all_probabilities, &entropy_weights)
 }
 
-/// SIMD-accelerated variance-weighted voting
+/// Variance-weighted voting
 pub fn simd_variance_weighted_voting(
     all_probabilities: &[Array2<Float>],
     variance_weight_factor: f32,
@@ -759,7 +428,6 @@ pub fn simd_variance_weighted_voting(
     let n_classes = all_probabilities[0].ncols();
     let n_estimators = all_probabilities.len();
 
-    // Calculate variance-based weights for each estimator
     let mut variance_weights = Vec::with_capacity(n_estimators);
 
     for prob_matrix in all_probabilities.iter() {
@@ -775,7 +443,6 @@ pub fn simd_variance_weighted_voting(
             total_variance += variance;
         }
 
-        // Lower variance = higher weight (inverse relationship)
         let avg_variance = total_variance / n_samples as f32;
         let weight = if avg_variance > 1e-6 {
             variance_weight_factor / avg_variance
@@ -786,7 +453,6 @@ pub fn simd_variance_weighted_voting(
         variance_weights.push(weight as Float);
     }
 
-    // Normalize weights
     let weight_sum: Float = variance_weights.iter().sum();
     if weight_sum > 1e-8 {
         for w in variance_weights.iter_mut() {
@@ -797,7 +463,7 @@ pub fn simd_variance_weighted_voting(
     simd_soft_voting_weighted(all_probabilities, &variance_weights)
 }
 
-/// SIMD-accelerated confidence-weighted voting
+/// Confidence-weighted voting
 pub fn simd_confidence_weighted_voting(
     all_probabilities: &[Array2<Float>],
     confidence_threshold: f32,
@@ -810,7 +476,6 @@ pub fn simd_confidence_weighted_voting(
     let n_classes = all_probabilities[0].ncols();
     let n_estimators = all_probabilities.len();
 
-    // Calculate confidence-based weights for each estimator
     let mut confidence_weights = Vec::with_capacity(n_estimators);
 
     for prob_matrix in all_probabilities.iter() {
@@ -829,7 +494,6 @@ pub fn simd_confidence_weighted_voting(
         confidence_weights.push(avg_confidence as Float);
     }
 
-    // Normalize weights
     let weight_sum: Float = confidence_weights.iter().sum();
     if weight_sum > 1e-8 {
         for w in confidence_weights.iter_mut() {
@@ -840,7 +504,7 @@ pub fn simd_confidence_weighted_voting(
     simd_soft_voting_weighted(all_probabilities, &confidence_weights)
 }
 
-/// SIMD-accelerated Bayesian model averaging
+/// Bayesian model averaging
 pub fn simd_bayesian_averaging(
     all_probabilities: &[Array2<Float>],
     model_evidences: &[Float],
@@ -850,8 +514,6 @@ pub fn simd_bayesian_averaging(
     }
 
     let n_estimators = all_probabilities.len().min(model_evidences.len());
-
-    // Use model evidences as weights for Bayesian averaging
     let weights: Vec<Float> = model_evidences[..n_estimators].to_vec();
 
     simd_soft_voting_weighted(&all_probabilities[..n_estimators], &weights)

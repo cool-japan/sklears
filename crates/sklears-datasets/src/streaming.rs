@@ -7,10 +7,17 @@
 use crate::memory_pool::{MemoryPool, MemoryPoolConfig, PooledArray1, PooledArray2};
 use crate::traits::{ConfigValue, GeneratorConfig};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Random;
+use scirs2_core::random::{Distribution, Random, RandNormal};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use thiserror::Error;
+
+// Helper function for generating normal random values
+#[inline]
+fn gen_normal_value(rng: &mut Random, mean: f64, std: f64) -> f64 {
+    let dist = RandNormal::new(mean, std).unwrap();
+    dist.sample(rng)
+}
 
 /// Streaming generation errors
 #[derive(Error, Debug)]
@@ -193,7 +200,7 @@ impl StreamingClassificationGenerator {
             for sample_idx in 0..samples_in_chunk {
                 let class = self.rng.gen_range(0..n_classes);
                 let class_mean = class_means[class];
-                let noise = self.rng.gen_normal(0.0, 1.0);
+                let noise = gen_normal_value(&mut self.rng, 0.0, 1.0);
                 features[[sample_idx, feature_idx]] = class_mean + noise;
             }
         }
@@ -201,7 +208,7 @@ impl StreamingClassificationGenerator {
         // Generate noise features
         for feature_idx in n_informative..n_features {
             for sample_idx in 0..samples_in_chunk {
-                features[[sample_idx, feature_idx]] = self.rng.gen_normal(0.0, 1.0);
+                features[[sample_idx, feature_idx]] = gen_normal_value(&mut self.rng, 0.0, 1.0);
             }
         }
 
@@ -293,7 +300,7 @@ impl StreamingRegressionGenerator {
 
         // Generate random coefficients
         let coefficients: Array1<f64> = Array1::from_shape_fn(generator_config.n_features, |_| {
-            rng.gen_range(-1.0..1.0)
+            rng.random_range(-1.0, 1.0)
         });
 
         Self {
@@ -323,7 +330,7 @@ impl StreamingRegressionGenerator {
         let mut features = Array2::<f64>::zeros((samples_in_chunk, n_features));
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
-                *val = self.rng.gen_normal(0.0, 1.0);
+                *val = gen_normal_value(&mut self.rng, 0.0, 1.0);
             }
         }
 
@@ -331,7 +338,7 @@ impl StreamingRegressionGenerator {
         let mut targets = Array1::<f64>::zeros(samples_in_chunk);
         for (i, mut target) in targets.iter_mut().enumerate() {
             let feature_row = features.row(i);
-            *target = feature_row.dot(&self.coefficients) + self.rng.gen_normal(0.0, noise);
+            *target = feature_row.dot(&self.coefficients) + gen_normal_value(&mut self.rng, 0.0, noise);
         }
 
         // Create metadata

@@ -116,7 +116,7 @@ impl BenchmarkDatasetGenerator {
 
     /// Generate a correlated multivariate dataset
     pub fn generate_correlated_data(&self) -> SklResult<Array2<f64>> {
-        let mut rng = if let Some(seed) = self.random_state {
+        let mut rng = if let Some(_seed) = self.random_state {
             Random::default()
         } else {
             Random::default()
@@ -146,7 +146,7 @@ impl BenchmarkDatasetGenerator {
 
     /// Generate linear relationship dataset
     pub fn generate_linear_data(&self) -> SklResult<Array2<f64>> {
-        let mut rng = if let Some(seed) = self.random_state {
+        let mut rng = if let Some(_seed) = self.random_state {
             Random::default()
         } else {
             Random::default()
@@ -172,7 +172,7 @@ impl BenchmarkDatasetGenerator {
 
     /// Generate non-linear relationship dataset
     pub fn generate_nonlinear_data(&self) -> SklResult<Array2<f64>> {
-        let mut rng = if let Some(seed) = self.random_state {
+        let mut rng = if let Some(_seed) = self.random_state {
             Random::default()
         } else {
             Random::default()
@@ -230,7 +230,7 @@ impl MissingPatternGenerator {
         data: &Array2<f64>,
         pattern: &MissingPattern,
     ) -> SklResult<(Array2<f64>, Array2<bool>)> {
-        let mut rng = if let Some(seed) = self.random_state {
+        let mut rng = if let Some(_seed) = self.random_state {
             Random::default()
         } else {
             Random::default()
@@ -358,7 +358,7 @@ impl MissingPatternGenerator {
                     -dependency_strength
                 };
 
-                let prob_missing = (base_prob + prob_adjustment).max(0.0).min(1.0);
+                let prob_missing = (base_prob + prob_adjustment).clamp(0.0, 1.0);
 
                 if rng.gen::<f64>() < prob_missing {
                     data[[i, j]] = f64::NAN;
@@ -729,7 +729,7 @@ impl BenchmarkSuite {
                 let execution_time = start_time.elapsed();
 
                 // Calculate accuracy metrics
-                let imputed_f64 = imputed_data.mapv(|x| x as f64);
+                let imputed_f64 = imputed_data.mapv(|x| x);
                 let rmse = AccuracyMetrics::rmse(true_data, &imputed_f64, &missing_mask);
                 let mae = AccuracyMetrics::mae(true_data, &imputed_f64, &missing_mask);
 
@@ -914,7 +914,7 @@ mod tests {
 
         // Test MCAR pattern
         let mcar_pattern = MissingPattern::MCAR { missing_rate: 0.2 };
-        let (data_mcar, mask_mcar) = generator.introduce_missing(&data, &mcar_pattern).unwrap();
+        let (_data_mcar, mask_mcar) = generator.introduce_missing(&data, &mcar_pattern).unwrap();
         let missing_count = mask_mcar.iter().filter(|&&x| x).count();
         assert!(missing_count > 0);
         assert!(missing_count < data.len());
@@ -924,7 +924,7 @@ mod tests {
             missing_rate: 0.15,
             dependency_strength: 0.3,
         };
-        let (data_mar, mask_mar) = generator.introduce_missing(&data, &mar_pattern).unwrap();
+        let (_data_mar, mask_mar) = generator.introduce_missing(&data, &mar_pattern).unwrap();
         let mar_missing_count = mask_mar.iter().filter(|&&x| x).count();
         assert!(mar_missing_count > 0);
 
@@ -933,7 +933,7 @@ mod tests {
             block_size: 4,
             missing_rate: 0.1,
         };
-        let (data_block, mask_block) = generator.introduce_missing(&data, &block_pattern).unwrap();
+        let (_data_block, mask_block) = generator.introduce_missing(&data, &block_pattern).unwrap();
         let block_missing_count = mask_block.iter().filter(|&&x| x).count();
         assert!(block_missing_count > 0);
     }

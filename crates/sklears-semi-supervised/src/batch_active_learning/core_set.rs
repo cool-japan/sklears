@@ -110,9 +110,9 @@ impl CoreSetApproach {
         selected_indices.push(first_idx);
 
         // Update distances to first point
-        for i in 0..n_samples {
+        for (i, dist) in distances.iter_mut().enumerate() {
             if i != first_idx {
-                distances[i] = self.compute_distance(&X.row(i), &X.row(first_idx))?;
+                *dist = self.compute_distance(&X.row(i), &X.row(first_idx))?;
             }
         }
 
@@ -122,9 +122,9 @@ impl CoreSetApproach {
             let mut max_distance = 0.0;
             let mut best_idx = 0;
 
-            for i in 0..n_samples {
-                if !selected_indices.contains(&i) && distances[i] > max_distance {
-                    max_distance = distances[i];
+            for (i, &dist) in distances.iter().enumerate() {
+                if !selected_indices.contains(&i) && dist > max_distance {
+                    max_distance = dist;
                     best_idx = i;
                 }
             }
@@ -132,10 +132,10 @@ impl CoreSetApproach {
             selected_indices.push(best_idx);
 
             // Update distances
-            for i in 0..n_samples {
+            for (i, dist) in distances.iter_mut().enumerate() {
                 if !selected_indices.contains(&i) {
                     let new_distance = self.compute_distance(&X.row(i), &X.row(best_idx))?;
-                    distances[i] = distances[i].min(new_distance);
+                    *dist = (*dist).min(new_distance);
                 }
             }
         }
@@ -173,9 +173,9 @@ impl CoreSetApproach {
         selected_indices.push(first_idx);
 
         // Update distances to first point
-        for i in 0..n_samples {
+        for (i, dist) in distances.iter_mut().enumerate() {
             if i != first_idx {
-                distances[i] = self.compute_distance(&X.row(i), &X.row(first_idx))?;
+                *dist = self.compute_distance(&X.row(i), &X.row(first_idx))?;
             }
         }
 
@@ -184,9 +184,9 @@ impl CoreSetApproach {
             let mut max_distance = 0.0;
             let mut best_idx = 0;
 
-            for i in 0..n_samples {
-                if !selected_indices.contains(&i) && distances[i] > max_distance {
-                    max_distance = distances[i];
+            for (i, &dist) in distances.iter().enumerate() {
+                if !selected_indices.contains(&i) && dist > max_distance {
+                    max_distance = dist;
                     best_idx = i;
                 }
             }
@@ -194,10 +194,10 @@ impl CoreSetApproach {
             selected_indices.push(best_idx);
 
             // Update distances
-            for i in 0..n_samples {
+            for (i, dist) in distances.iter_mut().enumerate() {
                 if !selected_indices.contains(&i) {
                     let new_distance = self.compute_distance(&X.row(i), &X.row(best_idx))?;
-                    distances[i] = distances[i].min(new_distance);
+                    *dist = (*dist).min(new_distance);
                 }
             }
         }

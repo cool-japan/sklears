@@ -1,6 +1,6 @@
 [package]
 name = "sklears-neighbors"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -16,7 +16,6 @@ categories = ["science", "mathematics", "algorithms"]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 
 # Core SciRS2 modules for Neighbors
@@ -52,4 +51,8 @@ memmap = ["dep:memmap2"]
 
 [[bench]]
 name = "knn_bench"
+harness = false
+
+[[bench]]
+name = "comprehensive_bench"
 harness = false

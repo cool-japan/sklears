@@ -118,7 +118,7 @@ where
 }
 
 fn sample_from_posterior<E>(
-    model: &E,
+    _model: &E,
     input: &Array1<f64>,
     rng: &mut Random<StdRng>,
 ) -> Result<f64, Box<dyn std::error::Error>>
@@ -132,7 +132,7 @@ where
 }
 
 fn variational_sample<E>(
-    model: &E,
+    _model: &E,
     input: &Array1<f64>,
     rng: &mut Random<StdRng>,
 ) -> Result<f64, Box<dyn std::error::Error>>
@@ -146,7 +146,7 @@ where
 }
 
 fn laplace_prediction_with_uncertainty<E>(
-    model: &E,
+    _model: &E,
     input: &Array1<f64>,
     hessian_method: &str,
 ) -> Result<(f64, f64), Box<dyn std::error::Error>>

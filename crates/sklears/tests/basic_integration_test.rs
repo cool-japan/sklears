@@ -3,12 +3,13 @@
 //! These tests verify cross-crate functionality without heavy dependencies.
 
 use scirs2_core::ndarray::{array, Array2};
-use sklears::data_generation::make_classification;
 use sklears::metrics::classification::accuracy_score;
 use sklears::neighbors::KNeighborsClassifier;
 use sklears::prelude::*;
+use sklears::utils::data_generation::make_classification;
 
 #[test]
+#[allow(non_snake_case)]
 fn test_basic_knn_pipeline() {
     // Generate simple synthetic data with well-separated classes
     // Use class_sep=3.0 for better separation and larger dataset
@@ -49,6 +50,7 @@ fn test_basic_knn_pipeline() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_data_generation_consistency() {
     // Test that data generation functions produce consistent outputs with same seed
     let (X1, y1) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(123)).unwrap();
@@ -70,6 +72,7 @@ fn test_data_generation_consistency() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_metrics_basic_functionality() {
     // Create simple binary classification case
     let y_true = array![0, 1, 1, 0, 1, 0, 1, 1, 0, 0];
@@ -103,6 +106,7 @@ fn test_metrics_basic_functionality() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_utility_functions() {
     // Test utility functions work correctly
     let data = array![1, 2, 3, 2, 1, 3, 2];

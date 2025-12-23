@@ -65,7 +65,7 @@ impl SurveyDataImputer {
         let mut imputed = X.to_owned();
 
         // Analyze response patterns
-        let response_patterns = self.analyze_response_patterns(X)?;
+        let _response_patterns = self.analyze_response_patterns(X)?;
 
         // Handle skip logic
         imputed = self.handle_skip_logic(&imputed)?;
@@ -172,7 +172,7 @@ impl SurveyDataImputer {
 
     /// Detect systematic non-response patterns
     fn detect_systematic_patterns(&self, X: &ArrayView2<f64>) -> ImputationResult<Vec<Vec<usize>>> {
-        let (n_respondents, n_questions) = X.dim();
+        let (n_respondents, _n_questions) = X.dim();
         let mut patterns = Vec::new();
 
         // Find common missing patterns
@@ -181,10 +181,7 @@ impl SurveyDataImputer {
         for i in 0..n_respondents {
             let row_pattern: Vec<bool> = X.row(i).iter().map(|&x| x.is_nan()).collect();
 
-            pattern_counts
-                .entry(row_pattern)
-                .or_insert_with(Vec::new)
-                .push(i);
+            pattern_counts.entry(row_pattern).or_default().push(i);
         }
 
         // Identify patterns that occur frequently (>5% of respondents)
@@ -303,7 +300,7 @@ impl SurveyDataImputer {
         X: &Array2<f64>,
         k: usize,
     ) -> ImputationResult<Vec<usize>> {
-        let (n_respondents, n_questions) = X.dim();
+        let (n_respondents, _n_questions) = X.dim();
         let target_responses = X.row(target_idx);
 
         let mut similarities = Vec::new();
@@ -331,14 +328,14 @@ impl SurveyDataImputer {
         responses1: &ArrayView1<f64>,
         responses2: &ArrayView1<f64>,
     ) -> f64 {
-        let mut common_responses = 0;
+        let mut _common_responses = 0;
         let mut total_comparisons = 0;
         let mut agreement_score = 0.0;
 
         for (&r1, &r2) in responses1.iter().zip(responses2.iter()) {
             if !r1.is_nan() && !r2.is_nan() {
                 total_comparisons += 1;
-                common_responses += 1;
+                _common_responses += 1;
 
                 // Measure agreement (closer values = higher agreement)
                 let difference = (r1 - r2).abs();
@@ -409,7 +406,7 @@ impl SurveyDataImputer {
             return Ok(imputed);
         }
 
-        for (stratum_name, stratum_indices) in &self.demographic_strata {
+        for stratum_indices in self.demographic_strata.values() {
             imputed = self.stratum_specific_imputation(&imputed, stratum_indices)?;
         }
 
@@ -731,10 +728,7 @@ impl LongitudinalStudyImputer {
             let subject_id = X[[i, self.subject_variable]];
             if !subject_id.is_nan() {
                 let subject_key = subject_id.round() as i64;
-                subject_groups
-                    .entry(subject_key)
-                    .or_insert_with(Vec::new)
-                    .push(i);
+                subject_groups.entry(subject_key).or_default().push(i);
             }
         }
 
@@ -749,7 +743,7 @@ impl LongitudinalStudyImputer {
     ) -> ImputationResult<Array2<f64>> {
         let mut imputed = X.clone();
 
-        for (_subject_id, observation_indices) in subject_groups {
+        for observation_indices in subject_groups.values() {
             if observation_indices.len() < 2 {
                 continue; // Need at least 2 observations for trajectory
             }
@@ -854,10 +848,10 @@ impl LongitudinalStudyImputer {
         let mut imputed = X.clone();
 
         // Identify attrition patterns
-        let attrition_patterns = self.identify_attrition_patterns(&X.view(), subject_groups)?;
+        let _attrition_patterns = self.identify_attrition_patterns(&X.view(), subject_groups)?;
 
         // Adjust imputation based on attrition likelihood
-        for (_subject_id, observation_indices) in subject_groups {
+        for observation_indices in subject_groups.values() {
             let attrition_risk = self.compute_attrition_risk(observation_indices, X)?;
 
             if attrition_risk > 0.5 {
@@ -880,7 +874,7 @@ impl LongitudinalStudyImputer {
         let mut dropout_times = Vec::new();
         let mut completion_rates = Vec::new();
 
-        for (_subject_id, observation_indices) in subject_groups {
+        for observation_indices in subject_groups.values() {
             // Sort by time
             let mut time_sorted = observation_indices.clone();
             time_sorted.sort_by(|&a, &b| {
@@ -1054,7 +1048,7 @@ impl LongitudinalStudyImputer {
                 continue;
             }
 
-            for (_subject_id, observation_indices) in subject_groups {
+            for observation_indices in subject_groups.values() {
                 imputed = self.impute_time_varying_covariate(
                     &imputed,
                     *covariate_idx,
@@ -1130,17 +1124,19 @@ impl LongitudinalStudyImputer {
             }
         }
 
-        let mut next_obs = None;
-        for i in (current_position + 1)..time_sorted_indices.len() {
-            let next_idx = time_sorted_indices[i];
-            let next_time = X[[next_idx, self.time_variable]];
-            let next_value = X[[next_idx, covariate_idx]];
+        let next_obs = time_sorted_indices
+            .iter()
+            .skip(current_position + 1)
+            .find_map(|&next_idx| {
+                let next_time = X[[next_idx, self.time_variable]];
+                let next_value = X[[next_idx, covariate_idx]];
 
-            if !next_time.is_nan() && !next_value.is_nan() {
-                next_obs = Some((next_time, next_value));
-                break;
-            }
-        }
+                if !next_time.is_nan() && !next_value.is_nan() {
+                    Some((next_time, next_value))
+                } else {
+                    None
+                }
+            });
 
         match (prev_obs, next_obs) {
             (Some((prev_time, prev_value)), Some((next_time, next_value))) => {
@@ -1287,7 +1283,7 @@ impl SocialNetworkImputer {
         X: &ArrayView2<f64>,
         adjacency: &Array2<f64>,
     ) -> ImputationResult<f64> {
-        let n_nodes = X.nrows();
+        let _n_nodes = X.nrows();
 
         // Find network neighbors within influence radius
         let neighbors = self.find_network_neighbors(node_idx, adjacency, self.influence_radius)?;
@@ -1469,7 +1465,7 @@ impl DemographicDataImputer {
     fn population_stratified_imputation(&self, X: &Array2<f64>) -> ImputationResult<Array2<f64>> {
         let mut imputed = X.clone();
 
-        for (stratum_name, individual_indices) in &self.population_strata {
+        for individual_indices in self.population_strata.values() {
             imputed = self.stratum_demographic_imputation(&imputed, individual_indices)?;
         }
 
@@ -1559,7 +1555,7 @@ impl DemographicDataImputer {
         let mut adjusted = X.clone();
 
         // Apply post-stratification adjustments (simplified)
-        for (benchmark_name, target_value) in benchmarks {
+        for target_value in benchmarks.values() {
             // In practice would identify relevant variables and adjust
             // This is a simplified placeholder
             adjusted = self.apply_benchmark_adjustment(&adjusted, target_value)?;

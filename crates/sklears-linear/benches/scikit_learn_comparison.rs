@@ -82,7 +82,7 @@ pub fn generate_regression_data(config: &BenchmarkConfig) -> (Array2<Float>, Arr
     let true_coefs: Array1<Float> = (0..config.n_features)
         .map(|i| {
             if i % 3 == 0 {
-                rng.gen_range(-2.0..2.0)
+                rng.random_range(-2.0, 2.0)
             } else {
                 0.0
             }
@@ -114,7 +114,7 @@ pub fn generate_classification_data(config: &BenchmarkConfig) -> (Array2<Float>,
     let true_coefs: Array1<Float> = (0..config.n_features)
         .map(|i| {
             if i < config.n_features / 2 {
-                rng.gen_range(-1.0..1.0)
+                rng.random_range(-1.0, 1.0)
             } else {
                 0.0
             }

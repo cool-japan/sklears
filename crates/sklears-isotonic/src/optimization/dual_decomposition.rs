@@ -112,8 +112,7 @@ impl DualDecompositionIsotonicRegressor {
             let mut block_contributions = Array1::<Float>::zeros(n);
 
             // Solve each subproblem
-            for block_idx in 0..num_blocks {
-                let (start, end) = blocks[block_idx];
+            for &(start, end) in blocks.iter().take(num_blocks) {
                 let block_size = end - start + 1;
 
                 // Extract block data
@@ -299,7 +298,7 @@ pub fn parallel_dual_decomposition(
 
     // Adjust block size based on available threads
     let n = y.len();
-    let optimal_block_size = (n / num_threads).max(50).min(1000);
+    let optimal_block_size = (n / num_threads).clamp(50, 1000);
     let dual_step_size = solver.dual_step_size;
     solver = solver.decomposition_parameters(
         dual_step_size,

@@ -193,7 +193,7 @@ pub fn make_n_torus(
         // Generate angles for each dimension
         let mut angles = vec![0.0; n_dim];
         for j in 0..n_dim {
-            angles[j] = rng.gen_range(0.0..2.0 * PI);
+            angles[j] = rng.random_range(0.0, 2.0 * PI);
         }
 
         // Map to embedding space (simplified n-torus embedding)
@@ -260,8 +260,8 @@ pub fn make_spatial_point_pattern(
         "random" => {
             // Complete spatial randomness (Poisson process)
             for i in 0..n_points {
-                points[[i, 0]] = rng.gen_range(0.0..domain_size);
-                points[[i, 1]] = rng.gen_range(0.0..domain_size);
+                points[[i, 0]] = rng.random_range(0.0, domain_size);
+                points[[i, 1]] = rng.random_range(0.0, domain_size);
             }
         }
 
@@ -273,8 +273,8 @@ pub fn make_spatial_point_pattern(
             // Generate cluster centers
             let mut cluster_centers = Array2::zeros((n_clusters, 2));
             for i in 0..n_clusters {
-                cluster_centers[[i, 0]] = rng.gen_range(0.0..domain_size);
-                cluster_centers[[i, 1]] = rng.gen_range(0.0..domain_size);
+                cluster_centers[[i, 0]] = rng.random_range(0.0, domain_size);
+                cluster_centers[[i, 1]] = rng.random_range(0.0, domain_size);
             }
 
             // Generate points around cluster centers
@@ -326,8 +326,8 @@ pub fn make_spatial_point_pattern(
                 let max_attempts = 1000;
 
                 loop {
-                    let x = rng.gen_range(0.0..domain_size);
-                    let y = rng.gen_range(0.0..domain_size);
+                    let x = rng.random_range(0.0, domain_size);
+                    let y = rng.random_range(0.0, domain_size);
 
                     // Check minimum distance to existing points
                     let mut valid = true;
@@ -404,8 +404,8 @@ pub fn make_geostatistical_data(
     // Generate spatial coordinates
     let mut coordinates = Array2::zeros((n_points, 2));
     for i in 0..n_points {
-        coordinates[[i, 0]] = rng.gen_range(0.0..domain_size);
-        coordinates[[i, 1]] = rng.gen_range(0.0..domain_size);
+        coordinates[[i, 0]] = rng.random_range(0.0, domain_size);
+        coordinates[[i, 1]] = rng.random_range(0.0, domain_size);
     }
 
     // Calculate correlation matrix

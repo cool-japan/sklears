@@ -10,6 +10,9 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
+/// Type alias for compressed data with sparse indices
+type CompressedData = NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)>;
+
 /// Compression method for distance matrices
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionMethod {
@@ -310,9 +313,7 @@ impl CompressedDistanceMatrix {
 
     // Compression implementations
 
-    fn compress_float16(
-        distances: &Array2<Float>,
-    ) -> NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)> {
+    fn compress_float16(distances: &Array2<Float>) -> CompressedData {
         let mut data = Vec::with_capacity(distances.len() * 2);
 
         for &value in distances.iter() {
@@ -327,7 +328,7 @@ impl CompressedDistanceMatrix {
         distances: &Array2<Float>,
         min_val: Float,
         max_val: Float,
-    ) -> NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)> {
+    ) -> CompressedData {
         let range = max_val - min_val;
         let scale = if range > 0.0 { 255.0 / range } else { 0.0 };
 
@@ -343,7 +344,7 @@ impl CompressedDistanceMatrix {
         distances: &Array2<Float>,
         min_val: Float,
         max_val: Float,
-    ) -> NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)> {
+    ) -> CompressedData {
         let range = max_val - min_val;
         let scale = if range > 0.0 { 15.0 / range } else { 0.0 };
 
@@ -366,10 +367,7 @@ impl CompressedDistanceMatrix {
         Ok((data, Vec::new()))
     }
 
-    fn compress_sparse(
-        distances: &Array2<Float>,
-        threshold: Float,
-    ) -> NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)> {
+    fn compress_sparse(distances: &Array2<Float>, threshold: Float) -> CompressedData {
         let mut data = Vec::new();
         let mut indices = Vec::new();
 
@@ -385,9 +383,7 @@ impl CompressedDistanceMatrix {
         Ok((data, indices))
     }
 
-    fn compress_delta(
-        distances: &Array2<Float>,
-    ) -> NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)> {
+    fn compress_delta(distances: &Array2<Float>) -> CompressedData {
         let mut data = Vec::new();
         let mut prev_row: Option<ArrayView1<Float>> = None;
 
@@ -415,7 +411,7 @@ impl CompressedDistanceMatrix {
         min_val: Float,
         max_val: Float,
         threshold: Float,
-    ) -> NeighborsResult<(Vec<u8>, Vec<(usize, usize)>)> {
+    ) -> CompressedData {
         // Use sparse for small values, quantized for larger values
         let mut data = Vec::new();
         let mut indices = Vec::new();
@@ -433,8 +429,8 @@ impl CompressedDistanceMatrix {
         let range = max_val - min_val;
         let scale = if range > 0.0 { 255.0 / range } else { 0.0 };
 
-        for (i, row) in distances.axis_iter(Axis(0)).enumerate() {
-            for (j, &val) in row.iter().enumerate() {
+        for row in distances.axis_iter(Axis(0)) {
+            for &val in row.iter() {
                 if val <= threshold {
                     // Store as full precision for sparse values
                     data.extend_from_slice(bytes_of(&val));
@@ -593,11 +589,11 @@ impl CompressedDistanceMatrix {
         shape: (usize, usize),
         min_val: Float,
         max_val: Float,
-        threshold: Float,
+        _threshold: Float,
     ) -> NeighborsResult<Array2<Float>> {
         let mut result = Array2::zeros(shape);
         let sparse_count = indices.len();
-        let dense_count = shape.0 * shape.1 - sparse_count;
+        let _dense_count = shape.0 * shape.1 - sparse_count;
 
         // Build sparse indices set for fast lookup
         let sparse_set: HashMap<(usize, usize), usize> = indices
@@ -707,7 +703,7 @@ impl CompressedDistanceMatrix {
         let mut values = Vec::with_capacity(elements_per_row);
         let row_data = &data[start_byte..end_byte];
 
-        for (i, &byte) in row_data.iter().enumerate() {
+        for &byte in row_data.iter() {
             let high_nibble = (byte >> 4) & 0x0f;
             values.push(min_val + high_nibble as Float * scale);
 
@@ -747,20 +743,20 @@ impl CompressedDistanceMatrix {
         row_idx: usize,
         min_val: Float,
         max_val: Float,
-        threshold: Float,
+        _threshold: Float,
     ) -> NeighborsResult<Array1<Float>> {
         let mut result = Array1::zeros(shape.1);
         let sparse_count = indices.len();
 
         // Build sparse indices for this row
-        let row_sparse_indices: Vec<usize> = indices
+        let _row_sparse_indices: Vec<usize> = indices
             .iter()
             .enumerate()
             .filter_map(|(idx, &(i, j))| if i == row_idx { Some((idx, j)) } else { None })
             .map(|(sparse_idx, col)| (col, sparse_idx))
             .collect::<HashMap<usize, usize>>()
             .into_iter()
-            .map(|(col, sparse_idx)| sparse_idx)
+            .map(|(_col, sparse_idx)| sparse_idx)
             .collect();
 
         let sparse_data: &[Float] =

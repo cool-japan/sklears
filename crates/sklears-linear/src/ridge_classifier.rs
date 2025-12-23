@@ -372,7 +372,7 @@ mod tests {
 
         let model = RidgeClassifier::new().alpha(1.0).fit(&x, &y).unwrap();
 
-        let predictions = model.predict(&x).unwrap();
+        let _predictions = model.predict(&x).unwrap();
         let accuracy = model.score(&x, &y).unwrap();
 
         // Should achieve good classification on this simple data

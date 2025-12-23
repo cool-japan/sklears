@@ -123,7 +123,7 @@ impl DPPlattScalingCalibrator {
 
     /// Add Gaussian noise for differential privacy
     fn add_gaussian_noise(&self, value: Float, scale: Float) -> Float {
-        let rng_instance = if let Some(seed) = self.rng_seed {
+        let _rng_instance = if let Some(_seed) = self.rng_seed {
             thread_rng()
         } else {
             thread_rng()
@@ -288,7 +288,7 @@ impl DPHistogramCalibrator {
 
     /// Add Laplace noise for differential privacy
     fn add_laplace_noise(&self, value: Float, scale: Float) -> Float {
-        let rng_instance = if let Some(seed) = self.rng_seed {
+        let _rng_instance = if let Some(_seed) = self.rng_seed {
             thread_rng()
         } else {
             thread_rng()
@@ -296,7 +296,7 @@ impl DPHistogramCalibrator {
 
         // Simple Laplace noise using the inverse transform sampling method
         let u: Float = 0.0;
-        let noise = if u < 0.0 {
+        let _noise = if u < 0.0 {
             scale * ((1.0 as Float) + 2.0 * u).ln()
         } else {
             -scale * ((1.0 as Float) - 2.0 * u).ln()
@@ -496,7 +496,7 @@ impl DPTemperatureScalingCalibrator {
         candidates: &[Float],
         scores: &[Float],
     ) -> Result<Float> {
-        let rng_instance = if let Some(seed) = self.rng_seed {
+        let _rng_instance = if let Some(_seed) = self.rng_seed {
             thread_rng()
         } else {
             thread_rng()
@@ -512,7 +512,7 @@ impl DPTemperatureScalingCalibrator {
             .collect();
 
         // Sample according to exponential distribution
-        let total_weight: Float = weights.iter().sum();
+        let _total_weight: Float = weights.iter().sum();
         let mut cumulative_prob = 0.0;
         let random_value: Float = 0.0;
 

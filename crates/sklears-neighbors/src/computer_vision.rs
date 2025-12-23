@@ -200,7 +200,7 @@ impl FeatureExtractor for ColorHistogramExtractor {
                 let pixel_value = image_data[pixel_idx];
 
                 // Normalize pixel value to [0, 1] range and compute bin
-                let normalized = pixel_value.max(0.0).min(1.0);
+                let normalized = pixel_value.clamp(0.0, 1.0);
                 let bin = ((normalized * self.bins_per_channel as f64) as usize)
                     .min(self.bins_per_channel - 1);
 
@@ -1259,7 +1259,7 @@ mod tests {
         search.build_index(&features).unwrap();
 
         // Verify database was built properly
-        let (num_images, feature_dim, _) = search.get_stats();
+        let (num_images, _feature_dim, _) = search.get_stats();
         assert_eq!(num_images, 0); // No metadata added yet
         assert_eq!(search.feature_database.as_ref().unwrap().nrows(), 10);
 

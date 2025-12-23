@@ -312,7 +312,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SeasonalDecompositionImputer<Untrained> 
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -380,7 +380,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -485,12 +485,12 @@ impl SeasonalDecompositionImputer<Untrained> {
             "multiplicative" => {
                 let seasonal_mean = seasonal.mean().unwrap_or(1.0);
                 if seasonal_mean != 0.0 {
-                    seasonal = seasonal / seasonal_mean;
+                    seasonal /= seasonal_mean;
                 }
             }
             _ => {
                 let seasonal_mean = seasonal.mean().unwrap_or(0.0);
-                seasonal = seasonal - seasonal_mean;
+                seasonal -= seasonal_mean;
             }
         }
 
@@ -640,9 +640,9 @@ impl SeasonalDecompositionImputer<SeasonalDecompositionImputerTrained> {
     fn extrapolate_trend_value(&self, time_index: usize) -> f64 {
         let coeffs = &self.state.trend_model.coefficients;
         if coeffs.len() >= 2 {
-            coeffs[0] + coeffs[1] * time_index as f64
+            coeffs[0] + coeffs[1] * (time_index as f64)
         } else {
-            coeffs.get(0).cloned().unwrap_or(0.0)
+            coeffs.first().cloned().unwrap_or(0.0)
         }
     }
 }
@@ -730,7 +730,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ARIMAImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -763,7 +763,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ARIMAImputer<Untrained> {
 impl Transform<ArrayView2<'_, Float>, Array2<Float>> for ARIMAImputer<ARIMAImputerTrained> {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -901,7 +901,7 @@ impl ARIMAImputer<Untrained> {
         for i in p..n {
             let mut prediction = 0.0;
             for j in 0..p {
-                if i >= j + 1 {
+                if i > j {
                     prediction += ar_params[j] * data[i - j - 1];
                 }
             }
@@ -950,14 +950,14 @@ impl ARIMAImputer<ARIMAImputerTrained> {
 
         if recent_values.is_empty() {
             // No history available, use trend
-            return Ok(model.trend_params.get(0).cloned().unwrap_or(0.0));
+            return Ok(model.trend_params.first().cloned().unwrap_or(0.0));
         }
 
         // Reverse to get chronological order
         recent_values.reverse();
 
         // AR prediction
-        let mut prediction = model.trend_params.get(0).cloned().unwrap_or(0.0);
+        let mut prediction = model.trend_params.first().cloned().unwrap_or(0.0);
         for (i, &ar_coef) in model.ar_params.iter().enumerate() {
             if i < recent_values.len() {
                 prediction += ar_coef * recent_values[recent_values.len() - 1 - i];
@@ -1043,7 +1043,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for KalmanFilterImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_n_samples, n_features) = X.dim();
 
         // Simplified implementation - in practice would fit state-space models
@@ -1084,7 +1084,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {

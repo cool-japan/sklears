@@ -375,7 +375,7 @@ impl CostSensitiveDiscriminantAnalysis {
 
         let mut rng = SimpleRng::new(self.config.random_state.unwrap_or(42));
 
-        for (class_idx, &class_label) in classes.iter().enumerate() {
+        for (_class_idx, &class_label) in classes.iter().enumerate() {
             let class_indices: Vec<usize> = y
                 .iter()
                 .enumerate()
@@ -429,7 +429,7 @@ impl CostSensitiveDiscriminantAnalysis {
 
         let mut rng = SimpleRng::new(self.config.random_state.unwrap_or(42));
 
-        for (class_idx, &class_label) in classes.iter().enumerate() {
+        for (_class_idx, &class_label) in classes.iter().enumerate() {
             let mut class_indices: Vec<usize> = y
                 .iter()
                 .enumerate()
@@ -730,7 +730,7 @@ impl TrainedCostSensitiveDiscriminantAnalysis {
 
         let mut total_cost = 0.0;
 
-        for (i, (&true_label, &pred_label)) in y_true.iter().zip(y_pred.iter()).enumerate() {
+        for (_i, (&true_label, &pred_label)) in y_true.iter().zip(y_pred.iter()).enumerate() {
             let true_idx = self
                 .classes
                 .iter()
@@ -863,7 +863,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedCostSensitiveDiscriminantAna
                     let mut best_class_idx = 0;
                     let mut min_expected_cost = Float::INFINITY;
 
-                    for (j, &prob) in proba_row.iter().enumerate() {
+                    for (j, &_prob) in proba_row.iter().enumerate() {
                         // Compute expected cost for predicting class j
                         let mut expected_cost = 0.0;
                         for (k, &true_prob) in proba_row.iter().enumerate() {

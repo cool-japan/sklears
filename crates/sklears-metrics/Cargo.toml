@@ -1,6 +1,6 @@
 [package]
 name = "sklears-metrics"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -15,7 +15,6 @@ categories = ["science", "mathematics"]
 [dependencies]
 # Core sklears dependencies
 sklears-core = { workspace = true }
-numrs2 = { workspace = true }
 
 # SciRS2 dependencies (core foundation per SciRS2 policy)
 scirs2-core = { workspace = true }
@@ -34,7 +33,7 @@ thiserror = { workspace = true }
 # Performance and parallelism
 rayon = { workspace = true, optional = true }
 wide = { version = "0.7", optional = true }
-bytemuck = { version = "1.0", optional = true }
+bytemuck = { version = "1.24", optional = true }
 memmap2 = { version = "0.9", optional = true }
 num_cpus = { workspace = true }
 once_cell = { workspace = true }
@@ -44,15 +43,16 @@ serde = { workspace = true, optional = true }
 serde_json = { version = "1.0", optional = true }
 
 # LaTeX/PDF export functionality
-tex = { version = "0.1", optional = true }
+# TODO: Replace with 'latex = "0.3"' crate when implementing LaTeX export feature
+# tex = { version = "0.1", optional = true }  # Disabled: uses outdated syn 0.14.9 with future incompatibility warnings
 tinytemplate = { version = "1.2", optional = true }
 chrono = { workspace = true }
 
 # Compression and I/O
-flate2 = "1.0"
+flate2 = "1.1"
 
 # Async functionality
-tokio = { version = "1.0", features = ["full"], optional = true }
+tokio = { version = "1.47", features = ["full"], optional = true }
 futures = { version = "0.3", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 
@@ -81,9 +81,13 @@ async = ["tokio", "futures", "tokio-stream"]  # Async streaming support
 optimized = ["parallel", "simd"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
 mmap = ["memmap2"]
-latex = ["tex", "tinytemplate"]  # LaTeX/PDF export functionality
+latex = ["tinytemplate"]  # LaTeX/PDF export functionality (tex disabled until migration to latex crate)
 distributed = ["mpi", "bincode"]  # Message-passing distributed metrics (requires full MPI installation)
 disabled-for-stability = []  # Feature flag for experimental/unstable code
 # Note: "distributed" excluded from "full" due to platform-specific MPI requirements
 # Note: "sparse" removed from "full" - use scirs2-sparse instead (SciRS2 Policy)
 full = ["parallel", "simd", "gpu", "async", "latex", "mmap"]
+
+[[bench]]
+name = "metrics_benchmarks"
+harness = false

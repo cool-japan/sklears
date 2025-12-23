@@ -58,16 +58,19 @@ impl PartialEq for HeapItem {
 
 impl Eq for HeapItem {}
 
-impl PartialOrd for HeapItem {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl Ord for HeapItem {
+    fn cmp(&self, other: &Self) -> Ordering {
         // Reverse ordering for max-heap behavior
-        other.distance.partial_cmp(&self.distance)
+        other
+            .distance
+            .partial_cmp(&self.distance)
+            .unwrap_or(Ordering::Equal)
     }
 }
 
-impl Ord for HeapItem {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+impl PartialOrd for HeapItem {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

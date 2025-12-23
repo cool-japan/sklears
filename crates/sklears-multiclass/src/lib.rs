@@ -10,58 +10,62 @@
 
 // #![warn(missing_docs)]
 
-// Existing modules
-pub mod advanced;
-pub mod calibration;
-pub mod core;
-pub mod ensemble;
+// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// pub mod advanced;
+// pub mod calibration;
+// pub mod core;
+// pub mod ensemble;
+pub mod export;
+pub mod gpu;
 pub mod incremental;
+pub mod memory;
+pub mod simd;
 pub mod uncertainty;
 pub mod utils;
 
-// New extracted modules
-pub mod boosting;
-pub mod dynamic_ensemble;
-pub mod ecoc;
-pub mod one_vs_one;
-pub mod one_vs_rest;
-pub mod rotation_forest;
+// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// pub mod boosting;
+// pub mod dynamic_ensemble;
+// pub mod ecoc;
+// pub mod one_vs_one;
+// pub mod one_vs_rest;
+// pub mod rotation_forest;
 
-// Re-export existing module types
-pub use advanced::*;
-pub use calibration::*;
-pub use core::ecoc::*;
-pub use ensemble::*;
+// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// pub use advanced::*;
+// pub use calibration::*;
+// pub use core::ecoc::*;
+// pub use ensemble::*;
 pub use utils::*;
 
-// Re-export extracted module types
-pub use one_vs_rest::{
-    OneVsRestBuilder, OneVsRestClassifier, OneVsRestConfig, OneVsRestTrainedData, TrainedOneVsRest,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// pub use one_vs_rest::{
+//     OneVsRestBuilder, OneVsRestClassifier, OneVsRestConfig, OneVsRestTrainedData, TrainedOneVsRest,
+// };
 
-pub use one_vs_one::{
-    ConsensusConfig, ConsensusMethod, ConsensusResult, ConsensusStrategy, OneVsOneBuilder,
-    OneVsOneClassifier, OneVsOneConfig, OneVsOneTrainedData, TrainedOneVsOne, VotingStrategy,
-};
+// pub use one_vs_one::{
+//     ConsensusConfig, ConsensusMethod, ConsensusResult, ConsensusStrategy, OneVsOneBuilder,
+//     OneVsOneClassifier, OneVsOneConfig, OneVsOneTrainedData, TrainedOneVsOne, VotingStrategy,
+// };
 
-pub use ecoc::{
-    ECOCBuilder, ECOCClassifier, ECOCConfig, ECOCStrategy, ECOCTrainedData, TrainedECOC,
-};
+// pub use ecoc::{
+//     ECOCBuilder, ECOCClassifier, ECOCConfig, ECOCStrategy, ECOCTrainedData, TrainedECOC,
+// };
 
-pub use boosting::{
-    AdaBoostBuilder, AdaBoostClassifier, AdaBoostConfig, AdaBoostStrategy, AdaBoostTrainedData,
-    GradientBoostingBuilder, GradientBoostingClassifier, GradientBoostingConfig,
-    GradientBoostingLoss, GradientBoostingTrainedData, TrainedAdaBoost, TrainedGradientBoosting,
-};
+// pub use boosting::{
+//     AdaBoostBuilder, AdaBoostClassifier, AdaBoostConfig, AdaBoostStrategy, AdaBoostTrainedData,
+//     GradientBoostingBuilder, GradientBoostingClassifier, GradientBoostingConfig,
+//     GradientBoostingLoss, GradientBoostingTrainedData, TrainedAdaBoost, TrainedGradientBoosting,
+// };
 
-pub use rotation_forest::{
-    FeatureSelectionStrategy, RotationForestBuilder, RotationForestClassifier,
-    RotationForestConfig, RotationForestTrainedData, RotationInfo, TrainedRotationForest,
-};
+// pub use rotation_forest::{
+//     FeatureSelectionStrategy, RotationForestBuilder, RotationForestClassifier,
+//     RotationForestConfig, RotationForestTrainedData, RotationInfo, TrainedRotationForest,
+// };
 
-pub use dynamic_ensemble::{
-    CompetenceMeasure, CompetenceRegion, DynamicEnsembleSelectionBuilder,
-    DynamicEnsembleSelectionClassifier, DynamicEnsembleSelectionConfig,
-    DynamicEnsembleSelectionTrainedData, PoolGenerationStrategy, SelectionStrategy,
-    TrainedDynamicEnsemble,
-};
+// pub use dynamic_ensemble::{
+//     CompetenceMeasure, CompetenceRegion, DynamicEnsembleSelectionBuilder,
+//     DynamicEnsembleSelectionClassifier, DynamicEnsembleSelectionConfig,
+//     DynamicEnsembleSelectionTrainedData, PoolGenerationStrategy, SelectionStrategy,
+//     TrainedDynamicEnsemble,
+// };

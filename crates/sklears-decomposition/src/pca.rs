@@ -109,7 +109,7 @@ impl Fit<Array2<Float>, ()> for PCA<Untrained> {
         let mean = x.mean_axis(Axis(0)).unwrap();
 
         // Center data
-        let x_centered = x - &mean.clone().insert_axis(Axis(0));
+        let _x_centered = x - &mean.clone().insert_axis(Axis(0));
 
         // Basic SVD (placeholder implementation)
         let mut rng = thread_rng();

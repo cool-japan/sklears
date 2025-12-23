@@ -512,6 +512,12 @@ pub struct HtmlBackend {
     name: String,
 }
 
+impl Default for HtmlBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HtmlBackend {
     /// Create a new HTML backend
     pub fn new() -> Self {
@@ -818,10 +824,7 @@ impl VisualizationBackend for HtmlBackend {
             
             Plotly.newPlot('plot', data, layout);
             "#,
-            data.data.to_string(),
-            data.title,
-            config.width,
-            config.height
+            data.data, data.title, config.width, config.height
         );
 
         let html_content = self.generate_html_template(&data.title, &plot_data);
@@ -870,6 +873,12 @@ impl VisualizationBackend for HtmlBackend {
 #[derive(Debug)]
 pub struct JsonBackend {
     name: String,
+}
+
+impl Default for JsonBackend {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JsonBackend {
@@ -1048,6 +1057,12 @@ pub struct AsciiBackend {
     name: String,
 }
 
+impl Default for AsciiBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AsciiBackend {
     /// Create a new ASCII backend
     pub fn new() -> Self {
@@ -1064,7 +1079,7 @@ impl AsciiBackend {
         width: usize,
         height: usize,
     ) -> String {
-        let max_value = values.iter().fold(0.0_f64, |acc, &x| acc.max(x as f64));
+        let max_value = values.iter().fold(0.0_f64, |acc, &x| acc.max(x));
         let bar_width = (width - 20) / labels.len().max(1);
         let scale = (height - 5) as Float / max_value;
 

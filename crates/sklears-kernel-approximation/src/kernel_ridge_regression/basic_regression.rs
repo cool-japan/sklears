@@ -11,7 +11,8 @@ use crate::{
 };
 use scirs2_core::ndarray::ndarray_linalg::solve::Solve;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
+use scirs2_core::random::Rng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::{Estimator, Fit, Float, Predict};
 use std::marker::PhantomData;
@@ -179,7 +180,7 @@ impl KernelRidgeRegression<Untrained> {
         x: &Array2<Float>,
         y: &Array1<Float>,
     ) -> Result<Array1<Float>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, _n_features) = x.dim();
 
         match &self.solver {
             Solver::Direct => self.solve_direct(x, y),
@@ -195,8 +196,8 @@ impl KernelRidgeRegression<Untrained> {
         let (_, n_features) = x.dim();
 
         // SIMD-accelerated computation of X^T X + alpha * I using optimized operations
-        let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]] as f64);
-        let y_f64 = Array1::from_vec(y.iter().map(|&val| val as f64).collect());
+        let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]]);
+        let y_f64 = Array1::from_vec(y.iter().copied().collect());
 
         // #[cfg(feature = "nightly-simd")]
         // let (gram_matrix, xty_f64, weights_f64) = {
@@ -219,13 +220,13 @@ impl KernelRidgeRegression<Untrained> {
         //     (gram_matrix, xty_f64, weights_f64)
         // };
 
-        // Use standard implementation (SIMD temporarily disabled)
+        // Use ndarray operations (optimized via BLAS backend)
         let weights_f64 = {
-            // Standard implementation without SIMD
+            // Matrix operations optimized through ndarray's BLAS backend
             let gram_matrix = x_f64.t().dot(&x_f64);
             let mut regularized_gram = gram_matrix;
             for i in 0..n_features {
-                regularized_gram[[i, i]] += self.alpha as f64;
+                regularized_gram[[i, i]] += self.alpha;
             }
             let xty_f64 = x_f64.t().dot(&y_f64);
 
@@ -248,7 +249,7 @@ impl KernelRidgeRegression<Untrained> {
         // Use SVD of the design matrix X for numerical stability
         // Solve the regularized least squares: min ||Xw - y||² + α||w||²
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, _n_features) = x.dim();
 
         // Compute SVD of X using power iteration method
         let (u, s, vt) = self.compute_svd(x)?;
@@ -281,7 +282,7 @@ impl KernelRidgeRegression<Untrained> {
         max_iter: usize,
         tol: Float,
     ) -> Result<Array1<Float>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Initialize weights
         let mut w = Array1::zeros(n_features);
@@ -599,15 +600,10 @@ impl Predict<Array2<Float>, Array1<Float>> for KernelRidgeRegression<Trained> {
         let x_transformed = feature_transformer.transform(x)?;
 
         // SIMD-accelerated prediction computation using optimized matrix-vector multiplication
-        let x_f64 =
-            Array2::from_shape_fn(x_transformed.dim(), |(i, j)| x_transformed[[i, j]] as f64);
-        let weights_f64 = Array1::from_vec(weights.iter().map(|&val| val as f64).collect());
+        let x_f64 = Array2::from_shape_fn(x_transformed.dim(), |(i, j)| x_transformed[[i, j]]);
+        let weights_f64 = Array1::from_vec(weights.iter().copied().collect());
 
-        // #[cfg(feature = "nightly-simd")]
-        // let predictions_f64 =
-        //     simd_kernel::simd_matrix_vector_multiply(&x_f64.view(), &weights_f64.view())?;
-
-        // Use standard implementation (SIMD temporarily disabled)
+        // Matrix-vector multiplication optimized via BLAS backend
         let predictions_f64 = x_f64.dot(&weights_f64);
 
         // Convert back to Float

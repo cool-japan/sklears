@@ -212,11 +212,7 @@ impl Fit<Array2<Float>, Array1<Int>> for Perceptron<Untrained> {
 
         // Initialize weights and intercept
         let mut coef = Array2::zeros((n_classes, n_features));
-        let mut intercept = if self.config.fit_intercept {
-            Array1::zeros(n_classes)
-        } else {
-            Array1::zeros(n_classes)
-        };
+        let mut intercept = Array1::zeros(n_classes);
 
         // Create indices for shuffling
         let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -401,7 +397,7 @@ impl Perceptron<Trained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]

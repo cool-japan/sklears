@@ -45,6 +45,7 @@ impl MemoryEfficientOps {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new(MemoryEfficiencyConfig::default())
     }
@@ -270,8 +271,8 @@ impl MemoryEfficientOps {
 
         for start in (0..total_elements).step_by(chunk_size) {
             let end = (start + chunk_size).min(total_elements);
-            for i in start..end {
-                a_flat[i] *= scalar;
+            for elem in &mut a_flat[start..end] {
+                *elem *= scalar;
             }
         }
 
@@ -561,7 +562,7 @@ impl MemoryEfficientCoordinateDescent {
     pub fn lasso_step_inplace(
         &self,
         x: &Array2<Float>,
-        y: &Array1<Float>,
+        _y: &Array1<Float>,
         coef: &mut Array1<Float>,
         alpha: Float,
         feature_idx: usize,

@@ -419,7 +419,7 @@ impl BayesianModelAverager {
         }
     }
 
-    fn compute_total_evidence(&self, y_true: Option<&ArrayView1<f64>>) -> Result<f64> {
+    fn compute_total_evidence(&self, _y_true: Option<&ArrayView1<f64>>) -> Result<f64> {
         let mut total_evidence = 0.0;
 
         for model in &self.models {

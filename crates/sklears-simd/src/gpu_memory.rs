@@ -19,10 +19,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[cfg(feature = "no-std")]
-use alloc::{
-    format,
-    string::{String, ToString},
-};
+use alloc::{format, string::ToString};
 
 #[cfg(feature = "no-std")]
 use alloc::vec::Vec;
@@ -483,10 +480,17 @@ unsafe impl<T: Send> Send for UnifiedMemoryBuffer<T> {}
 unsafe impl<T: Sync> Sync for UnifiedMemoryBuffer<T> {}
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use crate::gpu::GpuBackend;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_memory_pool_creation() {

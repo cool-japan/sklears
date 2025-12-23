@@ -176,13 +176,13 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskKernelRidgeRegression<Untrai
             ));
         }
 
-        let n_samples = x.nrows();
+        let _n_samples = x.nrows();
         let n_tasks = y.ncols();
 
         // Fit the feature transformer
         let feature_transformer = self.fit_feature_transformer(x)?;
         let x_transformed = feature_transformer.transform(x)?;
-        let n_features = x_transformed.ncols();
+        let _n_features = x_transformed.ncols();
 
         // Solve multi-task regression problem
         let weights = match self.solver {
@@ -277,11 +277,11 @@ impl MultiTaskKernelRidgeRegression<Untrained> {
             let y_task = y.column(task_idx);
 
             // Standard ridge regression for this task
-            let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]] as f64);
-            let y_task_f64 = Array1::from_vec(y_task.iter().map(|&val| val as f64).collect());
+            let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]]);
+            let y_task_f64 = Array1::from_vec(y_task.iter().copied().collect());
 
             let xtx = x_f64.t().dot(&x_f64);
-            let regularized_xtx = xtx + Array2::<f64>::eye(n_features) * (self.alpha as f64);
+            let regularized_xtx = xtx + Array2::<f64>::eye(n_features) * self.alpha;
 
             let xty = x_f64.t().dot(&y_task_f64);
             let weights_task_f64 =
@@ -325,11 +325,11 @@ impl MultiTaskKernelRidgeRegression<Untrained> {
             let y_task = y.column(task_idx);
 
             // Use SVD for more stable solution
-            let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]] as f64);
-            let y_task_f64 = Array1::from_vec(y_task.iter().map(|&val| val as f64).collect());
+            let x_f64 = Array2::from_shape_fn(x.dim(), |(i, j)| x[[i, j]]);
+            let y_task_f64 = Array1::from_vec(y_task.iter().copied().collect());
 
             let xtx = x_f64.t().dot(&x_f64);
-            let regularized_xtx = xtx + Array2::<f64>::eye(n_features) * (self.alpha as f64);
+            let regularized_xtx = xtx + Array2::<f64>::eye(n_features) * self.alpha;
 
             let (u, s, vt) =
                 regularized_xtx

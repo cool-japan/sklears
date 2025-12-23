@@ -494,7 +494,7 @@ mod tests {
     fn test_standard_scaling() {
         let data = array![[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]];
 
-        let (scaled, means, stds) = FeatureScaler::standard_scale(&data).unwrap();
+        let (scaled, _means, _stds) = FeatureScaler::standard_scale(&data).unwrap();
 
         // Check that scaled data has mean ~0 and std ~1
         for col_idx in 0..scaled.ncols() {
@@ -508,7 +508,7 @@ mod tests {
     fn test_minmax_scaling() {
         let data = array![[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]];
 
-        let (scaled, mins, maxs) = FeatureScaler::minmax_scale(&data).unwrap();
+        let (scaled, _mins, _maxs) = FeatureScaler::minmax_scale(&data).unwrap();
 
         // Check that scaled data is in [0, 1] range
         for col_idx in 0..scaled.ncols() {

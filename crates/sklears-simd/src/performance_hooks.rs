@@ -19,7 +19,6 @@ use std::time::{Duration, Instant};
 #[cfg(feature = "no-std")]
 use alloc::{
     collections::BTreeMap as HashMap,
-    format,
     string::{String, ToString},
     sync::Arc,
     vec,
@@ -192,12 +191,14 @@ impl HookManager {
 
     /// Helper function to handle RwLock read locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn read_hooks(&self) -> std::sync::RwLockReadGuard<HashMap<String, Arc<dyn PerformanceHook>>> {
+    fn read_hooks(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<dyn PerformanceHook>>> {
         self.hooks.read().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn read_hooks(&self) -> spin::RwLockReadGuard<HashMap<String, Arc<dyn PerformanceHook>>> {
+    fn read_hooks(&self) -> spin::RwLockReadGuard<'_, HashMap<String, Arc<dyn PerformanceHook>>> {
         self.hooks.read()
     }
 
@@ -205,45 +206,45 @@ impl HookManager {
     #[cfg(not(feature = "no-std"))]
     fn write_hooks(
         &self,
-    ) -> std::sync::RwLockWriteGuard<HashMap<String, Arc<dyn PerformanceHook>>> {
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<dyn PerformanceHook>>> {
         self.hooks.write().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn write_hooks(&self) -> spin::RwLockWriteGuard<HashMap<String, Arc<dyn PerformanceHook>>> {
+    fn write_hooks(&self) -> spin::RwLockWriteGuard<'_, HashMap<String, Arc<dyn PerformanceHook>>> {
         self.hooks.write()
     }
 
     /// Helper function to handle enabled RwLock read locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn read_enabled(&self) -> std::sync::RwLockReadGuard<bool> {
+    fn read_enabled(&self) -> std::sync::RwLockReadGuard<'_, bool> {
         self.enabled.read().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn read_enabled(&self) -> spin::RwLockReadGuard<bool> {
+    fn read_enabled(&self) -> spin::RwLockReadGuard<'_, bool> {
         self.enabled.read()
     }
 
     /// Helper function to handle enabled RwLock write locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn write_enabled(&self) -> std::sync::RwLockWriteGuard<bool> {
+    fn write_enabled(&self) -> std::sync::RwLockWriteGuard<'_, bool> {
         self.enabled.write().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn write_enabled(&self) -> spin::RwLockWriteGuard<bool> {
+    fn write_enabled(&self) -> spin::RwLockWriteGuard<'_, bool> {
         self.enabled.write()
     }
 
     /// Helper function to handle event buffer Mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn lock_event_buffer(&self) -> std::sync::MutexGuard<Vec<PerformanceEvent>> {
+    fn lock_event_buffer(&self) -> std::sync::MutexGuard<'_, Vec<PerformanceEvent>> {
         self.event_buffer.lock().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_event_buffer(&self) -> spin::MutexGuard<Vec<PerformanceEvent>> {
+    fn lock_event_buffer(&self) -> spin::MutexGuard<'_, Vec<PerformanceEvent>> {
         self.event_buffer.lock()
     }
 
@@ -470,18 +471,20 @@ pub mod builtin_hooks {
                         self.name, event.operation_name, event.input_size, event.output_size
                     );
                 }
-                HookPhase::AfterOperation => {
+                HookPhase::AfterOperation =>
+                {
+                    #[cfg(not(feature = "no-std"))]
                     if let Some(time) = event.execution_time {
-                        #[cfg(not(feature = "no-std"))]
                         println!(
                             "[{}] Finished {} in {:?}",
                             self.name, event.operation_name, time
                         );
                     }
                 }
-                HookPhase::OnError => {
+                HookPhase::OnError =>
+                {
+                    #[cfg(not(feature = "no-std"))]
                     if let Some(error) = &event.error_message {
-                        #[cfg(not(feature = "no-std"))]
                         println!(
                             "[{}] Error in {}: {}",
                             self.name, event.operation_name, error
@@ -523,67 +526,67 @@ pub mod builtin_hooks {
 
         /// Helper function to handle operation counts RwLock read locking
         #[cfg(not(feature = "no-std"))]
-        fn read_counts(&self) -> std::sync::RwLockReadGuard<HashMap<String, AtomicU64>> {
+        fn read_counts(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
             self.operation_counts.read().unwrap()
         }
 
         #[cfg(feature = "no-std")]
-        fn read_counts(&self) -> spin::RwLockReadGuard<HashMap<String, AtomicU64>> {
+        fn read_counts(&self) -> spin::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
             self.operation_counts.read()
         }
 
         /// Helper function to handle operation counts RwLock write locking
         #[cfg(not(feature = "no-std"))]
-        fn write_counts(&self) -> std::sync::RwLockWriteGuard<HashMap<String, AtomicU64>> {
+        fn write_counts(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
             self.operation_counts.write().unwrap()
         }
 
         #[cfg(feature = "no-std")]
-        fn write_counts(&self) -> spin::RwLockWriteGuard<HashMap<String, AtomicU64>> {
+        fn write_counts(&self) -> spin::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
             self.operation_counts.write()
         }
 
         /// Helper function to handle execution time RwLock read locking
         #[cfg(not(feature = "no-std"))]
-        fn read_times(&self) -> std::sync::RwLockReadGuard<HashMap<String, AtomicU64>> {
+        fn read_times(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
             self.total_execution_time.read().unwrap()
         }
 
         #[cfg(feature = "no-std")]
-        fn read_times(&self) -> spin::RwLockReadGuard<HashMap<String, AtomicU64>> {
+        fn read_times(&self) -> spin::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
             self.total_execution_time.read()
         }
 
         /// Helper function to handle execution time RwLock write locking
         #[cfg(not(feature = "no-std"))]
-        fn write_times(&self) -> std::sync::RwLockWriteGuard<HashMap<String, AtomicU64>> {
+        fn write_times(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
             self.total_execution_time.write().unwrap()
         }
 
         #[cfg(feature = "no-std")]
-        fn write_times(&self) -> spin::RwLockWriteGuard<HashMap<String, AtomicU64>> {
+        fn write_times(&self) -> spin::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
             self.total_execution_time.write()
         }
 
         /// Helper function to handle elements processed RwLock read locking
         #[cfg(not(feature = "no-std"))]
-        fn read_elements(&self) -> std::sync::RwLockReadGuard<HashMap<String, AtomicU64>> {
+        fn read_elements(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
             self.total_elements_processed.read().unwrap()
         }
 
         #[cfg(feature = "no-std")]
-        fn read_elements(&self) -> spin::RwLockReadGuard<HashMap<String, AtomicU64>> {
+        fn read_elements(&self) -> spin::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
             self.total_elements_processed.read()
         }
 
         /// Helper function to handle elements processed RwLock write locking
         #[cfg(not(feature = "no-std"))]
-        fn write_elements(&self) -> std::sync::RwLockWriteGuard<HashMap<String, AtomicU64>> {
+        fn write_elements(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
             self.total_elements_processed.write().unwrap()
         }
 
         #[cfg(feature = "no-std")]
-        fn write_elements(&self) -> spin::RwLockWriteGuard<HashMap<String, AtomicU64>> {
+        fn write_elements(&self) -> spin::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
             self.total_elements_processed.write()
         }
 
@@ -681,7 +684,7 @@ pub mod builtin_hooks {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::builtin_hooks::*;
     use super::*;

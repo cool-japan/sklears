@@ -1,6 +1,6 @@
 [package]
 name = "sklears-model-selection"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -15,7 +15,6 @@ categories = ["science", "mathematics"]
 [dependencies]
 sklears-core = { workspace = true }
 sklears-metrics = { workspace = true }
-numrs2 = { workspace = true }
 
 # SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true }
@@ -33,7 +32,7 @@ scirs2-stats = { workspace = true }
 # Approved numerical dependencies
 thiserror = { workspace = true }
 rayon = { workspace = true, optional = true }
-num_cpus = "1.16"
+num_cpus = "1.17"
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 

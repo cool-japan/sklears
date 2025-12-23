@@ -254,7 +254,7 @@ impl FuzzySVM<Untrained> {
 
             if !distances.is_empty() {
                 distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                let k = (distances.len() / 3).max(1).min(5); // Use up to top 5 nearest neighbors
+                let k = (distances.len() / 3).clamp(1, 5); // Use up to top 5 nearest neighbors
                 let avg_distance = distances.iter().take(k).sum::<Float>() / k as Float;
 
                 let noise_factor = if avg_distance > threshold {

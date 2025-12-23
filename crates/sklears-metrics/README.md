@@ -7,7 +7,7 @@
 
 Comprehensive, high-performance evaluation metrics for machine learning in Rust, offering 10-50x speedup over scikit-learn with GPU acceleration support.
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -46,7 +46,7 @@ println!("ROC-AUC: {:.2}", auc);
 - **Type Safety**: Compile-time validation with phantom types
 - **Performance**: SIMD optimizations, GPU acceleration, parallel processing
 - **Memory Efficiency**: Streaming metrics, compressed storage, lazy evaluation
-- **Production Ready**: 393/393 crate tests passing, plus inclusion in the 10,013 passing workspace checks for 0.1.0-alpha.1
+- **Production Ready**: 393/393 crate tests passing, plus inclusion in the 11,292 passing workspace checks for 0.1.0-alpha.2
 
 ### Advanced Features
 

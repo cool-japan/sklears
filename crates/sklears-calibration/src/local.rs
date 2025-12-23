@@ -107,7 +107,7 @@ impl LocalKNNCalibrator {
                 .ok_or_else(|| SklearsError::NotFitted {
                     operation: "predict_proba_with_features".to_string(),
                 })?;
-        let training_probabilities =
+        let _training_probabilities =
             self.training_probabilities
                 .as_ref()
                 .ok_or_else(|| SklearsError::NotFitted {

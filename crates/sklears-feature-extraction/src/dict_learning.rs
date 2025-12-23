@@ -293,7 +293,7 @@ impl NMFTrained {
     }
 
     pub fn transform(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         if n_features != self.components.ncols() {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features but got {}",
@@ -442,7 +442,7 @@ impl ICATrained {
     }
 
     pub fn transform(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         if n_features != self.components.ncols() {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features but got {}",
@@ -601,7 +601,7 @@ impl PCATrained {
     }
 
     pub fn transform(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         if n_features != self.components.ncols() {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features but got {}",
@@ -767,7 +767,7 @@ impl FactorAnalysisTrained {
     }
 
     pub fn transform(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         if n_features != self.components.nrows() {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features but got {}",

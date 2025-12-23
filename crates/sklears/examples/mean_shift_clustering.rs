@@ -6,7 +6,8 @@
 //! - Bin seeding for faster computation
 
 use scirs2_core::ndarray::{array, Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
+use scirs2_core::random::Rng;
 use sklears::clustering::MeanShift;
 use sklears::prelude::*;
 
@@ -190,7 +191,7 @@ fn create_large_dataset() -> Array2<f64> {
 
 /// Create multimodal data with overlapping distributions
 fn create_multimodal_data() -> Array2<f64> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Vec::new();

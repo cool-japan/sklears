@@ -15,7 +15,6 @@ description = "Gaussian Process models for regression and classification"
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 # SciRS2 Policy - Core dependencies (REQUIRED)
 scirs2-core = { workspace = true }
 # ❌ REMOVED: scirs2-autograd - use scirs2_core::ndarray instead (SciRS2 Policy violation)

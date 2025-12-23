@@ -30,15 +30,18 @@ pub mod api_integration;
 pub mod array_utils;
 pub mod cloud_storage;
 pub mod config;
+pub mod cross_validation;
 pub mod data_generation;
 pub mod data_pipeline;
 pub mod data_structures;
 pub mod database;
 pub mod debug;
 pub mod distributed_computing;
+pub mod ensemble;
 pub mod environment;
 pub mod error_handling;
 pub mod external_integration;
+pub mod feature_engineering;
 pub mod file_io;
 pub mod gpu_computing;
 pub mod linear_algebra;
@@ -198,6 +201,9 @@ pub use cloud_storage::{
 pub use config::{
     ArgParser, Config, ConfigBuilder, ConfigSource, ConfigValidator, ConfigValue, HotReloadConfig,
 };
+pub use cross_validation::{
+    CVSplit, GroupKFold, LeaveOneGroupOut, StratifiedKFold, TimeSeriesSplit,
+};
 pub use data_generation::*;
 pub use data_pipeline::{
     DataPipeline, MLPipelineBuilder, PipelineContext, PipelineMetrics, PipelineMonitor,
@@ -222,6 +228,9 @@ pub use distributed_computing::{
     LoadMetrics, NodeCapabilities, NodeStatus, ResourceRequirements, ResourceUsage,
     SchedulingStrategy,
 };
+pub use ensemble::{
+    AggregationStrategy, BaggingPredictor, Bootstrap, OOBScoreEstimator, StackingHelper,
+};
 pub use environment::{
     CacheInfo, CpuInfo, EnvironmentInfo, FeatureChecker, HardwareDetector, MemoryInfo, OSInfo,
     PerformanceCharacteristics, RuntimeInfo,
@@ -234,6 +243,9 @@ pub use external_integration::{
     ArrayTransfer, CFunctionSignature, CParameter, CType, FFIUtils, PyArrayBuffer, PythonInterop,
     PythonParameter, PythonValue, WasmBuildConfig, WasmOptimization, WasmParameter, WasmType,
     WasmUtils,
+};
+pub use feature_engineering::{
+    BinningStrategy, FeatureBinner, InteractionFeatures, PolynomialFeatures,
 };
 pub use file_io::{
     CompressionUtils, EfficientFileReader, EfficientFileWriter, FormatConverter,
@@ -260,10 +272,12 @@ pub use memory::{
     MemoryPool, MemoryValidator, SafeBuffer, SafePtr, SafeVec, StackGuard, TrackingAllocator,
 };
 pub use metrics::{
-    braycurtis_distance, canberra_distance, chebyshev_distance, cosine_distance,
-    cosine_distance_f32, cosine_similarity, cosine_similarity_f32, euclidean_distance,
-    euclidean_distance_f32, hamming_distance, hamming_distance_normalized, jaccard_distance,
-    jaccard_similarity, manhattan_distance, manhattan_distance_f32, minkowski_distance,
+    bhattacharyya_distance, braycurtis_distance, canberra_distance, chebyshev_distance,
+    cosine_distance, cosine_distance_f32, cosine_similarity, cosine_similarity_f32,
+    euclidean_distance, euclidean_distance_f32, hamming_distance, hamming_distance_normalized,
+    hellinger_distance, jaccard_distance, jaccard_similarity, jensen_shannon_divergence,
+    kl_divergence, mahalanobis_distance, manhattan_distance, manhattan_distance_f32,
+    minkowski_distance, wasserstein_1d,
 };
 pub use multiclass::*;
 pub use optimization::{

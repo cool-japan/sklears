@@ -437,7 +437,7 @@ fn create_sparse_covariance_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
@@ -445,20 +445,20 @@ fn create_sparse_covariance_data(
     // Create sparse structure: features 0-2 correlated, 3-5 correlated, others independent
     for i in 0..n_samples {
         // First group
-        let group1_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.8;
+        let group1_factor = rng.random() * 2.0 - 1.0 * 0.8;
         for j in 0..3 {
-            data[[i, j]] = group1_factor + rng.gen::<f64>() * 2.0 - 1.0 * 0.3;
+            data[[i, j]] = group1_factor + rng.random() * 2.0 - 1.0 * 0.3;
         }
 
         // Second group
-        let group2_factor = rng.gen::<f64>() * 2.0 - 1.0 * 0.6;
+        let group2_factor = rng.random() * 2.0 - 1.0 * 0.6;
         for j in 3..6 {
-            data[[i, j]] = group2_factor + rng.gen::<f64>() * 2.0 - 1.0 * 0.4;
+            data[[i, j]] = group2_factor + rng.random() * 2.0 - 1.0 * 0.4;
         }
 
         // Independent features
         for j in 6..n_features {
-            data[[i, j]] = rng.gen::<f64>() * 2.0 - 1.0;
+            data[[i, j]] = rng.random() * 2.0 - 1.0;
         }
     }
 
@@ -471,19 +471,19 @@ fn create_realistic_financial_data(
     n_samples: usize,
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
         // Market factor
-        let market_return = rng.gen::<f64>() * 2.0 - 1.0 * 0.02;
+        let market_return = rng.random() * 2.0 - 1.0 * 0.02;
 
         for j in 0..n_features {
             // Each asset has different market sensitivity (beta)
             let beta = 0.5 + (j as f64 / n_features as f64) * 1.5; // Beta from 0.5 to 2.0
-            let idiosyncratic = rng.gen::<f64>() * 2.0 - 1.0 * 0.015;
+            let idiosyncratic = rng.random() * 2.0 - 1.0 * 0.015;
 
             data[[i, j]] = market_return * beta + idiosyncratic;
         }

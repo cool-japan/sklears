@@ -226,16 +226,14 @@ impl QualityThreshold {
             } else {
                 QualityLevel::Critical
             }
+        } else if value <= self.excellent {
+            QualityLevel::Excellent
+        } else if value <= self.critical {
+            QualityLevel::Good
+        } else if value <= self.warning {
+            QualityLevel::Warning
         } else {
-            if value <= self.excellent {
-                QualityLevel::Excellent
-            } else if value <= self.critical {
-                QualityLevel::Good
-            } else if value <= self.warning {
-                QualityLevel::Warning
-            } else {
-                QualityLevel::Critical
-            }
+            QualityLevel::Critical
         }
     }
 }

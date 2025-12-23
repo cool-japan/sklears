@@ -379,7 +379,7 @@ pub mod correctness {
         simd_func: F1,
         scalar_func: F2,
         test_data: &[T],
-        tolerance: precision::Tolerance,
+        _tolerance: precision::Tolerance,
         operation_name: &str,
     ) -> ValidationResult
     where
@@ -727,11 +727,11 @@ impl ValidationSuite {
     }
 
     pub fn print_summary(&self) {
-        let total_tests = self.results.len();
-        let passed_tests = self.results.values().filter(|r| r.passed).count();
-
         #[cfg(not(feature = "no-std"))]
         {
+            let total_tests = self.results.len();
+            let passed_tests = self.results.values().filter(|r| r.passed).count();
+
             println!("Validation Summary:");
             println!("  Total tests: {total_tests}");
             println!("  Passed: {passed_tests}");
@@ -760,9 +760,12 @@ impl ValidationSuite {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_precision_comparison() {

@@ -97,7 +97,7 @@ fn generate_memory_test_dataset(
 
     let X = Array2::random_using((n_samples, n_features), StandardNormal, &mut rng);
     let true_coefs: Array1<Float> = (0..n_features)
-        .map(|_| rng.gen_range(-1.0..1.0))
+        .map(|_| rng.random_range(-1.0, 1.0))
         .collect::<Vec<_>>()
         .into();
     let y = X.dot(&true_coefs);

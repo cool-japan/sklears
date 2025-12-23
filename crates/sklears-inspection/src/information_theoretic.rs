@@ -349,7 +349,7 @@ pub fn analyze_information_bottleneck(
 
     // Initialize representation T randomly
     let mut T = Array2::from_shape_fn((n_samples, n_features), |_| {
-        scirs2_core::random::thread_rng().gen::<Float>()
+        scirs2_core::random::thread_rng().random::<Float>()
     });
 
     // Information bottleneck optimization

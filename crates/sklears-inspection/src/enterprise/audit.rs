@@ -423,7 +423,7 @@ impl AuditTrail {
                 record
                     .events
                     .iter()
-                    .any(|event| event.user_id.as_ref().map_or(false, |id| id == user_id))
+                    .any(|event| event.user_id.as_ref().is_some_and(|id| id == user_id))
             })
             .collect()
     }
@@ -619,12 +619,12 @@ impl ExplanationLineage {
         // Add to indices
         self.relations_from
             .entry(relation.from_node.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(relation.id.clone());
 
         self.relations_to
             .entry(relation.to_node.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(relation.id.clone());
 
         self.relations.push(relation);

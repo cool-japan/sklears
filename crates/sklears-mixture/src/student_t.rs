@@ -304,7 +304,7 @@ impl StudentTMixture<Untrained> {
         }
 
         // Student-t log PDF
-        let gamma_term = self.log_gamma((df + d) / 2.0) - self.log_gamma(df / 2.0);
+        let gamma_term = Self::log_gamma((df + d) / 2.0) - Self::log_gamma(df / 2.0);
         let const_term = gamma_term - 0.5 * d * (df * PI).ln() - 0.5 * log_det;
         let density_term = -0.5 * (df + d) * (1.0 + mahal_dist / df).ln();
 
@@ -654,13 +654,13 @@ impl StudentTMixture<Untrained> {
     }
 
     /// Simple log-gamma approximation using Stirling's approximation
-    fn log_gamma(&self, x: f64) -> f64 {
+    fn log_gamma(x: f64) -> f64 {
         if x < 12.0 {
             // Use reflection formula for small x
             if x < 0.5 {
-                return (PI / ((PI * x).sin())).ln() - self.log_gamma(1.0 - x);
+                return (PI / ((PI * x).sin())).ln() - Self::log_gamma(1.0 - x);
             } else {
-                return self.log_gamma(x + 1.0) - x.ln();
+                return Self::log_gamma(x + 1.0) - x.ln();
             }
         }
 
@@ -989,7 +989,7 @@ impl StudentTMixture<StudentTMixtureTrained> {
         }
 
         // Student-t log PDF
-        let gamma_term = self.log_gamma((df + d) / 2.0) - self.log_gamma(df / 2.0);
+        let gamma_term = Self::log_gamma((df + d) / 2.0) - Self::log_gamma(df / 2.0);
         let const_term = gamma_term - 0.5 * d * (df * PI).ln() - 0.5 * log_det;
         let density_term = -0.5 * (df + d) * (1.0 + mahal_dist / df).ln();
 
@@ -1117,13 +1117,13 @@ impl StudentTMixture<StudentTMixtureTrained> {
     }
 
     /// Simple log-gamma approximation using Stirling's approximation
-    fn log_gamma(&self, x: f64) -> f64 {
+    fn log_gamma(x: f64) -> f64 {
         if x < 12.0 {
             // Use reflection formula for small x
             if x < 0.5 {
-                return (PI / ((PI * x).sin())).ln() - self.log_gamma(1.0 - x);
+                return (PI / ((PI * x).sin())).ln() - Self::log_gamma(1.0 - x);
             } else {
-                return self.log_gamma(x + 1.0) - x.ln();
+                return Self::log_gamma(x + 1.0) - x.ln();
             }
         }
 

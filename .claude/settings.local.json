@@ -38,7 +38,24 @@
       "Bash(/tmp/test_clustering_metrics:*)",
       "Bash(python3:*)",
       "Bash(echo \"Exit code: $?\")",
-      "Bash(cargo fix:*)"
+      "Bash(cargo fix:*)",
+      "Read(//Users/kitasan/work/scirs/**)",
+      "Skill(nextest)",
+      "Bash(cargo clean:*)",
+      "Bash(tee:*)",
+      "Skill(all)",
+      "Bash(cargo report:*)",
+      "Bash(cargo tree:*)",
+      "Bash(cargo metadata:*)",
+      "Bash(xargs -I {} bash -c \"cargo tree -p {} 2>/dev/null | grep -q ''''tex v0.1.1'''' && echo {}\")",
+      "Bash(cargo search:*)",
+      "Bash(cargo info:*)",
+      "Bash(cargo update:*)",
+      "Bash(for i in {1..10})",
+      "Bash(do cargo test -p sklears-neural test_mlp_classifier_xor_problem -- --test-threads=1)",
+      "Bash(done)",
+      "Bash(for i in {1..20})",
+      "Bash(do cargo nextest run -p sklears-neural test_mlp_classifier_xor_problem --no-fail-fast)"
     ]
   },
   "enableAllProjectMcpServers": false

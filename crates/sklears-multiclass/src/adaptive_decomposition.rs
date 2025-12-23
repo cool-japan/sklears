@@ -73,7 +73,7 @@ pub struct AdaptiveConfig {
     pub min_classes: usize,
     /// Maximum number of classes before defaulting to specific strategies
     pub max_classes: usize,
-    /// Random state for reproducible results
+    /// StdRng state for reproducible results
     pub random_state: Option<u64>,
 }
 
@@ -531,7 +531,7 @@ where
                 }
 
                 let selected_strategy = if score_ecoc >= score_ovr && score_ecoc >= score_ovo {
-                    MulticlassStrategy::ECOC(ECOCStrategy::Random)
+                    MulticlassStrategy::ECOC(ECOCStrategy::StdRng)
                 } else if score_ovo >= score_ovr {
                     MulticlassStrategy::OneVsOne
                 } else {
@@ -559,7 +559,7 @@ where
             } => {
                 // For now, default to balanced approach
                 Ok((
-                    MulticlassStrategy::ECOC(ECOCStrategy::Random),
+                    MulticlassStrategy::ECOC(ECOCStrategy::StdRng),
                     "Performance-based selection chose ECOC for robustness".to_string(),
                 ))
             }
@@ -863,7 +863,7 @@ mod tests {
         let strategy = MulticlassStrategy::OneVsOne;
         assert!(matches!(strategy, MulticlassStrategy::OneVsOne));
 
-        let strategy = MulticlassStrategy::ECOC(ECOCStrategy::Random);
+        let strategy = MulticlassStrategy::ECOC(ECOCStrategy::StdRng);
         assert!(matches!(strategy, MulticlassStrategy::ECOC(_)));
 
         let strategy = MulticlassStrategy::Auto;

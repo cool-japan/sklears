@@ -316,7 +316,7 @@ impl AdaptiveResourceAllocator {
                     0.1 // Small default standard deviation
                 };
 
-                use scirs2_core::random::essentials::{Normal, Rng};
+                use scirs2_core::random::essentials::Normal;
                 let normal = Normal::new(config.mean_score, std_dev)
                     .unwrap_or_else(|_| Normal::new(0.0, 1.0).unwrap());
                 self.rng.sample(normal)
@@ -364,9 +364,11 @@ impl AdaptiveResourceAllocator {
         let mut allocations = vec![(String::new(), 0.0); configs.len()];
         let allocation_per_kept = budget / num_to_keep as f64;
 
-        for i in 0..num_to_keep.min(config_scores.len()) {
-            let config_idx = config_scores[i].0;
-            allocations[config_idx] = (configs[config_idx].id.clone(), allocation_per_kept);
+        for (config_idx, _score) in config_scores
+            .iter()
+            .take(num_to_keep.min(config_scores.len()))
+        {
+            allocations[*config_idx] = (configs[*config_idx].id.clone(), allocation_per_kept);
         }
 
         allocations

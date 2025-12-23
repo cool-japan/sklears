@@ -5,7 +5,7 @@
 
 use proptest::prelude::*;
 use scirs2_autograd::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use std::collections::HashSet;
 
 #[allow(non_snake_case)]
@@ -13,7 +13,7 @@ use std::collections::HashSet;
 mod clustering_properties {
     use super::*;
 
-    /// Property: Cluster labels should be valid integers within expected range
+    // Property: Cluster labels should be valid integers within expected range
     proptest! {
         #[test]
         fn test_cluster_label_validity(
@@ -25,7 +25,7 @@ mod clustering_properties {
             // Generate random labels as if from a clustering algorithm
             let mut rng = thread_rng();
             let labels: Vec<i32> = (0..n_samples)
-                .map(|_| (rng.gen::<f64>() * n_clusters as f64).floor() as i32)
+                .map(|_| (rng.random::<f64>() * n_clusters as f64).floor() as i32)
                 .collect();
 
             // All labels should be non-negative
@@ -39,16 +39,16 @@ mod clustering_properties {
         }
     }
 
-    /// Property: Distance calculations should satisfy metric properties
+    // Property: Distance calculations should satisfy metric properties
     proptest! {
         #[test]
         fn test_euclidean_distance_properties(
             n_features in 1..10usize,
         ) {
             let mut rng = thread_rng();
-            let point_a = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
-            let point_b = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
-            let point_c = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
+            let point_a = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
+            let point_b = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
+            let point_c = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
 
             // Calculate Euclidean distances
             let dist_ab = (&point_a - &point_b).mapv(|x| x * x).sum().sqrt();
@@ -73,7 +73,7 @@ mod clustering_properties {
         }
     }
 
-    /// Property: K-means cluster assignments should be stable for identical inputs
+    // Property: K-means cluster assignments should be stable for identical inputs
     proptest! {
         #[test]
         fn test_kmeans_determinism(
@@ -84,10 +84,10 @@ mod clustering_properties {
             prop_assume!(n_clusters <= n_samples);
 
             let mut rng = thread_rng();
-            let data = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
+            let data = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
 
             // Generate cluster centers
-            let centers = Array2::from_shape_fn((n_clusters, n_features), |_| rng.gen::<f64>());
+            let centers = Array2::from_shape_fn((n_clusters, n_features), |_| rng.random::<f64>());
 
             // Assign each point to closest cluster (simplified K-means assignment)
             let mut assignments1 = Vec::new();
@@ -115,7 +115,7 @@ mod clustering_properties {
         }
     }
 
-    /// Property: Number of unique clusters should not exceed the specified number
+    // Property: Number of unique clusters should not exceed the specified number
     proptest! {
         #[test]
         fn test_cluster_count_validity(
@@ -126,7 +126,7 @@ mod clustering_properties {
 
             let mut rng = thread_rng();
             let labels: Vec<i32> = (0..n_samples)
-                .map(|_| (rng.gen::<f64>() * n_clusters as f64).floor() as i32)
+                .map(|_| (rng.random::<f64>() * n_clusters as f64).floor() as i32)
                 .collect();
 
             let unique_labels: HashSet<i32> = labels.into_iter().collect();
@@ -139,7 +139,7 @@ mod clustering_properties {
         }
     }
 
-    /// Property: Cluster centers should be meaningful for their assigned points
+    // Property: Cluster centers should be meaningful for their assigned points
     proptest! {
         #[test]
         fn test_cluster_center_properties(
@@ -149,11 +149,11 @@ mod clustering_properties {
             let mut rng = thread_rng();
 
             // Generate points around a center
-            let true_center = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
+            let true_center = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
             let mut points = Vec::new();
 
             for _ in 0..cluster_size {
-                let noise = Array1::from_shape_fn(n_features, |_| (rng.gen::<f64>() - 0.5) * 0.1);
+                let noise = Array1::from_shape_fn(n_features, |_| (rng.random::<f64>() - 0.5) * 0.1);
                 let point = &true_center + &noise;
                 points.push(point);
             }
@@ -171,7 +171,7 @@ mod clustering_properties {
         }
     }
 
-    /// Property: DBSCAN noise points should be labeled as -1
+    // Property: DBSCAN noise points should be labeled as -1
     proptest! {
         #[test]
         fn test_dbscan_noise_labeling(
@@ -179,7 +179,7 @@ mod clustering_properties {
             noise_ratio in 0.0f64..0.5,
         ) {
             // Simulate DBSCAN labels with some noise points
-            let rng = thread_rng();
+            let _rng = thread_rng();
             let n_noise = (n_samples as f64 * noise_ratio) as usize;
             let n_clustered = n_samples - n_noise;
 
@@ -210,7 +210,7 @@ mod clustering_properties {
 mod clustering_validation_properties {
     use super::*;
 
-    /// Property: Input data should have consistent dimensions
+    // Property: Input data should have consistent dimensions
     proptest! {
         #[test]
         fn test_clustering_input_validation(
@@ -218,7 +218,7 @@ mod clustering_validation_properties {
             n_features in 1..10usize,
         ) {
             let mut rng = thread_rng();
-            let data = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
+            let data = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
 
             // Basic consistency checks
             prop_assert_eq!(data.nrows(), n_samples);
@@ -227,7 +227,7 @@ mod clustering_validation_properties {
         }
     }
 
-    /// Property: Invalid cluster numbers should be handled appropriately
+    // Property: Invalid cluster numbers should be handled appropriately
     proptest! {
         #[test]
         fn test_invalid_cluster_parameters(

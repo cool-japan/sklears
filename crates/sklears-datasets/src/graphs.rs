@@ -45,7 +45,7 @@ pub fn make_erdos_renyi_graph(
     for i in 0..n_nodes {
         let start_j = if directed { 0 } else { i + 1 };
         for j in start_j..n_nodes {
-            if i != j && rng.gen::<f64>() < edge_probability {
+            if i != j && rng.gen() < edge_probability {
                 adjacency[[i, j]] = 1.0;
                 if !directed {
                     adjacency[[j, i]] = 1.0;
@@ -111,7 +111,7 @@ pub fn make_barabasi_albert_graph(
         // Select m_edges targets based on preferential attachment
         while targets.len() < m_edges {
             let mut cumulative_prob = 0.0;
-            let rand_val = rng.gen::<f64>();
+            let rand_val = rng.gen();
 
             for (node, &degree) in degrees.iter().enumerate().take(new_node) {
                 if targets.contains(&node) {
@@ -191,7 +191,7 @@ pub fn make_watts_strogatz_graph(
     // Rewire edges with probability p_rewire
     for i in 0..n_nodes {
         for j in 1..=(k_neighbors / 2) {
-            if rng.gen::<f64>() < p_rewire {
+            if rng.gen() < p_rewire {
                 let old_neighbor = (i + j) % n_nodes;
 
                 // Remove old edge
@@ -273,7 +273,7 @@ pub fn make_stochastic_block_graph(
             let same_community = labels[i] == labels[j];
             let edge_prob = if same_community { p_within } else { p_between };
 
-            if rng.gen::<f64>() < edge_prob {
+            if rng.gen() < edge_prob {
                 adjacency[[i, j]] = 1.0;
                 adjacency[[j, i]] = 1.0;
             }

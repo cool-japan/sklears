@@ -23,7 +23,7 @@ pub fn get_rng(seed: Option<u64>) -> StdRng {
         Some(s) => StdRng::seed_from_u64(s),
         None => {
             let mut rng = GLOBAL_RNG.lock().unwrap();
-            StdRng::seed_from_u64(rng.random())
+            StdRng::seed_from_u64(rng.gen::<u64>())
         }
     }
 }
@@ -47,13 +47,13 @@ pub fn random_indices(
     if replace {
         // Sampling with replacement
         for _ in 0..size {
-            indices.push(rng.random_range(0..n_samples));
+            indices.push(rng.gen_range(0..n_samples));
         }
     } else {
         // Sampling without replacement
         let mut available: Vec<usize> = (0..n_samples).collect();
         for _ in 0..size {
-            let idx = rng.random_range(0..available.len());
+            let idx = rng.gen_range(0..available.len());
             indices.push(available.swap_remove(idx));
         }
     }
@@ -65,7 +65,7 @@ pub fn random_indices(
 pub fn shuffle_indices(indices: &mut [usize], seed: Option<u64>) {
     let mut rng = get_rng(seed);
     for i in (1..indices.len()).rev() {
-        let j = rng.random_range(0..=i);
+        let j = rng.gen_range(0..=i);
         indices.swap(i, j);
     }
 }
@@ -108,7 +108,7 @@ pub fn train_test_split_indices(
 /// Generate random weights that sum to 1
 pub fn random_weights(n: usize, seed: Option<u64>) -> Vec<f64> {
     let mut rng = get_rng(seed);
-    let mut weights: Vec<f64> = (0..n).map(|_| rng.random::<f64>()).collect();
+    let mut weights: Vec<f64> = (0..n).map(|_| rng.gen::<f64>()).collect();
     let sum: f64 = weights.iter().sum();
 
     if sum > 0.0 {
@@ -230,7 +230,7 @@ pub fn reservoir_sampling<T: Clone>(
             reservoir.push(item);
         } else {
             // Randomly replace items in the reservoir
-            let j = rng.random_range(0..=i);
+            let j = rng.gen_range(0..=i);
             if j < k {
                 reservoir[j] = item;
             }
@@ -279,7 +279,7 @@ pub fn weighted_sampling_without_replacement(
 
     for _ in 0..k {
         loop {
-            let r: f64 = rng.random();
+            let r: f64 = rng.gen::<f64>();
             let idx = cumsum
                 .binary_search_by(|&x| x.partial_cmp(&r).unwrap())
                 .unwrap_or_else(|i| i);
@@ -324,7 +324,7 @@ pub fn importance_sampling(
     let mut samples = Vec::with_capacity(n_samples);
 
     for _ in 0..n_samples {
-        let r: f64 = rng.random();
+        let r: f64 = rng.gen::<f64>();
         let idx = cumsum
             .binary_search_by(|&x| x.partial_cmp(&r).unwrap())
             .unwrap_or_else(|i| i);
@@ -356,8 +356,8 @@ impl DistributionSampler {
         let mut samples = Vec::with_capacity(n);
         for _ in 0..n {
             // Box-Muller transform
-            let u1 = self.rng.random::<f64>();
-            let u2 = self.rng.random::<f64>();
+            let u1 = self.rng.gen::<f64>();
+            let u2 = self.rng.gen::<f64>();
             let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             samples.push(mean + std * z);
         }
@@ -374,7 +374,7 @@ impl DistributionSampler {
 
         let samples = (0..n)
             .map(|_| {
-                let u = self.rng.random::<f64>();
+                let u = self.rng.gen::<f64>();
                 low + (high - low) * u
             })
             .collect();
@@ -403,7 +403,7 @@ impl DistributionSampler {
     fn gamma_sample(&mut self, shape: f64) -> f64 {
         // Simple approximation for gamma sampling
         if shape < 1.0 {
-            let u = self.rng.random::<f64>();
+            let u = self.rng.gen::<f64>();
             u.powf(1.0 / shape)
         } else {
             // Marsaglia and Tsang's method (simplified)
@@ -413,7 +413,7 @@ impl DistributionSampler {
                 let x = self.normal_sample();
                 let v = (1.0 + c * x).powi(3);
                 if v > 0.0 {
-                    let u = self.rng.random::<f64>();
+                    let u = self.rng.gen::<f64>();
                     if u < 1.0 - 0.0331 * x.powi(4)
                         || u.ln() < 0.5 * x.powi(2) + d * (1.0 - v + v.ln())
                     {
@@ -426,8 +426,8 @@ impl DistributionSampler {
 
     /// Helper function to sample from standard normal
     fn normal_sample(&mut self) -> f64 {
-        let u1 = self.rng.random::<f64>();
-        let u2 = self.rng.random::<f64>();
+        let u1 = self.rng.gen::<f64>();
+        let u2 = self.rng.gen::<f64>();
         (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
     }
 
@@ -552,7 +552,7 @@ impl DistributionSampler {
 
         for _ in 0..n {
             // Choose component
-            let r: f64 = self.rng.random();
+            let r: f64 = self.rng.gen::<f64>();
             let component_idx = cumulative_weights
                 .binary_search_by(|&x| x.partial_cmp(&r).unwrap())
                 .unwrap_or_else(|i| i);
@@ -581,13 +581,13 @@ impl ThreadSafeRng {
     /// Generate a random number in range [0, 1)
     pub fn gen(&self) -> f64 {
         let mut rng = self.rng.lock().unwrap();
-        rng.random()
+        rng.gen::<f64>()
     }
 
     /// Generate a random integer in range [0, n)
-    pub fn gen_range(&self, n: usize) -> usize {
+    pub fn random_range(&self, n: usize) -> usize {
         let mut rng = self.rng.lock().unwrap();
-        rng.random_range(0..n)
+        rng.gen_range(0..n)
     }
 
     /// Generate random indices for sampling
@@ -818,7 +818,7 @@ mod tests {
         let val2 = rng.gen();
         assert_ne!(val1, val2);
 
-        let idx = rng.gen_range(10);
+        let idx = rng.random_range(10);
         assert!(idx < 10);
     }
 }

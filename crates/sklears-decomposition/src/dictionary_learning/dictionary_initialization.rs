@@ -72,7 +72,7 @@ impl DictionaryInitializer {
         &self,
         n_atoms: usize,
         n_features: usize,
-        data: Option<&Array2<Float>>,
+        _data: Option<&Array2<Float>>,
     ) -> Result<Array2<Float>> {
         let mut rng = thread_rng();
         let mut dictionary = Array2::zeros((n_atoms, n_features));

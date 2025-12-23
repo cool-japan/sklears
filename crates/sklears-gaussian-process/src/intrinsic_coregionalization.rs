@@ -16,7 +16,8 @@
 
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and array! macro
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{Random, Rng}; // SciRS2 Policy - Use scirs2-core for random operations
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -159,7 +160,7 @@ impl IntrinsicCoregionalizationModel<Untrained> {
         }
 
         // Initialize with small random values and ensure positive definiteness
-        let mut rng = Random::seed(42);
+        let mut rng = StdRng::seed_from_u64(42);
         let mut B = Array2::<f64>::zeros((self.n_outputs, self.n_outputs));
 
         // Fill diagonal with 1.0 + small random values

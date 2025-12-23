@@ -52,7 +52,7 @@ use crate::bayesian_optimization::{AcquisitionFunction, BayesianOptimizer, Optim
 use crate::gpr::GaussianProcessRegressor;
 use crate::kernels::Kernel;
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{thread_rng, Random};
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 

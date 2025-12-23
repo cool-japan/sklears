@@ -191,7 +191,7 @@ impl CovarianceDataFrame {
     }
 
     /// Get the data as an ArrayView2 for use with estimators
-    pub fn as_array_view(&self) -> ArrayView2<f64> {
+    pub fn as_array_view(&self) -> ArrayView2<'_, f64> {
         self.data.view()
     }
 

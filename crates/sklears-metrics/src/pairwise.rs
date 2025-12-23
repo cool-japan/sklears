@@ -1314,7 +1314,7 @@ pub fn normalized_compression_distance(x: &[u8], y: &[u8]) -> MetricsResult<f64>
     let ncd = (c_xy as f64 - min_c) / max_c;
 
     // Clamp to [0, 1] range (theoretical bounds, though may be exceeded due to compression artifacts)
-    Ok(ncd.max(0.0).min(1.0))
+    Ok(ncd.clamp(0.0, 1.0))
 }
 
 /// Normalized Compression Distance Matrix

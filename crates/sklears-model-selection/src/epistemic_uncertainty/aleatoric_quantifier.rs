@@ -59,7 +59,7 @@ impl AleatoricUncertaintyQuantifier {
         E: Clone,
         P: Clone,
     {
-        let rng = match self.config.random_state {
+        let _rng = match self.config.random_state {
             Some(seed) => Random::seed(seed),
             None => Random::seed(42),
         };

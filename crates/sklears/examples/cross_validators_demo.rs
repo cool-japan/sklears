@@ -77,7 +77,7 @@ fn main() {
 
     // Check stratification
     println!("   Checking stratification in first repeat:");
-    for (i, (train, test)) in splits.iter().take(3).enumerate() {
+    for (i, (_train, test)) in splits.iter().take(3).enumerate() {
         let test_classes: Vec<i32> = test.iter().map(|&idx| y[idx]).collect();
         println!("   Split {}: test classes = {:?}", i, test_classes);
     }

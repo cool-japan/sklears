@@ -22,8 +22,7 @@ pub use variational::{StochasticVariationalInference, VariationalFreeEnergy};
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal as RandNormal;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Fit, Predict};
 

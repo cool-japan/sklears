@@ -9,8 +9,7 @@
 //! and variational inference for efficient computation.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Distribution, Random, Rng};
 use scirs2_core::StandardNormal;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -221,7 +220,7 @@ impl<State> DirichletProcessMixture<State> {
         let mut remaining_weight = 1.0;
 
         for k in 0..max_comp - 1 {
-            let beta = rng.gen::<Float>().powf(1.0 / self.config.alpha);
+            let beta = rng.random::<Float>().powf(1.0 / self.config.alpha);
             weights[k] = beta * remaining_weight;
             remaining_weight *= 1.0 - beta;
         }

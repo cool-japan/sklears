@@ -273,7 +273,7 @@ pub fn validate_correlation_structure(
 }
 
 /// Validate normality using Shapiro-Wilk approximation
-pub fn validate_normality(data: &[Vec<f64>], config: &ValidationConfig) -> ValidationReport {
+pub fn validate_normality(data: &[Vec<f64>], _config: &ValidationConfig) -> ValidationReport {
     let mut report = ValidationReport::new();
 
     if data.is_empty() {

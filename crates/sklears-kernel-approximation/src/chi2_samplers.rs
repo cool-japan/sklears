@@ -2,7 +2,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
+use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -10,7 +10,7 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, SeedableRng};
 /// Additive Chi-Squared Kernel Approximation
 ///
 /// Approximates the additive chi-squared kernel: K(x,y) = Σᵢ (2xᵢyᵢ)/(xᵢ+yᵢ)
@@ -287,7 +287,7 @@ impl Transform<Array2<Float>, Array2<Float>> for SkewedChi2Sampler<Trained> {
         let x_shifted = x.mapv(|v| (v + self.skewedness).ln());
 
         // Compute projection and apply cosine
-        let projection = x_shifted.dot(weights) + &offset.view().insert_axis(Axis(0));
+        let projection = x_shifted.dot(weights) + offset.view().insert_axis(Axis(0));
         let normalization = (2.0 / self.n_components as Float).sqrt();
         let result = projection.mapv(|v| normalization * v.cos());
 

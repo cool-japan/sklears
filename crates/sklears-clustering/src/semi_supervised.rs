@@ -25,7 +25,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::rand_prelude::Distribution;
 // Normal distribution via scirs2_core::random::RandNormal
@@ -257,7 +256,7 @@ impl ConstrainedKMeans {
         let mut remaining_points = remaining_points;
         // Fisher-Yates shuffle
         for i in (1..remaining_points.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             remaining_points.swap(i, j);
         }
 
@@ -267,7 +266,7 @@ impl ConstrainedKMeans {
             } else {
                 // If we run out of points, use random initialization
                 for j in 0..n_features {
-                    centroids[[k, j]] = rng.gen_range(-1.0..1.0);
+                    centroids[[k, j]] = rng.random_range(-1.0, 1.0);
                 }
             }
         }
@@ -1397,7 +1396,7 @@ impl ActiveClustering {
                         queries.push(ClusteringQuery {
                             point_indices: (i, j),
                             current_clusters: (current_labels[i], current_labels[j]),
-                            uncertainty_score: rng.gen_range(0.0..1.0),
+                            uncertainty_score: rng.random_range(0.0..1.0),
                         });
                     }
                 }

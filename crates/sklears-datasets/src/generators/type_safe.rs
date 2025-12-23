@@ -22,6 +22,14 @@ pub struct DatasetConfig<T, const N_SAMPLES: usize, const N_FEATURES: usize> {
     pub random_state: Option<u64>,
 }
 
+impl<T, const N_SAMPLES: usize, const N_FEATURES: usize> Default
+    for DatasetConfig<T, N_SAMPLES, N_FEATURES>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const N_SAMPLES: usize, const N_FEATURES: usize> DatasetConfig<T, N_SAMPLES, N_FEATURES> {
     pub fn new() -> Self {
         Self {
@@ -47,7 +55,7 @@ pub struct TypeSafeDataset<T, const N_SAMPLES: usize, const N_FEATURES: usize> {
 impl<T, const N_SAMPLES: usize, const N_FEATURES: usize> TypeSafeDataset<T, N_SAMPLES, N_FEATURES> {
     /// Create a new type-safe dataset with compile-time dimension validation
     pub fn new(features: Array2<f64>, targets: DatasetTargets<T>) -> Result<Self> {
-        if features.shape() != &[N_SAMPLES, N_FEATURES] {
+        if features.shape() != [N_SAMPLES, N_FEATURES] {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected features shape [{}, {}], got {:?}",
                 N_SAMPLES,
@@ -88,19 +96,14 @@ impl<T, const N_SAMPLES: usize, const N_FEATURES: usize> TypeSafeDataset<T, N_SA
 #[derive(Debug, Clone)]
 pub enum DatasetTargets<T> {
     /// Classification
-
     Classification(Array1<i32>),
     /// Regression
-
     Regression(Array1<f64>),
     /// Clustering
-
     Clustering(Array1<i32>),
     /// TimeSeries
-
     TimeSeries(Array1<f64>),
     /// Spatial
-
     Spatial(Array1<f64>),
 
     _Phantom(PhantomData<T>),
@@ -185,6 +188,12 @@ pub fn make_typed_blobs<const N_SAMPLES: usize, const N_FEATURES: usize, const N
 pub struct DatasetBuilder<T> {
     random_state: Option<u64>,
     _phantom: PhantomData<T>,
+}
+
+impl<T> Default for DatasetBuilder<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> DatasetBuilder<T> {
@@ -309,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_wrong_dimensions() {
-        let config = classification_builder().build::<10, 5>();
+        let _config = classification_builder().build::<10, 5>();
         let wrong_features = Array2::zeros((5, 5)); // Wrong shape
         let targets = DatasetTargets::Classification(Array1::zeros(10));
 

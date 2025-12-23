@@ -6,7 +6,7 @@
 //! want to reduce the variance in your cross-validation estimates.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::SliceRandomExt;
+// use scirs2_core::SliceRandomExt;
 
 use crate::cross_validation::{CrossValidator, KFold, StratifiedKFold};
 

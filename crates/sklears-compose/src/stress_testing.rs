@@ -210,7 +210,7 @@ impl ResourceMonitor {
     /// Get current memory usage (mock implementation)
     fn get_current_memory_usage() -> u64 {
         // In real implementation, use system APIs to get actual memory usage
-        thread_rng().gen::<u64>() % 1024 + 100 // Mock: 100-1124 MB
+        thread_rng().random::<u64>() % 1024 + 100 // Mock: 100-1124 MB
     }
 
     /// Get current CPU usage (mock implementation)

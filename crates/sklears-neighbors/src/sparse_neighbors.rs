@@ -265,7 +265,7 @@ impl SparseNeighborMatrix {
             }
             SparseStorage::Csr {
                 row_ptr,
-                col_indices,
+                col_indices: _,
                 neighbor_indices,
                 distances,
             } => {
@@ -279,7 +279,7 @@ impl SparseNeighborMatrix {
             }
             SparseStorage::Coo {
                 row_indices,
-                col_indices,
+                col_indices: _,
                 neighbor_indices,
                 distances,
             } => {
@@ -296,7 +296,7 @@ impl SparseNeighborMatrix {
                 Ok((neighbors, dists))
             }
             SparseStorage::Csc {
-                col_ptr,
+                col_ptr: _,
                 row_indices,
                 neighbor_indices,
                 distances,
@@ -876,7 +876,7 @@ mod tests {
         )
         .unwrap();
 
-        let (neighbors, distances) = sparse.get_neighbors(0).unwrap();
+        let (neighbors, _distances) = sparse.get_neighbors(0).unwrap();
         assert!(neighbors.len() <= 3);
         assert!(neighbors.len() >= 2); // At least 2 neighbors under threshold
 

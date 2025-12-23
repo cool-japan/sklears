@@ -247,3 +247,119 @@ impl GraphicalLasso<GraphicalLassoTrained> {
         self.state.n_iter
     }
 }
+
+// DataFrame integration implementation
+use crate::polars_integration::{
+    ConvergenceInfo, CovarianceDataFrame, CovarianceResult, DataFrameEstimator, EstimatorInfo,
+    PerformanceMetrics,
+};
+use std::collections::HashMap;
+use std::time::Instant;
+
+impl DataFrameEstimator<f64> for GraphicalLasso<Untrained> {
+    fn fit_dataframe(&self, df: &CovarianceDataFrame) -> SklResult<CovarianceResult<f64>> {
+        let start_time = Instant::now();
+
+        // Validate DataFrame
+        df.validate()?;
+
+        // Fit using standard method
+        let fitted = self.clone().fit(&df.as_array_view(), &())?;
+
+        let computation_time = start_time.elapsed().as_millis() as f64;
+
+        // Create convergence info
+        let convergence_info = Some(ConvergenceInfo {
+            n_iterations: fitted.get_n_iter(),
+            converged: fitted.get_n_iter() < self.max_iter,
+            objective_value: None, // Could implement L1-penalized log-likelihood
+            tolerance: Some(self.tol),
+        });
+
+        // Create performance metrics
+        let performance_metrics = Some(PerformanceMetrics {
+            computation_time_ms: computation_time,
+            memory_usage_mb: None, // Could be implemented with memory profiling
+            condition_number: None, // Could compute if needed
+            log_likelihood: None,  // Could implement L1-penalized log-likelihood
+        });
+
+        // Create estimator info
+        let estimator_info = EstimatorInfo {
+            name: "GraphicalLasso".to_string(),
+            parameters: self.parameters(),
+            convergence: convergence_info,
+            metrics: performance_metrics,
+        };
+
+        Ok(CovarianceResult::new(
+            fitted.get_covariance().clone(),
+            Some(fitted.get_precision().clone()),
+            df.column_names().to_vec(),
+            df.metadata.clone(),
+            estimator_info,
+        ))
+    }
+
+    fn name(&self) -> &str {
+        "GraphicalLasso"
+    }
+
+    fn parameters(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+        params.insert("alpha".to_string(), self.alpha.to_string());
+        params.insert("mode".to_string(), self.mode.clone());
+        params.insert("tol".to_string(), self.tol.to_string());
+        params.insert("max_iter".to_string(), self.max_iter.to_string());
+        params.insert(
+            "assume_centered".to_string(),
+            self.assume_centered.to_string(),
+        );
+        params
+    }
+}
+
+impl DataFrameEstimator<f64> for GraphicalLasso<GraphicalLassoTrained> {
+    fn fit_dataframe(&self, df: &CovarianceDataFrame) -> SklResult<CovarianceResult<f64>> {
+        // For already trained estimators, just return the current state with DataFrame context
+        let convergence_info = Some(ConvergenceInfo {
+            n_iterations: self.state.n_iter,
+            converged: self.state.n_iter < self.max_iter,
+            objective_value: None,
+            tolerance: Some(self.tol),
+        });
+
+        let estimator_info = EstimatorInfo {
+            name: "GraphicalLasso".to_string(),
+            parameters: self.parameters(),
+            convergence: convergence_info,
+            metrics: None,
+        };
+
+        Ok(CovarianceResult::new(
+            self.get_covariance().clone(),
+            Some(self.get_precision().clone()),
+            df.column_names().to_vec(),
+            df.metadata.clone(),
+            estimator_info,
+        ))
+    }
+
+    fn name(&self) -> &str {
+        "GraphicalLasso"
+    }
+
+    fn parameters(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+        params.insert("alpha".to_string(), self.state.alpha.to_string());
+        params.insert("mode".to_string(), self.mode.clone());
+        params.insert("tol".to_string(), self.tol.to_string());
+        params.insert("max_iter".to_string(), self.max_iter.to_string());
+        params.insert(
+            "assume_centered".to_string(),
+            self.assume_centered.to_string(),
+        );
+        params.insert("n_iter".to_string(), self.state.n_iter.to_string());
+        params
+    }
+}

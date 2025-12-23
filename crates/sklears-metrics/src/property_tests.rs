@@ -38,10 +38,8 @@ prop_compose! {
 
 prop_compose! {
     fn regression_data()(
-        size in 10..100usize,
         values in prop::collection::vec(-100.0..100.0f64, 10..100)
     ) -> (Array1<f64>, Array1<f64>) {
-        let size = values.len();
         let y_true = Array1::from_vec(values);
 
         // Create predictions with some error
@@ -577,7 +575,7 @@ mod stress_tests {
         let chunk_size = 1000;
         for chunk_start in (0..size).step_by(chunk_size) {
             let chunk_end = (chunk_start + chunk_size).min(size);
-            let chunk_size_actual = chunk_end - chunk_start;
+            let _chunk_size_actual = chunk_end - chunk_start;
 
             let y_true: Array1<f64> = Array1::from_iter((chunk_start..chunk_end).map(|i| i as f64));
             let y_pred: Array1<f64> =

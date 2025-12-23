@@ -534,7 +534,6 @@ impl ChannelMetricsComputer {
 mod tests {
     use super::*;
     use futures::stream;
-    use tokio_test;
 
     #[tokio::test]
     async fn test_streaming_metrics_computer() {

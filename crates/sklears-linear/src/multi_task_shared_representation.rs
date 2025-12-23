@@ -82,6 +82,7 @@ pub struct MultiTaskSharedRepresentation<State = Untrained> {
     // Model parameters
     shared_weights_: Option<Array2<Float>>, // X -> shared representation
     task_weights_: Option<Array3<Float>>,   // shared + task-specific -> output
+    task_input_weights_: Option<Array3<Float>>, // raw input -> task-specific features
     shared_bias_: Option<Array1<Float>>,    // bias for shared representation
     task_bias_: Option<Array2<Float>>,      // bias for each task
     attention_weights_: Option<Array2<Float>>, // attention weights for shared features
@@ -99,6 +100,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
             state: PhantomData,
             shared_weights_: None,
             task_weights_: None,
+            task_input_weights_: None,
             shared_bias_: None,
             task_bias_: None,
             attention_weights_: None,
@@ -183,6 +185,7 @@ impl SharedRepresentationBuilder {
             state: PhantomData,
             shared_weights_: None,
             task_weights_: None,
+            task_input_weights_: None,
             shared_bias_: None,
             task_bias_: None,
             attention_weights_: None,
@@ -235,6 +238,37 @@ impl<State> MultiTaskSharedRepresentation<State> {
             result
         }
     }
+
+    /// Helper function to compute task-specific features
+    fn compute_task_features(
+        &self,
+        x: &Array2<Float>,
+        task_weights: &Array3<Float>,
+        task_id: usize,
+    ) -> Array2<Float> {
+        let task_w = task_weights.slice(s![task_id, .., ..]);
+        x.dot(&task_w.slice(s![.., ..self.config.task_specific_dim]))
+    }
+
+    /// Helper function to combine shared and task-specific features
+    fn combine_features(
+        &self,
+        shared_features: &Array2<Float>,
+        task_features: &Array2<Float>,
+    ) -> Array2<Float> {
+        // Concatenate along feature dimension
+        let mut combined = Array2::zeros((
+            shared_features.nrows(),
+            shared_features.ncols() + task_features.ncols(),
+        ));
+        combined
+            .slice_mut(s![.., ..shared_features.ncols()])
+            .assign(shared_features);
+        combined
+            .slice_mut(s![.., shared_features.ncols()..])
+            .assign(task_features);
+        combined
+    }
 }
 
 impl Fit<Array2<Float>, Array2<Float>> for MultiTaskSharedRepresentation<Untrained> {
@@ -248,7 +282,7 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskSharedRepresentation<Untrain
 
         if n_samples != y.nrows() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("X.shape[0] == Y.shape[0]"),
+                expected: "X.shape[0] == Y.shape[0]".to_string(),
                 actual: format!("X.shape[0]={}, Y.shape[0]={}", n_samples, y.nrows()),
             });
         }
@@ -413,10 +447,10 @@ impl MultiTaskSharedRepresentation<Untrained> {
 
             // Check convergence
             if iter > 0 && total_loss.abs() < self.config.tol {
-                n_iter = iter + 1;
+                n_iter += 1;
                 break;
             }
-            n_iter = iter + 1;
+            n_iter += 1;
         }
 
         // Combine task-specific weights with shared weights for final model
@@ -432,6 +466,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
             state: PhantomData,
             shared_weights_: Some(shared_weights),
             task_weights_: Some(final_task_weights),
+            task_input_weights_: Some(task_input_weights),
             shared_bias_: Some(shared_bias),
             task_bias_: Some(task_bias),
             attention_weights_: None,
@@ -467,7 +502,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
         let mut n_iter = 0;
 
         // Alternating least squares optimization
-        for iter in 0..self.config.max_iter {
+        for _iter in 0..self.config.max_iter {
             let old_u = u_shared.clone();
             let old_v = v_tasks.clone();
 
@@ -482,17 +517,18 @@ impl MultiTaskSharedRepresentation<Untrained> {
                     let v_task = v_tasks.row(task_id);
 
                     // Compute residual excluding current feature
-                    let mut residual = y_task.to_owned() - &bias;
+                    let mut residual = y_task.to_owned();
+                    residual.mapv_inplace(|v| v - bias[task_id]);
                     for j in 0..n_features {
                         if j != i {
                             let u_j = u_shared.row(j);
                             let scalar = u_j.dot(&v_task);
-                            residual = residual - &(x.column(j).to_owned() * scalar);
+                            residual -= &(x.column(j).to_owned() * scalar);
                         }
                     }
 
                     // Accumulate for least squares solution
-                    numerator = numerator + &(v_task.to_owned() * x_i.dot(&residual));
+                    numerator += &(v_task.to_owned() * x_i.dot(&residual));
                     for r1 in 0..rank {
                         for r2 in 0..rank {
                             denominator[[r1, r2]] += v_task[r1] * v_task[r2] * x_i.dot(&x_i);
@@ -523,7 +559,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
                 // Accumulate for least squares solution
                 for s in 0..x.nrows() {
                     let xu_s = xu.row(s);
-                    numerator = numerator + &(xu_s.to_owned() * (y_task[s] - bias[task_id]));
+                    numerator += &(xu_s.to_owned() * (y_task[s] - bias[task_id]));
                     for r1 in 0..rank {
                         for r2 in 0..rank {
                             denominator[[r1, r2]] += xu_s[r1] * xu_s[r2];
@@ -557,10 +593,10 @@ impl MultiTaskSharedRepresentation<Untrained> {
             let v_change = (&v_tasks - &old_v).mapv(Float::abs).sum();
 
             if u_change + v_change < self.config.tol {
-                n_iter = iter + 1;
+                n_iter += 1;
                 break;
             }
-            n_iter = iter + 1;
+            n_iter += 1;
         }
 
         // Reconstruct task weights from factorization
@@ -581,6 +617,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
             state: PhantomData,
             shared_weights_: Some(u_shared),
             task_weights_: Some(task_weights),
+            task_input_weights_: None,
             shared_bias_: Some(Array1::zeros(rank)),
             task_bias_: Some(task_bias),
             attention_weights_: None,
@@ -730,10 +767,10 @@ impl MultiTaskSharedRepresentation<Untrained> {
 
             // Check convergence
             if iter > 0 && total_loss.abs() < self.config.tol {
-                n_iter = iter + 1;
+                n_iter += 1;
                 break;
             }
-            n_iter = iter + 1;
+            n_iter += 1;
         }
 
         let task_bias = Array2::from_shape_vec((n_tasks, 1), bias.to_vec())
@@ -744,6 +781,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
             state: PhantomData,
             shared_weights_: Some(shared_weights),
             task_weights_: Some(task_weights),
+            task_input_weights_: None,
             shared_bias_: Some(Array1::zeros(shared_dim)),
             task_bias_: Some(task_bias),
             attention_weights_: Some(attention_weights),
@@ -751,37 +789,6 @@ impl MultiTaskSharedRepresentation<Untrained> {
             n_tasks_: Some(n_tasks),
             n_iter_: Some(n_iter),
         })
-    }
-
-    /// Helper function to compute task-specific features
-    fn compute_task_features(
-        &self,
-        x: &Array2<Float>,
-        task_weights: &Array3<Float>,
-        task_id: usize,
-    ) -> Array2<Float> {
-        let task_w = task_weights.slice(s![task_id, .., ..]);
-        x.dot(&task_w.slice(s![.., ..self.config.task_specific_dim]))
-    }
-
-    /// Helper function to combine shared and task-specific features
-    fn combine_features(
-        &self,
-        shared_features: &Array2<Float>,
-        task_features: &Array2<Float>,
-    ) -> Array2<Float> {
-        // Concatenate along feature dimension
-        let mut combined = Array2::zeros((
-            shared_features.nrows(),
-            shared_features.ncols() + task_features.ncols(),
-        ));
-        combined
-            .slice_mut(s![.., ..shared_features.ncols()])
-            .assign(shared_features);
-        combined
-            .slice_mut(s![.., shared_features.ncols()..])
-            .assign(task_features);
-        combined
     }
 
     /// Apply orthogonality constraint to shared weights
@@ -852,15 +859,46 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskSharedRepresentation<Tra
                     let attention_task = attention_weights.row(task_id);
                     let attended_features = &shared_features * &attention_task.insert_axis(Axis(0));
                     let task_w = task_weights.slice(s![task_id, .., 0]);
-                    let task_pred = attended_features.dot(&task_w) + task_bias[[task_id, 0]];
+                    let dot_result: Array1<Float> = attended_features.dot(&task_w);
+                    let task_pred = dot_result + task_bias[[task_id, 0]];
+                    predictions.column_mut(task_id).assign(&task_pred);
+                }
+            }
+            SharedRepresentationStrategy::Factorized => {
+                for task_id in 0..n_tasks {
+                    let task_w = task_weights.slice(s![task_id, .., 0]);
+                    let dot_result: Array1<Float> = x.dot(&task_w);
+                    let task_pred = dot_result + task_bias[[task_id, 0]];
                     predictions.column_mut(task_id).assign(&task_pred);
                 }
             }
             _ => {
-                // Standard linear prediction
+                // Linear or hierarchical shared representation prediction
+                let shared_features = self.compute_shared_features(x, shared_weights, shared_bias);
+                let needs_task_specific = self.config.task_specific_dim > 0;
+                let task_input_weights = if needs_task_specific {
+                    Some(self.task_input_weights_.as_ref().ok_or_else(|| {
+                        SklearsError::InvalidState(
+                            "Task input weights missing for linear shared representation"
+                                .to_string(),
+                        )
+                    })?)
+                } else {
+                    None
+                };
+
                 for task_id in 0..n_tasks {
+                    let feature_matrix = if let Some(task_input_weights) = task_input_weights {
+                        let task_features =
+                            self.compute_task_features(x, task_input_weights, task_id);
+                        self.combine_features(&shared_features, &task_features)
+                    } else {
+                        shared_features.clone()
+                    };
+
                     let task_w = task_weights.slice(s![task_id, .., 0]);
-                    let task_pred = x.dot(&task_w) + task_bias[[task_id, 0]];
+                    let dot_result: Array1<Float> = feature_matrix.dot(&task_w);
+                    let task_pred = dot_result + task_bias[[task_id, 0]];
                     predictions.column_mut(task_id).assign(&task_pred);
                 }
             }
@@ -903,7 +941,7 @@ impl MultiTaskSharedRepresentation<Trained> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]

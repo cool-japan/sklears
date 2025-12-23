@@ -309,12 +309,12 @@ impl OnlineLinearRegression {
         let mut batch_iterator =
             MiniBatchIterator::new(x.view(), y.view(), &self.config.mini_batch);
 
-        for epoch in 0..self.config.max_iter {
+        for _epoch in 0..self.config.max_iter {
             let mut epoch_loss = 0.0;
             let mut n_batches = 0;
 
             batch_iterator.reset();
-            while let Some((batch_x, batch_y)) = batch_iterator.next() {
+            while let Some((batch_x, batch_y)) = batch_iterator.next_batch() {
                 let loss = self.update_weights(&batch_x, &batch_y)?;
                 epoch_loss += loss;
                 n_batches += 1;
@@ -586,7 +586,7 @@ impl<'a> MiniBatchIterator<'a> {
     }
 
     /// Get next mini-batch
-    pub fn next(&mut self) -> Option<(Array2<Float>, Array1<Float>)> {
+    pub fn next_batch(&mut self) -> Option<(Array2<Float>, Array1<Float>)> {
         if self.current_idx >= self.indices.len() {
             return None;
         }
@@ -731,7 +731,7 @@ mod tests {
         let mut iterator = MiniBatchIterator::new(x.view(), y.view(), &config);
 
         let mut batch_count = 0;
-        while let Some((batch_x, batch_y)) = iterator.next() {
+        while let Some((batch_x, batch_y)) = iterator.next_batch() {
             batch_count += 1;
             assert!(batch_x.nrows() <= 2);
             assert_eq!(batch_x.nrows(), batch_y.len());

@@ -8,7 +8,8 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Transform},
@@ -682,7 +683,7 @@ impl CrossValidator {
         Ok(alignment)
     }
 
-    fn compute_mse(&self, x_transformed: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
+    fn compute_mse(&self, _x_transformed: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         // Simple linear regression MSE
         // In practice, you'd want to use a proper regressor
         let y_mean = y.mean().unwrap_or(0.0);
@@ -690,14 +691,14 @@ impl CrossValidator {
         Ok(-mse) // Negative because we want to maximize score
     }
 
-    fn compute_mae(&self, x_transformed: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
+    fn compute_mae(&self, _x_transformed: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         // Simple linear regression MAE
         let y_mean = y.mean().unwrap_or(0.0);
         let mae = y.iter().map(|&yi| (yi - y_mean).abs()).sum::<f64>() / y.len() as f64;
         Ok(-mae) // Negative because we want to maximize score
     }
 
-    fn compute_r2_score(&self, x_transformed: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
+    fn compute_r2_score(&self, _x_transformed: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         // Simple R² score computation
         let y_mean = y.mean().unwrap_or(0.0);
         let ss_tot = y.iter().map(|&yi| (yi - y_mean).powi(2)).sum::<f64>();

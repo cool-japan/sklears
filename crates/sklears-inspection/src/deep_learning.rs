@@ -217,8 +217,8 @@ impl DeepLearningAnalyzer {
         F: Fn(&ArrayView2<Float>) -> SklResult<Array2<Float>>,
     {
         // 1. Get activations for concept and random examples
-        let concept_activations = model_fn(&concept_examples)?;
-        let random_activations = model_fn(&random_examples)?;
+        let concept_activations = model_fn(concept_examples)?;
+        let random_activations = model_fn(random_examples)?;
 
         // 2. Train linear classifier to separate concept from random
         let cav = self.train_concept_activation_vector(
@@ -228,10 +228,10 @@ impl DeepLearningAnalyzer {
         )?;
 
         // 3. Compute directional derivatives for test examples
-        let test_activations = model_fn(&test_examples)?;
+        let test_activations = model_fn(test_examples)?;
         let directional_derivatives = self.compute_directional_derivatives(
             model_fn,
-            &test_examples,
+            test_examples,
             &cav.direction_vector.view(),
             target_class,
         )?;
@@ -265,7 +265,7 @@ impl DeepLearningAnalyzer {
     where
         F: Fn(&ArrayView2<Float>) -> SklResult<HashMap<String, Array2<Float>>>,
     {
-        let layer_activations = model_fn(&probe_dataset)?;
+        let layer_activations = model_fn(probe_dataset)?;
         let mut layer_concepts = HashMap::new();
 
         // Analyze each layer
@@ -304,10 +304,10 @@ impl DeepLearningAnalyzer {
         F: Fn(&ArrayView3<Float>) -> SklResult<Array2<Float>>,
     {
         // 1. Get layer activations
-        let activations = model_fn(&images)?;
+        let activations = model_fn(images)?;
 
         // 2. Segment images into superpixels
-        let segments = self.segment_images(&images)?;
+        let segments = self.segment_images(images)?;
 
         // 3. Cluster segments based on their activations
         let concept_clusters = self.cluster_segments(&activations, &segments, num_concepts)?;
@@ -745,6 +745,12 @@ impl DeepLearningAnalyzer {
 pub struct ConceptDatabase {
     concepts: HashMap<String, ConceptActivationVector>,
     concept_relationships: HashMap<String, Vec<String>>,
+}
+
+impl Default for ConceptDatabase {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConceptDatabase {

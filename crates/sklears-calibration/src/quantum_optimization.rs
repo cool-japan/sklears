@@ -287,7 +287,7 @@ impl QuantumCalibrationOptimizer {
     /// Perform quantum annealing step
     fn quantum_annealing_step<F>(
         &mut self,
-        temperature: Float,
+        _temperature: Float,
         objective_function: &F,
     ) -> Result<()>
     where
@@ -491,7 +491,7 @@ impl QuantumCalibrationOptimizer {
         let mut gradient = Array1::zeros(circuit_params.len());
         let epsilon = 1e-6;
 
-        for (i, &param) in circuit_params.iter().enumerate() {
+        for (i, &_param) in circuit_params.iter().enumerate() {
             // Finite difference approximation
             let mut params_plus = circuit_params.clone();
             let mut params_minus = circuit_params.clone();
@@ -605,9 +605,9 @@ impl QuantumCalibrationOptimizer {
         }
 
         // Apply quantum decoherence
-        let decoherence_rate = 0.001;
+        let decoherence_rate: Float = 0.001;
         for amplitude in self.quantum_state.amplitudes.iter_mut() {
-            *amplitude *= ((1.0 - decoherence_rate) as f64).sqrt();
+            *amplitude *= (1.0 - decoherence_rate).sqrt();
         }
 
         // Add quantum noise

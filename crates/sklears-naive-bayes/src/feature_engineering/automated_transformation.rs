@@ -8,10 +8,7 @@
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-// SciRS2 Policy Compliance - Use scirs2-core for random functionality
-// SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::rngs::StdRng;
-// SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::error::Result;
@@ -231,7 +228,7 @@ where
         let mut best_transforms = vec!["standard_scale".to_string()];
 
         for transform in &candidates {
-            let score = self.evaluate_transform_combination(&[transform.clone()])?;
+            let score = self.evaluate_transform_combination(std::slice::from_ref(transform))?;
             self.performance_history.push((transform.clone(), score));
 
             if score > best_score {
@@ -265,7 +262,7 @@ where
             let random_idx = rng.gen_range(0..candidates.len());
             let transform = candidates[random_idx].clone();
 
-            let score = self.evaluate_transform_combination(&[transform.clone()])?;
+            let score = self.evaluate_transform_combination(std::slice::from_ref(&transform))?;
             self.performance_history.push((transform.clone(), score));
 
             if score > best_score {
@@ -297,7 +294,7 @@ where
 
         // Simplified acquisition function-based selection
         for (iteration, transform) in candidates.iter().enumerate() {
-            let score = self.evaluate_transform_combination(&[transform.clone()])?;
+            let score = self.evaluate_transform_combination(std::slice::from_ref(transform))?;
             self.performance_history.push((transform.clone(), score));
 
             // Simple improvement criterion
@@ -1318,11 +1315,8 @@ impl TransformationOptimizer {
         T: Clone + Copy + std::fmt::Debug,
     {
         // Simplified evaluation - in practice would cross-validate
-        let score = parameters
-            .values()
-            .map(|&v| v.min(1.0).max(0.0))
-            .sum::<f64>()
-            / parameters.len() as f64;
+        let score =
+            parameters.values().map(|&v| v.clamp(0.0, 1.0)).sum::<f64>() / parameters.len() as f64;
         Ok(score * 0.8 + 0.2) // Add baseline score
     }
 

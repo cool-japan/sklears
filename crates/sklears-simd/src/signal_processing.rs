@@ -6,7 +6,7 @@
 use core::f32::consts::PI;
 
 #[cfg(feature = "no-std")]
-use alloc::{string::ToString, vec, vec::Vec};
+use alloc::{string::ToString, vec::Vec};
 
 #[cfg(feature = "no-std")]
 use core::{cmp::Ordering, slice};
@@ -420,10 +420,13 @@ pub mod resampling {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_fft_simple() {

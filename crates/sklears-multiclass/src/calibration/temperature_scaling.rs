@@ -212,7 +212,7 @@ impl TemperatureScaling {
             let row_sum: f64 = row.sum();
             let normalized_probs: Vec<f64> = if row_sum > 0.0 {
                 row.iter()
-                    .map(|&p| (p / row_sum).max(1e-15).min(1.0 - 1e-15))
+                    .map(|&p| (p / row_sum).clamp(1e-15, 1.0 - 1e-15))
                     .collect()
             } else {
                 vec![1.0 / n_classes as f64; n_classes]
@@ -241,7 +241,7 @@ impl CalibrationFunction for TemperatureScaling {
         let mut probs_2d = Array2::zeros((n_samples, 2));
 
         for i in 0..n_samples {
-            let p = uncalibrated_probs[i].max(1e-15).min(1.0 - 1e-15);
+            let p = uncalibrated_probs[i].clamp(1e-15, 1.0 - 1e-15);
             probs_2d[[i, 0]] = 1.0 - p;
             probs_2d[[i, 1]] = p;
         }
@@ -335,7 +335,7 @@ impl MulticlassTemperatureScaling {
 
             for j in 0..n_classes {
                 let p = if row_sum > 0.0 {
-                    (row[j] / row_sum).max(1e-15).min(1.0 - 1e-15)
+                    (row[j] / row_sum).clamp(1e-15, 1.0 - 1e-15)
                 } else {
                     1.0 / n_classes as f64
                 };
@@ -550,7 +550,7 @@ mod tests {
         let logits = array![[1.0, 0.0], [0.0, 1.0], [1.0, 0.0], [0.0, 1.0]];
         let y_true = array![0, 1, 0, 1];
 
-        let initial_temp = scaler.temperature;
+        let _initial_temp = scaler.temperature;
         scaler.fit(&logits, &y_true, 1000, 1e-8, 0.01).unwrap();
 
         // Temperature should change during optimization

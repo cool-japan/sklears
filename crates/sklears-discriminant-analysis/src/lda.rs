@@ -220,7 +220,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
 
     /// Compute robust mean using iterative reweighting
     fn robust_mean(&self, data: &Array2<Float>, weights: &Array1<Float>) -> Array1<Float> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
         let mut robust_mean = Array1::zeros(n_features);
 
         for j in 0..n_features {
@@ -336,10 +336,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
         n_classes: usize,
         n_features: usize,
     ) -> Result<(Array2<Float>, Array2<Float>, Array1<Float>)> {
-        let (n_samples, _) = x.dim();
-
-        // Calculate overall mean
-        let overall_mean = x.mean_axis(Axis(0)).unwrap();
+        let (_n_samples, _) = x.dim();
 
         // Calculate within-class scatter matrix
         let mut sw = Array2::zeros((n_features, n_features));
@@ -413,7 +410,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
         n_classes: usize,
         n_features: usize,
     ) -> Result<(Array2<Float>, Array2<Float>, Array1<Float>)> {
-        let (n_samples, _) = x.dim();
+        let (_n_samples, _) = x.dim();
 
         // Calculate overall mean
         let overall_mean = x.mean_axis(Axis(0)).unwrap();
@@ -806,7 +803,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
         let mu = trace / n_features as Float;
 
         // Compute alpha (Frobenius norm squared of centered covariance)
-        let mut alpha = 0.0;
+        let mut _alpha = 0.0;
         for i in 0..n_features {
             for j in 0..n_features {
                 let val = if i == j {
@@ -814,7 +811,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
                 } else {
                     sample_cov[[i, j]]
                 };
-                alpha += val * val;
+                _alpha += val * val;
             }
         }
 
@@ -829,7 +826,7 @@ impl LinearDiscriminantAnalysis<Untrained> {
 
     /// MCD-based regularization parameter estimation
     fn mcd_regularization(&self, x: &Array2<Float>) -> Result<Float> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Use MCD to get robust covariance estimate
         match self.robust_covariance_mcd(x) {
@@ -879,8 +876,8 @@ impl LinearDiscriminantAnalysis<Untrained> {
             let mut fold_scores = Vec::new();
 
             for fold in 0..k_folds {
-                let start_idx = fold * fold_size;
-                let end_idx = if fold == k_folds - 1 {
+                let _start_idx = fold * fold_size;
+                let _end_idx = if fold == k_folds - 1 {
                     n_samples
                 } else {
                     (fold + 1) * fold_size

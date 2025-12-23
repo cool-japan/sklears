@@ -8,7 +8,7 @@
 
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{array, s, Array2};
-use scirs2_core::random::{seeded_rng, Rng};
+use scirs2_core::random::seeded_rng;
 use sklears_core::traits::{Fit, Transform};
 use sklears_neural::{Activation, Autoencoder};
 

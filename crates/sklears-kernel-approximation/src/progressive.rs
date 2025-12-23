@@ -158,6 +158,12 @@ pub struct ProgressiveRBFSampler {
     config: ProgressiveConfig,
 }
 
+impl Default for ProgressiveRBFSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProgressiveRBFSampler {
     /// Create a new progressive RBF sampler
     pub fn new() -> Self {
@@ -218,8 +224,7 @@ impl ProgressiveRBFSampler {
         let mut current_components = self.config.initial_components;
         let mut previous_quality = 0.0;
         let mut iteration = 0;
-        let mut converged = false;
-        let mut stopping_reason = String::from("Max iterations reached");
+        let result;
 
         // Fibonacci sequence state (for Fibonacci strategy)
         let mut fib_prev = 1;
@@ -255,11 +260,10 @@ impl ProgressiveRBFSampler {
             steps.push(step);
 
             // Check stopping criteria
-            if let Some((converged_flag, reason)) =
+            if let Some(stop_result) =
                 self.check_stopping_criteria(quality, improvement, iteration, current_components)
             {
-                converged = converged_flag;
-                stopping_reason = reason;
+                result = Some(stop_result);
                 break;
             }
 
@@ -296,6 +300,8 @@ impl ProgressiveRBFSampler {
         }
 
         let total_time = start_time.elapsed().as_secs_f64();
+        let (converged, stopping_reason) =
+            result.unwrap_or((false, "Max iterations reached".to_string()));
 
         Ok(ProgressiveResult {
             final_components: steps
@@ -363,7 +369,7 @@ impl ProgressiveRBFSampler {
     /// Compute quality metric
     fn compute_quality_metric(
         &self,
-        x: &Array2<f64>,
+        _x: &Array2<f64>,
         x_transformed: &Array2<f64>,
         k_exact: &Array2<f64>,
     ) -> Result<f64> {
@@ -637,6 +643,12 @@ pub struct ProgressiveNystroem {
     config: ProgressiveConfig,
 }
 
+impl Default for ProgressiveNystroem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProgressiveNystroem {
     /// Create a new progressive Nyström method
     pub fn new() -> Self {
@@ -672,8 +684,7 @@ impl ProgressiveNystroem {
         let mut current_components = self.config.initial_components;
         let mut previous_quality = 0.0;
         let mut iteration = 0;
-        let mut converged = false;
-        let mut stopping_reason = String::from("Max iterations reached");
+        let result;
 
         loop {
             let step_start = Instant::now();
@@ -700,11 +711,10 @@ impl ProgressiveNystroem {
             steps.push(step);
 
             // Check stopping criteria (using same logic as RBF sampler)
-            if let Some((converged_flag, reason)) =
+            if let Some(stop_result) =
                 self.check_stopping_criteria(quality, improvement, iteration, current_components)
             {
-                converged = converged_flag;
-                stopping_reason = reason;
+                result = Some(stop_result);
                 break;
             }
 
@@ -721,6 +731,8 @@ impl ProgressiveNystroem {
         }
 
         let total_time = start_time.elapsed().as_secs_f64();
+        let (converged, stopping_reason) =
+            result.unwrap_or((false, "Max iterations reached".to_string()));
 
         Ok(ProgressiveResult {
             final_components: steps
@@ -785,9 +797,9 @@ impl ProgressiveNystroem {
     fn check_stopping_criteria(
         &self,
         quality: f64,
-        improvement: f64,
+        _improvement: f64,
         iteration: usize,
-        components: usize,
+        _components: usize,
     ) -> Option<(bool, String)> {
         match &self.config.stopping_criterion {
             StoppingCriterion::TargetQuality { quality: target } => {

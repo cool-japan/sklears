@@ -16,6 +16,9 @@ use std::time::{Duration, Instant};
 
 use crate::{GaussianNB, MultinomialNB};
 
+/// Type alias for train/test split data: (X_train, y_train, X_test, y_test)
+type TrainTestSplit = (Array2<f64>, Array1<i32>, Array2<f64>, Array1<i32>);
+
 /// Benchmark results comparing sklears and scikit-learn
 #[derive(Debug, Clone)]
 pub struct BenchmarkResults {
@@ -371,7 +374,7 @@ fn generate_gaussian_dataset(
     n_features: usize,
     n_classes: usize,
     seed: u64,
-) -> Result<(Array2<f64>, Array1<i32>, Array2<f64>, Array1<i32>)> {
+) -> Result<TrainTestSplit> {
     // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 
     use scirs2_core::random::SeedableRng;
@@ -428,7 +431,7 @@ fn generate_multinomial_dataset(
     n_features: usize,
     n_classes: usize,
     seed: u64,
-) -> Result<(Array2<f64>, Array1<i32>, Array2<f64>, Array1<i32>)> {
+) -> Result<TrainTestSplit> {
     // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 
     use scirs2_core::random::SeedableRng;
@@ -485,7 +488,7 @@ fn generate_sparse_dataset(
     n_features: usize,
     n_classes: usize,
     seed: u64,
-) -> Result<(Array2<f64>, Array1<i32>, Array2<f64>, Array1<i32>)> {
+) -> Result<TrainTestSplit> {
     // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 
     use scirs2_core::random::SeedableRng;

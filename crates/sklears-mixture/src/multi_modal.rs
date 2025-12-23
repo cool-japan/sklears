@@ -160,7 +160,7 @@ impl MultiModalGaussianMixtureBuilder {
 
     /// Set coupling strength between modalities
     pub fn coupling_strength(mut self, strength: f64) -> Self {
-        self.coupling_strength = strength.max(0.0).min(1.0);
+        self.coupling_strength = strength.clamp(0.0, 1.0);
         self
     }
 
@@ -398,7 +398,7 @@ impl MultiModalGaussianMixture<Untrained> {
         }
 
         // Run standard GMM on concatenated data
-        let (mut weights, means_map, covariances_map) = self.initialize_parameters(X)?;
+        let (mut weights, _means_map, _covariances_map) = self.initialize_parameters(X)?;
         let mut log_likelihood_history = Vec::new();
 
         // Since we're doing early fusion, we need to work with the concatenated means
@@ -708,7 +708,7 @@ impl MultiModalGaussianMixture<Untrained> {
         X: &HashMap<String, Array2<f64>>,
         _y: &Option<Array1<usize>>,
     ) -> SklResult<MultiModalGaussianMixtureTrained> {
-        let n_samples = X.values().next().unwrap().nrows();
+        let _n_samples = X.values().next().unwrap().nrows();
         let latent_dim = self.config.shared_latent_dim.unwrap();
         let (weights, modality_means, modality_covariances) = self.initialize_parameters(X)?;
 
@@ -1036,7 +1036,7 @@ impl MultiModalGaussianMixtureTrained {
 
     fn predict_proba_early_fusion(
         &self,
-        X: &HashMap<String, Array2<f64>>,
+        _X: &HashMap<String, Array2<f64>>,
         probabilities: &mut Array2<f64>,
     ) -> SklResult<()> {
         // This would concatenate features and compute GMM probabilities

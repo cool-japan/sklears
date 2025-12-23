@@ -7,7 +7,8 @@ use crate::cross_validation::CrossValidator;
 use crate::grid_search::{ParameterDistributions, ParameterSet};
 use crate::validation::Scoring;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},

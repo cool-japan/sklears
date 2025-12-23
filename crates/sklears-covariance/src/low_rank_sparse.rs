@@ -585,8 +585,10 @@ mod tests {
                 assert_eq!(fitted.get_lambda_nuclear(), 0.1);
                 assert_eq!(fitted.get_lambda_l1(), 0.1);
                 assert!(fitted.get_n_iter() > 0);
-                assert!(fitted.get_rank() >= 0);
-                assert!(fitted.get_nnz_sparse() >= 0);
+                // Rank should be at most min(n_samples, n_features)
+                assert!(fitted.get_rank() <= 3);
+                // Sparse component should have reasonable sparsity
+                let _ = fitted.get_nnz_sparse(); // Just verify it's accessible
                 assert!(fitted.get_sparsity_ratio() >= 0.0 && fitted.get_sparsity_ratio() <= 1.0);
                 assert!(fitted.get_low_rank_ratio() >= 0.0 && fitted.get_low_rank_ratio() <= 1.0);
             }

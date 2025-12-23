@@ -569,7 +569,7 @@ impl AdaptiveSyncConfig {
 
         // Check if exploration is beneficial
         let exploration_probability = self.config.exploration_probability;
-        let random_value: f64 = rng().gen_range(0.0..1.0);
+        let random_value: f64 = rng().random_range(0.0, 1.0);
         if random_value < exploration_probability {
             return Ok(true);
         }

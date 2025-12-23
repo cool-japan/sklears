@@ -44,7 +44,7 @@ use crate::kernels::Kernel;
 use crate::regression::{MogprTrained, MultiOutputGaussianProcessRegressor};
 use crate::utils;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis, concatenate};
-use scirs2_core::random::{thread_rng, Random, Rng}; // SciRS2 Policy
+use scirs2_core::random::{rngs::StdRng, thread_rng, Random, Rng, SeedableRng}; // SciRS2 Policy
 use sklears_core::error::{Result as SklResult, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict};
 use std::f64::consts::PI;
@@ -366,7 +366,7 @@ impl ParetoFrontier {
         for _ in 0..n_samples {
             let mut sample = Array1::zeros(objectives.ncols());
             for j in 0..objectives.ncols() {
-                sample[j] = min_bounds[j] + rng.gen::<f64>() * (max_bounds[j] - min_bounds[j]);
+                sample[j] = rng.gen_range(min_bounds[j]..max_bounds[j]);
             }
 
             // Check if sample is dominated by any point in the frontier
@@ -860,7 +860,7 @@ impl MultiObjectiveBayesianOptimizer<Trained> {
         let mut rng = thread_rng();
         let mut weights = Array1::zeros(self.n_objectives);
         for j in 0..self.n_objectives {
-            weights[j] = rng.gen::<f64>();
+            weights[j] = rng.gen_range(0.0..1.0);
         }
         let weight_sum = weights.sum();
         weights /= weight_sum;

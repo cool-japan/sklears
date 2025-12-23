@@ -27,7 +27,6 @@
 //!
 //! where f(θ) = (1-θ)/(1+θ) and θ is the similarity threshold.
 
-use numrs2::prelude::*;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 use sklears_core::traits::Fit;
@@ -578,7 +577,6 @@ impl ROCKFitted {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use numrs2::prelude::*;
 
     fn create_categorical_data() -> Array2<f64> {
         // Binary/categorical data represented as 0/1

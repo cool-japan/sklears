@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::timeout;
@@ -550,7 +550,7 @@ impl LoadBalancer {
         }
         
         let mut rng = thread_rng();
-        let mut random_weight = rng.gen::<f64>() * total_weight;
+        let mut random_weight = rng.gen() * total_weight;
         
         for service in services {
             random_weight -= service.weight;

@@ -491,7 +491,6 @@ macro_rules! register_hook {
 }
 
 /// Example implementations
-
 /// Example custom estimator: Simple empirical covariance
 #[derive(Debug)]
 pub struct SimpleEmpiricalEstimator {
@@ -701,8 +700,6 @@ mod tests {
     use scirs2_core::random::essentials::Normal;
     use scirs2_core::random::thread_rng;
     use scirs2_core::random::Distribution;
-    // use ndarray_rand::rand_distr::Normal;
-    // use ndarray_rand::RandomExt;
 
     #[test]
     fn test_plugin_registry() {

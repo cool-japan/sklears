@@ -4,9 +4,8 @@
 //! classifier(s) from a pool for each test instance based on the local competence of
 //! classifiers in the region around the test instance.
 
-use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -28,7 +27,7 @@ pub struct DynamicEnsembleSelectionConfig {
     pub competence_threshold: f64,
     /// Pool generation strategy
     pub pool_generation: PoolGenerationStrategy,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -92,10 +91,10 @@ impl Default for SelectionStrategy {
 pub enum PoolGenerationStrategy {
     /// Bootstrap aggregating
     Bagging,
-    /// Random subspace
-    RandomSubspace,
-    /// Random patches (both samples and features)
-    RandomPatches,
+    /// StdRng subspace
+    StdRngSubspace,
+    /// StdRng patches (both samples and features)
+    StdRngPatches,
     /// Different algorithms
     Heterogeneous,
 }
@@ -362,19 +361,19 @@ where
             ));
         }
 
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         // Split data into training and validation for competence estimation
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         // Use 70% for training, 30% for validation
         let validation_size = (n_samples as f64 * 0.3) as usize;
         let mut indices: Vec<usize> = (0..n_samples).collect();
         for i in 0..n_samples {
-            let j = rng.random_range(i, n_samples);
+            let j = rng.gen_range(i..n_samples);
             indices.swap(i, j);
         }
 
@@ -425,7 +424,7 @@ where
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<Vec<C::Fitted>> {
         let mut pool = Vec::new();
 
@@ -435,11 +434,11 @@ where
                     // Bootstrap sampling
                     self.bootstrap_sample(X, y, rng)
                 }
-                PoolGenerationStrategy::RandomSubspace => {
-                    // Random feature subset
+                PoolGenerationStrategy::StdRngSubspace => {
+                    // StdRng feature subset
                     self.random_subspace_sample(X, y, rng)
                 }
-                PoolGenerationStrategy::RandomPatches => {
+                PoolGenerationStrategy::StdRngPatches => {
                     // Both random samples and features
                     let (X_boot, y_boot) = self.bootstrap_sample(X, y, rng);
                     self.random_subspace_sample(&X_boot, &y_boot, rng)
@@ -462,13 +461,13 @@ where
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> (Array2<f64>, Array1<i32>) {
         let n_samples = X.nrows();
         let mut indices = Vec::with_capacity(n_samples);
 
         for _ in 0..n_samples {
-            indices.push(rng.random_range(0, n_samples));
+            indices.push(rng.gen_range(0..n_samples));
         }
 
         let X_bootstrap = X.select(Axis(0), &indices);
@@ -482,14 +481,14 @@ where
         &self,
         X: &Array2<f64>,
         y: &Array1<i32>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> (Array2<f64>, Array1<i32>) {
         let n_features = X.ncols();
         let n_subset_features = (n_features as f64 * 0.7) as usize; // Use 70% of features
 
         let mut feature_indices: Vec<usize> = (0..n_features).collect();
         for i in 0..n_subset_features {
-            let j = rng.random_range(i, n_features);
+            let j = rng.gen_range(i..n_features);
             feature_indices.swap(i, j);
         }
         feature_indices.truncate(n_subset_features);
@@ -557,9 +556,7 @@ where
                 }
             } else {
                 // Use selected classifiers with competence-based weighting
-                for (idx, &classifier_idx) in
-                    competence_region.selected_classifiers.iter().enumerate()
-                {
+                for &classifier_idx in competence_region.selected_classifiers.iter() {
                     let classifier = &trained_data.classifier_pool[classifier_idx];
                     let pred = classifier.predict(&test_instance_2d)?;
                     let weight = competence_region.competence_scores[classifier_idx];
@@ -666,7 +663,7 @@ where
                 // For simplicity, use inverse of average distance as competence
                 // In practice, this would be more sophisticated
                 let mut total_distance = 0.0;
-                for &idx in neighbor_indices {
+                for &_idx in neighbor_indices {
                     // Simplified distance-based competence
                     total_distance += 1.0; // Placeholder
                 }
@@ -834,7 +831,7 @@ mod tests {
             .k_neighbors(5)
             .selection_strategy(SelectionStrategy::TopK(3))
             .competence_threshold(0.6)
-            .pool_generation(PoolGenerationStrategy::RandomSubspace)
+            .pool_generation(PoolGenerationStrategy::StdRngSubspace)
             .random_state(Some(42))
             .build();
 

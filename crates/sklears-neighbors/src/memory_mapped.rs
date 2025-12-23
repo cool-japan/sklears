@@ -665,6 +665,9 @@ impl MmapNeighborIndexBuilder {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "memmap")]
+    use scirs2_core::ndarray::arr2;
+
     use tempfile::NamedTempFile;
 
     #[test]

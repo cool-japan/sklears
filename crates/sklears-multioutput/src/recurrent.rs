@@ -6,8 +6,8 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2, ArrayView3, Axis};
+use scirs2_core::random::thread_rng;
 use scirs2_core::random::RandNormal;
-use scirs2_core::random::{thread_rng, Rng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},

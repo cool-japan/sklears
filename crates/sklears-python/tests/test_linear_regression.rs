@@ -5,7 +5,7 @@
 
 use proptest::prelude::*;
 use scirs2_autograd::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 // We can't directly test PyO3 bindings in unit tests, but we can test
 // the underlying mathematical properties and data transformations
@@ -15,7 +15,7 @@ use scirs2_core::random::{thread_rng, Rng};
 mod linear_regression_properties {
     use super::*;
 
-    /// Property: Linear regression coefficients should be stable for well-conditioned problems
+    // Property: Linear regression coefficients should be stable for well-conditioned problems
     proptest! {
         #[test]
         fn test_coefficient_stability(
@@ -25,9 +25,9 @@ mod linear_regression_properties {
         ) {
             // Generate synthetic data
             let mut rng = thread_rng();
-            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
-            let true_coef = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
-            let noise = Array1::from_shape_fn(n_samples, |_| rng.gen::<f64>() * noise_scale);
+            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
+            let true_coef = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
+            let noise = Array1::from_shape_fn(n_samples, |_| rng.random::<f64>() * noise_scale);
             let y = x.dot(&true_coef) + noise;
 
             // Test that the data dimensions are consistent
@@ -40,7 +40,7 @@ mod linear_regression_properties {
         }
     }
 
-    /// Property: Predictions should be deterministic for the same input
+    // Property: Predictions should be deterministic for the same input
     proptest! {
         #[test]
         fn test_prediction_determinism(
@@ -48,9 +48,9 @@ mod linear_regression_properties {
             n_features in 1..5usize,
         ) {
             let mut rng = thread_rng();
-            let x_test = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
-            let coef = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
-            let intercept = rng.gen::<f64>();
+            let x_test = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
+            let coef = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
+            let intercept = rng.random::<f64>();
 
             // Manual prediction calculation
             let pred1 = x_test.dot(&coef) + intercept;
@@ -62,7 +62,7 @@ mod linear_regression_properties {
         }
     }
 
-    /// Property: Linear regression should satisfy basic mathematical properties
+    // Property: Linear regression should satisfy basic mathematical properties
     proptest! {
         #[test]
         fn test_linear_properties(
@@ -71,8 +71,8 @@ mod linear_regression_properties {
             scale_factor in 1.0f64..10.0,
         ) {
             let mut rng = thread_rng();
-            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
-            let coef = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
+            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
+            let coef = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
 
             // Test linearity: f(a*x) = a*f(x)
             let pred_original = x.dot(&coef);
@@ -85,15 +85,15 @@ mod linear_regression_properties {
         }
     }
 
-    /// Property: R² score should be between -∞ and 1 for valid inputs
+    // Property: R² score should be between -∞ and 1 for valid inputs
     proptest! {
         #[test]
         fn test_r2_score_bounds(
             n_samples in 10..100usize,
         ) {
             let mut rng = thread_rng();
-            let y_true = Array1::from_shape_fn(n_samples, |_| rng.gen::<f64>());
-            let y_pred = Array1::from_shape_fn(n_samples, |_| rng.gen::<f64>());
+            let y_true = Array1::from_shape_fn(n_samples, |_| rng.random::<f64>());
+            let y_pred = Array1::from_shape_fn(n_samples, |_| rng.random::<f64>());
 
             // Calculate R² score manually
             let y_mean = y_true.mean().unwrap_or(0.0);
@@ -113,7 +113,7 @@ mod linear_regression_properties {
         }
     }
 
-    /// Property: Zero coefficients should produce constant predictions
+    // Property: Zero coefficients should produce constant predictions
     proptest! {
         #[test]
         fn test_zero_coefficients(
@@ -122,7 +122,7 @@ mod linear_regression_properties {
             intercept in -100.0f64..100.0,
         ) {
             let mut rng = thread_rng();
-            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
+            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
             let zero_coef = Array1::zeros(n_features);
 
             let predictions = x.dot(&zero_coef) + intercept;
@@ -140,7 +140,7 @@ mod linear_regression_properties {
 mod data_validation_properties {
     use super::*;
 
-    /// Property: Input validation should catch dimension mismatches
+    // Property: Input validation should catch dimension mismatches
     proptest! {
         #[test]
         fn test_dimension_mismatch_detection(
@@ -151,15 +151,15 @@ mod data_validation_properties {
             prop_assume!(n_samples_x != n_samples_y);
 
             let mut rng = thread_rng();
-            let x = Array2::from_shape_fn((n_samples_x, n_features), |_| rng.gen::<f64>());
-            let y = Array1::from_shape_fn(n_samples_y, |_| rng.gen::<f64>());
+            let x = Array2::from_shape_fn((n_samples_x, n_features), |_| rng.random::<f64>());
+            let y = Array1::from_shape_fn(n_samples_y, |_| rng.random::<f64>());
 
             // This should represent a dimension mismatch that should be caught
             prop_assert_ne!(x.nrows(), y.len());
         }
     }
 
-    /// Property: Valid data should pass basic consistency checks
+    // Property: Valid data should pass basic consistency checks
     proptest! {
         #[test]
         fn test_valid_data_consistency(
@@ -167,8 +167,8 @@ mod data_validation_properties {
             n_features in 1..10usize,
         ) {
             let mut rng = thread_rng();
-            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
-            let y = Array1::from_shape_fn(n_samples, |_| rng.gen::<f64>());
+            let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
+            let y = Array1::from_shape_fn(n_samples, |_| rng.random::<f64>());
 
             // Basic consistency checks
             prop_assert_eq!(x.nrows(), y.len());

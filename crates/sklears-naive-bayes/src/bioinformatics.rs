@@ -660,10 +660,10 @@ impl ProteinStructureNB {
         }
 
         // Convert counts to probabilities
-        for class_idx in 0..n_classes {
-            let total_aa = aa_counts[class_idx].sum();
+        for (class_idx, aa_count) in aa_counts.iter().enumerate().take(n_classes) {
+            let total_aa = aa_count.sum();
             if total_aa > 0.0 {
-                self.amino_acid_probs[class_idx] = aa_counts[class_idx].mapv(|count: f64| {
+                self.amino_acid_probs[class_idx] = aa_count.mapv(|count: f64| {
                     let smoothed_prob = (count + self.config.smoothing_alpha)
                         / (total_aa + self.config.smoothing_alpha * 21.0);
                     smoothed_prob.ln()
@@ -1059,7 +1059,7 @@ pub mod utils {
             sequence,
             seq_type,
             metadata: SequenceMetadata {
-                id: format!("test_seq_{}", rng.gen::<u32>()),
+                id: format!("test_seq_{}", rng.random::<u32>()),
                 description: "Test sequence".to_string(),
                 organism: "Test organism".to_string(),
                 length,

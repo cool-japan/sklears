@@ -23,7 +23,6 @@ scirs2-linalg = { workspace = true }  # For linear algebra operations
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
 # ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
 # ❌ ndarray-linalg - use scirs2-linalg instead (SciRS2 Policy)
-numrs2 = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 rayon = { workspace = true }
@@ -32,6 +31,7 @@ lazy_static = { workspace = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = []
@@ -56,3 +56,15 @@ path = "examples/automatic_model_selection_demo.rs"
 [[example]]
 name = "comprehensive_cookbook"
 path = "examples/comprehensive_cookbook.rs"
+
+[[example]]
+name = "sparse_precision_estimation_demo"
+path = "examples/sparse_precision_estimation_demo.rs"
+
+[[example]]
+name = "robust_estimation_comparison"
+path = "examples/robust_estimation_comparison.rs"
+
+[[bench]]
+name = "covariance_benchmarks"
+harness = false

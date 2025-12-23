@@ -4,7 +4,7 @@
 //! thread-safe composition, and work-stealing schedulers.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::Result as SklResult,
     prelude::{Predict, SklearsError, Transform},

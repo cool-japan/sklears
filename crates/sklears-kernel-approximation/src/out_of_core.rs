@@ -7,8 +7,7 @@
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::Result;
 use std::collections::HashMap;
 
@@ -416,7 +415,7 @@ impl OutOfCoreNystroem {
         let mut selected_count = 0;
 
         while let Some(chunk) = loader.load_chunk()? {
-            for (local_idx, row) in chunk.axis_iter(Axis(0)).enumerate() {
+            for row in chunk.axis_iter(Axis(0)) {
                 if selected_count < self.n_components {
                     // Fill reservoir
                     basis_points.push(row.to_owned());
@@ -424,7 +423,7 @@ impl OutOfCoreNystroem {
                     selected_count += 1;
                 } else {
                     // Randomly replace with probability k/n
-                    let replace_idx = rng.gen_range(0..=global_index);
+                    let replace_idx = rng.gen_range(0..global_index + 1);
                     if replace_idx < self.n_components {
                         basis_points[replace_idx] = row.to_owned();
                         point_indices[replace_idx] = global_index;
@@ -540,6 +539,12 @@ pub struct OutOfCoreKernelPipeline {
     config: OutOfCoreConfig,
     methods: Vec<String>,
     results: HashMap<String, Vec<Array2<f64>>>,
+}
+
+impl Default for OutOfCoreKernelPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OutOfCoreKernelPipeline {

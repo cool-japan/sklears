@@ -183,7 +183,7 @@ impl Fit<Array2<f64>, Array1<f64>> for AdaptiveSVM<Untrained> {
     type Fitted = AdaptiveSVM<Trained>;
 
     fn fit(self, x: &Array2<f64>, y: &Array1<f64>) -> Result<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         if n_samples != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -209,7 +209,7 @@ impl Fit<Array2<f64>, Array1<f64>> for AdaptiveSVM<Untrained> {
             .tol(base_config.tol)
             .max_iter(base_config.max_iter);
 
-        use sklears_core::traits::Fit;
+        //         use sklears_core::traits::Fit;
         let trained_svm = base_svm.fit(x, y)?;
 
         if self.config.verbose {
@@ -351,7 +351,7 @@ impl AdaptiveSVM<Untrained> {
             }
 
             // Keep C within reasonable bounds
-            current_c = current_c.max(1e-6).min(1e6);
+            current_c = current_c.clamp(1e-6, 1e6);
         }
 
         Ok((best_c, history))
@@ -363,23 +363,20 @@ impl AdaptiveSVM<Untrained> {
         x: &Array2<f64>,
         y: &Array1<f64>,
         n_iterations: usize,
-        acquisition_function: &AcquisitionFunction,
+        _acquisition_function: &AcquisitionFunction,
     ) -> Result<(f64, Vec<(f64, f64)>)> {
         let mut history = Vec::new();
         let mut best_c = self.config.initial_c;
-        let mut best_score = f64::NEG_INFINITY;
 
         // Initial evaluation
         let initial_score = self.cross_validate(x, y, self.config.initial_c, 5)?;
         history.push((self.config.initial_c, initial_score));
-        best_score = initial_score;
+        let mut best_score = initial_score;
 
         // Simple grid search (simplified Bayesian optimization)
         let c_candidates = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0];
 
-        for iteration in 0..n_iterations.min(c_candidates.len()) {
-            let c = c_candidates[iteration];
-
+        for (iteration, &c) in c_candidates.iter().enumerate().take(n_iterations) {
             if !history.iter().any(|(prev_c, _)| (prev_c - c).abs() < 1e-8) {
                 let score = self.cross_validate(x, y, c, 5)?;
                 history.push((c, score));
@@ -479,7 +476,7 @@ impl AdaptiveSVM<Untrained> {
                 current_c /= 4.0; // Try lower regularization
             }
 
-            current_c = current_c.max(1e-6).min(1e6);
+            current_c = current_c.clamp(1e-6, 1e6);
         }
 
         Ok((best_c, history))
@@ -561,7 +558,7 @@ impl AdaptiveSVM<Untrained> {
 impl Predict<Array2<f64>, Array1<f64>> for AdaptiveSVM<Trained> {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
         let trained_svm = self.trained_svm.as_ref().unwrap();
-        use sklears_core::traits::Predict;
+        //         use sklears_core::traits::Predict;
         trained_svm.predict(x)
     }
 }

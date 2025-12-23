@@ -5,8 +5,7 @@
 //! with modular architecture as described in TODO.md.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, Trained, Untrained};
 use sklears_core::types::{Features, Float};

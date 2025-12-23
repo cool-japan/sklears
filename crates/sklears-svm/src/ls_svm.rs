@@ -6,9 +6,8 @@
 //! more efficient for many problems.
 
 use crate::kernels::{Kernel, KernelType};
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_linalg::solve;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Predict, Trained, Untrained},
@@ -134,18 +133,18 @@ impl Fit<Array2<Float>, Array1<Float>> for LSSVM<Untrained> {
         };
 
         // Compute kernel matrix
-        let mut k_matrix = DMatrix::zeros(n_samples, n_samples);
+        let mut k_matrix = Array2::zeros((n_samples, n_samples));
         for i in 0..n_samples {
             for j in 0..n_samples {
                 let k_val = kernel.compute(x.row(i), x.row(j));
-                k_matrix[(i, j)] = k_val;
+                k_matrix[[i, j]] = k_val;
             }
         }
 
         // Add regularization to diagonal if requested
         if self.config.regularized_kernel {
             for i in 0..n_samples {
-                k_matrix[(i, i)] += 1.0 / self.config.gamma;
+                k_matrix[[i, i]] += 1.0 / self.config.gamma;
             }
         }
 
@@ -161,7 +160,7 @@ impl Fit<Array2<Float>, Array1<Float>> for LSSVM<Untrained> {
             config: self.config,
             state: PhantomData,
             support_vectors_: Some(x.clone()),
-            alpha_: Some(Array1::from_vec(alpha.data.as_vec().clone())),
+            alpha_: Some(alpha),
             intercept_: Some(intercept),
             training_labels_: Some(y.clone()),
             n_features_in_: Some(n_features),
@@ -173,33 +172,33 @@ impl LSSVM<Untrained> {
     /// Solve LS-SVM system with intercept
     fn solve_with_intercept(
         &self,
-        k_matrix: &DMatrix<Float>,
+        k_matrix: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<(DVector<Float>, Float)> {
+    ) -> Result<(Array1<Float>, Float)> {
         let n = k_matrix.nrows();
 
         // Create augmented system: [K + I/gamma  1; 1^T  0] [alpha; b] = [y; 0]
-        let mut a_matrix = DMatrix::zeros(n + 1, n + 1);
-        let mut b_vector = DVector::zeros(n + 1);
+        let mut a_matrix = Array2::zeros((n + 1, n + 1));
+        let mut b_vector = Array1::zeros(n + 1);
 
         // Fill K matrix part
         for i in 0..n {
             for j in 0..n {
-                a_matrix[(i, j)] = k_matrix[(i, j)];
+                a_matrix[[i, j]] = k_matrix[[i, j]];
             }
         }
 
         // Add regularization to diagonal
         if !self.config.regularized_kernel {
             for i in 0..n {
-                a_matrix[(i, i)] += 1.0 / self.config.gamma;
+                a_matrix[[i, i]] += 1.0 / self.config.gamma;
             }
         }
 
         // Add ones vector for intercept
         for i in 0..n {
-            a_matrix[(i, n)] = 1.0;
-            a_matrix[(n, i)] = 1.0;
+            a_matrix[[i, n]] = 1.0;
+            a_matrix[[n, i]] = 1.0;
         }
 
         // Fill b vector
@@ -207,12 +206,12 @@ impl LSSVM<Untrained> {
             b_vector[i] = y[i];
         }
 
-        // Solve the linear system
-        let solution = a_matrix.lu().solve(&b_vector).ok_or_else(|| {
-            SklearsError::NumericalError("Failed to solve LS-SVM linear system".to_string())
+        // Solve the linear system using scirs2-linalg
+        let solution = solve(&a_matrix.view(), &b_vector.view(), None).map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to solve LS-SVM linear system: {}", e))
         })?;
 
-        let alpha = solution.rows(0, n).into_owned();
+        let alpha = solution.slice(scirs2_core::ndarray::s![..n]).to_owned();
         let intercept = solution[n];
 
         Ok((alpha, intercept))
@@ -221,24 +220,22 @@ impl LSSVM<Untrained> {
     /// Solve LS-SVM system without intercept
     fn solve_without_intercept(
         &self,
-        k_matrix: &DMatrix<Float>,
+        k_matrix: &Array2<Float>,
         y: &Array1<Float>,
-    ) -> Result<DVector<Float>> {
+    ) -> Result<Array1<Float>> {
         let n = k_matrix.nrows();
         let mut a_matrix = k_matrix.clone();
 
         // Add regularization to diagonal if not already done
         if !self.config.regularized_kernel {
             for i in 0..n {
-                a_matrix[(i, i)] += 1.0 / self.config.gamma;
+                a_matrix[[i, i]] += 1.0 / self.config.gamma;
             }
         }
 
-        let b_vector = DVector::from_vec(y.to_vec());
-
-        // Solve the linear system
-        let alpha = a_matrix.lu().solve(&b_vector).ok_or_else(|| {
-            SklearsError::NumericalError("Failed to solve LS-SVM linear system".to_string())
+        // Solve the linear system using scirs2-linalg
+        let alpha = solve(&a_matrix.view(), &y.view(), None).map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to solve LS-SVM linear system: {}", e))
         })?;
 
         Ok(alpha)

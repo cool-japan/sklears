@@ -826,7 +826,6 @@ impl Fit<Array2<Float>, Array1<i32>, TrainedKernelDiscriminantAnalysis>
         }
 
         let n_samples = x.nrows();
-        let n_features = x.ncols();
 
         // Get unique classes
         let mut classes = y.to_vec();

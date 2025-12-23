@@ -561,7 +561,7 @@ impl VersionConstraintSolver {
             match a.cmp(&b) {
                 std::cmp::Ordering::Less => return -1,
                 std::cmp::Ordering::Greater => return 1,
-                std::cmp::Ordering::Equal => continue,
+                std::cmp::Ordering::Equal => {}
             }
         }
 

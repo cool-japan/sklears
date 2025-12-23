@@ -162,13 +162,11 @@ impl MetaLearningCalibrator {
                 let mut method_clone = method.clone_box();
 
                 // Train method
-                if let Ok(_) = method_clone.fit(probabilities, y_true) {
+                if method_clone.fit(probabilities, y_true).is_ok() {
                     // Evaluate performance (using negative Brier score)
                     if let Ok(predictions) = method_clone.predict_proba(probabilities) {
                         let mut brier_score = 0.0;
-                        for (i, (&pred, &target)) in
-                            predictions.iter().zip(y_true.iter()).enumerate()
-                        {
+                        for (&pred, &target) in predictions.iter().zip(y_true.iter()) {
                             brier_score += (pred - target as Float).powi(2);
                         }
                         brier_score /= predictions.len() as Float;
@@ -203,7 +201,7 @@ impl MetaLearningCalibrator {
         let learning_rate = 0.01;
         let n_epochs = 100;
 
-        for epoch in 0..n_epochs {
+        for _epoch in 0..n_epochs {
             for task_idx in 0..self.meta_features.nrows() {
                 let features = self.meta_features.row(task_idx);
                 let target_scores = self.performance_matrix.row(task_idx);
@@ -482,6 +480,7 @@ impl FewShotCalibrator {
             }
         }
 
+        #[allow(clippy::needless_range_loop)]
         for class in 0..n_classes {
             if class_counts[class] > 0 {
                 for j in 0..self.embedding_dim {
@@ -680,7 +679,7 @@ impl AutomatedCalibrationSelector {
         best_method_idx: &mut usize,
         best_hyperparams: &mut HashMap<String, Float>,
     ) -> Result<()> {
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         for _ in 0..self.n_iterations {
             // Randomly select method
@@ -755,7 +754,7 @@ impl AutomatedCalibrationSelector {
         best_hyperparams: &mut HashMap<String, Float>,
     ) -> Result<()> {
         // Simplified Bayesian optimization using Gaussian process surrogate
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         for iter in 0..self.n_iterations {
             let method_idx = if iter < 5 {
@@ -803,7 +802,7 @@ impl AutomatedCalibrationSelector {
         best_hyperparams: &mut HashMap<String, Float>,
     ) -> Result<()> {
         let population_size = 10;
-        let rng_instance = thread_rng();
+        let _rng_instance = thread_rng();
 
         // Initialize population
         let mut population = Vec::new();
@@ -818,7 +817,7 @@ impl AutomatedCalibrationSelector {
         }
 
         // Evolution loop
-        for generation in 0..(self.n_iterations / population_size) {
+        for _generation in 0..(self.n_iterations / population_size) {
             let mut fitness_scores = Vec::new();
 
             // Evaluate population
@@ -885,8 +884,8 @@ impl AutomatedCalibrationSelector {
     /// Evaluate a configuration using cross-validation
     fn evaluate_configuration(
         &self,
-        method_idx: usize,
-        hyperparams: &HashMap<String, Float>,
+        _method_idx: usize,
+        _hyperparams: &HashMap<String, Float>,
         probabilities: &Array1<Float>,
         y_true: &Array1<i32>,
     ) -> Result<Float> {
@@ -1091,7 +1090,7 @@ impl DifferentiableECEMetaCalibrator {
         let mut calibrated = Array1::zeros(probabilities.len());
 
         for i in 0..probabilities.len() {
-            let prob = probabilities[i].max(1e-8).min(1.0 - 1e-8);
+            let prob = probabilities[i].clamp(1e-8, 1.0 - 1e-8);
 
             // Determine which bin this probability belongs to
             let mut bin_idx = 0;
@@ -1141,7 +1140,7 @@ impl CalibrationEstimator for DifferentiableECEMetaCalibrator {
                 "Probabilities and targets must have the same length".to_string(),
             ));
         }
-        if probabilities.len() == 0 {
+        if probabilities.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "Input arrays cannot be empty".to_string(),
             ));
@@ -1194,7 +1193,7 @@ impl CalibrationEstimator for DifferentiableECEMetaCalibrator {
                 "Calibrator must be fitted before prediction".to_string(),
             ));
         }
-        if probabilities.len() == 0 {
+        if probabilities.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "Input array cannot be empty".to_string(),
             ));

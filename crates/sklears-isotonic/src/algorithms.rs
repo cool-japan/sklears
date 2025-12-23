@@ -236,7 +236,7 @@ pub fn isotonic_regression_robust(
     loss: &LossFunction,
     increasing: bool,
 ) -> Array1<Float> {
-    let n = y.len();
+    let _n = y.len();
     let mut result = y.clone();
 
     // For robust losses, use iterative approach
@@ -295,10 +295,10 @@ pub fn isotonic_regression_robust(
 /// Pool Adjacent Violators for L1 loss (weighted median)
 fn pool_adjacent_violators_l1(
     y: &Array1<Float>,
-    weights: Option<&Array1<Float>>,
+    _weights: Option<&Array1<Float>>,
     increasing: bool,
 ) -> Array1<Float> {
-    let n = y.len();
+    let _n = y.len();
     let result = y.clone();
 
     // Simple implementation - in practice would use more sophisticated weighted median
@@ -313,7 +313,7 @@ fn pool_adjacent_violators_l1(
 fn pool_adjacent_violators_huber(
     y: &Array1<Float>,
     weights: Option<&Array1<Float>>,
-    delta: Float,
+    _delta: Float,
     increasing: bool,
 ) -> Array1<Float> {
     // Simplified implementation - would use Huber-weighted approach in practice
@@ -324,7 +324,7 @@ fn pool_adjacent_violators_huber(
 fn pool_adjacent_violators_quantile(
     y: &Array1<Float>,
     weights: Option<&Array1<Float>>,
-    quantile: Float,
+    _quantile: Float,
     increasing: bool,
 ) -> Array1<Float> {
     // Simplified implementation - would use quantile-specific approach in practice

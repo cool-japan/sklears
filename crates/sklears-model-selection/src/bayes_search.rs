@@ -339,7 +339,7 @@ impl BayesSearchCV {
     fn evaluate_params<E, CV, F>(
         &self,
         params: Vec<Float>,
-        estimator: E,
+        _estimator: E,
         x: &Array2<Float>,
         y: &Array1<i32>,
         cv: CV,
@@ -358,7 +358,7 @@ impl BayesSearchCV {
         // with the parameter values before cross-validation
 
         // Extract parameter values as a simple feature vector
-        let param_array = Array1::from_vec(params.clone());
+        let _param_array = Array1::from_vec(params.clone());
 
         // Perform cross-validation with a mock evaluation
         // This is a simplified version - in practice you'd configure the estimator
@@ -367,7 +367,7 @@ impl BayesSearchCV {
             .into_iter()
             .map(|(train_indices, test_indices)| {
                 // Create train/test splits
-                let y_train: Array1<i32> = train_indices.iter().map(|&i| y[i]).collect();
+                let _y_train: Array1<i32> = train_indices.iter().map(|&i| y[i]).collect();
                 let y_test: Array1<i32> = test_indices.iter().map(|&i| y[i]).collect();
 
                 // For demonstration, use the scoring function on a simple prediction
@@ -758,7 +758,7 @@ impl TPEOptimizer {
     fn evaluate_params<E, CV, F>(
         &self,
         params: Vec<Float>,
-        estimator: E,
+        _estimator: E,
         x: &Array2<Float>,
         y: &Array1<i32>,
         cv: CV,
@@ -774,7 +774,7 @@ impl TPEOptimizer {
             .split(x.nrows(), Some(y))
             .into_iter()
             .map(|(train_indices, test_indices)| {
-                let y_train: Array1<i32> = train_indices.iter().map(|&i| y[i]).collect();
+                let _y_train: Array1<i32> = train_indices.iter().map(|&i| y[i]).collect();
                 let y_test: Array1<i32> = test_indices.iter().map(|&i| y[i]).collect();
 
                 let y_pred: Array1<i32> = y_test
@@ -953,7 +953,7 @@ mod tests {
 
         search.fit_surrogate_model().unwrap();
 
-        let acquisition = search.compute_acquisition(&[0.5]).unwrap();
+        let _acquisition = search.compute_acquisition(&[0.5]).unwrap();
         // Allow NaN/infinity in some edge cases for the Gaussian process\n        if !acquisition.is_finite() {\n            eprintln!(\"Warning: acquisition function returned non-finite value: {}\", acquisition);\n        }
     }
 

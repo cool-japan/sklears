@@ -128,7 +128,7 @@ pub fn reservoir_sampling<T: Clone>(data: &[T], k: usize) -> Vec<T> {
 
     // Replace elements with gradually decreasing probability
     for i in k..data.len() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.gen_range(0..i + 1);
         if j < k {
             reservoir[j] = data[i].clone();
         }

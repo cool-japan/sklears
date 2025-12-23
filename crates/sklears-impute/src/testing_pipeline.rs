@@ -14,7 +14,7 @@ use crate::simple::SimpleImputer;
 use crate::validation::ImputationMetrics;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sklears_core::traits::Estimator;
+// use sklears_core::traits::Estimator; // Unused
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::Write;
@@ -550,13 +550,12 @@ impl AutomatedTestPipeline {
         let chunk_size = num_cpus::get();
         let results: Result<Vec<_>, _> = test_cases
             .chunks(chunk_size)
-            .map(|chunk| {
+            .flat_map(|chunk| {
                 chunk
                     .par_iter()
                     .map(|test_case| self.execute_single_test(test_case.clone()))
                     .collect::<Vec<_>>()
             })
-            .flatten()
             .collect();
 
         let completed_tests = results?;
@@ -747,7 +746,7 @@ impl AutomatedTestPipeline {
 
         // Apply missing pattern
         let generator = MissingPatternGenerator::new();
-        let (X_missing, _missing_mask) = generator.introduce_missing(&X_true, &missing_pattern)?;
+        let (X_missing, _missing_mask) = generator.introduce_missing(&X_true, missing_pattern)?;
 
         Ok((X_true, X_missing))
     }
@@ -794,8 +793,8 @@ impl AutomatedTestPipeline {
     /// Execute imputation with error handling
     fn execute_imputation(
         &self,
-        imputer: &mut dyn Imputer,
-        X_missing: &Array2<f64>,
+        _imputer: &mut dyn Imputer,
+        _X_missing: &Array2<f64>,
         X_true: &Array2<f64>,
     ) -> ImputationResult<Array2<f64>> {
         // This would call the appropriate imputer methods
@@ -977,7 +976,7 @@ impl AutomatedTestPipeline {
             "End Time: {:?}",
             results.end_time.unwrap_or(SystemTime::now())
         )?;
-        writeln!(file, "")?;
+        writeln!(file)?;
 
         writeln!(file, "=== TEST RESULTS ===")?;
         writeln!(file, "Total Tests: {}", results.total_tests)?;
@@ -988,7 +987,7 @@ impl AutomatedTestPipeline {
             "Success Rate: {:.2}%",
             results.summary_statistics.success_rate * 100.0
         )?;
-        writeln!(file, "")?;
+        writeln!(file)?;
 
         writeln!(file, "=== PERFORMANCE METRICS ===")?;
         writeln!(

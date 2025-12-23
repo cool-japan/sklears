@@ -736,7 +736,7 @@ impl LimeExplainer {
                 // Random sampling with noise
                 for i in 0..self.n_samples {
                     for j in 0..n_features {
-                        let noise = rng.gen_range(-self.sigma..self.sigma);
+                        let noise = rng.random_range(-self.sigma, self.sigma);
                         samples[(i, j)] = instance[j] + noise;
                     }
                 }
@@ -1393,7 +1393,7 @@ impl AnchorExplainer {
 
             // Generate random sample within overall bounds
             for i in 0..n_features {
-                sample[i] = rng.gen_range(-5.0..5.0);
+                sample[i] = rng.random_range(-5.0, 5.0);
             }
 
             total_samples += 1;

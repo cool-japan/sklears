@@ -1,7 +1,8 @@
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
 
@@ -10,7 +11,6 @@ use sklears_core::error::{Result, SklearsError};
 /// This module provides distributed computation capabilities for kernel
 /// approximations, enabling processing of massive datasets that don't
 /// fit in memory or require parallel processing across multiple workers.
-
 /// Partitioning strategy for distributing data across workers
 #[derive(Debug, Clone)]
 /// PartitionStrategy
@@ -365,7 +365,7 @@ impl DistributedRBFSampler {
 
         // Shuffle indices
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -445,7 +445,7 @@ impl DistributedNystroem {
 
     /// Fit the distributed Nyström method
     pub fn fit(&mut self, x: &Array2<f64>) -> Result<()> {
-        let (n_samples, _) = x.dim();
+        let (_n_samples, _) = x.dim();
 
         // Select inducing points
         let inducing_indices = self.select_inducing_points(x)?;

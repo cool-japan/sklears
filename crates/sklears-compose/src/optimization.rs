@@ -922,7 +922,7 @@ impl PipelineOptimizer {
 
         for space in &self.parameter_spaces {
             let value = match &space.param_type {
-                ParameterType::Continuous { min, max } => rng.gen_range(*min..=*max),
+                ParameterType::Continuous { min, max } => rng.gen_range(*min..*max),
                 ParameterType::Discrete { min, max } => f64::from(rng.gen_range(*min..=*max)),
                 ParameterType::Categorical { choices } => {
                     let idx = rng.gen_range(0..choices.len());

@@ -65,7 +65,11 @@ impl LARSEncoder {
     }
 
     /// Perform LARS algorithm
-    pub fn encode(&self, dictionary: &Array2<Float>, signal: &Array1<Float>) -> Result<LARSResult> {
+    pub fn encode(
+        &self,
+        dictionary: &Array2<Float>,
+        _signal: &Array1<Float>,
+    ) -> Result<LARSResult> {
         let n_atoms = dictionary.nrows();
 
         // Placeholder implementation

@@ -488,6 +488,7 @@ impl DoCalculus {
         count / total_samples
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn compute_conditional_distribution(
         &self,
         target_idx: usize,
@@ -1225,6 +1226,7 @@ impl CausalDiscovery {
     }
 
     /// Generate combinations
+    #[allow(clippy::only_used_in_recursion)]
     fn combinations(&self, items: &[usize], r: usize) -> Vec<Vec<usize>> {
         if r == 0 {
             return vec![vec![]];

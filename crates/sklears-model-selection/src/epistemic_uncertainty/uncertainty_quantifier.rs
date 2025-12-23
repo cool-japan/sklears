@@ -5,7 +5,7 @@ use super::uncertainty_decomposition::*;
 use super::uncertainty_results::*;
 use super::uncertainty_types::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Float;
 
 #[derive(Debug, Clone)]
 pub struct UncertaintyQuantifier {
@@ -118,7 +118,7 @@ impl UncertaintyQuantifier {
         aleatoric_uncertainty: &Array1<f64>,
     ) -> Result<UncertaintyDecomposition, Box<dyn std::error::Error>> {
         let total_uncertainty = epistemic_uncertainty + aleatoric_uncertainty;
-        let n = total_uncertainty.len();
+        let _n = total_uncertainty.len();
 
         let entropy_components = std::collections::HashMap::new();
         let mutual_information = epistemic_uncertainty.mean().unwrap_or(0.0);

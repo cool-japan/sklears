@@ -5,8 +5,9 @@
 //! updates to handle massive datasets efficiently.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
+use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, Rng, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},

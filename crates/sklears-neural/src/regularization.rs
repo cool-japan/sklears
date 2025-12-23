@@ -904,7 +904,10 @@ mod tests {
         let gradients = regularizer.compute_weight_gradients(&weights);
 
         let expected = array![[0.1, -0.1, 0.0], [0.1, -0.1, 0.0]];
-        assert_abs_diff_eq!(gradients, expected, epsilon = 1e-10);
+        // Compare element by element since approx doesn't implement AbsDiffEq for Array2
+        for (g, e) in gradients.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(*g, *e, epsilon = 1e-10);
+        }
     }
 
     #[test]
@@ -916,7 +919,10 @@ mod tests {
         let gradients = regularizer.compute_weight_gradients(&weights);
 
         let expected = &weights * 0.1;
-        assert_abs_diff_eq!(gradients, expected, epsilon = 1e-10);
+        // Compare element by element since approx doesn't implement AbsDiffEq for Array2
+        for (g, e) in gradients.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(*g, *e, epsilon = 1e-10);
+        }
     }
 
     #[test]
@@ -948,7 +954,10 @@ mod tests {
         let result = apply_soft_threshold_2d(&input, 1.0);
 
         let expected = array![[2.0, -1.0, 0.0], [0.0, 3.0, -0.5]];
-        assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
+        // Compare element by element since approx doesn't implement AbsDiffEq for Array2
+        for (r, e) in result.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(*r, *e, epsilon = 1e-10);
+        }
     }
 
     #[test]

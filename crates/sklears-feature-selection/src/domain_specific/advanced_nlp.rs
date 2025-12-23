@@ -97,6 +97,17 @@ type Result<T> = SklResult<T>;
 
 type Float = f64;
 
+/// Complex return type for NLP analysis methods
+type NLPAnalysisResult = (
+    Array1<Float>,
+    Option<HashMap<String, Array1<Float>>>,
+    Option<HashMap<String, Array1<Float>>>,
+    Option<HashMap<String, Array1<Float>>>,
+    Option<HashMap<String, Float>>,
+    Option<HashMap<String, Float>>,
+    Option<Array2<Float>>,
+);
+
 /// Strategy for NLP feature selection
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NLPStrategy {
@@ -662,7 +673,7 @@ impl Transform<Array2<Float>, Array2<Float>> for AdvancedNLPFeatureSelector<Trai
             SklearsError::InvalidState("Selector must be fitted before transforming".to_string())
         })?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != trained.n_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -1318,7 +1329,7 @@ fn compute_rhetorical_structure_scores(
 
 fn compute_topic_modeling_scores(
     x: &Array2<Float>,
-    y: &Array1<Float>,
+    _y: &Array1<Float>,
     topic_dims: usize,
 ) -> Result<(Array1<Float>, Array2<Float>)> {
     let (n_samples, n_features) = x.dim();
@@ -1467,7 +1478,7 @@ fn compute_attention_scores(
     y: &Array1<Float>,
     head_analysis: bool,
 ) -> Result<(Array1<Float>, Array2<Float>)> {
-    let (n_samples, n_features) = x.dim();
+    let (_n_samples, n_features) = x.dim();
     let mut scores = Array1::zeros(n_features);
 
     // Simplified attention mechanism

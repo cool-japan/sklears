@@ -184,12 +184,12 @@ impl FinancialTimeSeriesImputer {
     /// Compute returns from price series
     fn compute_returns(&self, prices: &ArrayView1<f64>) -> ImputationResult<Vec<f64>> {
         let mut returns = Vec::new();
-        let mut last_valid_price = None;
+        let mut last_valid_price: Option<f64> = None;
 
         for &price in prices.iter() {
             if !price.is_nan() && price > 0.0 {
                 if let Some(prev_price) = last_valid_price {
-                    let ret: f64 = (price as f64 / prev_price as f64).ln();
+                    let ret: f64 = (price / prev_price).ln();
                     returns.push(ret);
                 } else {
                     returns.push(0.0); // First observation
@@ -227,7 +227,7 @@ impl FinancialTimeSeriesImputer {
         let mut conditional_variance =
             historical_variance.iter().sum::<f64>() / historical_variance.len() as f64;
 
-        for (i, &ret) in returns.iter().enumerate() {
+        for &ret in returns.iter() {
             if !ret.is_nan() {
                 // GARCH(1,1) update
                 conditional_variance = alpha0 + alpha1 * ret * ret + beta1 * conditional_variance;
@@ -453,7 +453,7 @@ impl FinancialTimeSeriesImputer {
         &self,
         t: usize,
         prices: &ArrayView1<f64>,
-        returns: &[f64],
+        _returns: &[f64],
     ) -> ImputationResult<f64> {
         // For jumps, use more conservative approach
         let window_size = 5;
@@ -749,7 +749,7 @@ impl PortfolioDataImputer {
 
     /// Create simplified Fama-French factors
     fn create_fama_french_factors(&self, X: &ArrayView2<f64>) -> Array2<f64> {
-        let (n_time, n_assets) = X.dim();
+        let (n_time, _n_assets) = X.dim();
         let n_factors = 3; // Market, Size, Value
         let mut factors = Array2::zeros((n_time, n_factors));
 
@@ -944,7 +944,7 @@ impl PortfolioDataImputer {
         }
 
         // Compute covariance matrix
-        let cov_matrix = centered_data.t().dot(&centered_data) / (n_time - 1) as f64;
+        let _cov_matrix = centered_data.t().dot(&centered_data) / (n_time - 1) as f64;
 
         // For simplicity, return random factors (in practice, would compute eigenvalues/eigenvectors)
         let mut factors = Array2::zeros((n_time, n_components));
@@ -1318,26 +1318,28 @@ impl CreditScoringImputer {
 
     /// Identify risk segments
     fn identify_risk_segments(&self, X: &ArrayView2<f64>) -> ImputationResult<Vec<usize>> {
-        let n_samples = X.nrows();
-        let mut segments = vec![0; n_samples];
-
         // Simple risk segmentation based on available features
         // In practice, would use more sophisticated risk models
-        for i in 0..n_samples {
-            let row_values: Vec<f64> = X.row(i).iter().filter(|&&x| !x.is_nan()).cloned().collect();
+        let segments: Vec<usize> = (0..X.nrows())
+            .map(|i| {
+                let row_values: Vec<f64> =
+                    X.row(i).iter().filter(|&&x| !x.is_nan()).cloned().collect();
 
-            if !row_values.is_empty() {
-                let avg_score = row_values.iter().sum::<f64>() / row_values.len() as f64;
+                if !row_values.is_empty() {
+                    let avg_score = row_values.iter().sum::<f64>() / row_values.len() as f64;
 
-                segments[i] = if avg_score < 0.33 {
-                    2 // High risk
-                } else if avg_score < 0.67 {
-                    1 // Medium risk
+                    if avg_score < 0.33 {
+                        2 // High risk
+                    } else if avg_score < 0.67 {
+                        1 // Medium risk
+                    } else {
+                        0 // Low risk
+                    }
                 } else {
-                    0 // Low risk
-                };
-            }
-        }
+                    0
+                }
+            })
+            .collect();
 
         Ok(segments)
     }
@@ -1349,7 +1351,7 @@ impl CreditScoringImputer {
         segments: &[usize],
         target_segment: usize,
     ) -> ImputationResult<Array2<f64>> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, n_features) = X.dim();
         let mut imputed = X.clone();
 
         // Find samples in target segment
@@ -1436,7 +1438,7 @@ impl CreditScoringImputer {
         for value in constrained.iter_mut() {
             if !value.is_nan() {
                 // Ensure values are within reasonable bounds
-                *value = value.max(0.0).min(1.0);
+                *value = value.clamp(0.0, 1.0);
             }
         }
 

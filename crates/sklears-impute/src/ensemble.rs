@@ -303,7 +303,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for RandomForestImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -350,7 +350,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -465,7 +465,7 @@ impl RandomForestImputer<Untrained> {
         y: &Array1<f64>,
         rng: &mut impl Rng,
     ) -> SklResult<DecisionTree> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let mut sample_indices: Vec<usize> = (0..n_samples).collect();
 
         if self.bootstrap {
@@ -512,7 +512,7 @@ impl RandomForestImputer<Untrained> {
         // Check stopping criteria
         let should_stop = n_samples < self.min_samples_split
             || n_samples < self.min_samples_leaf * 2
-            || self.max_depth.map_or(false, |max_d| depth >= max_d)
+            || self.max_depth.is_some_and(|max_d| depth >= max_d)
             || self.all_targets_equal(data, sample_indices);
 
         if should_stop {
@@ -906,7 +906,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for GradientBoostingImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_n_samples, n_features) = X.dim();
 
         let feature_means = compute_feature_means(&X, self.missing_values);
@@ -935,7 +935,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -1032,7 +1032,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ExtraTreesImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (_n_samples, n_features) = X.dim();
 
         let feature_means = compute_feature_means(&X, self.missing_values);
@@ -1061,7 +1061,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {

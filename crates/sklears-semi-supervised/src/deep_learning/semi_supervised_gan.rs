@@ -5,7 +5,7 @@
 //! leveraging unlabeled data through the adversarial training process.
 
 use scirs2_core::ndarray_ext::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Untrained},
@@ -46,7 +46,7 @@ impl Generator {
             for i in 0..output_dim {
                 for j in 0..input_dim {
                     // Generate standard normal (approximate) and scale
-                    w[[i, j]] = rng.gen_range(-3.0..3.0) / 3.0 * scale;
+                    w[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * scale;
                 }
             }
             let w = w;
@@ -92,7 +92,7 @@ impl Generator {
             let mut noise = Array1::zeros(self.noise_dim);
             for j in 0..self.noise_dim {
                 // Generate standard normal (approximate)
-                noise[j] = rng.gen_range(-3.0..3.0) / 3.0;
+                noise[j] = rng.random_range(-3.0, 3.0) / 3.0;
             }
             let generated = self.forward(&noise.view())?;
             samples.row_mut(i).assign(&generated);
@@ -136,7 +136,7 @@ impl Discriminator {
             for i in 0..output_dim {
                 for j in 0..input_dim {
                     // Generate standard normal (approximate) and scale
-                    w[[i, j]] = rng.gen_range(-3.0..3.0) / 3.0 * scale;
+                    w[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * scale;
                 }
             }
             let w = w;

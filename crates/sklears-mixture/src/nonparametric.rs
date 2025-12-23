@@ -1546,7 +1546,7 @@ impl DirichletProcessGaussianMixture<DirichletProcessGaussianMixtureTrained> {
     }
 
     /// Score samples using the lower bound
-    pub fn score(&self, X: &ArrayView2<'_, Float>) -> SklResult<f64> {
+    pub fn score(&self, _X: &ArrayView2<'_, Float>) -> SklResult<f64> {
         Ok(self.state.lower_bound)
     }
 

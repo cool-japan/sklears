@@ -193,7 +193,7 @@ impl TrainedCanonicalDiscriminantAnalysis {
         let standardized = self.standardize_data(x);
         let mut distances = Array2::zeros((x.nrows(), self.classes.len()));
 
-        for (i, &class) in self.classes.iter().enumerate() {
+        for (i, &_class) in self.classes.iter().enumerate() {
             let group_mean = self.group_means.row(i);
             for (j, sample) in standardized.axis_iter(Axis(0)).enumerate() {
                 let diff = &sample - &group_mean;

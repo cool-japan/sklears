@@ -22,6 +22,7 @@ mod approximate_graph_methods;
 mod batch_active_learning;
 mod bayesian_methods;
 mod co_training;
+mod composable_graph;
 mod contrastive_learning;
 mod convergence_tests;
 mod cross_modal_contrastive;
@@ -44,11 +45,13 @@ mod mixture_discriminant_analysis;
 mod multi_armed_bandits;
 mod multi_view_graph;
 mod optimal_transport;
+pub mod parallel_graph;
 mod robust_graph_methods;
 mod self_training;
 mod self_training_classifier;
 mod semi_supervised_gmm;
 mod semi_supervised_naive_bayes;
+pub mod simd_distances;
 mod streaming_graph_learning;
 mod tri_training;
 
@@ -58,6 +61,7 @@ pub use approximate_graph_methods::*;
 pub use batch_active_learning::*;
 pub use bayesian_methods::*;
 pub use co_training::*;
+pub use composable_graph::*;
 pub use contrastive_learning::*;
 pub use convergence_tests::*;
 pub use cross_modal_contrastive::*;
@@ -497,7 +501,7 @@ mod tests {
     // Robustness tests with label noise
     #[test]
     fn test_label_propagation_robustness() {
-        use scirs2_core::random::{Random, Rng};
+        use scirs2_core::random::Random;
 
         let mut rng = Random::seed(42);
 
@@ -505,7 +509,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((50, 5));
         for i in 0..50 {
             for j in 0..5 {
-                X[(i, j)] = rng.gen_range(-1.0..1.0);
+                X[(i, j)] = rng.random_range(-1.0, 1.0);
             }
         }
         let y_true = array![
@@ -548,7 +552,7 @@ mod tests {
 
     #[test]
     fn test_self_training_robustness() {
-        use scirs2_core::random::{Random, Rng};
+        use scirs2_core::random::Random;
 
         let mut rng = Random::seed(42);
 
@@ -556,7 +560,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((30, 4));
         for i in 0..30 {
             for j in 0..4 {
-                X[(i, j)] = rng.gen_range(-1.0..1.0);
+                X[(i, j)] = rng.random_range(-1.0, 1.0);
             }
         }
         let y_clean = array![
@@ -590,7 +594,7 @@ mod tests {
 
     #[test]
     fn test_co_training_robustness() {
-        use scirs2_core::random::{Random, Rng};
+        use scirs2_core::random::Random;
 
         let mut rng = Random::seed(42);
 
@@ -598,7 +602,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((20, 6));
         for i in 0..20 {
             for j in 0..6 {
-                X[(i, j)] = rng.gen_range(-1.0..1.0);
+                X[(i, j)] = rng.random_range(-1.0, 1.0);
             }
         }
         let y_clean =
@@ -641,14 +645,14 @@ mod tests {
     // Label efficiency tests
     #[test]
     fn test_label_efficiency_comparison() {
-        use scirs2_core::random::{Random, Rng};
+        use scirs2_core::random::Random;
         let mut rng = Random::seed(42);
 
         // Generate synthetic dataset - create it manually to avoid distribution conflicts
         let mut X = Array2::<f64>::zeros((40, 5));
         for i in 0..40 {
             for j in 0..5 {
-                X[(i, j)] = rng.gen_range(-1.0..1.0);
+                X[(i, j)] = rng.random_range(-1.0, 1.0);
             }
         }
 

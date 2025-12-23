@@ -710,7 +710,7 @@ impl TimeSeriesAnalyzer {
         let mut result = Array1::zeros(n);
 
         for i in 0..n {
-            let start = if i >= window / 2 { i - window / 2 } else { 0 };
+            let start = i.saturating_sub(window / 2);
             let end = (i + window / 2 + 1).min(n);
 
             let sum: Float = series.slice(scirs2_core::ndarray::s![start..end]).sum();
@@ -834,7 +834,7 @@ impl TimeSeriesAnalyzer {
         // Find significant changes in variance
         for i in 1..variances.len() {
             let ratio = variances[i] / variances[i - 1].max(1e-10);
-            if ratio > 2.0 || ratio < 0.5 {
+            if !(0.5..=2.0).contains(&ratio) {
                 change_points.push(i + window);
             }
         }
@@ -1353,7 +1353,7 @@ impl TimeSeriesAnalyzer {
         // Normalize
         let max_importance = importance.iter().cloned().fold(0.0, Float::max);
         if max_importance > 0.0 {
-            importance = importance / max_importance;
+            importance /= max_importance;
         }
 
         Ok(importance)

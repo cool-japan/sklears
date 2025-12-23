@@ -141,7 +141,7 @@ impl Fit<Array2<f64>, ()> for GeographicMixture<Untrained> {
     type Fitted = GeographicMixture<GeographicMixtureTrained>;
 
     fn fit(self, X: &Array2<f64>, _y: &()) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
 
         if n_samples < self.n_components {
             return Err(SklearsError::InvalidInput(
@@ -165,7 +165,7 @@ impl Fit<Array2<f64>, ()> for GeographicMixture<Untrained> {
         let (final_weights, final_means, final_covariances) =
             self.geographic_em_algorithm(&geographic_features, weights, means, covariances)?;
 
-        let trained_state = GeographicMixtureTrained {
+        let _trained_state = GeographicMixtureTrained {
             weights: final_weights,
             means: final_means,
             covariances: final_covariances,
@@ -250,7 +250,7 @@ impl GeographicMixture<Untrained> {
         mut means: Array2<f64>,
         mut covariances: Array3<f64>,
     ) -> SklResult<(Array1<f64>, Array2<f64>, Array3<f64>)> {
-        let (n_samples, n_features) = features.dim();
+        let (_n_samples, n_features) = features.dim();
         let n_components = self.n_components;
         let mut prev_log_likelihood = f64::NEG_INFINITY;
 
@@ -264,7 +264,7 @@ impl GeographicMixture<Untrained> {
             }
         }
 
-        for iteration in 0..self.max_iter {
+        for _iteration in 0..self.max_iter {
             // E-step: Compute responsibilities
             let responsibilities =
                 self.geographic_e_step(features, &weights, &means, &covariances)?;
@@ -302,7 +302,7 @@ impl GeographicMixture<Untrained> {
     fn initialize_geographic_parameters(
         &self,
         features: &Array2<f64>,
-        mut weights: Array1<f64>,
+        _weights: Array1<f64>,
         mut means: Array2<f64>,
     ) -> SklResult<(Array1<f64>, Array2<f64>)> {
         let (n_samples, n_features) = features.dim();
@@ -357,7 +357,7 @@ impl GeographicMixture<Untrained> {
         }
 
         // Uniform weights
-        weights = Array1::from_elem(n_components, 1.0 / n_components as f64);
+        let weights = Array1::from_elem(n_components, 1.0 / n_components as f64);
 
         Ok((weights, means))
     }

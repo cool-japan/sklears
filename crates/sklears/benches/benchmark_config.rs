@@ -9,10 +9,12 @@ pub fn generate_benchmark_data(
     n_samples: usize,
     n_features: usize,
 ) -> (Array2<Float>, Array1<Float>) {
-    use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::Rng;
+    use scirs2_core::random::SeedableRng;
     let mut rng = StdRng::seed_from_u64(42);
 
-    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<Float>() * 10.0);
+    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<Float>() * 10.0);
     let y = Array1::from_shape_fn(n_samples, |i| (i % 2) as Float);
 
     (x, y)
@@ -24,10 +26,12 @@ pub fn generate_multiclass_data(
     n_features: usize,
     n_classes: usize,
 ) -> (Array2<Float>, Array1<i32>) {
-    use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::Rng;
+    use scirs2_core::random::SeedableRng;
     let mut rng = StdRng::seed_from_u64(42);
 
-    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<Float>() * 10.0);
+    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<Float>() * 10.0);
     let y = Array1::from_shape_fn(n_samples, |i| (i % n_classes) as i32);
 
     (x, y)

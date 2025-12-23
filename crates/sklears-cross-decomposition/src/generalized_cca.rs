@@ -4,7 +4,6 @@
 //! simultaneously using generalized eigenvalue decomposition for more robust
 //! optimization and theoretical guarantees.
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use sklears_core::{
     error::{Result, SklearsError},

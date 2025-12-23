@@ -7,7 +7,8 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::SeedableRng;
+use scirs2_core::StdRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -455,7 +456,7 @@ impl GpuTSNE {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         for i in 0..n_samples {

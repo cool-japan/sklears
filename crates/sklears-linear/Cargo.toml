@@ -1,6 +1,6 @@
 [package]
 name = "sklears-linear"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -15,7 +15,6 @@ categories = ["science", "mathematics"]
 [dependencies]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
-numrs2 = { workspace = true }
 scirs2-core = { workspace = true }
 
 # Core SciRS2 modules for Linear Models
@@ -38,7 +37,7 @@ libc = { workspace = true }
 num_cpus = { workspace = true }
 bincode = { version = "1.3", optional = true }
 serde_json = { version = "1.0", optional = true }
-rmp-serde = { version = "1.1", optional = true }
+rmp-serde = { version = "1.3", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
 
 [target.'cfg(windows)'.dependencies]
@@ -48,7 +47,7 @@ winapi = { version = "0.3", features = ["sysinfoapi"] }
 criterion = { workspace = true }
 proptest = { workspace = true }
 sklears-metrics = { workspace = true }
-tempfile = "3.8"
+tempfile = "3.23"
 
 [features]
 default = ["std", "linear-regression", "ridge", "lasso", "coordinate-descent", "early-stopping"]

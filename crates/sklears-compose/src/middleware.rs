@@ -849,7 +849,7 @@ impl MiddlewareChain {
                 if let Err(e) = middleware.before_process(context, input) {
                     let action = middleware.on_error(context, &e)?;
                     match action {
-                        ErrorAction::Continue => continue,
+                        ErrorAction::Continue => {}
                         ErrorAction::Abort => {
                             self.stats.failed_requests += 1;
                             return Err(e);
@@ -879,7 +879,7 @@ impl MiddlewareChain {
                 if let Err(e) = middleware.after_process(context, &result) {
                     let action = middleware.on_error(context, &e)?;
                     match action {
-                        ErrorAction::Continue => continue,
+                        ErrorAction::Continue => {}
                         ErrorAction::Abort => {
                             self.stats.failed_requests += 1;
                             return Err(e);

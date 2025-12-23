@@ -6,8 +6,8 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 use sklears_core::error::{Result, SklearsError};
@@ -374,6 +374,12 @@ pub enum BoundType {
     Empirical,
 }
 
+impl Default for ErrorBoundsValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ErrorBoundsValidator {
     pub fn new() -> Self {
         Self {
@@ -669,6 +675,12 @@ pub enum BaselineMethod {
     PreviousBest { method_name: String },
 }
 
+impl Default for QualityAssessment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QualityAssessment {
     pub fn new() -> Self {
         Self {
@@ -795,7 +807,10 @@ impl QualityAssessment {
         }
 
         let mut v = Array1::from_vec(vec![1.0; m]);
-        v /= (v.dot(&v) as f64).sqrt();
+        #[allow(clippy::unnecessary_cast)]
+        {
+            v /= (v.dot(&v) as f64).sqrt();
+        }
 
         for _ in 0..50 {
             let mut av: Array1<f64> = Array1::zeros(n);

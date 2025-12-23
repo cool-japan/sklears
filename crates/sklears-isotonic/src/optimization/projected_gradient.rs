@@ -7,7 +7,6 @@ use super::simd_operations;
 use crate::isotonic_regression;
 use scirs2_core::ndarray::{s, Array1};
 use sklears_core::{error::Result, types::Float};
-// SIMD operations temporarily disabled for compilation compatibility
 
 /// Projected gradient method for isotonic regression
 ///
@@ -201,7 +200,7 @@ impl ProjectedGradientIsotonicRegressor {
 
             // Merge with previous blocks if necessary
             while !blocks.is_empty() {
-                let (block_start, block_end, block_value, block_weight) = blocks.last().unwrap();
+                let (block_start, _block_end, block_value, block_weight) = blocks.last().unwrap();
 
                 if current_value >= *block_value {
                     // No violation, add new block

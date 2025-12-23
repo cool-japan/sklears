@@ -335,6 +335,181 @@ pub fn braycurtis_distance(a: &Array1<Float>, b: &Array1<Float>) -> Float {
     }
 }
 
+/// Compute Mahalanobis distance between two points given inverse covariance matrix
+///
+/// The Mahalanobis distance accounts for correlations in the dataset and is
+/// scale-invariant. It requires the inverse covariance matrix of the dataset.
+///
+/// # Arguments
+/// * `x` - First point
+/// * `y` - Second point
+/// * `inv_cov` - Inverse covariance matrix (precision matrix)
+///
+/// # Returns
+/// Mahalanobis distance between x and y
+pub fn mahalanobis_distance(
+    x: &Array1<Float>,
+    y: &Array1<Float>,
+    inv_cov: &scirs2_core::ndarray::Array2<Float>,
+) -> Float {
+    debug_assert_eq!(x.len(), y.len(), "Vectors must have the same length");
+    debug_assert_eq!(
+        inv_cov.nrows(),
+        x.len(),
+        "Inverse covariance matrix dimension mismatch"
+    );
+    debug_assert_eq!(
+        inv_cov.nrows(),
+        inv_cov.ncols(),
+        "Covariance matrix must be square"
+    );
+
+    let diff = x - y;
+    let temp = inv_cov.dot(&diff);
+    diff.dot(&temp).sqrt()
+}
+
+/// Compute KL divergence D(P||Q) between two probability distributions
+///
+/// Kullback-Leibler divergence measures how one probability distribution P
+/// diverges from a reference probability distribution Q.
+///
+/// # Arguments
+/// * `p` - Probability distribution P (must sum to ~1.0)
+/// * `q` - Probability distribution Q (must sum to ~1.0)
+///
+/// # Returns
+/// KL divergence value (non-negative, asymmetric)
+///
+/// # Note
+/// Returns infinity if Q has zero probability where P is non-zero
+pub fn kl_divergence(p: &Array1<Float>, q: &Array1<Float>) -> Float {
+    debug_assert_eq!(p.len(), q.len(), "Distributions must have the same length");
+
+    let mut kl = 0.0;
+    let epsilon = 1e-10;
+
+    for (p_i, q_i) in p.iter().zip(q.iter()) {
+        if *p_i > epsilon {
+            if *q_i < epsilon {
+                return Float::INFINITY;
+            }
+            kl += p_i * (p_i / q_i).ln();
+        }
+    }
+
+    kl
+}
+
+/// Compute Jensen-Shannon divergence between two probability distributions
+///
+/// The Jensen-Shannon divergence is a symmetric and finite measure based on KL divergence.
+/// It measures the similarity between two probability distributions.
+///
+/// # Arguments
+/// * `p` - First probability distribution
+/// * `q` - Second probability distribution
+///
+/// # Returns
+/// Jensen-Shannon divergence (0 to ln(2), symmetric)
+pub fn jensen_shannon_divergence(p: &Array1<Float>, q: &Array1<Float>) -> Float {
+    debug_assert_eq!(p.len(), q.len(), "Distributions must have the same length");
+
+    // Compute average distribution M = (P + Q) / 2
+    let m = (p + q) / 2.0;
+
+    // JS divergence is average of KL(P||M) and KL(Q||M)
+    0.5 * (kl_divergence(p, &m) + kl_divergence(q, &m))
+}
+
+/// Compute Bhattacharyya distance between two probability distributions
+///
+/// The Bhattacharyya distance measures the similarity of two probability distributions.
+/// It is related to the Bhattacharyya coefficient.
+///
+/// # Arguments
+/// * `p` - First probability distribution
+/// * `q` - Second probability distribution
+///
+/// # Returns
+/// Bhattacharyya distance (0 to infinity, symmetric)
+pub fn bhattacharyya_distance(p: &Array1<Float>, q: &Array1<Float>) -> Float {
+    debug_assert_eq!(p.len(), q.len(), "Distributions must have the same length");
+
+    let epsilon = 1e-10;
+    let mut bc = 0.0; // Bhattacharyya coefficient
+
+    for (p_i, q_i) in p.iter().zip(q.iter()) {
+        if *p_i > epsilon && *q_i > epsilon {
+            bc += (p_i * q_i).sqrt();
+        }
+    }
+
+    // Bhattacharyya distance is -ln(BC)
+    if bc > epsilon {
+        -(bc.ln())
+    } else {
+        Float::INFINITY
+    }
+}
+
+/// Compute Wasserstein distance (1-D Earth Mover's Distance) between two distributions
+///
+/// The Wasserstein distance measures the minimum cost of transforming one distribution
+/// into another. This implementation works for 1-D distributions.
+///
+/// # Arguments
+/// * `p` - First probability distribution (weights)
+/// * `q` - Second probability distribution (weights)
+///
+/// # Returns
+/// 1-Wasserstein distance
+///
+/// # Note
+/// Assumes distributions are defined on consecutive integer positions
+pub fn wasserstein_1d(p: &Array1<Float>, q: &Array1<Float>) -> Float {
+    debug_assert_eq!(p.len(), q.len(), "Distributions must have the same length");
+
+    // Compute cumulative distribution functions
+    let mut p_cumsum = 0.0;
+    let mut q_cumsum = 0.0;
+    let mut distance = 0.0;
+
+    for (p_i, q_i) in p.iter().zip(q.iter()) {
+        p_cumsum += p_i;
+        q_cumsum += q_i;
+        distance += (p_cumsum - q_cumsum).abs();
+    }
+
+    distance
+}
+
+/// Compute Hellinger distance between two probability distributions
+///
+/// The Hellinger distance is a symmetric measure that is closely related to the
+/// Bhattacharyya coefficient. It ranges from 0 (identical) to sqrt(2) (completely different).
+///
+/// # Arguments
+/// * `p` - First probability distribution
+/// * `q` - Second probability distribution
+///
+/// # Returns
+/// Hellinger distance (0 to sqrt(2), symmetric)
+pub fn hellinger_distance(p: &Array1<Float>, q: &Array1<Float>) -> Float {
+    debug_assert_eq!(p.len(), q.len(), "Distributions must have the same length");
+
+    let epsilon = 1e-10;
+    let mut sum = 0.0;
+
+    for (p_i, q_i) in p.iter().zip(q.iter()) {
+        if *p_i > epsilon || *q_i > epsilon {
+            sum += (p_i.sqrt() - q_i.sqrt()).powi(2);
+        }
+    }
+
+    (sum / 2.0).sqrt()
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -570,5 +745,121 @@ mod tests {
         let e = array![0.0, 1.0];
         // Numerator: |1-0| + |0-1| = 2, Denominator: 1 + 0 + 0 + 1 = 2, Distance: 2/2 = 1.0
         assert_abs_diff_eq!(braycurtis_distance(&d, &e), 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_mahalanobis_distance() {
+        use scirs2_core::ndarray::array;
+
+        // Create a simple 2D example with identity covariance (should equal Euclidean)
+        let x = array![1.0, 2.0];
+        let y = array![4.0, 6.0];
+        let inv_cov = scirs2_core::ndarray::Array2::eye(2);
+
+        let distance = mahalanobis_distance(&x, &y, &inv_cov);
+        let euclidean = euclidean_distance(&x, &y);
+
+        assert_abs_diff_eq!(distance, euclidean, epsilon = 1e-10);
+
+        // Test with diagonal covariance
+        let mut scaled_inv_cov = scirs2_core::ndarray::Array2::zeros((2, 2));
+        scaled_inv_cov[[0, 0]] = 2.0;
+        scaled_inv_cov[[1, 1]] = 0.5;
+
+        let distance_scaled = mahalanobis_distance(&x, &y, &scaled_inv_cov);
+        assert!(distance_scaled > 0.0);
+    }
+
+    #[test]
+    fn test_kl_divergence() {
+        // Test identical distributions
+        let p = array![0.25, 0.25, 0.25, 0.25];
+        assert_abs_diff_eq!(kl_divergence(&p, &p), 0.0, epsilon = 1e-10);
+
+        // Test different distributions
+        let p = array![0.5, 0.5];
+        let q = array![0.9, 0.1];
+        let kl = kl_divergence(&p, &q);
+        assert!(kl > 0.0);
+
+        // KL divergence is asymmetric
+        let kl_reverse = kl_divergence(&q, &p);
+        assert!((kl - kl_reverse).abs() > 1e-6);
+    }
+
+    #[test]
+    fn test_jensen_shannon_divergence() {
+        // Test identical distributions
+        let p = array![0.25, 0.25, 0.25, 0.25];
+        assert_abs_diff_eq!(jensen_shannon_divergence(&p, &p), 0.0, epsilon = 1e-10);
+
+        // Test different distributions
+        let p = array![0.5, 0.5];
+        let q = array![0.9, 0.1];
+        let js = jensen_shannon_divergence(&p, &q);
+        assert!(js > 0.0);
+        assert!(js <= 2.0_f64.ln()); // JS divergence is bounded by ln(2)
+
+        // JS divergence is symmetric
+        let js_reverse = jensen_shannon_divergence(&q, &p);
+        assert_abs_diff_eq!(js, js_reverse, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_bhattacharyya_distance() {
+        // Test identical distributions
+        let p = array![0.25, 0.25, 0.25, 0.25];
+        assert_abs_diff_eq!(bhattacharyya_distance(&p, &p), 0.0, epsilon = 1e-10);
+
+        // Test different distributions
+        let p = array![0.5, 0.5];
+        let q = array![0.9, 0.1];
+        let dist = bhattacharyya_distance(&p, &q);
+        assert!(dist > 0.0);
+
+        // Symmetric property
+        let dist_reverse = bhattacharyya_distance(&q, &p);
+        assert_abs_diff_eq!(dist, dist_reverse, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_wasserstein_1d() {
+        // Test identical distributions
+        let p = array![0.25, 0.25, 0.25, 0.25];
+        assert_abs_diff_eq!(wasserstein_1d(&p, &p), 0.0, epsilon = 1e-10);
+
+        // Test shifted distribution
+        let p = array![1.0, 0.0, 0.0];
+        let q = array![0.0, 1.0, 0.0];
+        let dist = wasserstein_1d(&p, &q);
+        assert!(dist > 0.0);
+
+        // Symmetric property
+        let dist_reverse = wasserstein_1d(&q, &p);
+        assert_abs_diff_eq!(dist, dist_reverse, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_hellinger_distance() {
+        // Test identical distributions
+        let p = array![0.25, 0.25, 0.25, 0.25];
+        assert_abs_diff_eq!(hellinger_distance(&p, &p), 0.0, epsilon = 1e-10);
+
+        // Test different distributions
+        let p = array![0.5, 0.5];
+        let q = array![0.9, 0.1];
+        let dist = hellinger_distance(&p, &q);
+        assert!(dist > 0.0);
+        assert!(dist <= 2.0_f64.sqrt()); // Hellinger distance is bounded by sqrt(2)
+
+        // Symmetric property
+        let dist_reverse = hellinger_distance(&q, &p);
+        assert_abs_diff_eq!(dist, dist_reverse, epsilon = 1e-10);
+
+        // Test orthogonal distributions
+        let p = array![1.0, 0.0];
+        let q = array![0.0, 1.0];
+        let dist_orthogonal = hellinger_distance(&p, &q);
+        assert_abs_diff_eq!(dist_orthogonal, 1.0, epsilon = 1e-10); // Should be 1.0 for orthogonal
     }
 }

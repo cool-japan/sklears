@@ -369,7 +369,7 @@ fn initialize_membership_matrix(
         // Generate random values for each cluster
         let mut row_sum = 0.0;
         for j in 0..n_clusters {
-            let value: Float = rng.gen_range(0.0..1.0);
+            let value: Float = rng.random_range(0.0..1.0);
             membership[[i, j]] = value;
             row_sum += value;
         }

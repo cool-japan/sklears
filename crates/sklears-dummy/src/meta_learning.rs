@@ -11,7 +11,7 @@
 //! - [`ContinualLearningBaseline`] - Continual learning baseline with catastrophic forgetting prevention
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
-use scirs2_core::random::{prelude::*, thread_rng};
+use scirs2_core::random::{prelude::*, thread_rng, Distribution, Rng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::error::SklearsError;
@@ -591,7 +591,6 @@ impl FittedFewShotRegressor {
 
         // Sample from normal distribution
         use scirs2_core::random::essentials::Normal;
-        use scirs2_core::random::Distribution;
         let normal = Normal::new(mean, std_dev).map_err(|_| SklearsError::InvalidParameter {
             name: "normal_distribution".to_string(),
             reason: "Invalid parameters for normal distribution".to_string(),

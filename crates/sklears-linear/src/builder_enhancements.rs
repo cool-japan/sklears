@@ -78,7 +78,7 @@ pub struct WithRegularization;
 pub struct WithSolver;
 
 /// Validation configuration for enhanced models
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ValidationConfig {
     /// Number of cross-validation folds
     pub cross_validation_folds: Option<usize>,
@@ -90,26 +90,21 @@ pub struct ValidationConfig {
     pub random_state: Option<u64>,
 }
 
-impl Default for ValidationConfig {
-    fn default() -> Self {
-        Self {
-            cross_validation_folds: None,
-            validation_split: None,
-            early_stopping: false,
-            random_state: None,
-        }
-    }
-}
-
 // Enhanced Linear Regression Builder Implementation
-impl EnhancedLinearRegressionBuilder<Unconfigured> {
-    /// Create a new enhanced linear regression builder
-    pub fn new() -> Self {
+impl Default for EnhancedLinearRegressionBuilder<Unconfigured> {
+    fn default() -> Self {
         Self {
             config: LinearRegressionConfig::default(),
             validation_config: ValidationConfig::default(),
             _state: PhantomData,
         }
+    }
+}
+
+impl EnhancedLinearRegressionBuilder<Unconfigured> {
+    /// Create a new enhanced linear regression builder
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Start with a preset configuration
@@ -270,14 +265,21 @@ impl<State> EnhancedLinearRegressionBuilder<State> {
 
 // Enhanced Logistic Regression Builder Implementation
 #[cfg(feature = "logistic-regression")]
-impl EnhancedLogisticRegressionBuilder<Unconfigured> {
-    /// Create a new enhanced logistic regression builder
-    pub fn new() -> Self {
+impl Default for EnhancedLogisticRegressionBuilder<Unconfigured> {
+    fn default() -> Self {
         Self {
             config: LogisticRegressionConfig::default(),
             validation_config: ValidationConfig::default(),
             _state: PhantomData,
         }
+    }
+}
+
+#[cfg(feature = "logistic-regression")]
+impl EnhancedLogisticRegressionBuilder<Unconfigured> {
+    /// Create a new enhanced logistic regression builder
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Start with a preset configuration

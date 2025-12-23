@@ -15,12 +15,13 @@ use sklears_utils::{
 };
 
 #[test]
+#[allow(non_snake_case)]
 fn test_end_to_end_classification_workflow() {
     // Set reproducible random state
     set_random_state(42);
 
     // Generate classification dataset
-    let (X, y) = make_classification(1000, 20, 5, None, None, 0.1, 1.0, Some(42)).unwrap();
+    let (X, _y) = make_classification(1000, 20, 5, None, None, 0.1, 1.0, Some(42)).unwrap();
 
     // Validate the generated data
     assert!(check_array_2d(&X).is_ok());
@@ -51,6 +52,7 @@ fn test_end_to_end_classification_workflow() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_end_to_end_regression_workflow() {
     // Set reproducible random state
     set_random_state(123);
@@ -96,6 +98,7 @@ fn test_end_to_end_regression_workflow() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_parallel_processing_integration() {
     set_random_state(456);
 
@@ -126,6 +129,7 @@ fn test_parallel_processing_integration() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_data_validation_pipeline() {
     set_random_state(789);
 
@@ -139,11 +143,12 @@ fn test_data_validation_pipeline() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_cross_module_data_flow() {
     set_random_state(999);
 
     // Test data flowing through multiple modules
-    let (X, y) = make_regression(400, 8, None, 0.1, 1.0, Some(999)).unwrap();
+    let (X, _y) = make_regression(400, 8, None, 0.1, 1.0, Some(999)).unwrap();
 
     // 1. Data generation -> Array utilities
     let original_stats = array_standardize(&X.column(0).to_owned()).unwrap();
@@ -173,6 +178,7 @@ fn test_cross_module_data_flow() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_performance_integration() {
     use std::time::Instant;
 

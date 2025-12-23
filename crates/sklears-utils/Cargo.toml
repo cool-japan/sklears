@@ -1,6 +1,6 @@
 [package]
 name = "sklears-utils"
-version = "0.1.0-alpha.1"
+version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -23,7 +23,6 @@ scirs2-stats = { workspace = true }  # For statistical utilities
 # ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
 # ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
 # ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
-numrs2 = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 num_cpus = { workspace = true }

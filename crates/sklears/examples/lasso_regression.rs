@@ -22,14 +22,14 @@ fn main() -> Result<()> {
     let mut x = Array2::zeros((n_samples, n_features));
     for i in 0..n_samples {
         for j in 0..n_features {
-            x[[i, j]] = rng.gen_range(-2.0..2.0);
+            x[[i, j]] = rng.random_range(-2.0..2.0);
         }
     }
 
     // Create sparse ground truth coefficients
     let mut true_coef = Array1::zeros(n_features);
     for i in 0..n_informative {
-        true_coef[i] = rng.gen_range(1.0..5.0) * if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+        true_coef[i] = rng.random_range(1.0..5.0) * if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
     }
 
     println!("True coefficients (first 10):");
@@ -39,7 +39,7 @@ fn main() -> Result<()> {
     println!();
 
     // Generate target with noise
-    let y = x.dot(&true_coef) + Array1::from_shape_fn(n_samples, |_| rng.gen_range(-0.5..0.5));
+    let y = x.dot(&true_coef) + Array1::from_shape_fn(n_samples, |_| rng.random_range(-0.5..0.5));
 
     // Fit models with different alpha values
     let alphas = [0.001, 0.01, 0.1, 0.5, 1.0];

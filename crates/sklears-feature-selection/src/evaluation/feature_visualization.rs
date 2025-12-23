@@ -228,6 +228,7 @@ impl StabilityPlots {
 
         // Title
         plot.push_str(&format!("=== {} ===\n\n", title));
+        plot.push_str(&format!("Total candidate features: {}\n\n", total_features));
 
         // Count feature frequencies
         let mut feature_counts: HashMap<usize, usize> = HashMap::new();
@@ -296,7 +297,7 @@ impl StabilityPlots {
             .filter(|(_, count)| *count as f64 / total_selections as f64 >= 0.8)
             .count();
 
-        plot.push_str(&"\nStability Summary:\n".to_string());
+        plot.push_str("\nStability Summary:\n");
         plot.push_str(&format!(
             "  High stability features (≥80%): {}\n",
             high_stability_count
@@ -406,7 +407,7 @@ impl StabilityPlots {
                     x if x >= 0.1 => "··",
                     _ => "  ",
                 };
-                heatmap.push_str(&symbol.to_string());
+                heatmap.push_str(symbol);
             }
             heatmap.push('\n');
         }
@@ -502,7 +503,7 @@ impl RedundancyHeatmaps {
                     x if x >= 0.1 => "··",
                     _ => "  ",
                 };
-                heatmap.push_str(&symbol.to_string());
+                heatmap.push_str(symbol);
             }
             heatmap.push('\n');
         }
@@ -618,7 +619,7 @@ impl RedundancyHeatmaps {
             .map(|(_, _, corr)| corr.abs())
             .fold(0.0, f64::max);
 
-        summary.push_str(&"\nRedundancy Statistics:\n".to_string());
+        summary.push_str("\nRedundancy Statistics:\n");
         summary.push_str(&format!("  Average correlation: {:.3}\n", avg_correlation));
         summary.push_str(&format!("  Maximum correlation: {:.3}\n", max_correlation));
         summary.push_str(&format!(
@@ -701,7 +702,7 @@ impl SelectionFrequencyCharts {
             variance.sqrt()
         };
 
-        histogram.push_str(&"\nFrequency Statistics:\n".to_string());
+        histogram.push_str("\nFrequency Statistics:\n");
         histogram.push_str(&format!(
             "  Average frequency: {:.1}%\n",
             avg_frequency * 100.0
@@ -737,13 +738,11 @@ impl FeatureSetVisualization {
 
         // Main title
         report.push_str(
-            &"╔═══════════════════════════════════════════════════════════════════════════╗\n"
-                .to_string(),
+            "╔═══════════════════════════════════════════════════════════════════════════╗\n",
         );
         report.push_str(&format!("║ {:<73} ║\n", title));
         report.push_str(
-            &"╚═══════════════════════════════════════════════════════════════════════════╝\n\n"
-                .to_string(),
+            "╚═══════════════════════════════════════════════════════════════════════════╝\n\n",
         );
 
         // Feature importance visualization
@@ -874,7 +873,7 @@ impl FeatureSetVisualization {
         }
 
         // Basic statistics
-        summary.push_str(&"\nSelection Statistics:\n".to_string());
+        summary.push_str("\nSelection Statistics:\n");
         summary.push_str(&format!("  Total features: {}\n", feature_indices.len()));
 
         if !importance_scores.is_empty() {
@@ -922,7 +921,7 @@ mod tests {
         assert!(chart.contains("Feature_A"));
         assert!(chart.contains("0.8"));
 
-        let vertical_chart = FeatureImportancePlots::vertical_bar_chart(
+        let _vertical_chart = FeatureImportancePlots::vertical_bar_chart(
             &feature_indices,
             &importance_scores,
             Some(&feature_names),

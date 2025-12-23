@@ -212,7 +212,7 @@ impl MultivariateEMD {
             let channel_signal = signals.row(i).to_owned();
 
             // Validate individual channel
-            let signal_mean = channel_signal.mean().unwrap_or(0.0);
+            let _signal_mean = channel_signal.mean().unwrap_or(0.0);
             let signal_std = channel_signal.std(0.0);
 
             if signal_std < 1e-12 {

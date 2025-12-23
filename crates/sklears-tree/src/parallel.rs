@@ -75,7 +75,7 @@ impl ParallelUtils {
         x: &Array2<f64>,
         y: &Array1<i32>,
         n_samples: usize,
-        seed: u64,
+        _seed: u64,
     ) -> (Array2<f64>, Array1<i32>) {
         let mut rng = thread_rng();
         let original_n_samples = x.nrows();
@@ -243,7 +243,7 @@ impl ParallelUtils {
     }
 
     /// Permute values in a specific feature column
-    fn permute_feature(x: &mut Array2<f64>, feature_idx: usize, seed: u64) -> Result<()> {
+    fn permute_feature(x: &mut Array2<f64>, feature_idx: usize, _seed: u64) -> Result<()> {
         let mut rng = thread_rng();
         let mut column_values: Vec<f64> = x.column(feature_idx).to_vec();
         column_values.shuffle(&mut rng);
@@ -285,7 +285,7 @@ impl ParallelUtils {
 
     /// Sequential execution fallback
     #[cfg(not(feature = "parallel"))]
-    pub fn with_thread_pool<T, F>(n_threads: usize, f: F) -> T
+    pub fn with_thread_pool<T, F>(_n_threads: usize, f: F) -> T
     where
         F: FnOnce() -> T,
     {
@@ -655,15 +655,15 @@ impl ParallelUtils {
             let mut left_counts = vec![0; n_classes];
             let mut right_counts = vec![0; n_classes];
 
-            for j in 0..i {
-                let class = feature_target_pairs[j].1;
+            for pair in feature_target_pairs.iter().take(i) {
+                let class = pair.1;
                 if class >= 0 && (class as usize) < n_classes {
                     left_counts[class as usize] += 1;
                 }
             }
 
-            for j in i..n_samples {
-                let class = feature_target_pairs[j].1;
+            for pair in feature_target_pairs.iter().skip(i) {
+                let class = pair.1;
                 if class >= 0 && (class as usize) < n_classes {
                     right_counts[class as usize] += 1;
                 }

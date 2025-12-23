@@ -5,8 +5,9 @@
 //! gradient-based methods for finding optimal neural network architectures.
 
 use scirs2_core::rand_prelude::IndexedRandom;
-use scirs2_core::random::prelude::*;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -252,7 +253,7 @@ impl NASOptimizer {
         let mut best_score = Float::NEG_INFINITY;
         let mut evaluations_count = 0;
 
-        for generation in 0..generations {
+        for _generation in 0..generations {
             // Evaluate population
             let mut evaluations = Vec::new();
             for architecture in &population {
@@ -329,9 +330,9 @@ impl NASOptimizer {
         let mut policy_weights = HashMap::new();
         let mut epsilon = exploration_rate;
 
-        for episode in 0..episodes {
+        for _episode in 0..episodes {
             // Generate architecture using current policy
-            let architecture = if self.rng.gen::<Float>() < epsilon {
+            let architecture = if self.rng.random::<Float>() < epsilon {
                 self.generate_random_architecture()?
             } else {
                 self.generate_architecture_from_policy(&policy_weights)?
@@ -406,7 +407,7 @@ impl NASOptimizer {
         // Simulate gradient-based search with architecture parameters
         let mut architecture_params = self.initialize_architecture_parameters()?;
 
-        for epoch in 0..search_epochs {
+        for _epoch in 0..search_epochs {
             // Sample architecture from current parameters
             let architecture = self.sample_architecture_from_params(&architecture_params)?;
 
@@ -474,7 +475,7 @@ impl NASOptimizer {
         let mut best_architecture = self.generate_random_architecture()?;
         let mut best_score = Float::NEG_INFINITY;
 
-        for trial in 0..n_trials {
+        for _trial in 0..n_trials {
             let architecture = self.generate_random_architecture()?;
             let evaluation = evaluation_fn(&architecture)?;
             search_history.push(evaluation.clone());
@@ -535,7 +536,7 @@ impl NASOptimizer {
         let mut current_complexity = 1.0;
         let trials_per_stage = 20;
 
-        for stage in 0..stages {
+        for _stage in 0..stages {
             // Search with current complexity constraint
             for _ in 0..trials_per_stage {
                 let architecture =
@@ -689,13 +690,13 @@ impl NASOptimizer {
         // Generate skip connections
         let mut skip_connections = Vec::new();
         if num_layers > 2 {
-            let n_skip = self.rng.gen_range(0..=num_layers / 2);
+            let n_skip = self.rng.gen_range(0..num_layers / 2 + 1);
             for _ in 0..n_skip {
                 let from = self.rng.gen_range(0..num_layers - 1);
                 let max_to =
                     (from + self.config.search_space.max_skip_distance).min(num_layers - 1);
                 if max_to > from {
-                    let to = self.rng.gen_range(from + 1..=max_to);
+                    let to = self.rng.gen_range(from + 1..max_to + 1);
                     skip_connections.push((from, to));
                 }
             }
@@ -754,8 +755,8 @@ impl NASOptimizer {
         // Generate offspring through crossover and mutation
         while new_population.len() < population_size {
             // Extract all random values first to avoid multiple mutable borrows
-            let crossover_prob = self.rng.gen::<Float>();
-            let mutation_prob = self.rng.gen::<Float>();
+            let crossover_prob = self.rng.random::<Float>();
+            let mutation_prob = self.rng.random::<Float>();
 
             let (parent1, parent2) = self.tournament_selection_pair(population, evaluations, 3)?;
 
@@ -948,7 +949,7 @@ impl NASOptimizer {
         // Mutate layer sizes
         for size in &mut mutated.layer_sizes {
             if self.rng.gen_bool(0.2) {
-                let change = self.rng.gen_range(-50..=50);
+                let change = self.rng.gen_range(-50..50 + 1);
                 *size = ((*size as i32 + change) as usize)
                     .max(self.config.search_space.neuron_count_range.0)
                     .min(self.config.search_space.neuron_count_range.1);
@@ -971,7 +972,7 @@ impl NASOptimizer {
         // Mutate dropout rates
         for dropout in &mut mutated.dropout_rates {
             if self.rng.gen_bool(0.2) {
-                let change = self.rng.gen_range(-0.1..=0.1);
+                let change = self.rng.gen_range(-0.1..1.1);
                 *dropout = (*dropout + change)
                     .max(self.config.search_space.dropout_range.0)
                     .min(self.config.search_space.dropout_range.1);
@@ -997,7 +998,7 @@ impl NASOptimizer {
                 let max_to =
                     (from + self.config.search_space.max_skip_distance).min(mutated.num_layers - 1);
                 if max_to > from {
-                    let to = self.rng.gen_range(from + 1..=max_to);
+                    let to = self.rng.gen_range(from + 1..max_to + 1);
                     let connection = (from, to);
                     if !mutated.skip_connections.contains(&connection) {
                         mutated.skip_connections.push(connection);
@@ -1038,7 +1039,7 @@ impl NASOptimizer {
     /// Generate architecture from policy weights (for RL)
     fn generate_architecture_from_policy(
         &mut self,
-        policy_weights: &HashMap<String, Float>,
+        _policy_weights: &HashMap<String, Float>,
     ) -> Result<NeuralArchitecture, Box<dyn std::error::Error>> {
         // Simplified policy-based generation
         // In practice, this would use learned policy weights
@@ -1074,7 +1075,7 @@ impl NASOptimizer {
     /// Sample architecture from parameters (for GDAS)
     fn sample_architecture_from_params(
         &mut self,
-        params: &HashMap<String, Float>,
+        _params: &HashMap<String, Float>,
     ) -> Result<NeuralArchitecture, Box<dyn std::error::Error>> {
         // Simplified sampling based on parameters
         self.generate_random_architecture()
@@ -1088,7 +1089,7 @@ impl NASOptimizer {
         learning_rate: Float,
     ) {
         // Simplified parameter update
-        for (key, value) in params.iter_mut() {
+        for (_key, value) in params.iter_mut() {
             *value += learning_rate * evaluation.validation_score * 0.01;
         }
     }

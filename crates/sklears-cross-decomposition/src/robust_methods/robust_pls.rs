@@ -180,8 +180,10 @@ impl Fit<Array2<Float>, Array2<Float>> for RobustPLS<Untrained> {
             let mut iter_count = 0;
 
             // Initialize weights for this component
-            let mut w_x = Array1::from_iter((0..n_features_x).map(|_| thread_rng().gen::<Float>()));
-            let mut w_y = Array1::from_iter((0..n_features_y).map(|_| thread_rng().gen::<Float>()));
+            let mut w_x =
+                Array1::from_iter((0..n_features_x).map(|_| thread_rng().random::<Float>()));
+            let mut w_y =
+                Array1::from_iter((0..n_features_y).map(|_| thread_rng().random::<Float>()));
 
             // Normalize initial weights
             let norm_x = (w_x.dot(&w_x)).sqrt();

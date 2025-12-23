@@ -7,7 +7,6 @@
 
 use super::internal_validation::ClusteringValidator;
 use super::validation_types::*;
-use numrs2::prelude::*;
 use scirs2_core::ndarray::Array2;
 use scirs2_core::rand_prelude::Distribution;
 // Normal distribution via scirs2_core::random::RandNormal
@@ -297,7 +296,7 @@ impl ClusteringValidator {
             for j in 0..n_features {
                 let range = max_vals[j] - min_vals[j];
                 if range > 0.0 {
-                    reference_data[(i, j)] = min_vals[j] + rng.gen_range(0.0..1.0) * range;
+                    reference_data[(i, j)] = min_vals[j] + rng.random_range(0.0, 1.0) * range;
                 } else {
                     reference_data[(i, j)] = min_vals[j];
                 }

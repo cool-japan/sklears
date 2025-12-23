@@ -82,7 +82,7 @@ impl DualCoordinateAscent {
 
         while iteration < self.config.max_iter {
             let mut max_violation = 0.0;
-            let mut updates_made = 0;
+            let mut _updates_made = 0;
 
             // Randomly shuffle active set if using random selection
             if self.config.random_selection {
@@ -114,7 +114,7 @@ impl DualCoordinateAscent {
 
                 // Update alpha
                 alpha[i] = new_alpha_i;
-                updates_made += 1;
+                _updates_made += 1;
 
                 // Update gradient for all samples
                 for j in 0..n_samples {

@@ -667,8 +667,7 @@ impl DAGPipeline<Untrained> {
             if let Some(output) = self.cache.get(dep_id) {
                 inputs.push(output.clone());
             } else if dep_id == "input" {
-                // Handle initial input
-                continue;
+                // Handle initial input - skip to next dependency
             } else {
                 return Err(SklearsError::InvalidInput(format!(
                     "Missing input from dependency: {dep_id}"

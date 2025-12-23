@@ -11,20 +11,26 @@
 // #![warn(missing_docs)]
 
 // Core modules
+pub mod adaptive_streaming;
 pub mod advi;
+pub mod approximation;
 pub mod bayesian;
 pub mod common;
 pub mod empirical_bayes;
 pub mod exponential_family;
 pub mod gaussian;
+pub mod large_scale;
 pub mod mean_field_variational;
 pub mod multi_modal;
 pub mod nonparametric;
 pub mod nuts;
 pub mod online;
+pub mod optimization_enhancements;
 pub mod prior_elicitation;
 pub mod prior_sensitivity;
+pub mod regularization;
 pub mod robust;
+pub mod robust_methods;
 pub mod spatial;
 pub mod stochastic_variational;
 pub mod structured_variational;
@@ -128,6 +134,45 @@ pub use spatial::{
 pub use multi_modal::{
     FusionStrategy, ModalitySpec, MultiModalConfig, MultiModalGaussianMixture,
     MultiModalGaussianMixtureBuilder, MultiModalGaussianMixtureTrained,
+};
+
+// Re-export main types from robust_methods
+pub use robust_methods::{
+    BreakdownAnalysis, InfluenceDiagnostics, MEstimatorGMM, MEstimatorGMMBuilder,
+    MEstimatorGMMTrained, MEstimatorType, TrimmedLikelihoodConfig,
+};
+
+// Re-export main types from regularization
+pub use regularization::{
+    ElasticNetGMM, ElasticNetGMMBuilder, ElasticNetGMMTrained, GroupLassoGMM, GroupLassoGMMBuilder,
+    GroupLassoGMMTrained, L1RegularizedGMM, L1RegularizedGMMBuilder, L1RegularizedGMMTrained,
+    L2RegularizedGMM, L2RegularizedGMMBuilder, L2RegularizedGMMTrained, RegularizationType,
+};
+
+// Re-export main types from optimization_enhancements
+pub use optimization_enhancements::{
+    AcceleratedEM, AcceleratedEMBuilder, AcceleratedEMTrained, AccelerationType,
+    NaturalGradientGMM, NaturalGradientGMMBuilder, NaturalGradientGMMTrained, QuasiNewtonGMM,
+    QuasiNewtonGMMBuilder, QuasiNewtonGMMTrained, QuasiNewtonMethod,
+};
+
+// Re-export main types from adaptive_streaming
+pub use adaptive_streaming::{
+    AdaptiveStreamingConfig, AdaptiveStreamingGMM, AdaptiveStreamingGMMBuilder,
+    AdaptiveStreamingGMMTrained, CreationCriterion, DeletionCriterion, DriftDetectionMethod,
+};
+
+// Re-export main types from large_scale
+pub use large_scale::{
+    BatchStrategy, MiniBatchGMM, MiniBatchGMMBuilder, MiniBatchGMMTrained, ParallelGMM,
+    ParallelGMMBuilder, ParallelGMMTrained, ParallelStrategy,
+};
+
+// Re-export main types from approximation
+pub use approximation::{
+    ImportanceSamplingGMM, ImportanceSamplingGMMBuilder, ImportanceSamplingGMMTrained,
+    ImportanceSamplingStrategy, LaplaceGMM, LaplaceGMMBuilder, LaplaceGMMTrained, MonteCarloGMM,
+    MonteCarloGMMBuilder, MonteCarloGMMTrained, MonteCarloMethod,
 };
 
 // Module stubs for future implementation

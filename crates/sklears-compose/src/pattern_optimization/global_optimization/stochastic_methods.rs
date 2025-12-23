@@ -1174,7 +1174,7 @@ impl StochasticOptimizer {
             for i in 0..problem.dimension {
                 let (lower, upper) = problem.bounds[i];
                 // Simplified Latin hypercube sampling
-                let unit_sample = self.rng.gen::<f64>();
+                let unit_sample = self.rng.gen();
                 sample[i] = lower + unit_sample * (upper - lower);
             }
             samples.push(sample);
@@ -1208,8 +1208,8 @@ impl StochasticOptimizer {
 
             // Simplified update: move toward global best with some randomness
             for j in 0..new_particle.len() {
-                let r1 = self.rng.gen::<f64>();
-                let r2 = self.rng.gen::<f64>();
+                let r1 = self.rng.gen();
+                let r2 = self.rng.gen();
 
                 new_particle[j] += config.cognitive_coefficient * r1 * (particle[j] - new_particle[j])
                     + config.social_coefficient * r2 * (global_best[j] - new_particle[j]);

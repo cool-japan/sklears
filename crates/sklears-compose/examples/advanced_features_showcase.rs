@@ -11,7 +11,8 @@
 //! This showcases the cutting-edge capabilities that make sklears-compose
 //! suitable for production ML workflows and research applications.
 //!
-//! Run with: cargo run --example advanced_features_showcase
+use scirs2_core::random::Rng;
+// Run with: cargo run --example advanced_features_showcase
 
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_compose::{
@@ -44,10 +45,7 @@ use sklears_compose::{
     WasmStep,
     WasmStepType,
 };
-use sklears_core::{
-    error::Result as SklResult,
-    traits::{Fit, Predict},
-};
+use sklears_core::{error::Result as SklResult, traits::Fit};
 use std::collections::HashMap;
 
 /// Demonstrate enhanced configuration validation
@@ -61,17 +59,17 @@ fn demonstrate_configuration_validation() -> SklResult<()> {
     // Mock configuration for testing
     #[derive(Debug)]
     struct TestConfig {
-        n_jobs: i32,
-        random_state: Option<u32>,
-        verbose: bool,
-        learning_rate: f64,
+        _n_jobs: i32,
+        _random_state: Option<u32>,
+        _verbose: bool,
+        _learning_rate: f64,
     }
 
     let config = TestConfig {
-        n_jobs: 8,
-        random_state: Some(42),
-        verbose: true,
-        learning_rate: 0.01,
+        _n_jobs: 8,
+        _random_state: Some(42),
+        _verbose: true,
+        _learning_rate: 0.01,
     };
 
     // Validate the configuration
@@ -395,10 +393,10 @@ fn demonstrate_performance_monitoring() -> SklResult<()> {
     println!("=============================");
 
     // Create sample data for performance testing
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
     let mut rng = thread_rng();
-    let X = Array2::from_shape_fn((1000, 20), |_| rng.gen::<f64>() * 2.0 - 1.0);
-    let y = Array1::from_shape_fn(1000, |_| if rng.gen::<f64>() < 0.5 { 0.0 } else { 1.0 });
+    let X = Array2::from_shape_fn((1000, 20), |_| rng.random::<f64>() * 2.0 - 1.0);
+    let y = Array1::from_shape_fn(1000, |_| if rng.random::<f64>() < 0.5 { 0.0 } else { 1.0 });
 
     println!("📊 Performance Benchmarking:");
     println!("   • Dataset: 1000 samples, 20 features");

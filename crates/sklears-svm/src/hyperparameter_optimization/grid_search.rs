@@ -2,12 +2,14 @@
 
 use std::time::Instant;
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Random;
+
+// Type aliases for compatibility
+type DMatrix<T> = Array2<T>;
+type DVector<T> = Array1<T>;
 
 use crate::kernels::KernelType;
 use crate::svc::SVC;
@@ -247,27 +249,35 @@ impl GridSearchCV {
             };
 
             // Create train/test splits
-            let mut x_train_rows = Vec::new();
+            let mut x_train_data = Vec::new();
             let mut y_train_vals = Vec::new();
-            let mut x_test_rows = Vec::new();
+            let mut x_test_data = Vec::new();
             let mut y_test_vals = Vec::new();
 
             for i in 0..n_samples {
                 if i >= start_idx && i < end_idx {
                     // Test set
-                    x_test_rows.push(x.row(i).clone_owned());
+                    for j in 0..x.ncols() {
+                        x_test_data.push(x[[i, j]]);
+                    }
                     y_test_vals.push(y[i]);
                 } else {
                     // Training set
-                    x_train_rows.push(x.row(i).clone_owned());
+                    for j in 0..x.ncols() {
+                        x_train_data.push(x[[i, j]]);
+                    }
                     y_train_vals.push(y[i]);
                 }
             }
 
-            let x_train = DMatrix::from_rows(&x_train_rows);
-            let y_train = DVector::from_vec(y_train_vals);
-            let x_test = DMatrix::from_rows(&x_test_rows);
-            let y_test = DVector::from_vec(y_test_vals);
+            let n_train = y_train_vals.len();
+            let n_test = y_test_vals.len();
+            let n_features = x.ncols();
+
+            let x_train = Array2::from_shape_vec((n_train, n_features), x_train_data)?;
+            let y_train = Array1::from_vec(y_train_vals);
+            let x_test = Array2::from_shape_vec((n_test, n_features), x_test_data)?;
+            let y_test = Array1::from_vec(y_test_vals);
 
             // Train and evaluate model
             let svm = SVC::new()
@@ -276,22 +286,8 @@ impl GridSearchCV {
                 .tol(params.tol)
                 .max_iter(params.max_iter);
 
-            // Convert to ndarray for SVM
-            let x_train_ndarray = Array2::from_shape_vec(
-                (x_train.nrows(), x_train.ncols()),
-                x_train.iter().cloned().collect(),
-            )?;
-            let y_train_ndarray = Array1::from_vec(y_train.iter().cloned().collect());
-            let x_test_ndarray = Array2::from_shape_vec(
-                (x_test.nrows(), x_test.ncols()),
-                x_test.iter().cloned().collect(),
-            )?;
-
-            let fitted_svm = svm.fit(&x_train_ndarray, &y_train_ndarray)?;
-            let y_pred_ndarray = fitted_svm.predict(&x_test_ndarray)?;
-
-            // Convert back to nalgebra for score calculation
-            let y_pred = DVector::from_vec(y_pred_ndarray.to_vec());
+            let fitted_svm = svm.fit(&x_train, &y_train)?;
+            let y_pred = fitted_svm.predict(&x_test)?;
 
             let score = self.calculate_score(&y_test, &y_pred)?;
             scores.push(score);

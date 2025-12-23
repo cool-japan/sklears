@@ -805,8 +805,8 @@ impl SimdDistanceCalculator {
                     sum += result.iter().sum::<f32>() as Float;
                 } else {
                     // f64 case
-                    let a = vld1q_f64(x1.as_ptr().add(i) as *const f64);
-                    let b = vld1q_f64(x2.as_ptr().add(i) as *const f64);
+                    let a = vld1q_f64(x1.as_ptr().add(i));
+                    let b = vld1q_f64(x2.as_ptr().add(i));
                     let diff = vsubq_f64(a, b);
                     let squared = vmulq_f64(diff, diff);
 
@@ -855,8 +855,8 @@ impl SimdDistanceCalculator {
                     vst1q_f32(result.as_mut_ptr(), abs_diff);
                     sum += result.iter().sum::<f32>() as Float;
                 } else {
-                    let a = vld1q_f64(x1.as_ptr().add(i) as *const f64);
-                    let b = vld1q_f64(x2.as_ptr().add(i) as *const f64);
+                    let a = vld1q_f64(x1.as_ptr().add(i));
+                    let b = vld1q_f64(x2.as_ptr().add(i));
                     let diff = vsubq_f64(a, b);
                     let abs_diff = vabsq_f64(diff);
 
@@ -916,8 +916,8 @@ impl SimdDistanceCalculator {
                     norm1_sq += a_sq_result.iter().sum::<f32>() as Float;
                     norm2_sq += b_sq_result.iter().sum::<f32>() as Float;
                 } else {
-                    let a = vld1q_f64(x1.as_ptr().add(i) as *const f64);
-                    let b = vld1q_f64(x2.as_ptr().add(i) as *const f64);
+                    let a = vld1q_f64(x1.as_ptr().add(i));
+                    let b = vld1q_f64(x2.as_ptr().add(i));
 
                     let dot = vmulq_f64(a, b);
                     let a_sq = vmulq_f64(a, a);

@@ -25,14 +25,18 @@ scirs2-linalg = { workspace = true }  # For linear transformations
 # ❌ rand - use scirs2_core::random instead (SciRS2 Policy)
 # ❌ rand_distr - use scirs2_core::random distributions instead (SciRS2 Policy)
 # ❌ scirs2-autograd - transitional dependency removed (SciRS2 Policy)
-numrs2 = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 rayon = { workspace = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = []
 serde = ["dep:serde", "sklears-core/serde"]
+
+[[bench]]
+name = "text_analysis_benchmarks"
+harness = false

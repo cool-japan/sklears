@@ -452,11 +452,11 @@ impl LDAModel {
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
             let class_idx = self.classes.iter().position(|&c| c == y[i]).unwrap();
             let diff = &row - &self.means.row(class_idx);
-            let diff_outer = diff
-                .clone()
-                .insert_axis(Axis(1))
-                .dot(&diff.insert_axis(Axis(0)));
-            covariance += &diff_outer;
+            for j in 0..n_features {
+                for k in 0..n_features {
+                    covariance[[j, k]] += diff[j] * diff[k];
+                }
+            }
         }
         covariance /= (n_samples - n_classes) as Float;
 
@@ -623,7 +623,7 @@ impl QDAModel {
         }
     }
 
-    pub fn fit(&mut self, x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
+    pub fn fit(&mut self, _x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
         self.classes = {
             let mut cls = y.to_vec();
             cls.sort_unstable();
@@ -672,7 +672,7 @@ impl RDAModel {
         }
     }
 
-    pub fn fit(&mut self, x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
+    pub fn fit(&mut self, _x: &Array2<Float>, y: &Array1<i32>) -> Result<()> {
         self.classes = {
             let mut cls = y.to_vec();
             cls.sort_unstable();

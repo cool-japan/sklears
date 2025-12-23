@@ -154,7 +154,7 @@ impl VonMisesFisher {
             let dot_product = self.mu.dot(&x_normalized);
 
             // Clamp dot product to [-1, 1] for numerical stability
-            let dot_product = dot_product.max(-1.0).min(1.0);
+            let dot_product = dot_product.clamp(-1.0, 1.0);
 
             log_probs[i] = self.normalization_constant.ln() + self.kappa * dot_product;
         }
@@ -197,8 +197,8 @@ impl VonMisesFisher {
         let c = self.kappa * x0 + (d - 1.0) * (1.0 - x0 * x0).ln();
 
         loop {
-            let z = rng.gen::<f64>(); // uniform [0,1]
-            let u = rng.gen::<f64>(); // uniform [0,1]
+            let z: f64 = rng.gen(); // uniform [0,1]
+            let u: f64 = rng.gen(); // uniform [0,1]
             let w = (1.0 - (1.0 + b) * z) / (1.0 - (1.0 - b) * z);
 
             if self.kappa * w + (d - 1.0) * (1.0 - x0 * w).ln() - c >= (u * 2.0 - 1.0).ln() {
@@ -594,7 +594,7 @@ impl VonMisesFisherMixture<Untrained> {
             return 100.0; // Large concentration for very concentrated data
         }
 
-        (numerator / denominator).max(0.0).min(100.0) // Clamp to reasonable range
+        (numerator / denominator).clamp(0.0, 100.0) // Clamp to reasonable range
     }
 
     /// Compute total log-likelihood

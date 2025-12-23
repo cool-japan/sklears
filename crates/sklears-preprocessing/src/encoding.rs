@@ -201,6 +201,7 @@ pub enum UnknownStrategy {
 /// Binary encoder for high-cardinality categorical features
 pub struct BinaryEncoder<State = Untrained> {
     config: BinaryEncoderConfig,
+    fitted_state: Option<BinaryEncoderFitted>,
     state: PhantomData<State>,
 }
 
@@ -222,6 +223,7 @@ impl BinaryEncoder<Untrained> {
     pub fn new() -> Self {
         Self {
             config: BinaryEncoderConfig::default(),
+            fitted_state: None,
             state: PhantomData,
         }
     }
@@ -273,9 +275,9 @@ impl Estimator for BinaryEncoder<Trained> {
 
 impl BinaryEncoder<Trained> {
     fn fitted_state(&self) -> &BinaryEncoderFitted {
-        // This would be properly implemented with the actual fitted state
-        // For now, returning a placeholder
-        unsafe { &*(std::ptr::null::<BinaryEncoderFitted>()) }
+        self.fitted_state
+            .as_ref()
+            .expect("BinaryEncoder<Trained> must have fitted_state")
     }
 }
 
@@ -283,26 +285,42 @@ impl Fit<Vec<String>, ()> for BinaryEncoder<Untrained> {
     type Fitted = BinaryEncoder<Trained>;
 
     fn fit(self, x: &Vec<String>, _y: &()) -> Result<Self::Fitted> {
+        // Extract unique categories and sort them for deterministic encoding
         let mut categories = x.clone();
         categories.sort();
         categories.dedup();
 
         let n_categories = categories.len();
+
+        // Calculate number of binary columns needed for encoding
+        // log2(n_categories) rounded up gives the minimum bits needed
         let n_binary_cols = if n_categories <= 1 {
             1
         } else {
             (n_categories as f64).log2().ceil() as usize
         };
 
+        // Create mapping from category to its index
         let category_mapping: HashMap<String, usize> = categories
             .iter()
             .enumerate()
             .map(|(i, cat)| (cat.clone(), i))
             .collect();
 
-        // Note: In a full implementation, this would properly store the fitted state
-        // For now, this is a structural placeholder
-        todo!("Complete implementation requires proper state management")
+        // Create fitted state
+        let fitted_state = BinaryEncoderFitted {
+            config: self.config.clone(),
+            category_mapping,
+            n_binary_cols,
+            categories,
+        };
+
+        // Return trained encoder with fitted state
+        Ok(BinaryEncoder {
+            config: self.config,
+            fitted_state: Some(fitted_state),
+            state: PhantomData,
+        })
     }
 }
 

@@ -174,7 +174,7 @@ impl Fit<Array2<Float>, ()> for RBM<Untrained> {
                 let mut indices: Vec<usize> = (0..n_samples).collect();
                 // Manual Fisher-Yates shuffle
                 for i in (1..indices.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     indices.swap(i, j);
                 }
                 indices
@@ -182,7 +182,7 @@ impl Fit<Array2<Float>, ()> for RBM<Untrained> {
                 let mut indices: Vec<usize> = (0..n_samples).collect();
                 // Manual Fisher-Yates shuffle
                 for i in (1..indices.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     indices.swap(i, j);
                 }
                 indices

@@ -123,9 +123,6 @@ impl<T> Drop for AlignedAlloc<T> {
 pub mod prefetch {
     use super::PrefetchHint;
 
-    #[cfg(feature = "no-std")]
-    use core::mem;
-
     /// Prefetch memory to cache with specified hint
     #[inline(always)]
     pub fn prefetch_read_data(_address: *const u8, _hint: PrefetchHint) {
@@ -148,7 +145,7 @@ pub mod prefetch {
     #[inline]
     pub fn prefetch_range<T>(slice: &[T], hint: PrefetchHint) {
         let start = slice.as_ptr() as *const u8;
-        let size = std::mem::size_of_val(slice);
+        let size = core::mem::size_of_val(slice);
         let end = unsafe { start.add(size) };
 
         let mut current = start;
@@ -240,7 +237,7 @@ pub mod streaming {
     pub fn stream_store_f32(dest: &mut [f32], src: &[f32]) {
         assert_eq!(dest.len(), src.len());
 
-        if !is_x86_feature_detected!("sse2") {
+        if !crate::simd_feature_detected!("sse2") {
             dest.copy_from_slice(src);
             return;
         }
@@ -288,10 +285,8 @@ pub mod streaming {
 pub mod bandwidth {
     use super::{prefetch::prefetch_range, PrefetchHint};
 
-    #[cfg(feature = "no-std")]
-    use core::{mem, slice};
     #[cfg(not(feature = "no-std"))]
-    use std::{mem, slice, time::Instant};
+    use std::{mem, time::Instant};
 
     /// Bandwidth-optimized vector copy with prefetching
     pub fn copy_with_prefetch<T: Copy>(dest: &mut [T], src: &[T]) {
@@ -301,13 +296,13 @@ pub mod bandwidth {
         prefetch_range(src, PrefetchHint::Nta);
 
         // Use streaming store for large arrays
-        if std::mem::size_of_val(dest) > super::L1_CACHE_SIZE {
+        if core::mem::size_of_val(dest) > super::L1_CACHE_SIZE {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            if mem::size_of::<T>() == mem::size_of::<f32>() {
+            if core::mem::size_of::<T>() == core::mem::size_of::<f32>() {
                 unsafe {
                     super::streaming::stream_store_f32(
-                        slice::from_raw_parts_mut(dest.as_mut_ptr() as *mut f32, dest.len()),
-                        slice::from_raw_parts(src.as_ptr() as *const f32, src.len()),
+                        core::slice::from_raw_parts_mut(dest.as_mut_ptr() as *mut f32, dest.len()),
+                        core::slice::from_raw_parts(src.as_ptr() as *const f32, src.len()),
                     );
                 }
                 return;
@@ -344,10 +339,13 @@ pub mod bandwidth {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_aligned_alloc() {

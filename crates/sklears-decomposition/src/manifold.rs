@@ -11,7 +11,7 @@
 // use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{Rng, thread_rng, Random};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -317,7 +317,7 @@ impl ManifoldLearning<Untrained> {
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.gen::<f64>() * 1e-4;
+                embedding[[i, j]] = rng.gen() * 1e-4;
             }
         }
 
@@ -343,7 +343,7 @@ impl ManifoldLearning<Untrained> {
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = (rng.gen::<f64>() - 0.5) * 20.0;
+                embedding[[i, j]] = (rng.gen() - 0.5) * 20.0;
             }
         }
 
@@ -931,7 +931,7 @@ impl ManifoldLearning<Untrained> {
                 for j in (i + 1)..n_samples {
                     let weight = fuzzy_graph[[i, j]];
 
-                    if weight > rng.gen::<f64>() {
+                    if weight > rng.gen() {
                         // Attractive force
                         self.apply_umap_force(embedding, i, j, true)?;
                     } else {

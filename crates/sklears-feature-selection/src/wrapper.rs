@@ -47,7 +47,8 @@ impl CrossValidator for KFold {
 
         if self.shuffle {
             use scirs2_core::rand_prelude::SliceRandom;
-            use scirs2_core::random::{rngs::StdRng, SeedableRng};
+            use scirs2_core::random::rngs::StdRng;
+            use scirs2_core::random::SeedableRng;
             let mut rng = if let Some(seed) = self.random_state {
                 StdRng::seed_from_u64(seed)
             } else {
@@ -1116,7 +1117,8 @@ impl<E> SequentialFeatureSelector<E, Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
     use sklears_core::types::Array1;
 
     // Mock estimator for testing
@@ -1348,17 +1350,18 @@ mod tests {
     #[test]
     fn test_rfecv_basic() {
         // Create a dataset where first two features are informative
+        let mut rng = StdRng::seed_from_u64(42); // Use deterministic seed
         let mut x = Array2::<Float>::zeros((20, 5));
         let mut y = Array1::<Float>::zeros(20);
 
         for i in 0..20 {
             x[[i, 0]] = i as Float;
             x[[i, 1]] = (i * 2) as Float;
-            x[[i, 2]] = thread_rng().gen::<Float>(); // noise
-            x[[i, 3]] = thread_rng().gen::<Float>(); // noise
-            x[[i, 4]] = thread_rng().gen::<Float>(); // noise
+            x[[i, 2]] = rng.gen::<Float>(); // noise
+            x[[i, 3]] = rng.gen::<Float>(); // noise
+            x[[i, 4]] = rng.gen::<Float>(); // noise
 
-            y[i] = x[[i, 0]] + 2.0 * x[[i, 1]] + 0.1 * thread_rng().gen::<Float>();
+            y[i] = x[[i, 0]] + 2.0 * x[[i, 1]] + 0.1 * rng.gen::<Float>();
         }
 
         let estimator = MockLinearEstimator::new();

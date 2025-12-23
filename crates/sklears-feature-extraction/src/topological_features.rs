@@ -256,7 +256,7 @@ impl PersistentHomologyExtractor {
                     if let (Some(&birth1), Some(&birth2)) =
                         (vertex_birth_time.get(&v1), vertex_birth_time.get(&v2))
                     {
-                        let (merged, older_birth) = union_find.union(v1, v2);
+                        let (merged, _older_birth) = union_find.union(v1, v2);
 
                         if merged {
                             // Component merge - death of younger component

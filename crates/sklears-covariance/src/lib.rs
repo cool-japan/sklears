@@ -9,6 +9,31 @@
 #![allow(unused_doc_comments)]
 #![allow(unused_parens)]
 #![allow(unused_comparisons)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::useless_asref)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::empty_line_after_doc_comments)]
+#![allow(clippy::let_and_return)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::only_used_in_recursion)]
+#![allow(clippy::manual_ok)]
+#![allow(clippy::sort_by_key_reverse)]
+#![allow(clippy::op_ref)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::manual_ok_err)]
+#![allow(clippy::cast_abs_to_unsigned)]
+#![allow(clippy::unnecessary_sort_by)]
+#![allow(clippy::implicit_saturating_sub)]
+#![allow(clippy::manual_abs_diff)]
 //! Covariance estimation algorithms
 //!
 //! This module provides covariance estimators including empirical,
@@ -72,6 +97,9 @@ mod tiger;
 mod time_varying_covariance;
 mod utils;
 
+// Utility and diagnostic modules
+mod diagnostics;
+
 // New modules for remaining implementations
 mod adversarial_robustness;
 mod federated_learning;
@@ -88,6 +116,12 @@ pub use utils::{
     nuclear_norm_approximation, rank_estimate, spectral_radius_estimate,
     validate_covariance_matrix, BenchmarkResult, CovarianceBenchmark, CovarianceCV,
     CovarianceProperties, ScoringMethod,
+};
+
+// Re-export diagnostic utilities
+pub use diagnostics::{
+    compare_covariance_matrices, CorrelationDiagnostics, CovarianceDiagnostics, DiagonalStats,
+    OffDiagonalStats, QualityAssessment,
 };
 
 // Re-export Polars integration
@@ -446,7 +480,7 @@ mod tests {
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
         let shrinkage = fitted.get_shrinkage();
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
     }
 
     #[test]
@@ -493,7 +527,7 @@ mod tests {
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
         let shrinkage = fitted.get_shrinkage();
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
     }
 
     #[test]
@@ -575,7 +609,7 @@ mod tests {
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
         let shrinkage = fitted.get_shrinkage();
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
     }
 
     #[test]
@@ -662,8 +696,8 @@ mod tests {
         let shrinkage = fitted.get_shrinkage();
         let effective_shrinkage = fitted.get_effective_shrinkage();
 
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
-        assert!(effective_shrinkage >= 0.0 && effective_shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
+        assert!((0.0..=1.0).contains(&effective_shrinkage));
     }
 
     #[test]
@@ -723,7 +757,8 @@ mod tests {
         assert!(fitted.get_precision().is_some());
         assert_eq!(fitted.get_lambda(), 0.1);
         // Nuclear norm minimization may result in low-rank matrices due to regularization
-        assert!(fitted.get_rank() >= 0);
+        // Rank should be at most min(n_samples, n_features)
+        assert!(fitted.get_rank() <= 3);
     }
 
     #[test]

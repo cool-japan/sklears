@@ -11,10 +11,7 @@ use sklears_compose::{
     mock::{MockPredictor, MockTransformer},
     ApiConsistencyChecker, ErrorMessageEnhancer, Pipeline,
 };
-use sklears_core::{
-    error::Result as SklResult,
-    traits::{Fit, Predict},
-};
+use sklears_core::{error::Result as SklResult, traits::Fit};
 use std::collections::HashMap;
 
 fn main() -> SklResult<()> {

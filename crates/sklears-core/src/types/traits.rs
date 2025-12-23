@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_numeric_trait_f64() {
-        assert!(f64::SIMD_SUPPORTED);
+        const _: () = assert!(f64::SIMD_SUPPORTED);
         assert_eq!(f64::SIZE_BYTES, 8);
         assert!(1.0_f64.is_near_zero(2.0));
         assert!(!1.0_f64.is_near_zero(0.5));
@@ -407,9 +407,9 @@ mod tests {
 
     #[test]
     fn test_float_bounds_constants() {
-        assert!(f64::EPSILON > 0.0);
-        assert!(f64::MIN_POSITIVE > 0.0);
-        assert!(f64::MAX_VALUE > 0.0);
+        const _: () = assert!(f64::EPSILON > 0.0);
+        const _: () = assert!(f64::MIN_POSITIVE > 0.0);
+        const _: () = assert!(f64::MAX_VALUE > 0.0);
         assert!(f64::INFINITY.is_infinite());
         assert!(f64::NEG_INFINITY.is_infinite());
         assert!(f64::NAN.is_nan());

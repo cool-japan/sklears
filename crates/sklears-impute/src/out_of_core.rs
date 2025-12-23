@@ -277,7 +277,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for OutOfCoreSimpleImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         // Create memory manager
@@ -331,7 +331,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -502,7 +502,7 @@ impl OutOfCoreSimpleImputer<Untrained> {
 impl OutOfCoreSimpleImputer<OutOfCoreSimpleImputerTrained> {
     /// Transform data using out-of-core processing
     fn transform_out_of_core(&self, X: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let mut X_imputed = X.clone();
         let chunk_size = self.state.config.chunk_size.min(n_samples);
 
@@ -512,7 +512,7 @@ impl OutOfCoreSimpleImputer<OutOfCoreSimpleImputerTrained> {
             let mut chunk = X_imputed.slice_mut(s![chunk_start..chunk_end, ..]);
 
             // Impute missing values in this chunk
-            for ((i, j), value) in chunk.indexed_iter_mut() {
+            for ((_i, j), value) in chunk.indexed_iter_mut() {
                 if self.is_missing(*value) {
                     *value = self.state.statistics_[j];
                 }
@@ -524,7 +524,7 @@ impl OutOfCoreSimpleImputer<OutOfCoreSimpleImputerTrained> {
 
     /// Transform data using in-memory processing
     fn transform_in_memory(&self, X: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
         let mut X_imputed = X.clone();
 
         // Parallel imputation across rows
@@ -618,7 +618,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for OutOfCoreKNNImputer<Untrained> {
 
     #[allow(non_snake_case)]
     fn fit(self, X: &ArrayView2<'_, Float>, _y: &()) -> SklResult<Self::Fitted> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         // Create temporary file for reference dataset
@@ -682,7 +682,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
 {
     #[allow(non_snake_case)]
     fn transform(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<Float>> {
-        let X = X.mapv(|x| x as f64);
+        let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
         if n_features != self.state.n_features_in_ {
@@ -782,7 +782,7 @@ impl OutOfCoreKNNImputer<Untrained> {
 impl OutOfCoreKNNImputer<OutOfCoreKNNImputerTrained> {
     /// Transform data using out-of-core processing
     fn transform_out_of_core(&self, X: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        let (n_samples, n_features) = X.dim();
+        let (n_samples, _n_features) = X.dim();
         let mut X_imputed = X.clone();
         let chunk_size = self.state.config.chunk_size.min(n_samples);
 
@@ -792,7 +792,7 @@ impl OutOfCoreKNNImputer<OutOfCoreKNNImputerTrained> {
             let mut chunk = X_imputed.slice_mut(s![chunk_start..chunk_end, ..]);
 
             // Process each row in the chunk
-            for (row_idx, mut row) in chunk.rows_mut().into_iter().enumerate() {
+            for mut row in chunk.rows_mut().into_iter() {
                 // Clone row data before mutable iteration to avoid borrow conflicts
                 let row_data = row.to_owned();
                 for (j, value) in row.iter_mut().enumerate() {
@@ -819,7 +819,7 @@ impl OutOfCoreKNNImputer<OutOfCoreKNNImputerTrained> {
         let mut X_imputed = X.clone();
 
         // Process each sample
-        for (i, mut row) in X_imputed.rows_mut().into_iter().enumerate() {
+        for mut row in X_imputed.rows_mut().into_iter() {
             // Clone row data before mutable iteration to avoid borrow conflicts
             let row_data = row.to_owned();
             for (j, value) in row.iter_mut().enumerate() {
@@ -1085,7 +1085,7 @@ impl MemoryManager {
         Ok(())
     }
 
-    fn load_chunk_from_disk(&mut self, chunk_id: usize) -> Result<(), ImputationError> {
+    fn load_chunk_from_disk(&mut self, _chunk_id: usize) -> Result<(), ImputationError> {
         // Implementation would load chunk data from disk
         // For now, we'll create a placeholder implementation
         Err(ImputationError::ProcessingError(
@@ -1093,7 +1093,7 @@ impl MemoryManager {
         ))
     }
 
-    fn write_chunk_to_disk(&self, chunk: &OutOfCoreChunk) -> Result<(), ImputationError> {
+    fn write_chunk_to_disk(&self, _chunk: &OutOfCoreChunk) -> Result<(), ImputationError> {
         // Implementation would write chunk data to disk
         // For now, we'll create a placeholder implementation
         Ok(())

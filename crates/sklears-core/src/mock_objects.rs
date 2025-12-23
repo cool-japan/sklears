@@ -45,8 +45,9 @@
 use crate::error::{Result, SklearsError};
 use crate::traits::{Estimator, Fit, Predict, PredictProba, Score, Transform};
 // SciRS2 Policy: Using scirs2_core::ndarray and scirs2_core::random (COMPLIANT)
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, rng};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::random::Random;
+use scirs2_core::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -325,8 +326,7 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockEstimator {
 
         // Simulate fit failure probability
         if self.config.fit_failure_probability > 0.0 {
-            let mut rng =
-                Random::seed(self.config.random_seed + state.fit_count as u64);
+            let mut rng = Random::seed(self.config.random_seed + state.fit_count as u64);
             if rng.gen::<f64>() < self.config.fit_failure_probability {
                 return Err(SklearsError::FitError(
                     "Simulated random fit failure".to_string(),
@@ -376,9 +376,8 @@ impl<'a> Predict<ArrayView2<'a, f64>, Array1<f64>> for TrainedMockEstimator {
 
         // Simulate predict failure probability
         if self.estimator.config.predict_failure_probability > 0.0 {
-            let mut rng = Random::seed(
-                self.estimator.config.random_seed + state.predict_count as u64,
-            );
+            let mut rng =
+                Random::seed(self.estimator.config.random_seed + state.predict_count as u64);
             if rng.gen::<f64>() < self.estimator.config.predict_failure_probability {
                 return Err(SklearsError::PredictError(
                     "Simulated random predict failure".to_string(),
@@ -652,7 +651,7 @@ impl<'a> Transform<ArrayView2<'a, f64>, Array2<f64>> for MockTransformer {
             MockTransformType::FeatureReduction { keep_ratio } => {
                 let keep_features = ((x.ncols() as f64) * keep_ratio).ceil() as usize;
                 let keep_features = keep_features.max(1).min(x.ncols());
-                Ok(x.slice(ndarray::s![.., 0..keep_features]).to_owned())
+                Ok(x.slice(s![.., 0..keep_features]).to_owned())
             }
             MockTransformType::FeatureExpansion { expansion_factor } => {
                 let new_features = x.ncols() * expansion_factor;
@@ -662,9 +661,7 @@ impl<'a> Transform<ArrayView2<'a, f64>, Array2<f64>> for MockTransformer {
                 for i in 0..*expansion_factor {
                     let start_col = i * x.ncols();
                     let end_col = start_col + x.ncols();
-                    expanded
-                        .slice_mut(ndarray::s![.., start_col..end_col])
-                        .assign(x);
+                    expanded.slice_mut(s![.., start_col..end_col]).assign(x);
                 }
                 Ok(expanded)
             }

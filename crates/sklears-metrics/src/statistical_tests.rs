@@ -272,8 +272,8 @@ pub fn wilcoxon_signed_rank_test<F: FloatTrait + FromPrimitive>(
             + current_rank / F::from(2).unwrap();
 
         // Assign average rank to all tied values
-        for j in start_idx..end_idx {
-            if abs_diffs_with_indices[j].2 {
+        for item in abs_diffs_with_indices.iter().take(end_idx).skip(start_idx) {
+            if item.2 {
                 // Positive difference
                 w_plus = w_plus + avg_rank;
             }

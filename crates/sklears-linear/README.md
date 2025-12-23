@@ -7,7 +7,7 @@
 
 High-performance linear models for Rust with 3-100x speedup over scikit-learn, featuring advanced solvers, numerical stability, and GPU acceleration.
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 

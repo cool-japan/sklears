@@ -259,7 +259,7 @@ pub mod algorithms {
     pub fn qpca(
         data: &[Vec<f64>],
         num_components: usize,
-        config: &QuantumConfig,
+        _config: &QuantumConfig,
     ) -> Result<Vec<Vec<f64>>, SimdError> {
         // Simplified quantum PCA implementation
         // In reality, this would use quantum algorithms like HHL or VQE
@@ -291,7 +291,7 @@ pub mod algorithms {
     }
 
     /// Quantum Support Vector Machine (QSVM)
-    pub fn qsvm_kernel(x1: &[f64], x2: &[f64], config: &QuantumConfig) -> Result<f64, SimdError> {
+    pub fn qsvm_kernel(x1: &[f64], x2: &[f64], _config: &QuantumConfig) -> Result<f64, SimdError> {
         // Simplified quantum kernel computation
         // In reality, this would use quantum feature maps
 
@@ -326,7 +326,7 @@ pub mod algorithms {
     pub fn qaoa(
         cost_matrix: &[Vec<f64>],
         num_layers: u32,
-        config: &QuantumConfig,
+        _config: &QuantumConfig,
     ) -> Result<Vec<u32>, SimdError> {
         let num_qubits = cost_matrix.len() as u32;
         let mut circuit = QuantumCircuit {
@@ -374,7 +374,7 @@ pub mod algorithms {
     pub fn vqe(
         hamiltonian: &[Vec<f64>],
         ansatz_depth: u32,
-        config: &QuantumConfig,
+        _config: &QuantumConfig,
     ) -> Result<(f64, Vec<f64>), SimdError> {
         let num_qubits = hamiltonian.len() as u32;
         let mut best_energy = f64::INFINITY;
@@ -427,7 +427,7 @@ pub mod algorithms {
             return Ok(vec![]);
         }
 
-        let n_samples = data.len();
+        let _n_samples = data.len();
         let n_features = data[0].len();
         let mut components = vec![vec![0.0; n_features]; num_components.min(n_features)];
 
@@ -556,9 +556,12 @@ pub mod circuit {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{boxed::Box, vec, vec::Vec};
 
     #[test]
     fn test_quantum_runtime_creation() {

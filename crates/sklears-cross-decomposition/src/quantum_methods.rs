@@ -21,7 +21,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::{Float, One, Zero};
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use std::collections::HashMap;
 use std::f64::consts::PI;
 

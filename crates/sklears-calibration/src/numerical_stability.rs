@@ -43,15 +43,16 @@ pub struct SafeProbabilityOps {
     config: NumericalConfig,
 }
 
+impl Default for SafeProbabilityOps {
+    fn default() -> Self {
+        Self::new(NumericalConfig::default())
+    }
+}
+
 impl SafeProbabilityOps {
     /// Create new safe probability operations with configuration
     pub fn new(config: NumericalConfig) -> Self {
         Self { config }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(NumericalConfig::default())
     }
 
     /// Safely clamp probabilities to valid range
@@ -180,7 +181,7 @@ impl SafeProbabilityOps {
             if value.is_infinite() {
                 issues.push(format!("Infinite value at index {}", i));
             }
-            if value < 0.0 || value > 1.0 {
+            if !(0.0..=1.0).contains(&value) {
                 issues.push(format!(
                     "Probability out of range [0,1] at index {}: {}",
                     i, value
@@ -234,13 +235,13 @@ impl RobustOptimizer {
         G: Fn(Float) -> Float,
     {
         let mut x = initial_value;
-        let mut prev_x = x;
+        let mut _prev_x = x;
         let mut learning_rate = 0.1;
         let mut best_x = x;
         let mut best_obj = objective(x);
 
         for iteration in 0..self.config.max_iterations {
-            prev_x = x; // Track previous position before update
+            _prev_x = x; // Track previous position before update
 
             let grad = gradient(x);
 
@@ -291,12 +292,12 @@ impl RobustOptimizer {
             }
 
             // Convergence check based on position change between iterations
-            let position_change = (x - prev_x).abs();
+            let position_change = (x - _prev_x).abs();
             if position_change < self.config.convergence_tolerance {
                 if iteration < 20 {
                     println!(
                         "Converged at iteration {}: x={:.6}, prev_x={:.6}, change={:.6}",
-                        iteration, x, prev_x, position_change
+                        iteration, x, _prev_x, position_change
                     );
                 }
                 break;
@@ -363,6 +364,12 @@ pub struct NumericalStabilityTests {
     ops: SafeProbabilityOps,
 }
 
+impl Default for NumericalStabilityTests {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NumericalStabilityTests {
     /// Create new stability tester
     pub fn new() -> Self {
@@ -397,7 +404,7 @@ impl NumericalStabilityTests {
                     i
                 ));
             }
-            if value < 0.0 || value > 1.0 {
+            if !(0.0..=1.0).contains(&value) {
                 issues.push(format!(
                     "Clamped value out of range at index {}: {}",
                     i, value
@@ -436,7 +443,7 @@ impl NumericalStabilityTests {
         let probs_from_extreme = self.ops.logits_to_probabilities(&extreme_logits);
 
         for (i, &prob) in probs_from_extreme.iter().enumerate() {
-            if !prob.is_finite() || prob < 0.0 || prob > 1.0 {
+            if !prob.is_finite() || !(0.0..=1.0).contains(&prob) {
                 issues.push(format!(
                     "Invalid probability from extreme logit at index {}: {}",
                     i, prob

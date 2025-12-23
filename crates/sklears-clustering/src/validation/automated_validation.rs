@@ -470,6 +470,7 @@ impl AutomatedValidator {
     }
 
     /// Generate recommendations based on validation results
+    #[allow(clippy::too_many_arguments)]
     fn generate_recommendations(
         &self,
         _silhouette: &SilhouetteResult,

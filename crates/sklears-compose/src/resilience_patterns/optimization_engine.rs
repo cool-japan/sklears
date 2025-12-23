@@ -1293,10 +1293,10 @@ impl GeneticAlgorithmOptimizer {
     fn generate_random_gene_value(&self, param_type: &ParameterType) -> Result<GeneValue> {
         match param_type {
             ParameterType::Continuous { min, max } => {
-                Ok(GeneValue::Real(rng().gen_range(*min..=*max)))
+                Ok(GeneValue::Real(rng().gen_range(*min..*max + 1)))
             }
             ParameterType::Integer { min, max } => {
-                Ok(GeneValue::Integer(rng().gen_range(*min..=*max)))
+                Ok(GeneValue::Integer(rng().gen_range(*min..*max + 1)))
             }
             ParameterType::Boolean => {
                 Ok(GeneValue::Boolean(rng().gen()))

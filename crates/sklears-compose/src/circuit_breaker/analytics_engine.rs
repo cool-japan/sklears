@@ -499,13 +499,13 @@ impl CircuitBreakerAnalytics {
                 indexes: HashMap::new(),
                 config: DataStorageConfig {
                     backend_type: "memory".to_string(),
-                    retention_period: Duration::from_secs(604800),
+                    retention_period: Duration::from_secs(604_800),
                     compression: false,
                     encryption: false,
                     backup: BackupConfig {
                         enabled: false,
                         frequency: Duration::from_secs(86400),
-                        retention: Duration::from_secs(2592000),
+                        retention: Duration::from_secs(2_592_000),
                         destination: "/tmp/backups".to_string(),
                     },
                 },
@@ -527,7 +527,7 @@ impl CircuitBreakerAnalytics {
                 enabled: true,
                 collection_interval: Duration::from_secs(60),
                 analysis_frequency: Duration::from_secs(300),
-                retention_period: Duration::from_secs(2592000),
+                retention_period: Duration::from_secs(2_592_000),
                 real_time: false,
             },
         }
@@ -861,7 +861,7 @@ impl Default for AnalyticsConfig {
             enabled: true,
             collection_interval: Duration::from_secs(60),
             analysis_frequency: Duration::from_secs(300),
-            retention_period: Duration::from_secs(2592000), // 30 days
+            retention_period: Duration::from_secs(2_592_000), // 30 days
             real_time: false,
         }
     }
@@ -907,8 +907,8 @@ impl Default for BackupConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            frequency: Duration::from_secs(86400),   // Daily
-            retention: Duration::from_secs(2592000), // 30 days
+            frequency: Duration::from_secs(86400),     // Daily
+            retention: Duration::from_secs(2_592_000), // 30 days
             destination: "/tmp/backups".to_string(),
         }
     }

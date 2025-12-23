@@ -35,7 +35,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, array};
 #[cfg(feature = "scirs2")]
 use scirs2_core::random::{Random, rng, DistributionExt};
 #[cfg(not(feature = "scirs2"))]
-use scirs2_core::random::{thread_rng as rng, Rng};
+use scirs2_core::random::{thread_rng as rng};
 
 // Use scirs2_core::random for all distributions (SciRS2 policy)
 
@@ -805,7 +805,7 @@ impl SelectionStrategies {
         let mut selected = Vec::new();
 
         for _ in 0..num_parents {
-            let mut spin = rng.gen::<f64>() * total_fitness;
+            let mut spin = rng.gen() * total_fitness;
             let mut index = 0;
 
             for (i, solution) in population.iter().enumerate() {
@@ -836,7 +836,7 @@ impl SelectionStrategies {
         let mut selected = Vec::new();
 
         for _ in 0..num_parents {
-            let mut spin = rng.gen_range(0..=total_rank);
+            let mut spin = rng.gen_range(0..total_rank + 1);
             let mut index = 0;
 
             for (rank, (original_index, _)) in indexed_pop.iter().enumerate() {
@@ -862,7 +862,7 @@ impl SelectionStrategies {
         let total_fitness: f64 = population.iter().map(|s| s.fitness).sum();
         let pointer_distance = total_fitness / num_parents as f64;
         let mut rng = rng();
-        let start = rng.gen::<f64>() * pointer_distance;
+        let start = rng.gen() * pointer_distance;
 
         let mut selected = Vec::new();
         let mut current_member = 0;
@@ -904,7 +904,7 @@ impl MutationOperators {
         let mut rng = rng();
 
         for variable in &mut solution.variables {
-            if rng.gen::<f64>() < mutation_rate {
+            if rng.gen() < mutation_rate {
                 // Use standard library for now, as scirs2_core distributions may not be available
                 use scirs2_core::random::{Normal, Distribution};
                 let normal_dist = Normal::new(0.0, sigma).map_err(|_| "Invalid normal distribution parameters")?;
@@ -926,9 +926,9 @@ impl MutationOperators {
         let mut rng = rng();
 
         for (i, variable) in solution.variables.iter_mut().enumerate() {
-            if rng.gen::<f64>() < mutation_rate {
+            if rng.gen() < mutation_rate {
                 if let Some((lower, upper)) = bounds.get(i) {
-                    *variable = rng.gen_range(*lower..=*upper);
+                    *variable = rng.gen_range(*lower..*upper + 1);
                 }
             }
         }
@@ -947,9 +947,9 @@ impl MutationOperators {
         let mut rng = rng();
 
         for (i, variable) in solution.variables.iter_mut().enumerate() {
-            if rng.gen::<f64>() < mutation_rate {
+            if rng.gen() < mutation_rate {
                 if let Some((lower, upper)) = bounds.get(i) {
-                    let u = rng.gen::<f64>();
+                    let u = rng.gen();
                     let delta = if u <= 0.5 {
                         (2.0_f64 * u).powf(1.0_f64 / (eta + 1.0_f64)) - 1.0_f64
                     } else {
@@ -1049,7 +1049,7 @@ impl CrossoverOperators {
         let mut child2_vars = parent2.variables.clone();
 
         for i in 0..parent1.variables.len() {
-            if rng.gen::<f64>() < crossover_rate {
+            if rng.gen() < crossover_rate {
                 child1_vars[i] = parent2.variables[i];
                 child2_vars[i] = parent1.variables[i];
             }
@@ -1102,8 +1102,8 @@ impl CrossoverOperators {
             let lower = min_val - alpha * range;
             let upper = max_val + alpha * range;
 
-            child1_vars.push(rng.gen_range(lower..=upper));
-            child2_vars.push(rng.gen_range(lower..=upper));
+            child1_vars.push(rng.gen_range(lower..upper + 1));
+            child2_vars.push(rng.gen_range(lower..upper + 1));
         }
 
         Ok((

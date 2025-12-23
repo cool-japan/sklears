@@ -322,14 +322,14 @@ impl RegularizedIsotonicRegression<Untrained> {
     /// L1 and L2 regularization, followed by projection onto the isotonic constraint.
     fn fit_regularized_isotonic(
         &self,
-        x: &Array1<Float>,
+        _x: &Array1<Float>,
         y: &Array1<Float>,
     ) -> Result<Array1<Float>> {
         let n = y.len();
         let mut fitted_values = y.clone();
 
         // Use proximal gradient descent for optimization
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let prev_values = fitted_values.clone();
 
             // Compute gradient of the loss function

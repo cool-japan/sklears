@@ -138,8 +138,8 @@ impl MomentumContrast {
         for i in 0..x.nrows() {
             for j in 0..x.ncols() {
                 // Generate normal distributed random number
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 noise[(i, j)] = z * self.augmentation_strength;
             }
@@ -323,8 +323,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MomentumContrast {
         for i in 0..n_features {
             for j in 0..self.embedding_dim {
                 // Generate normal distributed random number (mean=0.0, std=0.02)
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 query_encoder[(i, j)] = z * 0.02;
             }
@@ -336,8 +336,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MomentumContrast {
         for i in 0..self.queue_size {
             for j in 0..self.embedding_dim {
                 // Generate normal distributed random number (mean=0.0, std=0.02)
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 queue[(i, j)] = z * 0.02;
             }
@@ -417,8 +417,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MomentumContrast {
                 let mut encoder_grad = Array2::<f64>::zeros(query_encoder.dim());
                 for i in 0..query_encoder.nrows() {
                     for j in 0..query_encoder.ncols() {
-                        let u1: f64 = rng.gen_range(0.0..1.0);
-                        let u2: f64 = rng.gen_range(0.0..1.0);
+                        let u1: f64 = rng.random_range(0.0, 1.0);
+                        let u2: f64 = rng.random_range(0.0, 1.0);
                         let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         encoder_grad[(i, j)] = z * noise_std;
                     }

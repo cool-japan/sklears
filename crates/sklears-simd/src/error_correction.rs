@@ -5,7 +5,6 @@
 
 #[cfg(feature = "no-std")]
 use alloc::{
-    format,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -331,9 +330,12 @@ pub fn xor_checksum_simd(data: &[u8]) -> u32 {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_hamming_code_encode_decode() {

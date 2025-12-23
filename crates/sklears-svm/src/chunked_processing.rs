@@ -15,6 +15,11 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
+/// Type alias for chunk data returned by iterator
+pub type ChunkData<'a> = (usize, &'a Array2<Float>, &'a Array1<Float>);
+/// Type alias for chunk result
+pub type ChunkResult<'a> = Result<ChunkData<'a>>;
+
 /// Configuration for chunked processing
 #[derive(Debug, Clone)]
 pub struct ChunkedProcessingConfig {
@@ -134,7 +139,7 @@ impl ChunkedDataset {
     }
 
     /// Create chunked dataset from files
-    pub fn from_files(data_files: Vec<PathBuf>, config: ChunkedProcessingConfig) -> Result<Self> {
+    pub fn from_files(_data_files: Vec<PathBuf>, _config: ChunkedProcessingConfig) -> Result<Self> {
         // This would implement loading from multiple files
         // For now, return a placeholder
         Err(SklearsError::InvalidInput(
@@ -309,7 +314,7 @@ impl ChunkedDataset {
     }
 
     /// Get chunk iterator
-    pub fn chunk_iter(&mut self) -> ChunkIterator {
+    pub fn chunk_iter(&mut self) -> ChunkIterator<'_> {
         ChunkIterator {
             dataset: self,
             current_chunk: 0,
@@ -399,9 +404,10 @@ pub struct ChunkIterator<'life> {
     current_chunk: usize,
 }
 
-impl<'life> ChunkIterator<'life> {
-    /// Get next chunk
-    pub fn next(&mut self) -> Option<Result<(usize, &Array2<Float>, &Array1<Float>)>> {
+impl<'life> Iterator for ChunkIterator<'life> {
+    type Item = ChunkResult<'life>;
+
+    fn next(&mut self) -> Option<Self::Item> {
         if self.current_chunk >= self.dataset.n_chunks() {
             return None;
         }
@@ -409,7 +415,14 @@ impl<'life> ChunkIterator<'life> {
         let chunk_id = self.current_chunk;
         self.current_chunk += 1;
 
-        match self.dataset.get_chunk(chunk_id) {
+        // SAFETY: We're extending the lifetime of the borrow from the method call
+        // to the 'life lifetime. This is safe because self.dataset has type
+        // &'life mut ChunkedDataset, so the returned references from get_chunk
+        // are actually valid for 'life. We need unsafe here because Rust can't
+        // see through the reborrow in &mut self to understand that the references
+        // come from the 'life-lived dataset field.
+        let dataset_ptr = self.dataset as *mut ChunkedDataset;
+        match unsafe { (*dataset_ptr).get_chunk(chunk_id) } {
             Ok((x, y)) => Some(Ok((chunk_id, x, y))),
             Err(e) => Some(Err(e)),
         }
@@ -465,7 +478,7 @@ impl<K: Kernel> ChunkedSvmTrainer<K> {
 
         while iteration < max_iter {
             let mut max_violation: Float = 0.0;
-            let mut updates_made = 0;
+            let mut _updates_made = 0;
 
             // Process each chunk
             for chunk_id in 0..dataset.n_chunks() {
@@ -489,7 +502,7 @@ impl<K: Kernel> ChunkedSvmTrainer<K> {
                     tol,
                 )?;
 
-                updates_made += chunk_updates.n_updates;
+                _updates_made += chunk_updates.n_updates;
                 max_violation = max_violation.max(chunk_updates.max_violation);
             }
 
@@ -542,7 +555,7 @@ impl<K: Kernel> ChunkedSvmTrainer<K> {
         mut chunk_alpha: scirs2_core::ndarray::ArrayViewMut1<Float>,
         mut chunk_gradient: scirs2_core::ndarray::ArrayViewMut1<Float>,
         c: Float,
-        tol: Float,
+        _tol: Float,
     ) -> Result<ChunkUpdateResult> {
         let n_samples = chunk_x.nrows();
         let mut n_updates = 0;
@@ -691,7 +704,7 @@ mod tests {
         let mut chunk_iter = dataset.chunk_iter();
 
         while let Some(chunk_result) = chunk_iter.next() {
-            let (chunk_id, chunk_x, chunk_y) = chunk_result.unwrap();
+            let (_chunk_id, chunk_x, chunk_y) = chunk_result.unwrap();
             total_samples += chunk_x.nrows();
             assert_eq!(chunk_x.ncols(), 3);
             assert_eq!(chunk_x.nrows(), chunk_y.len());

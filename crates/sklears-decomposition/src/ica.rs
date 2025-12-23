@@ -4,18 +4,16 @@
 //! additive independent components. It assumes that observed signals are linear
 //! mixtures of independent source signals.
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::DMatrix;
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
-use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_linalg::eigen::standard::eigh;
+use scirs2_linalg::inv;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::{Result, SklearsError},
-    prelude::*,
-    traits::{Estimator, Fit, Transform, Untrained},
-    types::Float,
+    traits::{Fit, Transform, Untrained},
 };
 
 /// ICA algorithm variants
@@ -238,9 +236,12 @@ impl Fit<Array2<f64>, ()> for ICA<Untrained> {
             (x_centered, None)
         };
 
-        // Initialize random number generator
-        // TODO: Support seeding for reproducibility
-        let mut rng = thread_rng();
+        // Initialize random number generator with optional seed for reproducibility
+        let mut rng = if let Some(seed) = self.random_state {
+            StdRng::seed_from_u64(seed)
+        } else {
+            StdRng::from_rng(&mut thread_rng())
+        };
 
         // Run ICA algorithm
         let (components, n_iter) = match self.algorithm {
@@ -325,13 +326,10 @@ impl ICA<Untrained> {
         // Compute covariance matrix
         let cov = x.t().dot(x) / (n_samples - 1) as f64;
 
-        // Convert to nalgebra for eigendecomposition
-        let cov_matrix = DMatrix::from_row_slice(n_features, n_features, cov.as_slice().unwrap());
-
-        // Eigendecomposition
-        let eigen = cov_matrix.symmetric_eigen();
-        let eigenvalues = eigen.eigenvalues;
-        let eigenvectors = eigen.eigenvectors;
+        // Eigendecomposition using scirs2-linalg
+        let (eigenvalues, eigenvectors) = eigh(&cov.view(), None).map_err(|e| {
+            SklearsError::NumericalError(format!("Eigendecomposition failed: {:?}", e))
+        })?;
 
         // Sort eigenvalues in descending order
         let mut sorted_indices: Vec<usize> = (0..n_features).collect();
@@ -343,7 +341,7 @@ impl ICA<Untrained> {
             if eigenvalues[idx] > 1e-12 {
                 let scale = 1.0 / eigenvalues[idx].sqrt();
                 for j in 0..n_features {
-                    whitening[[j, i]] = eigenvectors[(j, idx)] * scale;
+                    whitening[[j, i]] = eigenvectors[[j, idx]] * scale;
                 }
             }
         }
@@ -364,7 +362,7 @@ impl ICA<Untrained> {
         let (n_samples, n_features) = x.dim();
 
         // Initialize weight matrix randomly
-        let mut w = Array2::zeros((n_components, n_features));
+        let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
                 w[[i, j]] = rng.gen::<f64>() - 0.5;
@@ -429,13 +427,13 @@ impl ICA<Untrained> {
 
         for comp in 0..n_components {
             // Initialize weight vector randomly
-            let mut w = Array1::zeros(n_features);
+            let mut w = Array1::<f64>::zeros(n_features);
             for i in 0..n_features {
                 w[i] = rng.gen::<f64>() - 0.5;
             }
 
             // Normalize
-            let norm = w.mapv(|x| x * x).sum().sqrt();
+            let norm = w.mapv(|x: f64| x * x).sum().sqrt();
             w /= norm;
 
             let mut n_iter = 0;
@@ -573,50 +571,26 @@ impl ICA<Untrained> {
 
         // For square matrices, compute inverse directly
         if n_components == n_features {
-            // Convert to nalgebra for inversion
-            let comp_matrix =
-                DMatrix::from_row_slice(n_components, n_features, components.as_slice().unwrap());
+            // Use scirs2-linalg for inversion
+            let comp_inv = inv(&components.view(), None).map_err(|e| {
+                SklearsError::NumericalError(format!("Matrix inversion failed: {:?}", e))
+            })?;
 
-            match comp_matrix.try_inverse() {
-                Some(inv) => {
-                    let mut mixing = Array2::zeros((n_features, n_components));
-                    for i in 0..n_features {
-                        for j in 0..n_components {
-                            mixing[[i, j]] = inv[(i, j)];
-                        }
-                    }
-                    Ok(mixing)
-                }
-                None => Err(SklearsError::NumericalError(
-                    "Components matrix is singular".to_string(),
-                )),
-            }
+            // Transpose to get mixing matrix
+            Ok(comp_inv.t().to_owned())
         } else {
             // For non-square matrices, compute pseudoinverse
             // mixing = (components^T * components)^(-1) * components^T
             let comp_t = components.t();
             let gram = components.dot(&comp_t);
 
-            // Convert to nalgebra for inversion
-            let gram_matrix =
-                DMatrix::from_row_slice(n_components, n_components, gram.as_slice().unwrap());
+            // Use scirs2-linalg for inversion
+            let gram_inv = inv(&gram.view(), None).map_err(|e| {
+                SklearsError::NumericalError(format!("Gram matrix inversion failed: {:?}", e))
+            })?;
 
-            match gram_matrix.try_inverse() {
-                Some(gram_inv) => {
-                    let mut gram_inv_array = Array2::zeros((n_components, n_components));
-                    for i in 0..n_components {
-                        for j in 0..n_components {
-                            gram_inv_array[[i, j]] = gram_inv[(i, j)];
-                        }
-                    }
-
-                    let mixing = comp_t.dot(&gram_inv_array);
-                    Ok(mixing)
-                }
-                None => Err(SklearsError::NumericalError(
-                    "Gram matrix is singular".to_string(),
-                )),
-            }
+            let mixing = comp_t.dot(&gram_inv);
+            Ok(mixing)
         }
     }
 
@@ -633,7 +607,7 @@ impl ICA<Untrained> {
         let (n_samples, n_features) = x.dim();
 
         // Initialize weight matrix randomly
-        let mut w = Array2::zeros((n_components, n_features));
+        let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
                 w[[i, j]] = rng.gen::<f64>() - 0.5;
@@ -717,7 +691,7 @@ impl ICA<Untrained> {
         let (n_samples, n_features) = x.dim();
 
         // Initialize weight matrix randomly
-        let mut w = Array2::zeros((n_components, n_features));
+        let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
                 w[[i, j]] = rng.gen::<f64>() - 0.5;
@@ -813,7 +787,7 @@ impl ICA<Untrained> {
         let window_size = requested_window;
 
         // Initialize weight matrix randomly
-        let mut w = Array2::zeros((n_components, n_features));
+        let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
                 w[[i, j]] = rng.gen::<f64>() - 0.5;
@@ -936,7 +910,7 @@ impl ICA<Untrained> {
         }
 
         // Initialize weight matrix using constraint as guidance
-        let mut w = Array2::zeros((n_components, n_features));
+        let mut w = Array2::<f64>::zeros((n_components, n_features));
 
         // Initialize with constrained initialization
         for i in 0..n_components {

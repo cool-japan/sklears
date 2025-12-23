@@ -6,7 +6,7 @@
 use crate::dummy_classifier::{DummyClassifier, Strategy as ClassifierStrategy};
 use crate::dummy_regressor::{DummyRegressor, Strategy as RegressorStrategy};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::prelude::*;
+use scirs2_core::random::{prelude::*, Rng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};
 use sklears_core::types::{Features, Float, Int};
@@ -241,7 +241,7 @@ impl Fit<Features, Array1<Int>> for EnsembleDummyClassifier {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         // Manual shuffle implementation
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -406,7 +406,7 @@ impl Fit<Features, Array1<Float>> for EnsembleDummyRegressor {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         // Manual shuffle implementation
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 

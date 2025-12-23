@@ -15,7 +15,6 @@ use std::any::Any;
 use alloc::{
     boxed::Box,
     collections::BTreeMap as HashMap,
-    format,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -608,9 +607,16 @@ pub mod optimization {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_accelerator_runtime_creation() {

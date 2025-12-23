@@ -309,7 +309,7 @@ impl ContourAnalysisExtractor {
         };
         let orientation = self.compute_orientation(&points);
 
-        /// Contour
+        // Contour
         Contour {
             points,
             area,

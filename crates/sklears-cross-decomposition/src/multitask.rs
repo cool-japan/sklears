@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::error::SklearsError;
 use sklears_core::traits::Estimator;
 use std::collections::HashMap;

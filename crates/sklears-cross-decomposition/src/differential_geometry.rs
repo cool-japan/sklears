@@ -1,14 +1,22 @@
 //! Differential Geometry Methods for Cross-Decomposition
 //!
 //! This module provides sophisticated differential geometry techniques for cross-decomposition
-//! algorithms, including Riemannian optimization, geodesic computations, and natural gradient methods.
+//! algorithms, including Riemannian optimization, geodesic computations, natural gradient methods,
+//! and geometric median estimation.
+
+pub mod geometric_median;
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
 use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::{thread_rng, Random};
+use scirs2_core::random::{thread_rng, Random, Rng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 use std::f64::consts::PI;
+
+pub use geometric_median::{
+    FittedGeometricMedianCCA, GeometricMedian, GeometricMedianCCA, GeometricMedianConfig,
+    GeometricMedianResult, SpatialMedian,
+};
 
 /// Riemannian optimization framework
 pub struct RiemannianOptimizer {

@@ -454,7 +454,7 @@ impl AdversarialValidator {
 
         // Approximate p-value using normal distribution (for large samples)
         let p_value = 2.0 * (1.0 - self.normal_cdf(t_stat.abs()));
-        p_value.max(0.0).min(1.0)
+        p_value.clamp(0.0, 1.0)
     }
 
     /// Calculate standard deviation
@@ -511,7 +511,8 @@ impl AdversarialValidator {
 
     /// Shuffle indices randomly
     fn shuffle_indices(&self, indices: &mut [usize]) {
-        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
@@ -524,7 +525,8 @@ impl AdversarialValidator {
 
     /// Shuffle f64 values randomly
     fn shuffle_f64(&self, values: &mut [f64]) {
-        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
@@ -537,7 +539,9 @@ impl AdversarialValidator {
 
     /// Generate random index
     fn random_index(&self, max: usize) -> usize {
-        use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::Rng;
+        use scirs2_core::random::SeedableRng;
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {

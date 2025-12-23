@@ -274,7 +274,7 @@ impl HeteroscedasticDiscriminantAnalysis<Untrained> {
         means: &Array2<Float>,
         classes: &[i32],
     ) -> Result<Array2<Float>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let mut pooled_cov = Array2::zeros((n_features, n_features));
         let mut total_samples = 0;
 
@@ -362,7 +362,7 @@ impl HeteroscedasticDiscriminantAnalysis<Untrained> {
         }
 
         let trace = sample_cov.diag().sum();
-        let mu = trace / n_features as Float;
+        let _mu = trace / n_features as Float;
 
         // Simplified shrinkage estimation
         let shrinkage = ((n_features as Float) / (n_samples as Float))
@@ -373,7 +373,7 @@ impl HeteroscedasticDiscriminantAnalysis<Untrained> {
     }
 
     /// Simplified OAS shrinkage estimator
-    fn oas_shrinkage(&self, data: &Array2<Float>, sample_cov: &Array2<Float>) -> Result<Float> {
+    fn oas_shrinkage(&self, data: &Array2<Float>, _sample_cov: &Array2<Float>) -> Result<Float> {
         let (n_samples, n_features) = data.dim();
 
         if n_samples <= n_features {

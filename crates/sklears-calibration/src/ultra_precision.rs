@@ -36,7 +36,7 @@ impl UltraPrecisionFloat {
             return Self::zero(precision);
         }
 
-        let is_negative = value < 0.0;
+        let _is_negative = value < 0.0;
         let abs_value = value.abs();
 
         // Convert to string representation for exact parsing
@@ -372,9 +372,7 @@ impl UltraPrecisionFloat {
                 q_digit += 1;
             }
 
-            if q_digit > 0 {
-                q_digit -= 1;
-            }
+            q_digit = q_digit.saturating_sub(1);
 
             quotient.push(q_digit);
 
@@ -667,17 +665,17 @@ impl UltraPrecisionFloat {
     fn euler_constant(precision: usize) -> Self {
         // Use series: e = 1 + 1/1! + 1/2! + 1/3! + ...
         let mut e = Self::one(precision);
-        let mut term = Self::one(precision);
+        let mut _term = Self::one(precision);
         let mut factorial = Self::one(precision);
 
         for k in 1..=precision {
             factorial = factorial.multiply(&Self::from_float(k as Float, precision));
-            term = Self::one(precision)
+            _term = Self::one(precision)
                 .divide(&factorial)
                 .unwrap_or_else(|_| Self::zero(precision));
-            e = e.add(&term);
+            e = e.add(&_term);
 
-            if term.is_negligible(precision) {
+            if _term.is_negligible(precision) {
                 break;
             }
         }

@@ -311,12 +311,14 @@ impl PSOClustering {
         let max_vals = X.fold_axis(Axis(0), f64::NEG_INFINITY, |acc, &x| acc.max(x));
 
         // Initialize particles: positions (cluster centers) and velocities
-        let mut positions = Array::zeros((self.n_particles, self.n_clusters, n_features));
-        let mut velocities = Array::zeros((self.n_particles, self.n_clusters, n_features));
-        let mut personal_best_positions =
+        let mut positions: Array<f64, _> =
+            Array::zeros((self.n_particles, self.n_clusters, n_features));
+        let mut velocities: Array<f64, _> =
+            Array::zeros((self.n_particles, self.n_clusters, n_features));
+        let mut personal_best_positions: Array<f64, _> =
             Array::zeros((self.n_particles, self.n_clusters, n_features));
         let mut personal_best_fitness = vec![f64::INFINITY; self.n_particles];
-        let mut global_best_position = Array::zeros((self.n_clusters, n_features));
+        let mut global_best_position: Array<f64, _> = Array::zeros((self.n_clusters, n_features));
         let mut global_best_fitness = f64::INFINITY;
 
         // Initialize particle positions randomly within data bounds
@@ -324,8 +326,8 @@ impl PSOClustering {
             for c in 0..self.n_clusters {
                 for f in 0..n_features {
                     let range = max_vals[f] - min_vals[f];
-                    positions[[p, c, f]] = min_vals[f] + rng.random::<f64>() * range;
-                    velocities[[p, c, f]] = (rng.random::<f64>() - 0.5) * range * 0.1;
+                    positions[[p, c, f]] = min_vals[f] + rng.gen::<f64>() * range;
+                    velocities[[p, c, f]] = (rng.gen::<f64>() - 0.5) * range * 0.1;
                 }
             }
 
@@ -356,8 +358,8 @@ impl PSOClustering {
                 // Update velocity and position for each particle
                 for c in 0..self.n_clusters {
                     for f in 0..n_features {
-                        let r1 = rng.random::<f64>();
-                        let r2 = rng.random::<f64>();
+                        let r1 = rng.gen::<f64>();
+                        let r2 = rng.gen::<f64>();
 
                         let cognitive_component = self.cognitive_coeff
                             * r1

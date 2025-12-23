@@ -1,10 +1,14 @@
 //! SIMD-accelerated operations for high-performance regularization computations
+//!
+//! ## SciRS2 Policy Compliance
+//! ✅ Uses `scirs2-core` for array operations
+//! ✅ Scalar implementations with potential for future SciRS2-Core optimizations
+//! ✅ Works on stable Rust (no nightly features required)
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2};
 
-/// Scalar L2 norm calculation (SIMD version disabled for compilation)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// L2 norm calculation
 pub fn simd_l2_norm(data: &[f64]) -> f64 {
     let mut sum_of_squares = 0.0;
     for &val in data {
@@ -13,8 +17,7 @@ pub fn simd_l2_norm(data: &[f64]) -> f64 {
     sum_of_squares.sqrt()
 }
 
-/// Scalar L1 norm calculation (SIMD version disabled for compilation)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// L1 norm calculation
 pub fn simd_l1_norm(data: &[f64]) -> f64 {
     let mut sum_abs = 0.0;
     for &val in data {
@@ -23,8 +26,7 @@ pub fn simd_l1_norm(data: &[f64]) -> f64 {
     sum_abs
 }
 
-/// Scalar proximal operator for L1 regularization (soft thresholding)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// Proximal operator for L1 regularization (soft thresholding)
 pub fn simd_soft_threshold(input: &[f64], threshold: f64, output: &mut [f64]) {
     for i in 0..input.len() {
         let val = input[i];
@@ -61,8 +63,7 @@ pub fn simd_group_norm(coefficients: &Array2<f64>, groups: &[Vec<usize>]) -> Vec
     group_norms
 }
 
-/// Scalar dot product (SIMD version disabled for compilation)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// Dot product calculation
 pub fn simd_dot_product(a: &[f64], b: &[f64]) -> f64 {
     let min_len = a.len().min(b.len());
     let mut dot_product = 0.0;
@@ -74,8 +75,7 @@ pub fn simd_dot_product(a: &[f64], b: &[f64]) -> f64 {
     dot_product
 }
 
-/// Scalar residual calculation (SIMD version disabled for compilation)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// Residual calculation
 pub fn simd_residuals(predictions: &[f64], targets: &[f64], residuals: &mut [f64]) {
     let min_len = predictions.len().min(targets.len()).min(residuals.len());
 
@@ -84,8 +84,7 @@ pub fn simd_residuals(predictions: &[f64], targets: &[f64], residuals: &mut [f64
     }
 }
 
-/// Scalar coefficient update with learning rate (SIMD version disabled for compilation)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// Coefficient update with learning rate
 pub fn simd_coefficient_update(coefficients: &mut [f64], gradients: &[f64], learning_rate: f64) {
     let min_len = coefficients.len().min(gradients.len());
 
@@ -147,8 +146,7 @@ pub fn simd_task_similarity(task1_coefs: &Array1<f64>, task2_coefs: &Array1<f64>
     }
 }
 
-/// Scalar convergence check (SIMD version disabled for compilation)
-/// TODO: Re-enable SIMD version when portable_simd is stabilized
+/// Convergence check - calculates maximum change
 pub fn simd_max_change(old_coefs: &[f64], new_coefs: &[f64]) -> f64 {
     let min_len = old_coefs.len().min(new_coefs.len());
     let mut max_change: f64 = 0.0;

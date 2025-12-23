@@ -443,7 +443,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
             if let Some(seed) = self.cv_config.random_seed {
                 let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                 for i in (1..indices.len()).rev() {
-                    let j = rng.gen_range(0..=i);
+                    let j = rng.gen_range(0..i + 1);
                     indices.swap(i, j);
                 }
             }

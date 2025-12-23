@@ -119,7 +119,7 @@ impl StreamingFeatureExtractor {
             return Err(SklearsError::InvalidInput("Empty data chunk".to_string()));
         }
 
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
 
         // Update running statistics
         self.update_running_stats(data)?;
@@ -214,7 +214,7 @@ impl StreamingFeatureExtractor {
 
     /// Update running statistics with new data chunk
     fn update_running_stats(&mut self, data: &ArrayView2<Float>) -> SklResult<()> {
-        let (n_samples, n_features) = data.dim();
+        let (_n_samples, n_features) = data.dim();
 
         if self.running_count == 0 {
             // Initialize running statistics
@@ -410,7 +410,7 @@ impl RandomProjectionFeatures {
     /// Transform data using fitted random projection
     pub fn transform(&self, X: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         if let Some(ref proj_matrix) = self.projection_matrix {
-            let (n_samples, n_features) = X.dim();
+            let (_n_samples, n_features) = X.dim();
 
             if Some(n_features) != self.n_features {
                 return Err(SklearsError::InvalidInput(

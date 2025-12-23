@@ -7,7 +7,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Distribution;
+// use scirs2_core::random::Distribution;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::prelude::*;

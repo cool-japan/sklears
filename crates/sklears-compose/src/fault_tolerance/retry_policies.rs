@@ -12,7 +12,7 @@ use std::{
     sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use tokio::time::sleep;
 use uuid::Uuid;
 

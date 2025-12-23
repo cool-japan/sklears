@@ -19,11 +19,6 @@
 //! computation followed by horizontal reduction. The implementations use the most
 //! efficient reduction patterns for each target architecture.
 
-#[cfg(feature = "no-std")]
-use alloc::vec;
-#[cfg(feature = "no-std")]
-use alloc::vec::Vec;
-
 // Import ARM64 feature detection macro
 #[cfg(all(target_arch = "aarch64", not(feature = "no-std")))]
 use std::arch::is_aarch64_feature_detected;
@@ -57,11 +52,11 @@ pub fn sum_vec(input: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { sum_vec_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { sum_vec_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { sum_vec_sse2(input) };
         }
     }
@@ -105,11 +100,11 @@ pub fn product_vec(input: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { product_vec_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { product_vec_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { product_vec_sse2(input) };
         }
     }
@@ -154,11 +149,11 @@ pub fn min_vec(input: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { min_vec_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { min_vec_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { min_vec_sse2(input) };
         }
     }
@@ -203,11 +198,11 @@ pub fn max_vec(input: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { max_vec_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { max_vec_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { max_vec_sse2(input) };
         }
     }
@@ -249,11 +244,11 @@ pub fn min_max_vec(input: &[f32]) -> (f32, f32) {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { min_max_vec_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { min_max_vec_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { min_max_vec_sse2(input) };
         }
     }
@@ -333,11 +328,11 @@ pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { dot_product_avx512(a, b) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { dot_product_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { dot_product_sse2(a, b) };
         }
     }
@@ -377,11 +372,11 @@ pub fn norm_l1(input: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { norm_l1_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { norm_l1_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { norm_l1_sse2(input) };
         }
     }
@@ -422,11 +417,11 @@ pub fn norm_l2_squared(input: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return unsafe { norm_l2_squared_avx512(input) };
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return unsafe { norm_l2_squared_avx2(input) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { norm_l2_squared_sse2(input) };
         }
     }
@@ -1396,9 +1391,12 @@ unsafe fn norm_l2_squared_neon(input: &[f32]) -> f32 {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     const EPSILON: f32 = 1e-6;
 

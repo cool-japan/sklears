@@ -146,7 +146,7 @@ impl CorrelationRedundancy {
         }
 
         let mut total_redundancy = 0.0;
-        let mut pair_count = 0;
+        let mut _pair_count = 0;
 
         // Sum upper triangular correlations (excluding diagonal)
         for i in 0..n_features {
@@ -154,7 +154,7 @@ impl CorrelationRedundancy {
                 let correlation = correlation_matrix[[i, j]];
                 if correlation.abs() >= self.correlation_threshold {
                     total_redundancy += correlation.abs();
-                    pair_count += 1;
+                    _pair_count += 1;
                 }
             }
         }
@@ -369,14 +369,14 @@ impl MutualInformationRedundancy {
         }
 
         let mut total_redundancy = 0.0;
-        let mut pair_count = 0;
+        let mut _pair_count = 0;
 
         for i in 0..n_features {
             for j in (i + 1)..n_features {
                 let mi = mi_matrix[[i, j]];
                 if mi >= self.mi_threshold {
                     total_redundancy += mi;
-                    pair_count += 1;
+                    _pair_count += 1;
                 }
             }
         }
@@ -640,7 +640,7 @@ impl RedundancyAssessment {
             self.interpret_mi_redundancy()
         ));
 
-        report.push_str(&"\nVariance Inflation Factor Analysis:\n".to_string());
+        report.push_str("\nVariance Inflation Factor Analysis:\n");
         report.push_str(&format!("  Average VIF: {:.4}\n", self.average_vif));
         report.push_str(&format!("  Maximum VIF: {:.4}\n", self.max_vif));
         report.push_str(&format!("  Interpretation: {}\n", self.interpret_vif()));

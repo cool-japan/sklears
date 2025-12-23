@@ -488,7 +488,7 @@ fn generate_image_perturbation(
     let mut active_superpixels = vec![false; superpixels.len()];
 
     for (i, superpixel) in superpixels.iter().enumerate() {
-        let is_active = scirs2_core::random::thread_rng().gen::<Float>() > mask_probability;
+        let is_active = scirs2_core::random::thread_rng().random::<Float>() > mask_probability;
         active_superpixels[i] = is_active;
 
         if !is_active {
@@ -778,7 +778,7 @@ where
     }
 
     // Average and multiply by (input - baseline)
-    integrated_gradients = integrated_gradients / n_steps as Float;
+    integrated_gradients /= n_steps as Float;
 
     Ok(integrated_gradients)
 }
@@ -799,7 +799,8 @@ where
         // Add noise to image
         let mut noisy_image = image.data.clone();
         for elem in noisy_image.iter_mut() {
-            *elem += (scirs2_core::random::thread_rng().gen::<Float>() - 0.5) * config.noise_level;
+            *elem +=
+                (scirs2_core::random::thread_rng().random::<Float>() - 0.5) * config.noise_level;
         }
 
         // Compute gradients
@@ -817,7 +818,7 @@ where
         smooth_gradients = smooth_gradients + gradients;
     }
 
-    smooth_gradients = smooth_gradients / n_samples as Float;
+    smooth_gradients /= n_samples as Float;
     Ok(smooth_gradients)
 }
 
@@ -972,10 +973,7 @@ fn extract_segments(
 
     // Group pixels by segment
     for ((i, j), &segment_id) in segmentation.indexed_iter() {
-        segment_pixels
-            .entry(segment_id)
-            .or_insert_with(Vec::new)
-            .push((i, j));
+        segment_pixels.entry(segment_id).or_default().push((i, j));
     }
 
     // Create segment explanations

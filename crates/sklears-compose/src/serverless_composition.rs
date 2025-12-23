@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::{Instant};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, mpsc, watch};
 use uuid::Uuid;
@@ -884,7 +884,7 @@ const context = {{}};
     }
 
     async fn handle_cold_start(&self, function_id: Uuid) -> Duration {
-        let cold_start_duration = Duration::from_millis(200 + thread_rng().gen::<u64>() % 800);
+        let cold_start_duration = Duration::from_millis(200 + thread_rng().random::<u64>() % 800);
         
         {
             let mut metrics = self.metrics.write().await;

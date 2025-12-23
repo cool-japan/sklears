@@ -264,7 +264,7 @@ impl MetricLearningSVM<Untrained> {
         &self,
         x: &Array2<f64>,
         y: &Array1<f64>,
-        classes: &Array1<f64>,
+        _classes: &Array1<f64>,
     ) -> Result<Array2<f64>> {
         match &self.config.algorithm {
             MetricLearningAlgorithm::LMNN { k, regularization } => {
@@ -366,7 +366,7 @@ impl MetricLearningSVM<Untrained> {
         gamma: f64,
         max_constraints: usize,
     ) -> Result<Array2<f64>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
         let mut metric = Array2::eye(n_features); // Initialize as identity
 
         // Generate constraints
@@ -793,7 +793,7 @@ impl Predict<Array2<f64>, Array1<f64>> for MetricLearningSVM<Trained> {
 
 impl Transform<Array2<f64>, Array2<f64>> for MetricLearningSVM<Trained> {
     fn transform(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != *self.n_features.as_ref().unwrap() {
             return Err(SklearsError::InvalidInput(

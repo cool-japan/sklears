@@ -783,12 +783,10 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for PrunedLabelPowerset<Untrained> 
         // Create the final class mapping using only frequent combinations
         let mut class_to_combination: HashMap<usize, Vec<i32>> = HashMap::new();
         let mut combination_to_class: HashMap<Vec<i32>, usize> = HashMap::new();
-        let mut next_class_id = 0;
 
-        for combo in &final_frequent_combinations {
+        for (next_class_id, combo) in final_frequent_combinations.iter().enumerate() {
             class_to_combination.insert(next_class_id, combo.clone());
             combination_to_class.insert(combo.clone(), next_class_id);
-            next_class_id += 1;
         }
 
         // Transform labels using the mapping

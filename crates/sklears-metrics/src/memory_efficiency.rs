@@ -20,9 +20,12 @@ use std::io::{Seek, SeekFrom};
 #[cfg(feature = "mmap")]
 use std::path::Path;
 
+/// Type alias for metric computation functions
+type MetricFn<T> = Box<dyn Fn(&T, &T) -> MetricsResult<f64>>;
+
 /// Lazy evaluation system for metric combinations
 pub struct LazyMetrics<T> {
-    metrics: Vec<Box<dyn Fn(&T, &T) -> MetricsResult<f64>>>,
+    metrics: Vec<MetricFn<T>>,
     names: Vec<String>,
     cached_results: HashMap<String, f64>,
     cache_enabled: bool,

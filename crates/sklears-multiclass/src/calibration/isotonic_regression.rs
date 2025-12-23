@@ -10,10 +10,10 @@ use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Point in the isotonic regression fit
 #[derive(Debug, Clone, PartialEq)]
-struct IsotonicPoint {
-    x: f64,
-    y: f64,
-    weight: f64,
+pub struct IsotonicPoint {
+    pub x: f64,
+    pub y: f64,
+    pub weight: f64,
 }
 
 /// Isotonic regression calibrator
@@ -218,7 +218,7 @@ pub struct MulticlassIsotonicRegression {
 
 impl MulticlassIsotonicRegression {
     /// Create a new multiclass isotonic regression calibrator
-    pub fn new(increasing: bool) -> Self {
+    pub fn new(_increasing: bool) -> Self {
         Self {
             regressors: Vec::new(),
             classes: Array1::zeros(0),

@@ -6,9 +6,9 @@
 use crate::{NeighborsError, NeighborsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
+use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::StandardNormal;
 use scirs2_core::random::{Rng, SeedableRng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -66,9 +66,10 @@ impl ApproximateDistance {
         // Johnson-Lindenstrauss lemma: we can project to O(log n / ε²) dimensions
         // Create random Gaussian matrix for projection
         let mut projection_matrix = Array2::zeros((n_projections, original_dim));
+        let normal = Normal::new(0.0, 1.0).unwrap();
         for i in 0..n_projections {
             for j in 0..original_dim {
-                projection_matrix[[i, j]] = rng.sample(StandardNormal);
+                projection_matrix[[i, j]] = rng.sample(normal);
             }
         }
 
@@ -163,12 +164,13 @@ impl ApproximateDistance {
 
         // Create random hash functions for LSH
         let mut hash_functions = Vec::new();
+        let normal = Normal::new(0.0, 1.0).unwrap();
         for _ in 0..n_hash_functions {
             let mut random_vector = Array1::zeros(original_dim);
             for j in 0..original_dim {
-                random_vector[j] = rng.sample(StandardNormal);
+                random_vector[j] = rng.sample(normal);
             }
-            let bias = rng.random_range(0.0..1.0);
+            let bias = rng.gen_range(0.0..1.0);
             hash_functions.push((random_vector, bias));
         }
 
@@ -342,8 +344,8 @@ impl ApproximateDistance {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         indices.shuffle(rng);
 
-        for i in 0..k {
-            centroids.row_mut(i).assign(&data.row(indices[i]));
+        for (i, &idx) in indices.iter().enumerate().take(k) {
+            centroids.row_mut(i).assign(&data.row(idx));
         }
 
         // Simple k-means iterations
@@ -377,11 +379,11 @@ impl ApproximateDistance {
                 counts[cluster] += 1;
             }
 
-            for j in 0..k {
-                if counts[j] > 0 {
+            for (j, &count) in counts.iter().enumerate().take(k) {
+                if count > 0 {
                     new_centroids
                         .row_mut(j)
-                        .mapv_inplace(|x| x / counts[j] as Float);
+                        .mapv_inplace(|x| x / count as Float);
                 }
             }
 

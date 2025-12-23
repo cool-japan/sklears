@@ -1188,48 +1188,52 @@ pub mod presets {
     use super::*;
 
     /// Create a basic selector with common estimators
-    pub fn basic_selector<F: NdFloat>() -> AutoCovarianceSelector<F> {
-        let selector = AutoCovarianceSelector::new();
+    pub fn basic_selector() -> AutoCovarianceSelector<f64> {
+        use crate::{EmpiricalCovariance, LedoitWolf};
 
-        // TODO: Add empirical covariance (requires DataFrameEstimator implementation)
-        // selector = selector.add_candidate(
-        //     "EmpiricalCovariance".to_string(),
-        //     Box::new(|_chars| {
-        //         let estimator = EmpiricalCovariance::new();
-        //         Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<F>>)
-        //     }),
-        //     DataCharacteristics::default(),
-        //     ComputationalComplexity::Quadratic,
-        // );
+        let mut selector = AutoCovarianceSelector::new();
 
-        // TODO: Add Ledoit-Wolf (requires DataFrameEstimator implementation)
-        // selector = selector.add_candidate(
-        //     "LedoitWolf".to_string(),
-        //     Box::new(|_chars| {
-        //         let estimator = LedoitWolf::new();
-        //         Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<F>>)
-        //     }),
-        //     DataCharacteristics::default(),
-        //     ComputationalComplexity::Quadratic,
-        // );
+        // Add empirical covariance
+        selector = selector.add_candidate(
+            "EmpiricalCovariance".to_string(),
+            Box::new(|_chars| {
+                let estimator = EmpiricalCovariance::new();
+                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+            }),
+            DataCharacteristics::default(),
+            ComputationalComplexity::Quadratic,
+        );
+
+        // Add Ledoit-Wolf
+        selector = selector.add_candidate(
+            "LedoitWolf".to_string(),
+            Box::new(|_chars| {
+                let estimator = LedoitWolf::new();
+                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+            }),
+            DataCharacteristics::default(),
+            ComputationalComplexity::Quadratic,
+        );
 
         selector
     }
 
     /// Create a selector optimized for high-dimensional data
-    pub fn high_dimensional_selector<F: NdFloat>() -> AutoCovarianceSelector<F> {
-        let selector = AutoCovarianceSelector::new();
+    pub fn high_dimensional_selector() -> AutoCovarianceSelector<f64> {
+        use crate::LedoitWolf;
 
-        // TODO: Add Ledoit-Wolf (requires DataFrameEstimator implementation)
-        // selector = selector.add_candidate(
-        //     "LedoitWolf".to_string(),
-        //     Box::new(|_chars| {
-        //         let estimator = LedoitWolf::new();
-        //         Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<F>>)
-        //     }),
-        //     DataCharacteristics::default(),
-        //     ComputationalComplexity::Quadratic,
-        // );
+        let mut selector = AutoCovarianceSelector::new();
+
+        // Add Ledoit-Wolf - ideal for high-dimensional data
+        selector = selector.add_candidate(
+            "LedoitWolf".to_string(),
+            Box::new(|_chars| {
+                let estimator = LedoitWolf::new();
+                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+            }),
+            DataCharacteristics::default(),
+            ComputationalComplexity::Quadratic,
+        );
 
         selector.selection_strategy(SelectionStrategy::CrossValidation {
             scoring: ModelSelectionScoring::LogLikelihood,
@@ -1238,19 +1242,21 @@ pub mod presets {
     }
 
     /// Create a selector for sparse data
-    pub fn sparse_selector<F: NdFloat>() -> AutoCovarianceSelector<F> {
-        let selector = AutoCovarianceSelector::new();
+    pub fn sparse_selector() -> AutoCovarianceSelector<f64> {
+        use crate::GraphicalLasso;
 
-        // TODO: Add GraphicalLasso (requires DataFrameEstimator implementation)
-        // selector = selector.add_candidate(
-        //     "GraphicalLasso".to_string(),
-        //     Box::new(|_chars| {
-        //         let estimator = GraphicalLasso::new().alpha(0.01);
-        //         Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<F>>)
-        //     }),
-        //     DataCharacteristics::default(),
-        //     ComputationalComplexity::Cubic,
-        // );
+        let mut selector = AutoCovarianceSelector::new();
+
+        // Add GraphicalLasso - ideal for sparse precision matrices
+        selector = selector.add_candidate(
+            "GraphicalLasso".to_string(),
+            Box::new(|_chars| {
+                let estimator = GraphicalLasso::new().alpha(0.01);
+                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+            }),
+            DataCharacteristics::default(),
+            ComputationalComplexity::Cubic,
+        );
 
         selector
     }
@@ -1361,9 +1367,9 @@ mod tests {
 
     #[test]
     fn test_basic_selector_preset() {
-        let selector = presets::basic_selector::<f64>();
-        // TODO: Should be 2 when DataFrameEstimator is implemented for estimators
-        assert_eq!(selector.candidates.len(), 0);
+        let selector = presets::basic_selector();
+        // Should have 2 estimators: EmpiricalCovariance and LedoitWolf
+        assert_eq!(selector.candidates.len(), 2);
     }
 
     #[test]

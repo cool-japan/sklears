@@ -201,7 +201,7 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskElasticNet<Untrained> {
 
         if n_samples != y.nrows() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("X.shape[0] == Y.shape[0]"),
+                expected: "X.shape[0] == Y.shape[0]".to_string(),
                 actual: format!("X.shape[0]={}, Y.shape[0]={}", n_samples, y.nrows()),
             });
         }

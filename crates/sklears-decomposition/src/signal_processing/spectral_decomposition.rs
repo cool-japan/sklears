@@ -36,7 +36,7 @@
 //! ```
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::Rng;
+// use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -217,7 +217,7 @@ impl SpectralDecomposition {
     /// # Returns
     /// * `CrossSpectralResult` containing cross-spectral information
     pub fn cross_spectral_analysis(&self, signals: &Array2<Float>) -> Result<CrossSpectralResult> {
-        let (n_channels, signal_length) = signals.dim();
+        let (n_channels, _signal_length) = signals.dim();
 
         if n_channels < 2 {
             return Err(SklearsError::InvalidInput(

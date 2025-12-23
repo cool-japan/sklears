@@ -15,10 +15,9 @@ use scirs2_core::ndarray::{Array2, ArrayView2};
 /// - Kernel methods in kernel.rs
 /// - Neural methods in neural.rs
 /// - Bayesian methods in bayesian.rs
-
 // Temporary stub implementations for types referenced in lib.rs that don't exist yet
-
-/// Kernel Density Estimation Imputer
+///
+///   Kernel Density Estimation Imputer
 #[derive(Debug, Clone)]
 pub struct KDEImputer {
     /// bandwidth
@@ -210,21 +209,12 @@ impl CopulaImputer {
 }
 
 /// Copula Parameters
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CopulaParameters {
     /// correlation_matrix
     pub correlation_matrix: Option<Array2<f64>>,
     /// marginal_distributions
     pub marginal_distributions: Vec<String>,
-}
-
-impl Default for CopulaParameters {
-    fn default() -> Self {
-        Self {
-            correlation_matrix: None,
-            marginal_distributions: Vec::new(),
-        }
-    }
 }
 
 /// Factor Analysis Imputer
@@ -285,7 +275,7 @@ impl EmpiricalQuantile {
     }
 
     pub fn evaluate(&self, _p: f64) -> f64 {
-        self.values.get(0).cloned().unwrap_or(0.0) // Placeholder
+        self.values.first().cloned().unwrap_or(0.0) // Placeholder
     }
 }
 

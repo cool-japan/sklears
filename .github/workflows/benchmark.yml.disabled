@@ -79,7 +79,7 @@ jobs:
         alert-threshold: '200%'
         comment-on-alert: true
         fail-on-alert: false
-        alert-comment-cc-users: '@kitasan'
+        alert-comment-cc-users: '@cool-japan'
     
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4

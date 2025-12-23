@@ -274,7 +274,7 @@ impl WaveletFeatureExtractor {
                 coefficients.push(subbands);
             }
             DecompositionMode::MultiLevel(levels) => {
-                for level in 0..levels {
+                for _level in 0..levels {
                     let subbands = self.single_level_decomposition(&current_image.view())?;
 
                     // Use approximation coefficients for next level
@@ -333,7 +333,7 @@ impl WaveletFeatureExtractor {
                     self.haar_decomposition_hh(image, new_height, new_width),
                 );
             }
-            WaveletType::Daubechies(order) => {
+            WaveletType::Daubechies(_order) => {
                 // Simplified Daubechies implementation (normally would use proper filters)
                 subbands.insert(
                     "LL".to_string(),

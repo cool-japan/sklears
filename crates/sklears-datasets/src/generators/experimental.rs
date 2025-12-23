@@ -41,7 +41,7 @@ pub fn make_ab_testing_simulation(
     let mut rng = if let Some(seed) = random_state {
         StdRng::seed_from_u64(seed)
     } else {
-        StdRng::from_rng(&mut rand::thread_rng())
+        StdRng::from_rng(&mut scirs2_core::random::thread_rng())
     };
 
     // Generate user features
@@ -71,7 +71,8 @@ pub fn make_ab_testing_simulation(
     let mut conversion = Array1::zeros(n_samples);
 
     for i in 0..n_samples {
-        let user_propensity = X.slice(ndarray::s![i, ..]).iter().sum::<f64>() / n_features as f64;
+        let user_propensity =
+            X.slice(scirs2_core::ndarray::s![i, ..]).iter().sum::<f64>() / n_features as f64;
         let base_rate = 0.1 + 0.05 * user_propensity.tanh(); // Base conversion rate
 
         let conversion_probability = if group_assignment[i] == 1 {

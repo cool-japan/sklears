@@ -190,7 +190,7 @@ impl Transform<Array2<Float>> for QuasiRandomRBFSampler<Trained> {
                     operation: "transform".to_string(),
                 })?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         if n_features != random_weights.ncols() {
             return Err(SklearsError::InvalidInput(format!(

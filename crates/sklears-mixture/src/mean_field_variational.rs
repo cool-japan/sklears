@@ -242,7 +242,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MeanFieldVariationalGMM<Untrained> {
             n_iter = iteration + 1;
 
             // Update q(z) - latent assignments
-            let (new_q_z, grad_z) = self.update_q_z(
+            let (_new_q_z, grad_z) = self.update_q_z(
                 &X,
                 &q_pi_alpha,
                 &q_mu_mean,
@@ -264,7 +264,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MeanFieldVariationalGMM<Untrained> {
             }
 
             // Update q(π) - mixing weights
-            let (new_q_pi_alpha, grad_pi) = self.update_q_pi(&q_z)?;
+            let (_new_q_pi_alpha, grad_pi) = self.update_q_pi(&q_z)?;
             momentum_pi = self.momentum * &momentum_pi + (1.0 - self.momentum) * &grad_pi;
             q_pi_alpha = &q_pi_alpha - self.learning_rate * &momentum_pi;
 
@@ -272,7 +272,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MeanFieldVariationalGMM<Untrained> {
             q_pi_alpha.mapv_inplace(|x| x.max(1e-10));
 
             // Update q(μ) - component means
-            let (new_q_mu_mean, new_q_mu_precision, grad_mu_mean, grad_mu_precision) =
+            let (_new_q_mu_mean, _new_q_mu_precision, grad_mu_mean, grad_mu_precision) =
                 self.update_q_mu(&X, &q_z, &q_lambda_nu, &q_lambda_w)?;
 
             momentum_mu_mean =
@@ -379,7 +379,7 @@ impl MeanFieldVariationalGMM<Untrained> {
         let mut q_z = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for k in 0..self.n_components {
-                q_z[[i, k]] = rng.gen::<f64>();
+                q_z[[i, k]] = rng.gen();
             }
             // Normalize
             let sum = q_z.row(i).sum();
@@ -473,7 +473,7 @@ impl MeanFieldVariationalGMM<Untrained> {
 
     /// Update q(π) - mixing weights
     fn update_q_pi(&self, q_z: &Array2<f64>) -> SklResult<(Array1<f64>, Array1<f64>)> {
-        let n_samples = q_z.nrows();
+        let _n_samples = q_z.nrows();
         let mut q_pi_alpha = Array1::from_elem(self.n_components, self.alpha_prior);
         let mut gradients = Array1::zeros(self.n_components);
 
@@ -492,7 +492,7 @@ impl MeanFieldVariationalGMM<Untrained> {
         X: &Array2<f64>,
         q_z: &Array2<f64>,
         q_lambda_nu: &Array1<f64>,
-        q_lambda_w: &Vec<Array2<f64>>,
+        _q_lambda_w: &Vec<Array2<f64>>,
     ) -> SklResult<(Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>)> {
         let (n_samples, n_features) = X.dim();
         let mut q_mu_mean = Array2::zeros((self.n_components, n_features));

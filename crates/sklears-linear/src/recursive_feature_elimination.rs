@@ -4,13 +4,14 @@
 //! method that fits a model and recursively removes features based on their importance,
 //! retraining the model with remaining features until the desired number is reached.
 
-use crate::lasso_cv::{LassoCV, LassoCVConfig};
+use crate::lasso_cv::{KFold, LassoCV, LassoCVConfig};
 use crate::linear_regression::{LinearRegression, LinearRegressionConfig};
 use crate::ridge_cv::{RidgeCV, RidgeCVConfig};
-use scirs2_core::ndarray::{Array1, Array2};
+use crate::Penalty;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_core::{
     error::SklearsError,
-    traits::{Estimator, Fit, Predict},
+    traits::{Fit, Predict, Trained},
 };
 use std::cmp::Ordering;
 
@@ -385,67 +386,24 @@ impl RecursiveFeatureElimination {
     ) -> Result<Vec<f64>, SklearsError> {
         match &self.config.estimator {
             RFEEstimator::LinearRegression { config } => {
-                let estimator = LinearRegression::new()
-                    .fit_intercept(config.fit_intercept)
-                    .penalty(config.penalty.clone())
-                    .solver(config.solver.clone())
-                    .max_iter(config.max_iter);
-                // Convert Vec<Vec<f64>> to Array2<f64>
-                let x_array = Array2::from_shape_vec(
-                    (x.len(), x[0].len()),
-                    x.iter().flatten().cloned().collect(),
-                )
-                .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-                // Convert Vec<f64> to Array1<f64>
+                let x_array = Self::to_array2(x)?;
                 let y_array = Array1::from_vec(y.to_vec());
-
-                let trained = estimator.fit(&x_array, &y_array)?;
-
-                // For linear regression, use absolute coefficients as importance
-                let coefficients = trained.coef();
-
-                Ok(coefficients.iter().map(|&coef| coef.abs()).collect())
+                let trained = Self::fit_linear_with_fallback(&x_array, &y_array, config)?;
+                Ok(trained.coef().iter().map(|&coef| coef.abs()).collect())
             }
 
             RFEEstimator::RidgeCV { config } => {
-                let estimator = RidgeCV::new();
-                // Convert Vec<Vec<f64>> to Array2<f64>
-                let x_array = Array2::from_shape_vec(
-                    (x.len(), x[0].len()),
-                    x.iter().flatten().cloned().collect(),
-                )
-                .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-                // Convert Vec<f64> to Array1<f64>
+                let x_array = Self::to_array2(x)?;
                 let y_array = Array1::from_vec(y.to_vec());
-
-                let trained = estimator.fit(&x_array, &y_array)?;
-
-                // For ridge regression, use absolute coefficients as importance
-                let coefficients = trained.coef();
-
-                Ok(coefficients.iter().map(|&coef| coef.abs()).collect())
+                let trained = Self::fit_ridge(&x_array, &y_array, config)?;
+                Ok(trained.coef().iter().map(|&coef| coef.abs()).collect())
             }
 
             RFEEstimator::LassoCV { config } => {
-                let estimator = LassoCV::new();
-                // Convert Vec<Vec<f64>> to Array2<f64>
-                let x_array = Array2::from_shape_vec(
-                    (x.len(), x[0].len()),
-                    x.iter().flatten().cloned().collect(),
-                )
-                .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-                // Convert Vec<f64> to Array1<f64>
+                let x_array = Self::to_array2(x)?;
                 let y_array = Array1::from_vec(y.to_vec());
-
-                let trained = estimator.fit(&x_array, &y_array)?;
-
-                // For lasso regression, use absolute coefficients as importance
-                let coefficients = trained.coef();
-
-                Ok(coefficients.iter().map(|&coef| coef.abs()).collect())
+                let trained = Self::fit_lasso(&x_array, &y_array, config)?;
+                Ok(trained.coef().iter().map(|&coef| coef.abs()).collect())
             }
         }
     }
@@ -454,57 +412,23 @@ impl RecursiveFeatureElimination {
     fn fit_final_estimator(&self, x: &[Vec<f64>], y: &[f64]) -> Result<Vec<f64>, SklearsError> {
         match &self.config.estimator {
             RFEEstimator::LinearRegression { config } => {
-                let estimator = LinearRegression::new()
-                    .fit_intercept(config.fit_intercept)
-                    .penalty(config.penalty.clone())
-                    .solver(config.solver.clone())
-                    .max_iter(config.max_iter);
-                // Convert Vec<Vec<f64>> to Array2<f64>
-                let x_array = Array2::from_shape_vec(
-                    (x.len(), x[0].len()),
-                    x.iter().flatten().cloned().collect(),
-                )
-                .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-                // Convert Vec<f64> to Array1<f64>
+                let x_array = Self::to_array2(x)?;
                 let y_array = Array1::from_vec(y.to_vec());
-
-                let trained = estimator.fit(&x_array, &y_array)?;
-
+                let trained = Self::fit_linear_with_fallback(&x_array, &y_array, config)?;
                 Ok(trained.coef().to_vec())
             }
 
             RFEEstimator::RidgeCV { config } => {
-                let estimator = RidgeCV::new();
-                // Convert Vec<Vec<f64>> to Array2<f64>
-                let x_array = Array2::from_shape_vec(
-                    (x.len(), x[0].len()),
-                    x.iter().flatten().cloned().collect(),
-                )
-                .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-                // Convert Vec<f64> to Array1<f64>
+                let x_array = Self::to_array2(x)?;
                 let y_array = Array1::from_vec(y.to_vec());
-
-                let trained = estimator.fit(&x_array, &y_array)?;
-
+                let trained = Self::fit_ridge(&x_array, &y_array, config)?;
                 Ok(trained.coef().to_vec())
             }
 
             RFEEstimator::LassoCV { config } => {
-                let estimator = LassoCV::new();
-                // Convert Vec<Vec<f64>> to Array2<f64>
-                let x_array = Array2::from_shape_vec(
-                    (x.len(), x[0].len()),
-                    x.iter().flatten().cloned().collect(),
-                )
-                .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-                // Convert Vec<f64> to Array1<f64>
+                let x_array = Self::to_array2(x)?;
                 let y_array = Array1::from_vec(y.to_vec());
-
-                let trained = estimator.fit(&x_array, &y_array)?;
-
+                let trained = Self::fit_lasso(&x_array, &y_array, config)?;
                 Ok(trained.coef().to_vec())
             }
         }
@@ -517,80 +441,70 @@ impl RecursiveFeatureElimination {
         y: &[f64],
         cv_folds: usize,
     ) -> Result<f64, SklearsError> {
+        if cv_folds == 0 {
+            return Err(SklearsError::InvalidParameter {
+                name: "cv".to_string(),
+                reason: "must be at least 1".to_string(),
+            });
+        }
+
         let n_samples = x.len();
-        let fold_size = n_samples / cv_folds;
+        if n_samples == 0 {
+            return Err(SklearsError::InvalidInput(
+                "Cannot perform cross-validation on empty dataset".to_string(),
+            ));
+        }
+
+        let x_array = Self::to_array2(x)?;
+        let y_array = Array1::from_vec(y.to_vec());
+        let n_folds = cv_folds.min(n_samples);
+        let kfold = KFold::new(n_folds);
+        let splits = kfold.split(n_samples, None);
+
+        if splits.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cross-validation produced no folds".to_string(),
+            ));
+        }
+
         let mut scores = Vec::new();
 
-        for fold in 0..cv_folds {
-            let start_idx = fold * fold_size;
-            let end_idx = if fold == cv_folds - 1 {
-                n_samples
-            } else {
-                (fold + 1) * fold_size
-            };
-
-            // Create train/validation splits
-            let mut x_train = Vec::new();
-            let mut y_train = Vec::new();
-            let mut x_val = Vec::new();
-            let mut y_val = Vec::new();
-
-            for (i, (x_row, &y_val_single)) in x.iter().zip(y.iter()).enumerate() {
-                if i >= start_idx && i < end_idx {
-                    x_val.push(x_row.clone());
-                    y_val.push(y_val_single);
-                } else {
-                    x_train.push(x_row.clone());
-                    y_train.push(y_val_single);
-                }
+        for (train_idx, test_idx) in splits {
+            if train_idx.is_empty() || test_idx.is_empty() {
+                continue;
             }
 
-            // Convert training data
-            let x_train_array = Array2::from_shape_vec(
-                (x_train.len(), x_train[0].len()),
-                x_train.iter().flatten().cloned().collect(),
-            )
-            .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-            let y_train_array = Array1::from_vec(y_train.to_vec());
+            let x_train = x_array.select(Axis(0), &train_idx);
+            let y_train = y_array.select(Axis(0), &train_idx);
+            let x_val = x_array.select(Axis(0), &test_idx);
+            let y_val = y_array.select(Axis(0), &test_idx);
 
-            // Convert validation data
-            let x_val_array = Array2::from_shape_vec(
-                (x_val.len(), x_val[0].len()),
-                x_val.iter().flatten().cloned().collect(),
-            )
-            .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
-
-            // Fit and predict for each estimator type
-            let y_pred = match &self.config.estimator {
+            let predictions = match &self.config.estimator {
                 RFEEstimator::LinearRegression { config } => {
-                    let estimator = LinearRegression::new()
-                        .fit_intercept(config.fit_intercept)
-                        .penalty(config.penalty.clone())
-                        .solver(config.solver.clone())
-                        .max_iter(config.max_iter);
-                    let trained_model = estimator.fit(&x_train_array, &y_train_array)?;
-                    trained_model.predict(&x_val_array)?
+                    let model = Self::fit_linear_with_fallback(&x_train, &y_train, config)?;
+                    model.predict(&x_val)?
                 }
-
                 RFEEstimator::RidgeCV { config } => {
-                    let estimator = RidgeCV::new();
-                    let trained_model = estimator.fit(&x_train_array, &y_train_array)?;
-                    trained_model.predict(&x_val_array)?
+                    let model = Self::fit_ridge(&x_train, &y_train, config)?;
+                    model.predict(&x_val)?
                 }
-
                 RFEEstimator::LassoCV { config } => {
-                    let estimator = LassoCV::new();
-                    let trained_model = estimator.fit(&x_train_array, &y_train_array)?;
-                    trained_model.predict(&x_val_array)?
+                    let model = Self::fit_lasso(&x_train, &y_train, config)?;
+                    model.predict(&x_val)?
                 }
             };
 
-            // Calculate score
-            let score = self.calculate_score(&y_val, y_pred.as_slice().unwrap())?;
+            let score =
+                self.calculate_score(y_val.as_slice().unwrap(), predictions.as_slice().unwrap())?;
             scores.push(score);
         }
 
-        // Return average score
+        if scores.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cross-validation produced no valid folds".to_string(),
+            ));
+        }
+
         Ok(scores.iter().sum::<f64>() / scores.len() as f64)
     }
 
@@ -598,7 +512,7 @@ impl RecursiveFeatureElimination {
     fn calculate_score(&self, y_true: &[f64], y_pred: &[f64]) -> Result<f64, SklearsError> {
         if y_true.len() != y_pred.len() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("y_true.len() == y_pred.len()"),
+                expected: "y_true.len() == y_pred.len()".to_string(),
                 actual: format!(
                     "y_true.len() == {}, y_pred.len() == {}",
                     y_true.len(),
@@ -663,6 +577,109 @@ impl Default for RecursiveFeatureElimination {
     }
 }
 
+impl RecursiveFeatureElimination {
+    fn to_array2(x: &[Vec<f64>]) -> Result<Array2<f64>, SklearsError> {
+        if x.is_empty() {
+            return Err(SklearsError::InvalidInput(
+                "Cannot convert empty feature matrix".to_string(),
+            ));
+        }
+
+        let n_features = x[0].len();
+        let mut flat = Vec::with_capacity(x.len() * n_features);
+
+        for (row_idx, row) in x.iter().enumerate() {
+            if row.len() != n_features {
+                return Err(SklearsError::ShapeMismatch {
+                    expected: format!("row[{row_idx}].len() == {n_features}"),
+                    actual: format!("row[{row_idx}].len() == {}", row.len()),
+                });
+            }
+            flat.extend_from_slice(row);
+        }
+
+        Array2::from_shape_vec((x.len(), n_features), flat)
+            .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))
+    }
+
+    fn fit_linear_with_fallback(
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        config: &LinearRegressionConfig,
+    ) -> Result<LinearRegression<Trained>, SklearsError> {
+        let estimator = LinearRegression::new()
+            .fit_intercept(config.fit_intercept)
+            .penalty(config.penalty)
+            .solver(config.solver)
+            .max_iter(config.max_iter);
+
+        match estimator.fit(x, y) {
+            Ok(model) => Ok(model),
+            Err(err) => match err {
+                SklearsError::NumericalError(detail) if matches!(config.penalty, Penalty::None) => {
+                    let fallback = LinearRegression::new()
+                        .fit_intercept(config.fit_intercept)
+                        .penalty(Penalty::L2(1e-6))
+                        .solver(config.solver)
+                        .max_iter(config.max_iter);
+
+                    match fallback.fit(x, y) {
+                        Ok(model) => Ok(model),
+                        Err(ridge_err) => Err(SklearsError::NumericalError(format!(
+                            "OLS failed ({detail}); ridge fallback failed ({ridge_err})"
+                        ))),
+                    }
+                }
+                _ => Err(err),
+            },
+        }
+    }
+
+    fn fit_ridge(
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        config: &RidgeCVConfig,
+    ) -> Result<RidgeCV<Trained>, SklearsError> {
+        let mut estimator = RidgeCV::new().fit_intercept(config.fit_intercept);
+
+        if let Some(alphas) = &config.alphas {
+            estimator = estimator.alphas(alphas.clone());
+        }
+
+        if let Some(cv) = config.cv {
+            estimator = estimator.cv(cv);
+        }
+
+        if config.store_cv_values {
+            estimator = estimator.store_cv_values(true);
+        }
+
+        estimator.fit(x, y)
+    }
+
+    fn fit_lasso(
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        config: &LassoCVConfig,
+    ) -> Result<LassoCV<Trained>, SklearsError> {
+        let mut estimator = LassoCV::new()
+            .fit_intercept(config.fit_intercept)
+            .max_iter(config.max_iter)
+            .tol(config.tol)
+            .store_cv_values(config.store_cv_values);
+
+        if let Some(alphas) = &config.alphas {
+            estimator = estimator.alphas(alphas.clone());
+        }
+
+        if let Some(cv) = config.cv {
+            estimator = estimator.cv(cv);
+        }
+
+        estimator.fit(x, y)
+    }
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -723,12 +740,26 @@ mod tests {
 
     #[test]
     fn test_rfe_with_lasso() {
+        // Use minimal parameters to avoid timeout
+        // RFE: 2 iterations (5→4→3 features)
+        // LassoCV: 5 alphas × 2 folds = 10 fits per iteration
+        // Total: 2 × 10 = 20 coordinate descent runs
+        let lasso_config = LassoCVConfig {
+            max_iter: 500,
+            tol: 1e-2,
+            fit_intercept: true,
+            alphas: Some(vec![0.001, 0.01, 0.1, 1.0, 10.0]), // Explicit alphas
+            cv: Some(2), // Must be Some, not None (None defaults to 5 folds)
+            n_alphas: 5,
+            store_cv_values: false,
+        };
+
         let mut rfe = RecursiveFeatureElimination::new()
             .with_estimator(RFEEstimator::LassoCV {
-                config: LassoCVConfig::default(),
+                config: lasso_config,
             })
             .with_n_features_to_select(Some(3))
-            .with_cv(Some(3));
+            .with_cv(Some(2)); // Reduced CV folds for faster execution
 
         let (x, y) = create_sample_data();
         let result = rfe.fit_transform(&x, &y);

@@ -15,7 +15,6 @@ description = "Kernel approximation methods"
 [dependencies]
 sklears-core = { workspace = true, features = ["parallel", "async_support"] }  # Removed ndarray-linalg (SciRS2 Policy)
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 
 # SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true }
@@ -32,8 +31,8 @@ scirs2-stats = { workspace = true }
 # ❌ rand_distr - use scirs2_core::random instead
 # ❌ rand_chacha - use scirs2_core::random instead
 rayon = { workspace = true }
-num_cpus = "1.16"
-rustfft = "6.2"
+num_cpus = "1.17"
+rustfft = "6.4"
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

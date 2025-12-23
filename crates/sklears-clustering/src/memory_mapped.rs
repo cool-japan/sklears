@@ -87,6 +87,7 @@ impl MemoryMappedDistanceMatrix {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&distance_file_path)
             .map_err(|e| SklearsError::Other(format!("Failed to create distance file: {}", e)))?;
 

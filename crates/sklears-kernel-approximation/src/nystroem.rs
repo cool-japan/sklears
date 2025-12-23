@@ -2,7 +2,8 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     prelude::{Fit, Transform},
@@ -247,7 +248,7 @@ impl Nystroem<Untrained> {
                 if !cluster_points.is_empty() {
                     let mut new_center = Array1::zeros(n_features);
                     for &point_idx in &cluster_points {
-                        new_center = new_center + &x.row(point_idx);
+                        new_center = new_center + x.row(point_idx);
                     }
                     new_center /= cluster_points.len() as Float;
                     centers.row_mut(j).assign(&new_center);
@@ -291,7 +292,7 @@ impl Nystroem<Untrained> {
         &self,
         x: &Array2<Float>,
         n_components: usize,
-        rng: &mut RealStdRng,
+        _rng: &mut RealStdRng,
     ) -> Result<Vec<usize>> {
         let (n_samples, _) = x.dim();
 
@@ -555,7 +556,7 @@ impl Fit<Array2<Float>, ()> for Nystroem<Untrained> {
         }
 
         // Construct pseudo-inverse: V * Λ⁻¹ * V^T
-        let n_valid = valid_indices.len();
+        let _n_valid = valid_indices.len();
         let mut pseudo_inverse = Array2::zeros((n_components_actual, n_components_actual));
 
         for i in 0..n_components_actual {

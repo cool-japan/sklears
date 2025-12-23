@@ -4,6 +4,8 @@
 //! reasonable iteration bounds.
 
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
 use sklears_clustering::{FuzzyCMeans, GaussianMixture, KMeans, KMeansConfig, MeanShift};
 use sklears_clustering::{PredictMembership, PredictProba};
 use sklears_core::{
@@ -17,7 +19,8 @@ fn generate_separated_clusters(
     n_samples_per_cluster: usize,
     n_features: usize,
 ) -> Array2<Float> {
-    use scirs2_core::random::{Distribution, RandNormal, SeedableRng, StdRng};
+    use scirs2_core::random::essentials::Normal;
+    use scirs2_core::Distribution;
 
     let mut rng = StdRng::seed_from_u64(42);
     let mut data = Vec::new();
@@ -30,7 +33,7 @@ fn generate_separated_clusters(
             let mut point = Vec::new();
             for feature_id in 0..n_features {
                 let center = if feature_id == 0 { center_offset } else { 0.0 };
-                let normal = RandNormal::new(center, 1.0).unwrap();
+                let normal = Normal::new(center, 1.0).unwrap();
                 point.push(normal.sample(&mut rng));
             }
             data.extend(point);

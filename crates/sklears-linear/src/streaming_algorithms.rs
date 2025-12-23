@@ -188,7 +188,7 @@ impl Fit<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Untrained> 
 
         if n_samples != y.len() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("X.nrows() == y.len()"),
+                expected: "X.nrows() == y.len()".to_string(),
                 actual: format!("X.nrows()={}, y.len()={}", n_samples, y.len()),
             });
         }
@@ -204,7 +204,6 @@ impl Fit<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Untrained> 
         let mut intercept = 0.0;
         let mut current_lr = self.config.learning_rate;
         let mut loss_history = Vec::new();
-        let mut n_samples_seen = 0;
 
         // Precompute indices for shuffling
         let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -240,7 +239,6 @@ impl Fit<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Untrained> 
 
                 epoch_loss += chunk_loss;
                 n_chunks += 1;
-                n_samples_seen += chunk_indices.len();
             }
 
             // Average loss for this epoch
@@ -266,7 +264,7 @@ impl Fit<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Untrained> 
             coef_: Some(coef),
             intercept_: Some(intercept),
             n_features_: Some(n_features),
-            n_samples_seen_: Some(n_samples_seen),
+            n_samples_seen_: Some(n_samples),
             current_lr_: Some(current_lr),
             loss_history_: Some(loss_history),
         })
@@ -366,7 +364,7 @@ impl StreamingLinearRegression<Untrained> {
     }
 
     /// Shuffle indices for data randomization
-    fn shuffle_indices(&self, indices: &mut Vec<usize>, seed: usize) {
+    fn shuffle_indices(&self, indices: &mut [usize], seed: usize) {
         // Simple shuffle implementation using seed for reproducibility
         let n = indices.len();
         for i in (1..n).rev() {
@@ -429,7 +427,7 @@ impl StreamingLinearRegression<Trained> {
 
         if x.nrows() != y.len() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("X.nrows() == y.len()"),
+                expected: "X.nrows() == y.len()".to_string(),
                 actual: format!("X.nrows()={}, y.len()={}", x.nrows(), y.len()),
             });
         }
@@ -471,8 +469,10 @@ pub struct StreamingLasso<State = Untrained> {
 impl StreamingLasso<Untrained> {
     /// Create new streaming Lasso
     pub fn new() -> Self {
-        let mut config = StreamingConfig::default();
-        config.l2_reg = 0.0; // Pure L1 regularization
+        let config = StreamingConfig {
+            l2_reg: 0.0, // Pure L1 regularization
+            ..StreamingConfig::default()
+        };
 
         Self {
             base_model: StreamingLinearRegression {
@@ -576,7 +576,7 @@ impl<'a> DataStreamIterator<'a> {
     ) -> Result<Self> {
         if x.nrows() != y.len() {
             return Err(SklearsError::ShapeMismatch {
-                expected: format!("X.nrows() == y.len()"),
+                expected: "X.nrows() == y.len()".to_string(),
                 actual: format!("X.nrows()={}, y.len()={}", x.nrows(), y.len()),
             });
         }
@@ -608,6 +608,11 @@ impl<'a> DataStreamIterator<'a> {
     /// Get total number of samples
     pub fn len(&self) -> usize {
         self.indices.len()
+    }
+
+    /// Check if iterator has no samples
+    pub fn is_empty(&self) -> bool {
+        self.indices.is_empty()
     }
 
     /// Check if iterator is finished
@@ -682,9 +687,9 @@ impl StreamingUtils {
     where
         F: FnMut(&Array2<Float>, &Array1<Float>) -> Result<()>,
     {
-        let mut stream = DataStreamIterator::new(x, y, chunk_size, false)?;
+        let stream = DataStreamIterator::new(x, y, chunk_size, false)?;
 
-        while let Some(chunk_result) = stream.next() {
+        for chunk_result in stream {
             let (x_chunk, y_chunk) = chunk_result?;
             process_fn(&x_chunk, &y_chunk)?;
         }
@@ -697,7 +702,7 @@ impl StreamingUtils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
+
     use scirs2_core::ndarray::array;
 
     #[test]

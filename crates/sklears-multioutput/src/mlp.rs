@@ -302,6 +302,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<Untrained> {
 
 impl MultiOutputMLP<Untrained> {
     /// Forward pass through the network
+    #[allow(clippy::type_complexity)]
     fn forward_pass(
         &self,
         X: &Array2<Float>,
@@ -415,6 +416,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<MultiOutpu
 
 impl MultiOutputMLP<MultiOutputMLPTrained> {
     /// Forward pass for trained model
+    #[allow(clippy::type_complexity)]
     fn forward_pass_trained(
         &self,
         X: &Array2<Float>,

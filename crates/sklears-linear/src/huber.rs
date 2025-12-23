@@ -3,18 +3,13 @@
 //! The Huber Regressor is a linear regression model that is robust to outliers.
 //! It uses the Huber loss function which is quadratic for small errors and linear for large errors.
 
-use ndarray_linalg::Solve;
-use scirs2_core::numeric::Float;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::solve;
 use std::marker::PhantomData;
 
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
 };
-
-use crate::solver::Solver;
 
 /// Configuration for HuberRegressor
 #[derive(Debug, Clone)]
@@ -135,9 +130,7 @@ fn huber_loss_derivative(residual: f64, epsilon: f64) -> f64 {
 /// Weight function for IRLS (Iteratively Reweighted Least Squares)
 fn huber_weight(residual: f64, epsilon: f64) -> f64 {
     let abs_residual = residual.abs();
-    if abs_residual <= f64::EPSILON {
-        1.0
-    } else if abs_residual <= epsilon {
+    if abs_residual <= f64::EPSILON || abs_residual <= epsilon {
         1.0
     } else {
         epsilon / abs_residual
@@ -169,7 +162,6 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
         };
 
         // Initialize coefficients
-        let mut coef = Array1::zeros(n_features);
         let mut scale = 1.0;
         let mut n_iter = 0;
 
@@ -179,13 +171,8 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
         let xt_y = x_centered.t().dot(&y_centered);
 
         // Solve normal equations
-        match xt_x_reg.solve(&xt_y.view()) {
-            Ok(solution) => coef = solution,
-            Err(_) => {
-                // If solve fails, use identity initialization
-                coef = Array1::zeros(n_features);
-            }
-        }
+        let mut coef = scirs2_linalg::solve(&xt_x_reg.view(), &xt_y.view(), None)
+            .unwrap_or_else(|_| Array1::zeros(n_features));
 
         // IRLS iterations
         for iter in 0..self.config.max_iter {
@@ -221,7 +208,7 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
             let xt_w_y = x_weighted.t().dot(&y_weighted);
 
             // Solve weighted normal equations
-            match xt_w_x_reg.solve(&xt_w_y.view()) {
+            match scirs2_linalg::solve(&xt_w_x_reg.view(), &xt_w_y.view(), None) {
                 Ok(new_coef) => {
                     // Check for convergence
                     let coef_change = (&new_coef - &coef).mapv(|x| x.abs()).sum();

@@ -532,7 +532,7 @@ impl FastICA {
     ) -> Result<Array1<f64>> {
         let (n_features, n_samples) = x.dim();
         let mut g_x = Array1::zeros(n_samples);
-        let mut g_prime_mean = 0.0;
+        let mut _g_prime_mean = 0.0;
 
         // Apply non-linearity function
         match self.fun {
@@ -540,7 +540,7 @@ impl FastICA {
                 for i in 0..n_samples {
                     let u = w_x[i];
                     g_x[i] = u.tanh();
-                    g_prime_mean += 1.0 - u.tanh().powi(2);
+                    _g_prime_mean += 1.0 - u.tanh().powi(2);
                 }
             }
             NonLinearityType::Exp => {
@@ -548,19 +548,19 @@ impl FastICA {
                     let u = w_x[i];
                     let exp_term = (-u * u / 2.0).exp();
                     g_x[i] = u * exp_term;
-                    g_prime_mean += (1.0 - u * u) * exp_term;
+                    _g_prime_mean += (1.0 - u * u) * exp_term;
                 }
             }
             NonLinearityType::Cube => {
                 for i in 0..n_samples {
                     let u = w_x[i];
                     g_x[i] = u.powi(3);
-                    g_prime_mean += 3.0 * u * u;
+                    _g_prime_mean += 3.0 * u * u;
                 }
             }
         }
 
-        g_prime_mean /= n_samples as f64;
+        _g_prime_mean /= n_samples as f64;
 
         // Compute update: E[x * g(w^T x)] - E[g'(w^T x)] * w
         let mut expectation = Array1::zeros(n_features);
@@ -895,7 +895,7 @@ impl JADE {
         let (n_features, n_samples) = x.dim();
 
         // Compute covariance matrix
-        let cov = x.dot(&x.t()) / (n_samples - 1) as Float;
+        let _cov = x.dot(&x.t()) / (n_samples - 1) as Float;
 
         // Simplified whitening: use identity for demonstration
         // In practice, would use proper SVD-based whitening
@@ -1476,7 +1476,7 @@ impl BSSResult {
             ));
         }
 
-        let (n_sources, n_samples) = self.sources.dim();
+        let (n_sources, _n_samples) = self.sources.dim();
         let mut sir_values = Array1::zeros(n_sources);
 
         for i in 0..n_sources {
@@ -1584,7 +1584,7 @@ mod tests {
 
     #[test]
     fn test_fastica_basic() {
-        let (true_sources, mixed_signals) = generate_test_signals(2, 1000);
+        let (_true_sources, mixed_signals) = generate_test_signals(2, 1000);
 
         let fastica = FastICA::new().n_components(2).max_iter(100).tolerance(1e-3);
 

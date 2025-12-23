@@ -259,7 +259,7 @@ impl NSGAII {
 
             for j in 0..n_variables {
                 let (min_val, max_val) = self.variable_bounds[j];
-                variables[j] = rng.gen_range(min_val..=max_val);
+                variables[j] = rng.gen_range(min_val..max_val + 1.0);
             }
 
             population.push(Individual::new(variables));

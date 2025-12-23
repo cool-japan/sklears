@@ -675,8 +675,8 @@ impl ImageNaiveBayes {
 
     fn compute_pyramid_log_likelihood(
         &self,
-        observed: &Vec<Array1<f64>>,
-        learned: &Vec<Array1<f64>>,
+        observed: &[Array1<f64>],
+        learned: &[Array1<f64>],
     ) -> f64 {
         let mut log_likelihood = 0.0;
 
@@ -1126,7 +1126,7 @@ pub mod utils {
                 for i in 0..height {
                     for j in 0..width {
                         for c in 0..3 {
-                            pixels[[i, j, c]] = rng.gen::<f64>();
+                            pixels[[i, j, c]] = rng.gen();
                         }
                     }
                 }

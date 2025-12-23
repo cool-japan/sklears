@@ -30,7 +30,6 @@ pub fn pearson_correlation(x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> CoreResu
         return Ok(0.0);
     }
 
-    let n = x.len() as f64;
     let x_mean = x.mean().unwrap_or(0.0);
     let y_mean = y.mean().unwrap_or(0.0);
 

@@ -236,7 +236,7 @@ impl DistributedWorker {
 
     /// Compute covariance matrix
     fn compute_covariance(&self, centered_data: &Array2<Float>) -> Result<Array2<Float>> {
-        let (n_samples, n_features) = centered_data.dim();
+        let (n_samples, _n_features) = centered_data.dim();
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
                 "Need at least 2 samples to compute covariance".to_string(),

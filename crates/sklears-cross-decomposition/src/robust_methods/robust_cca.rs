@@ -348,8 +348,8 @@ impl RobustCCA<Untrained> {
         let n_features_y = Y.ncols();
 
         // Simple initialization with weighted covariance
-        let wx = Array1::from_iter((0..n_features_x).map(|_| thread_rng().gen::<Float>() - 0.5));
-        let wy = Array1::from_iter((0..n_features_y).map(|_| thread_rng().gen::<Float>() - 0.5));
+        let wx = Array1::from_iter((0..n_features_x).map(|_| thread_rng().random::<Float>() - 0.5));
+        let wy = Array1::from_iter((0..n_features_y).map(|_| thread_rng().random::<Float>() - 0.5));
 
         // Normalize
         let norm_x = (wx.dot(&wx)).sqrt();
@@ -413,8 +413,8 @@ impl RobustCCA<Untrained> {
 
         // Solve generalized eigenvalue problem (simplified)
         // In practice, would use proper eigenvalue decomposition
-        let mut wx = Array1::from_iter((0..n_features_x).map(|_| thread_rng().gen::<Float>()));
-        let mut wy = Array1::from_iter((0..n_features_y).map(|_| thread_rng().gen::<Float>()));
+        let mut wx = Array1::from_iter((0..n_features_x).map(|_| thread_rng().random::<Float>()));
+        let mut wy = Array1::from_iter((0..n_features_y).map(|_| thread_rng().random::<Float>()));
 
         // Normalize
         let norm_x = (wx.dot(&wx)).sqrt();

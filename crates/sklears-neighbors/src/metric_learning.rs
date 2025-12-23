@@ -263,7 +263,7 @@ impl Fit<Features, Array1<i32>> for LargeMarginNearestNeighbor {
         let rng_seed = self
             .random_state
             .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
-        let rng = StdRng::seed_from_u64(rng_seed);
+        let _rng = StdRng::seed_from_u64(rng_seed);
 
         // Find target neighbors for each sample
         let target_neighbors = self.find_target_neighbors(&x.view(), &y.view());
@@ -271,7 +271,7 @@ impl Fit<Features, Array1<i32>> for LargeMarginNearestNeighbor {
         let mut prev_loss = Float::infinity();
 
         // Gradient descent optimization
-        for iteration in 0..self.max_iter {
+        for _iteration in 0..self.max_iter {
             // Compute gradient
             let gradient =
                 self.compute_gradient(&x.view(), &y.view(), &target_neighbors, &metric.view());
@@ -553,7 +553,7 @@ impl Fit<Features, Array1<i32>> for NeighborhoodComponentsAnalysis {
         let mut transformation = Array2::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                transformation[[i, j]] = rng.random_range(-0.1..0.1);
+                transformation[[i, j]] = rng.gen_range(-0.1..0.1);
             }
         }
 
@@ -689,8 +689,8 @@ impl InformationTheoreticMetricLearning {
         let mut dissimilar_pairs = Vec::new();
 
         for _ in 0..self.n_constraints {
-            let i = rng.random_range(0..n_samples);
-            let j = rng.random_range(0..n_samples);
+            let i = rng.gen_range(0..n_samples);
+            let j = rng.gen_range(0..n_samples);
 
             if i != j {
                 if y[i] == y[j] {
@@ -781,7 +781,7 @@ impl InformationTheoreticMetricLearning {
         similar_pairs: &[(usize, usize)],
         dissimilar_pairs: &[(usize, usize)],
     ) -> Float {
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
         let mut total_violation = 0.0;
 
         // Process similar pairs (should be close)
@@ -1295,5 +1295,496 @@ mod tests {
 
         let itml = InformationTheoreticMetricLearning::new(5);
         assert!(itml.fit(&X, &y_wrong).is_err());
+    }
+}
+
+/// Online Metric Learning for streaming data
+///
+/// This algorithm learns and adapts a distance metric incrementally as new samples arrive,
+/// using stochastic gradient descent with momentum. Suitable for online learning scenarios
+/// where data arrives sequentially and full batch retraining is not feasible.
+///
+/// # Algorithm
+/// The online metric learning uses:
+/// - Stochastic updates with mini-batches for efficiency
+/// - Momentum for stable convergence
+/// - Adaptive learning rate decay
+/// - Memory of recent gradients for better updates
+///
+/// # Use Cases
+/// - Streaming classification tasks
+/// - Concept drift adaptation
+/// - Real-time learning systems
+/// - Memory-constrained environments
+pub struct OnlineMetricLearning {
+    /// Number of target neighbors
+    k: usize,
+    /// Base learning rate
+    learning_rate: Float,
+    /// Learning rate decay factor (multiplied each update)
+    learning_rate_decay: Float,
+    /// Minimum learning rate threshold
+    min_learning_rate: Float,
+    /// Momentum coefficient for gradient smoothing
+    momentum: Float,
+    /// Regularization strength
+    regularization: Float,
+    /// Current learning rate (decreases over time)
+    current_learning_rate: Float,
+    /// Number of samples processed so far
+    n_samples_seen: usize,
+    /// Current transformation matrix (metric)
+    transformation: Option<Array2<Float>>,
+    /// Velocity matrix for momentum-based updates
+    velocity: Option<Array2<Float>>,
+    /// Window size for computing recent accuracy
+    window_size: usize,
+    /// Recent prediction results (for adaptation)
+    recent_correct: Vec<bool>,
+}
+
+impl OnlineMetricLearning {
+    /// Create a new online metric learning instance
+    ///
+    /// # Arguments
+    /// * `k` - Number of nearest neighbors to consider
+    pub fn new(k: usize) -> Self {
+        Self {
+            k,
+            learning_rate: 0.01,
+            learning_rate_decay: 0.999,
+            min_learning_rate: 1e-5,
+            momentum: 0.9,
+            regularization: 0.1,
+            current_learning_rate: 0.01,
+            n_samples_seen: 0,
+            transformation: None,
+            velocity: None,
+            window_size: 100,
+            recent_correct: Vec::new(),
+        }
+    }
+
+    /// Set initial learning rate
+    pub fn with_learning_rate(mut self, learning_rate: Float) -> Self {
+        self.learning_rate = learning_rate;
+        self.current_learning_rate = learning_rate;
+        self
+    }
+
+    /// Set learning rate decay factor
+    pub fn with_learning_rate_decay(mut self, decay: Float) -> Self {
+        self.learning_rate_decay = decay;
+        self
+    }
+
+    /// Set minimum learning rate
+    pub fn with_min_learning_rate(mut self, min_lr: Float) -> Self {
+        self.min_learning_rate = min_lr;
+        self
+    }
+
+    /// Set momentum coefficient
+    pub fn with_momentum(mut self, momentum: Float) -> Self {
+        self.momentum = momentum;
+        self
+    }
+
+    /// Set regularization strength
+    pub fn with_regularization(mut self, regularization: Float) -> Self {
+        self.regularization = regularization;
+        self
+    }
+
+    /// Set window size for recent accuracy tracking
+    pub fn with_window_size(mut self, window_size: usize) -> Self {
+        self.window_size = window_size;
+        self
+    }
+
+    /// Initialize or reinitialize the transformation matrix
+    fn initialize_transformation(&mut self, n_features: usize) {
+        if self.transformation.is_none() {
+            self.transformation = Some(Array2::eye(n_features));
+            self.velocity = Some(Array2::zeros((n_features, n_features)));
+        }
+    }
+
+    /// Compute Mahalanobis distance using current transformation
+    fn mahalanobis_distance(&self, x1: &ArrayView1<Float>, x2: &ArrayView1<Float>) -> Float {
+        if let Some(ref transform) = self.transformation {
+            let diff = x1.to_owned() - x2;
+            let transformed = transform.dot(&diff);
+            transformed.iter().map(|&x| x * x).sum::<Float>().sqrt()
+        } else {
+            // Fallback to Euclidean
+            x1.iter()
+                .zip(x2.iter())
+                .map(|(&a, &b)| (a - b).powi(2))
+                .sum::<Float>()
+                .sqrt()
+        }
+    }
+
+    /// Partial fit - update metric with a single sample or mini-batch
+    ///
+    /// # Arguments
+    /// * `X` - Feature matrix (n_samples × n_features)
+    /// * `y` - Target labels (n_samples)
+    ///
+    /// # Returns
+    /// Result indicating success or error
+    pub fn partial_fit(&mut self, X: &ArrayView2<Float>, y: &ArrayView1<i32>) -> Result<()> {
+        let n_samples = X.nrows();
+        let n_features = X.ncols();
+
+        if n_samples == 0 {
+            return Err(NeighborsError::EmptyInput.into());
+        }
+
+        if n_samples != y.len() {
+            return Err(NeighborsError::ShapeMismatch {
+                expected: vec![n_samples],
+                actual: vec![y.len()],
+            }
+            .into());
+        }
+
+        // Initialize transformation matrix if needed
+        self.initialize_transformation(n_features);
+
+        let transform = self.transformation.as_ref().unwrap();
+        let mut gradient = Array2::<Float>::zeros((n_features, n_features));
+
+        // Process each sample in the mini-batch
+        for i in 0..n_samples {
+            let xi = X.row(i);
+            let yi = y[i];
+
+            // Find k nearest neighbors using current metric
+            let mut neighbors = Vec::new();
+            for j in 0..X.nrows() {
+                if i != j {
+                    let dist = self.mahalanobis_distance(&xi, &X.row(j));
+                    neighbors.push((j, dist, y[j]));
+                }
+            }
+
+            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            let k_neighbors = neighbors.iter().take(self.k).collect::<Vec<_>>();
+
+            // Compute gradient based on neighbor correctness
+            for &(j, _dist, yj) in k_neighbors.iter() {
+                let xj = X.row(*j);
+                let diff = &xi.to_owned() - &xj.to_owned();
+
+                // Compute outer product for gradient update
+                for p in 0..n_features {
+                    for q in 0..n_features {
+                        let delta = diff[p] * diff[q];
+
+                        if yi == *yj {
+                            // Pull similar samples closer
+                            gradient[[p, q]] -= delta;
+                        } else {
+                            // Push different samples apart
+                            gradient[[p, q]] += delta;
+                        }
+                    }
+                }
+
+                // Track prediction correctness for adaptation
+                let is_correct = yi == *yj;
+                self.recent_correct.push(is_correct);
+                if self.recent_correct.len() > self.window_size {
+                    self.recent_correct.remove(0);
+                }
+            }
+        }
+
+        // Normalize gradient by batch size
+        gradient = gradient / (n_samples as Float);
+
+        // Apply L2 regularization to prevent overfitting
+        let transform_clone = transform.clone();
+        gradient = gradient + &transform_clone * self.regularization;
+
+        // Update velocity with momentum
+        let velocity = self.velocity.as_mut().unwrap();
+        *velocity = velocity.clone() * self.momentum + &gradient * (1.0 - self.momentum);
+
+        // Update transformation matrix using velocity
+        let transform_mut = self.transformation.as_mut().unwrap();
+        *transform_mut = &*transform_mut - &*velocity * self.current_learning_rate;
+
+        // Apply learning rate decay
+        self.current_learning_rate *= self.learning_rate_decay;
+        if self.current_learning_rate < self.min_learning_rate {
+            self.current_learning_rate = self.min_learning_rate;
+        }
+
+        self.n_samples_seen += n_samples;
+
+        Ok(())
+    }
+
+    /// Get the current transformation matrix
+    pub fn get_transformation(&self) -> Option<&Array2<Float>> {
+        self.transformation.as_ref()
+    }
+
+    /// Get the number of samples processed
+    pub fn n_samples_seen(&self) -> usize {
+        self.n_samples_seen
+    }
+
+    /// Get current learning rate
+    pub fn current_learning_rate(&self) -> Float {
+        self.current_learning_rate
+    }
+
+    /// Get recent accuracy (within the sliding window)
+    pub fn recent_accuracy(&self) -> Float {
+        if self.recent_correct.is_empty() {
+            return 0.0;
+        }
+
+        let correct_count = self.recent_correct.iter().filter(|&&x| x).count();
+        correct_count as Float / self.recent_correct.len() as Float
+    }
+
+    /// Reset the metric to identity matrix
+    pub fn reset(&mut self) {
+        self.transformation = None;
+        self.velocity = None;
+        self.current_learning_rate = self.learning_rate;
+        self.n_samples_seen = 0;
+        self.recent_correct.clear();
+    }
+}
+
+impl Fit<Array2<Float>, Array1<i32>> for OnlineMetricLearning {
+    type Fitted = Self;
+
+    fn fit(self, X: &Array2<Float>, y: &Array1<i32>) -> Result<Self::Fitted> {
+        let mut online = self.clone();
+        online.reset();
+        online.partial_fit(&X.view(), &y.view())?;
+        Ok(online)
+    }
+}
+
+impl Clone for OnlineMetricLearning {
+    fn clone(&self) -> Self {
+        Self {
+            k: self.k,
+            learning_rate: self.learning_rate,
+            learning_rate_decay: self.learning_rate_decay,
+            min_learning_rate: self.min_learning_rate,
+            momentum: self.momentum,
+            regularization: self.regularization,
+            current_learning_rate: self.current_learning_rate,
+            n_samples_seen: self.n_samples_seen,
+            transformation: self.transformation.clone(),
+            velocity: self.velocity.clone(),
+            window_size: self.window_size,
+            recent_correct: self.recent_correct.clone(),
+        }
+    }
+}
+
+impl Transform<Array2<Float>, Array2<Float>> for OnlineMetricLearning {
+    fn transform(&self, X: &Array2<Float>) -> Result<Array2<Float>> {
+        if let Some(ref transform) = self.transformation {
+            // Apply learned transformation to each sample
+            let mut transformed = Array2::zeros((X.nrows(), X.ncols()));
+            for (i, row) in X.axis_iter(Axis(0)).enumerate() {
+                let t_row = transform.dot(&row);
+                for (j, &val) in t_row.iter().enumerate() {
+                    transformed[[i, j]] = val;
+                }
+            }
+            Ok(transformed)
+        } else {
+            // No transformation learned yet, return original
+            Ok(X.clone())
+        }
+    }
+}
+
+#[cfg(test)]
+mod online_tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_online_metric_learning_basic() {
+        let X = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0, 5.0, 5.0, 5.1, 5.0],
+        )
+        .unwrap();
+        let y = array![0, 0, 1, 1, 2, 2];
+
+        let mut online = OnlineMetricLearning::new(1)
+            .with_learning_rate(0.1)
+            .with_momentum(0.9);
+
+        // Partial fit with mini-batches
+        online.partial_fit(&X.view(), &y.view()).unwrap();
+
+        assert!(online.transformation.is_some());
+        assert!(online.n_samples_seen() > 0);
+        assert!(online.current_learning_rate() > 0.0);
+    }
+
+    #[test]
+    fn test_online_metric_learning_streaming() {
+        // Simulate streaming data
+        let X1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.1, 1.0]).unwrap();
+        let y1 = array![0, 0];
+
+        let X2 = Array2::from_shape_vec((2, 2), vec![2.0, 2.0, 2.1, 2.0]).unwrap();
+        let y2 = array![1, 1];
+
+        let X3 = Array2::from_shape_vec((2, 2), vec![5.0, 5.0, 5.1, 5.0]).unwrap();
+        let y3 = array![2, 2];
+
+        let mut online = OnlineMetricLearning::new(1).with_learning_rate(0.05);
+
+        // Process data in batches
+        online.partial_fit(&X1.view(), &y1.view()).unwrap();
+        assert_eq!(online.n_samples_seen(), 2);
+
+        online.partial_fit(&X2.view(), &y2.view()).unwrap();
+        assert_eq!(online.n_samples_seen(), 4);
+
+        online.partial_fit(&X3.view(), &y3.view()).unwrap();
+        assert_eq!(online.n_samples_seen(), 6);
+
+        // Verify transformation was learned
+        assert!(online.transformation.is_some());
+    }
+
+    #[test]
+    fn test_online_metric_learning_transform() {
+        let X =
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let y = array![0, 0, 1, 1];
+
+        let mut online = OnlineMetricLearning::new(1).with_learning_rate(0.1);
+
+        online.partial_fit(&X.view(), &y.view()).unwrap();
+
+        // Transform data using learned metric
+        let transformed = online.transform(&X).unwrap();
+        assert_eq!(transformed.shape(), X.shape());
+    }
+
+    #[test]
+    fn test_online_metric_learning_learning_rate_decay() {
+        let X =
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let y = array![0, 0, 1, 1];
+
+        let mut online = OnlineMetricLearning::new(1)
+            .with_learning_rate(0.1)
+            .with_learning_rate_decay(0.9)
+            .with_min_learning_rate(0.01);
+
+        let initial_lr = online.current_learning_rate();
+
+        // Multiple partial fits should decay learning rate
+        for _ in 0..10 {
+            online.partial_fit(&X.view(), &y.view()).unwrap();
+        }
+
+        assert!(online.current_learning_rate() < initial_lr);
+        assert!(online.current_learning_rate() >= online.min_learning_rate);
+    }
+
+    #[test]
+    fn test_online_metric_learning_reset() {
+        let X =
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let y = array![0, 0, 1, 1];
+
+        let mut online = OnlineMetricLearning::new(1).with_learning_rate(0.1);
+
+        online.partial_fit(&X.view(), &y.view()).unwrap();
+        assert!(online.n_samples_seen() > 0);
+
+        online.reset();
+        assert_eq!(online.n_samples_seen(), 0);
+        assert!(online.transformation.is_none());
+    }
+
+    #[test]
+    fn test_online_metric_learning_fit_trait() {
+        let X =
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let y = array![0, 0, 1, 1];
+
+        let online = OnlineMetricLearning::new(1).with_learning_rate(0.1);
+
+        let fitted = online.fit(&X, &y).unwrap();
+        assert!(fitted.transformation.is_some());
+        assert!(fitted.n_samples_seen() > 0);
+    }
+
+    #[test]
+    fn test_online_metric_learning_recent_accuracy() {
+        let X = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0, 5.0, 5.0, 5.1, 5.0],
+        )
+        .unwrap();
+        let y = array![0, 0, 1, 1, 2, 2];
+
+        let mut online = OnlineMetricLearning::new(1)
+            .with_learning_rate(0.1)
+            .with_window_size(10);
+
+        online.partial_fit(&X.view(), &y.view()).unwrap();
+
+        // Recent accuracy should be between 0 and 1
+        let accuracy = online.recent_accuracy();
+        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+    }
+
+    #[test]
+    fn test_online_metric_learning_error_cases() {
+        let mut online = OnlineMetricLearning::new(1);
+
+        // Empty dataset
+        let empty_X = Array2::<Float>::zeros((0, 2));
+        let empty_y = Array1::<i32>::zeros(0);
+        assert!(online
+            .partial_fit(&empty_X.view(), &empty_y.view())
+            .is_err());
+
+        // Shape mismatch
+        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let y_wrong = array![0]; // Wrong size
+        assert!(online.partial_fit(&X.view(), &y_wrong.view()).is_err());
+    }
+
+    #[test]
+    fn test_online_metric_learning_configuration() {
+        let online = OnlineMetricLearning::new(3)
+            .with_learning_rate(0.05)
+            .with_learning_rate_decay(0.95)
+            .with_min_learning_rate(0.001)
+            .with_momentum(0.85)
+            .with_regularization(0.2)
+            .with_window_size(50);
+
+        assert_eq!(online.k, 3);
+        assert_eq!(online.learning_rate, 0.05);
+        assert_eq!(online.learning_rate_decay, 0.95);
+        assert_eq!(online.min_learning_rate, 0.001);
+        assert_eq!(online.momentum, 0.85);
+        assert_eq!(online.regularization, 0.2);
+        assert_eq!(online.window_size, 50);
     }
 }

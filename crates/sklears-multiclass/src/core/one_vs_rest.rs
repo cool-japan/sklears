@@ -181,7 +181,7 @@ where
         // Validate inputs
         validate::check_consistent_length(x, y)?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Get unique classes
         let mut classes: Vec<i32> = y

@@ -119,7 +119,7 @@ pub trait Regularization: Debug + Send + Sync {
     fn proximal_operator(
         &self,
         coefficients: &Array1<Float>,
-        step_size: Float,
+        _step_size: Float,
     ) -> Result<Array1<Float>> {
         // Default implementation: no proximal operator (smooth penalties)
         Ok(coefficients.clone())
@@ -160,7 +160,7 @@ pub trait OptimizationSolver: Debug + Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Get solver-specific recommendations for the given problem
-    fn get_recommendations(&self, data: &ObjectiveData) -> SolverRecommendations {
+    fn get_recommendations(&self, _data: &ObjectiveData) -> SolverRecommendations {
         SolverRecommendations::default()
     }
 }
@@ -314,7 +314,7 @@ impl PredictionProvider for ProbabilisticPredictionProvider {
 
         // For logistic regression, we can compute confidence intervals
         // based on the variance of the linear predictor
-        let linear_predictions =
+        let _linear_predictions =
             LinearPredictionProvider.predict(features, coefficients, intercept)?;
         let variances = Array1::ones(features.nrows()); // Simplified - would need proper variance calculation
 
@@ -520,8 +520,8 @@ impl ModularFramework {
     /// Create solver-specific configuration from framework configuration
     fn create_solver_config<S: OptimizationSolver + ?Sized>(
         &self,
-        objective: &dyn Objective,
-        data: &ObjectiveData,
+        _objective: &dyn Objective,
+        _data: &ObjectiveData,
     ) -> Result<S::Config> {
         // Get solver recommendations and use them to create config
         let solver_name = std::any::type_name::<S>();
@@ -537,9 +537,9 @@ impl ModularFramework {
     /// Convert solver-specific result to framework result
     fn convert_result<S: OptimizationSolver + ?Sized>(
         &self,
-        solver_result: S::Result,
-        objective: &dyn Objective,
-        data: &ObjectiveData,
+        _solver_result: S::Result,
+        _objective: &dyn Objective,
+        _data: &ObjectiveData,
     ) -> Result<OptimizationResult> {
         // For now, we'll return an error indicating the specific result type
         // In practice, each solver result would implement a conversion trait

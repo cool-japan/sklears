@@ -15,7 +15,6 @@ description = "Multi-output regression and classification"
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
 # SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true, features = ["random", "array"] }
 scirs2-stats = { workspace = true }  # For statistical multi-output methods

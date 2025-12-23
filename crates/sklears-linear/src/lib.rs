@@ -16,8 +16,7 @@ pub mod admm;
 #[cfg(feature = "gpu")]
 pub mod advanced_gpu_acceleration;
 #[cfg(feature = "bayesian")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-//pub mod bayesian;
+pub mod bayesian;
 pub mod builder_enhancements;
 #[cfg(feature = "feature-selection")]
 pub mod categorical_encoding;
@@ -49,9 +48,7 @@ pub mod feature_selection;
 #[cfg(feature = "gpu")]
 pub mod gpu_acceleration;
 #[cfg(feature = "huber")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-//pub mod huber;
-#[cfg(feature = "huber")]
+pub mod huber;
 pub mod irls;
 #[cfg(feature = "lasso")]
 pub mod lars;
@@ -63,8 +60,9 @@ pub mod lasso_lars;
 pub mod linear_regression;
 #[cfg(feature = "logistic-regression")]
 pub mod logistic_regression;
-#[cfg(feature = "logistic-regression")]
-pub mod logistic_regression_cv;
+// TODO: Temporarily disabled until cross_val_score is generalized for LogisticRegression
+// #[cfg(feature = "logistic-regression")]
+// pub mod logistic_regression_cv;
 #[cfg(feature = "memory-mapping")]
 pub mod memory_efficient_ops;
 #[cfg(feature = "memory-mapping")]
@@ -141,8 +139,7 @@ pub mod type_safety;
 pub mod uncertainty_quantification;
 
 #[cfg(feature = "theil-sen")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-//pub mod theil_sen;
+pub mod theil_sen;
 
 //#[allow(non_snake_case)]
 #[cfg(test)]
@@ -151,11 +148,10 @@ pub mod uncertainty_quantification;
 pub use admm::{AdmmConfig, AdmmSolution, AdmmSolver};
 
 #[cfg(feature = "bayesian")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-// pub use bayesian::{
-//     ARDRegression, ARDRegressionConfig, BayesianRidge, BayesianRidgeConfig,
-//     VariationalBayesianConfig, VariationalBayesianRegression,
-// };
+pub use bayesian::{
+    ARDRegression, ARDRegressionConfig, BayesianRidge, BayesianRidgeConfig,
+    VariationalBayesianConfig, VariationalBayesianRegression,
+};
 pub use builder_enhancements::{
     EnhancedLinearRegressionBuilder, ModelPreset, ModelValidation, ValidationConfig,
 };
@@ -234,9 +230,7 @@ pub use feature_selection::{
 // TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
 // pub use glm::{Family, GLMConfig, GeneralizedLinearModel, Link};
 #[cfg(feature = "huber")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-// pub use huber::{HuberRegressor, HuberRegressorConfig};
-#[cfg(feature = "huber")]
+pub use huber::{HuberRegressor, HuberRegressorConfig};
 // TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
 // pub use irls::{IRLSConfig, IRLSEstimator, IRLSResult, ScaleEstimator, WeightFunction};
 #[cfg(feature = "lasso")]
@@ -249,8 +243,9 @@ pub use lasso_lars::{LassoLars, LassoLarsConfig};
 pub use linear_regression::{LinearRegression, LinearRegressionConfig};
 #[cfg(feature = "logistic-regression")]
 pub use logistic_regression::{LogisticRegression, LogisticRegressionConfig};
-#[cfg(feature = "logistic-regression")]
-pub use logistic_regression_cv::{LogisticRegressionCV, LogisticRegressionCVConfig};
+// TODO: Temporarily disabled until cross_val_score is generalized for LogisticRegression
+// #[cfg(feature = "logistic-regression")]
+// pub use logistic_regression_cv::{LogisticRegressionCV, LogisticRegressionCVConfig};
 #[cfg(feature = "memory-mapping")]
 pub use memory_efficient_ops::{
     MemoryEfficiencyConfig, MemoryEfficientCoordinateDescent, MemoryEfficientOps, MemoryOperation,
@@ -342,9 +337,7 @@ pub use sgd::{
 //     SimdConfig, SimdCoordinateDescent, SimdFeatures, SimdLinearRegression, SimdOps,
 // };
 #[cfg(feature = "theil-sen")]
-// TODO: Migrate to scirs2-linalg (uses ndarray_linalg::Solve)
-// pub use theil_sen::{TheilSenRegressor, TheilSenRegressorConfig};
-
+pub use theil_sen::{TheilSenRegressor, TheilSenRegressorConfig};
 // Exports for new modular framework
 pub use modular_framework::{
     create_modular_linear_regression, BayesianPredictionProvider, CompositeObjective,

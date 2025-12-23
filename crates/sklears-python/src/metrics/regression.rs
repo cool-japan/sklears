@@ -4,7 +4,7 @@
 //! offering scikit-learn compatible interfaces.
 
 use super::common::*;
-use sklears::metrics;
+use sklears_metrics as metrics;
 
 /// Calculate mean squared error
 #[pyfunction]

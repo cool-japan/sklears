@@ -558,7 +558,7 @@ impl CalibrationPipeline {
         let successful_steps = self.execution_history.iter().filter(|r| r.success).count();
         let failed_steps = self.execution_history.iter().filter(|r| !r.success).count();
 
-        /// ExecutionSummary
+        // ExecutionSummary
         ExecutionSummary {
             total_steps: self.execution_history.len(),
             successful_steps,

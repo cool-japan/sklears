@@ -56,7 +56,7 @@ impl BetaCalibrator {
 
         // Estimate beta distribution parameters using method of moments
         let mean_residual = residuals.mean().unwrap_or(0.0);
-        let var_residual = {
+        let _var_residual = {
             let squared_diffs: Array1<Float> = residuals.mapv(|r| (r - mean_residual).powi(2));
             squared_diffs.mean().unwrap_or(1.0)
         };
@@ -139,6 +139,7 @@ impl BetaCalibrator {
     }
 
     /// Approximate gamma function using Stirling's approximation
+    #[allow(clippy::only_used_in_recursion)]
     fn gamma_approx(&self, z: Float) -> Float {
         if z <= 0.0 {
             return 1.0;

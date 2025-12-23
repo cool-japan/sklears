@@ -32,7 +32,7 @@ use std::collections::HashMap;
 ///     min_sdk_version: "0.1.0".to_string(),
 /// };
 /// ```
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PluginMetadata {
     /// Plugin name - should be unique within a category
     pub name: String,
@@ -75,7 +75,7 @@ impl Default for PluginMetadata {
 ///
 /// Categories help organize plugins in the registry and enable
 /// category-based discovery and filtering.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum PluginCategory {
     /// Machine learning algorithms (classifiers, regressors, clustering)
     Algorithm,
@@ -96,7 +96,7 @@ pub enum PluginCategory {
 /// Capabilities describe what features and optimizations a plugin supports.
 /// This enables the plugin system to make intelligent decisions about
 /// plugin selection and execution.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PluginCapability {
     /// Supports parallel processing across multiple threads
     Parallel,

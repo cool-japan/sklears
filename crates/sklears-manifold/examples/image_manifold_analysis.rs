@@ -7,7 +7,9 @@
 //! computer vision workflow.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::traits::{Fit, Transform};
 use sklears_manifold::{benchmark_datasets::BenchmarkDatasets, Isomap, TSNE, UMAP};
 use std::f64::consts::PI;
@@ -33,7 +35,7 @@ fn generate_image_patches(
                 for y in 0..patch_size {
                     for x in 0..patch_size {
                         let value = if (y / 2) % 2 == 0 { 1.0 } else { 0.0 };
-                        patches[[i, y * patch_size + x]] = value + rng.gen::<f64>() * 0.2 - 0.1;
+                        patches[[i, y * patch_size + x]] = value + rng.random::<f64>() * 0.2 - 0.1;
                     }
                 }
             }
@@ -42,7 +44,7 @@ fn generate_image_patches(
                 for y in 0..patch_size {
                     for x in 0..patch_size {
                         let value = if (x / 2) % 2 == 0 { 1.0 } else { 0.0 };
-                        patches[[i, y * patch_size + x]] = value + rng.gen::<f64>() * 0.2 - 0.1;
+                        patches[[i, y * patch_size + x]] = value + rng.random::<f64>() * 0.2 - 0.1;
                     }
                 }
             }
@@ -51,7 +53,7 @@ fn generate_image_patches(
                 for y in 0..patch_size {
                     for x in 0..patch_size {
                         let value = if (x + y) % 3 == 0 { 1.0 } else { 0.0 };
-                        patches[[i, y * patch_size + x]] = value + rng.gen::<f64>() * 0.2 - 0.1;
+                        patches[[i, y * patch_size + x]] = value + rng.random::<f64>() * 0.2 - 0.1;
                     }
                 }
             }
@@ -64,7 +66,7 @@ fn generate_image_patches(
                         let dy = y as f64 - center;
                         let distance = (dx * dx + dy * dy).sqrt();
                         let value = if distance < center * 0.7 { 1.0 } else { 0.0 };
-                        patches[[i, y * patch_size + x]] = value + rng.gen::<f64>() * 0.2 - 0.1;
+                        patches[[i, y * patch_size + x]] = value + rng.random::<f64>() * 0.2 - 0.1;
                     }
                 }
             }
@@ -92,30 +94,30 @@ fn generate_time_series_data(
         match pattern_type {
             0 => {
                 // Sinusoidal pattern
-                let frequency = rng.gen::<f64>() * (2.0 - (0.5)) + (0.5);
-                let phase = rng.gen::<f64>() * (2.0 * PI - (0.0)) + (0.0);
+                let frequency = rng.random::<f64>() * (2.0 - (0.5)) + (0.5);
+                let phase = rng.random::<f64>() * (2.0 * PI - (0.0)) + (0.0);
                 for t in 0..series_length {
                     let value =
                         (frequency * t as f64 * 2.0 * PI / series_length as f64 + phase).sin();
-                    data[[i, t]] = value + rng.gen::<f64>() * 0.2 - 0.1;
+                    data[[i, t]] = value + rng.random::<f64>() * 0.2 - 0.1;
                 }
             }
             1 => {
                 // Linear trend with noise
-                let slope = rng.gen::<f64>() * (1.0 - (-1.0)) + (-1.0);
-                let intercept = rng.gen::<f64>() * (0.5 - (-0.5)) + (-0.5);
+                let slope = rng.random::<f64>() * (1.0 - (-1.0)) + (-1.0);
+                let intercept = rng.random::<f64>() * (0.5 - (-0.5)) + (-0.5);
                 for t in 0..series_length {
                     let value = slope * t as f64 / series_length as f64 + intercept;
-                    data[[i, t]] = value + rng.gen::<f64>() * 0.4 - 0.2;
+                    data[[i, t]] = value + rng.random::<f64>() * 0.4 - 0.2;
                 }
             }
             2 => {
                 // Exponential decay
-                let decay_rate = rng.gen::<f64>() * (0.5 - (0.1)) + (0.1);
-                let amplitude = rng.gen::<f64>() * (2.0 - (0.5)) + (0.5);
+                let decay_rate = rng.random::<f64>() * (0.5 - (0.1)) + (0.1);
+                let amplitude = rng.random::<f64>() * (2.0 - (0.5)) + (0.5);
                 for t in 0..series_length {
                     let value = amplitude * (-decay_rate * t as f64).exp();
-                    data[[i, t]] = value + rng.gen::<f64>() * 0.2 - 0.1;
+                    data[[i, t]] = value + rng.random::<f64>() * 0.2 - 0.1;
                 }
             }
             _ => unreachable!(),

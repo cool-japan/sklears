@@ -216,10 +216,10 @@ pub fn optimized_mean_absolute_error<
     // Fall back to serial implementation - only for f64 arrays
     if std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
         unsafe {
-            let y_true_f64 = std::mem::transmute(y_true);
-            let y_pred_f64 = std::mem::transmute(y_pred);
+            let y_true_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true);
+            let y_pred_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred);
             let result: f64 = crate::regression::mean_absolute_error(y_true_f64, y_pred_f64)?;
-            Ok(std::mem::transmute_copy(&result))
+            Ok(std::mem::transmute_copy::<f64, F>(&result))
         }
     } else {
         Err(MetricsError::InvalidInput(
@@ -249,9 +249,10 @@ pub fn optimized_mean_squared_error<
     #[cfg(all(feature = "simd", feature = "disabled-for-stability"))]
     {
         if _config.use_simd && std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
-            return simd_mean_squared_error_f64(unsafe { std::mem::transmute(y_true) }, unsafe {
-                std::mem::transmute(y_pred)
-            })
+            return simd_mean_squared_error_f64(
+                unsafe { std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true) },
+                unsafe { std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred) },
+            )
             .map(|result| F::from(result).unwrap());
         }
     }
@@ -267,10 +268,10 @@ pub fn optimized_mean_squared_error<
     // Fall back to serial implementation - only for f64 arrays
     if std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
         unsafe {
-            let y_true_f64 = std::mem::transmute(y_true);
-            let y_pred_f64 = std::mem::transmute(y_pred);
+            let y_true_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true);
+            let y_pred_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred);
             let result: f64 = crate::regression::mean_squared_error(y_true_f64, y_pred_f64)?;
-            Ok(std::mem::transmute_copy(&result))
+            Ok(std::mem::transmute_copy::<f64, F>(&result))
         }
     } else {
         Err(MetricsError::InvalidInput(
@@ -300,9 +301,10 @@ pub fn optimized_r2_score<
     #[cfg(all(feature = "simd", feature = "disabled-for-stability"))]
     {
         if _config.use_simd && std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
-            return simd_r2_score_f64(unsafe { std::mem::transmute(y_true) }, unsafe {
-                std::mem::transmute(y_pred)
-            })
+            return simd_r2_score_f64(
+                unsafe { std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true) },
+                unsafe { std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred) },
+            )
             .map(|result| F::from(result).unwrap());
         }
     }
@@ -318,10 +320,10 @@ pub fn optimized_r2_score<
     // Fall back to serial implementation - only for f64 arrays
     if std::any::TypeId::of::<F>() == std::any::TypeId::of::<f64>() {
         unsafe {
-            let y_true_f64 = std::mem::transmute(y_true);
-            let y_pred_f64 = std::mem::transmute(y_pred);
+            let y_true_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_true);
+            let y_pred_f64 = std::mem::transmute::<&Array1<F>, &Array1<f64>>(y_pred);
             let result: f64 = crate::regression::r2_score(y_true_f64, y_pred_f64)?;
-            Ok(std::mem::transmute_copy(&result))
+            Ok(std::mem::transmute_copy::<f64, F>(&result))
         }
     } else {
         Err(MetricsError::InvalidInput(

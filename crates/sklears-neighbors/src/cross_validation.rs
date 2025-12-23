@@ -214,7 +214,7 @@ impl NeighborCrossValidator {
         let mut fold_results = Vec::new();
 
         for (fold, (train_indices, test_indices)) in splits.into_iter().enumerate() {
-            let fold_start = std::time::Instant::now();
+            let _fold_start = std::time::Instant::now();
 
             // Create train/test splits
             let X_train = self.select_rows(&X, &train_indices);
@@ -453,7 +453,7 @@ impl NeighborCrossValidator {
 
         // Shuffle indices for randomization
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -500,7 +500,7 @@ impl NeighborCrossValidator {
         // Shuffle indices within each class
         for (_, indices) in class_indices.iter_mut() {
             for i in (1..indices.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 indices.swap(i, j);
             }
         }

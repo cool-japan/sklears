@@ -104,7 +104,6 @@ pub fn estimate_mi_cc(
 ) -> CoreResult<f64> {
     // Simplified MI estimation using k-nearest neighbors
     // For now, use correlation as a proxy
-    let n = x_continuous.len() as f64;
     let x_mean = x_continuous.mean().unwrap_or(0.0);
     let y_mean = y_continuous.mean().unwrap_or(0.0);
 

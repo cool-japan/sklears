@@ -805,7 +805,7 @@ mod tests {
         }
 
         let area = extractor.compute_area(&binary);
-        let (cx, cy, radius) = extractor.compute_normalization_parameters(&binary);
+        let (_cx, _cy, radius) = extractor.compute_normalization_parameters(&binary);
         let circularity = extractor.compute_circularity(&binary, area, radius);
 
         assert!(circularity > 0.5); // Should be reasonably circular

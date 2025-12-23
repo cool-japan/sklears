@@ -53,7 +53,7 @@ impl TokenLevelCalibrator {
         true_tokens: &Array2<i32>,           // [batch, sequence]
         attention_weights: Option<&Array3<Float>>, // [batch, sequence, sequence]
     ) -> Result<()> {
-        let (batch_size, seq_length, vocab_size) = token_probabilities.dim();
+        let (_batch_size, seq_length, vocab_size) = token_probabilities.dim();
 
         if seq_length > self.max_seq_length {
             return Err(SklearsError::InvalidInput(format!(
@@ -119,7 +119,7 @@ impl TokenLevelCalibrator {
     pub fn calibrate(
         &self,
         token_probabilities: &Array3<Float>,
-        attention_weights: Option<&Array3<Float>>,
+        _attention_weights: Option<&Array3<Float>>,
     ) -> Result<Array3<Float>> {
         if !self.is_fitted {
             return Err(SklearsError::NotFitted {
@@ -127,7 +127,7 @@ impl TokenLevelCalibrator {
             });
         }
 
-        let (batch_size, seq_length, vocab_size) = token_probabilities.dim();
+        let (batch_size, seq_length, _vocab_size) = token_probabilities.dim();
         let mut calibrated_probs = token_probabilities.clone();
 
         for pos in 0..seq_length.min(self.position_calibrators.len()) {
@@ -473,6 +473,12 @@ pub struct VerbalizedConfidenceCalibrator {
     is_fitted: bool,
 }
 
+impl Default for VerbalizedConfidenceCalibrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VerbalizedConfidenceCalibrator {
     /// Create a new verbalized confidence calibrator
     pub fn new() -> Self {
@@ -644,7 +650,7 @@ impl AttentionBasedCalibrator {
         &self,
         attention_weights: &Array3<Float>, // [batch, sequence, sequence]
     ) -> Result<Array1<Float>> {
-        let (batch_size, seq_len, _) = attention_weights.dim();
+        let (batch_size, _seq_len, _) = attention_weights.dim();
         let mut confidence_scores = Array1::zeros(batch_size);
 
         for batch_idx in 0..batch_size {

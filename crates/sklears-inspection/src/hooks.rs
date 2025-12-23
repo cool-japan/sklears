@@ -983,11 +983,11 @@ mod uuid {
             let mut rng = scirs2_core::random::thread_rng();
             format!(
                 "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
-                rng.gen::<u32>(),
-                rng.gen::<u16>(),
-                rng.gen::<u16>(),
-                rng.gen::<u16>(),
-                rng.gen::<u64>() & 0xffffffffffff
+                rng.random::<u32>(),
+                rng.random::<u16>(),
+                rng.random::<u16>(),
+                rng.random::<u16>(),
+                rng.random::<u64>() & 0xffffffffffff
             )
         }
     }

@@ -684,8 +684,8 @@ pub enum ScoringMetric {
     Accuracy,
     /// F1
     F1,
-    /// ROC_AUC
-    ROC_AUC,
+    /// RocAuc
+    RocAuc,
     /// R2
     R2,
     /// MAE
@@ -1069,7 +1069,7 @@ impl FeatureSelectionPipeline<Untrained> {
 
         // Create feature mapping
         let final_features = current_X.ncols();
-        let feature_mapping = FeatureMapping {
+        let _feature_mapping = FeatureMapping {
             original_features,
             final_features,
             feature_names: (0..final_features)
@@ -1091,7 +1091,7 @@ impl FeatureSelectionPipeline<Untrained> {
         let total_training_time = start_time.elapsed();
         let feature_reduction_ratio = final_features as f64 / original_features as f64;
 
-        let pipeline_metadata = PipelineMetadata {
+        let _pipeline_metadata = PipelineMetadata {
             total_training_time,
             total_transform_time: Duration::from_secs(0),
             memory_usage_peak: 0, // Would be calculated in real implementation
@@ -1319,7 +1319,7 @@ impl FeatureSelectionPipeline<Untrained> {
     }
 
     fn apply_feature_engineering_step_static(
-        step: &mut FeatureEngineeringStep,
+        _step: &mut FeatureEngineeringStep,
         X: ArrayView2<f64>,
         _y: ArrayView1<f64>,
     ) -> Result<Array2<f64>> {
@@ -1331,7 +1331,7 @@ impl FeatureSelectionPipeline<Untrained> {
         &self,
         step: &mut FeatureEngineeringStep,
         X: ArrayView2<f64>,
-        y: ArrayView1<f64>,
+        _y: ArrayView1<f64>,
     ) -> Result<Array2<f64>> {
         match step {
             FeatureEngineeringStep::PolynomialFeatures {
@@ -1440,7 +1440,7 @@ impl FeatureSelectionPipeline<Untrained> {
     ) -> Result<Array2<f64>> {
         let n_features = X.ncols();
         let mut interactions = Vec::new();
-        let mut pairs = Vec::new();
+        let pairs: Vec<(usize, usize)>;
 
         // Generate all possible pairs or use provided pairs
         if feature_pairs.is_none() {
@@ -1681,7 +1681,7 @@ impl FeatureSelectionPipeline<Untrained> {
 
     fn apply_univariate_filter(
         &self,
-        method: &UnivariateMethod,
+        _method: &UnivariateMethod,
         k: &SelectionCount,
         score_func: &UnivariateScoreFunction,
         X: ArrayView2<f64>,
@@ -1808,8 +1808,8 @@ impl FeatureSelectionPipeline<Untrained> {
     fn apply_pca(
         &self,
         n_components: usize,
-        whiten: bool,
-        svd_solver: &SVDSolver,
+        _whiten: bool,
+        _svd_solver: &SVDSolver,
         components: &mut Option<Array2<f64>>,
         explained_variance: &mut Option<Array1<f64>>,
         X: ArrayView2<f64>,
@@ -1846,7 +1846,7 @@ impl FeatureSelectionPipeline<Untrained> {
     fn apply_truncated_svd(
         &self,
         n_components: usize,
-        algorithm: &SVDAlgorithm,
+        _algorithm: &SVDAlgorithm,
         components: &mut Option<Array2<f64>>,
         singular_values: &mut Option<Array1<f64>>,
         X: ArrayView2<f64>,
@@ -1904,9 +1904,9 @@ impl FeatureSelectionPipeline<Untrained> {
 
     fn apply_cv_selection(
         &self,
-        estimator: &ModelEstimator,
-        cv_folds: usize,
-        scoring: &ScoringMetric,
+        _estimator: &ModelEstimator,
+        _cv_folds: usize,
+        _scoring: &ScoringMetric,
         feature_scores: &mut Option<Array1<f64>>,
         X: ArrayView2<f64>,
         y: ArrayView1<f64>,
@@ -1942,9 +1942,9 @@ impl FeatureSelectionPipeline<Untrained> {
 
     fn apply_forward_selection(
         &self,
-        estimator: &ModelEstimator,
+        _estimator: &ModelEstimator,
         max_features: usize,
-        scoring: &ScoringMetric,
+        _scoring: &ScoringMetric,
         selected_features: &mut Option<Vec<usize>>,
         X: ArrayView2<f64>,
         y: ArrayView1<f64>,
@@ -2019,7 +2019,7 @@ impl FeatureSelectionPipeline<Untrained> {
 
 impl FeatureSelectionPipeline<Trained> {
     pub fn transform(&self, X: ArrayView2<f64>) -> Result<Array2<f64>> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let current_X = X.to_owned();
 
         // Apply all trained transformations in sequence

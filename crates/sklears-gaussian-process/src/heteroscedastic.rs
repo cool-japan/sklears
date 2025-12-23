@@ -43,8 +43,8 @@
 //! ```
 
 use crate::kernels::Kernel;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Random}; // SciRS2 Policy
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::thread_rng; // SciRS2 Policy
 use sklears_core::error::{Result as SklResult, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict};
 use std::fmt;
@@ -590,7 +590,7 @@ impl NoiseFunction for NeuralNetworkNoise {
     ) -> SklResult<()> {
         // Simplified gradient update (in practice, would use proper backpropagation)
         let squared_residuals: Array1<f64> = residuals.iter().map(|&r| r * r).collect();
-        let predictions = self.forward(x)?;
+        let _predictions = self.forward(x)?;
 
         // Simple parameter perturbation for gradient estimation
         for layer_idx in 0..self.weights.len() {
@@ -807,7 +807,7 @@ impl HeteroscedasticGaussianProcessRegressor<Untrained> {
     }
 
     pub fn fit(
-        mut self,
+        self,
         x_train: &Array2<f64>,
         y_train: &Array1<f64>,
     ) -> SklResult<HeteroscedasticGaussianProcessRegressor<Trained>> {
@@ -832,7 +832,7 @@ impl HeteroscedasticGaussianProcessRegressor<Untrained> {
         let mut cholesky = Array2::eye(x_train.nrows());
 
         // Alternating optimization loop
-        for iteration in 0..self.max_iter {
+        for _iteration in 0..self.max_iter {
             // Compute current noise estimates
             let noise_vars = noise_function.compute_noise(x_train)?;
 
@@ -1152,7 +1152,7 @@ mod tests {
 
     #[test]
     fn test_linear_noise() {
-        let mut noise = LinearNoise::new(0.1, 0.05);
+        let noise = LinearNoise::new(0.1, 0.05);
         let x = array![[0.0], [1.0], [2.0]];
 
         let noise_vals = noise.compute_noise(&x).unwrap();
@@ -1169,7 +1169,7 @@ mod tests {
 
     #[test]
     fn test_polynomial_noise() {
-        let mut noise = PolynomialNoise::quadratic(0.1, 0.05, 0.02);
+        let noise = PolynomialNoise::quadratic(0.1, 0.05, 0.02);
         let x = array![[0.0], [1.0], [2.0]];
 
         let noise_vals = noise.compute_noise(&x).unwrap();

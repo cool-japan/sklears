@@ -8,7 +8,7 @@
 //! - Information gain baselines
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::prelude::*;
+use scirs2_core::random::{prelude::*, Rng};
 // Note: SliceRandom not available, will implement manually where needed
 use sklears_core::error::Result;
 use sklears_core::types::{Features, Float, Int};

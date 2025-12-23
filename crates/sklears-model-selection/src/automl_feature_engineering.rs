@@ -11,7 +11,7 @@ use sklears_core::error::Result;
 use std::collections::HashMap;
 use std::fmt;
 // use serde::{Deserialize, Serialize};
-use scirs2_core::rand_prelude::SliceRandom;
+// use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
 
@@ -276,6 +276,12 @@ pub struct AutoFeatureEngineer {
     rng: StdRng,
 }
 
+impl Default for AutoFeatureEngineer {
+    fn default() -> Self {
+        Self::new(AutoFeatureEngineering::default())
+    }
+}
+
 impl AutoFeatureEngineer {
     /// Create a new automated feature engineer
     pub fn new(config: AutoFeatureEngineering) -> Self {
@@ -285,11 +291,6 @@ impl AutoFeatureEngineer {
         };
 
         Self { config, rng }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(AutoFeatureEngineering::default())
     }
 
     /// Perform automated feature engineering
@@ -706,7 +707,7 @@ impl AutoFeatureEngineer {
     fn select_features(
         &self,
         X: &Array2<f64>,
-        y: &Array1<f64>,
+        _y: &Array1<f64>,
         mut generated_features: Vec<GeneratedFeature>,
     ) -> Result<(Vec<GeneratedFeature>, Vec<usize>)> {
         // Create a vector of (index, feature) pairs to maintain original indices
@@ -769,10 +770,10 @@ impl AutoFeatureEngineer {
     /// Estimate performance improvement from feature engineering
     fn estimate_performance_improvement(
         &self,
-        original_X: &Array2<f64>,
-        enhanced_X: &Array2<f64>,
-        y: &Array1<f64>,
-        selected_indices: &[usize],
+        _original_X: &Array2<f64>,
+        _enhanced_X: &Array2<f64>,
+        _y: &Array1<f64>,
+        _selected_indices: &[usize],
     ) -> Result<f64> {
         // Mock implementation - would use actual cross-validation
         let original_score = 0.7; // Mock baseline score
@@ -933,7 +934,7 @@ impl AutoFeatureEngineer {
             let col = X.column(i);
             for (row, &value) in col.iter().enumerate() {
                 // Clip values to prevent overflow
-                let clipped_value = value.max(-10.0).min(10.0);
+                let clipped_value = value.clamp(-10.0, 10.0);
                 result[[row, j]] = clipped_value.exp();
             }
         }
@@ -1266,16 +1267,16 @@ impl AutoFeatureEngineer {
         zero_count / total_values
     }
 
-    fn analyze_correlation_structure(&self, X: &Array2<f64>) -> f64 {
+    fn analyze_correlation_structure(&self, _X: &Array2<f64>) -> f64 {
         // Mock implementation - would calculate actual correlation matrix condition number
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         rng.gen_range(1.0..100.0)
     }
 
-    fn estimate_linearity(&self, X: &Array2<f64>, y: &Array1<f64>) -> f64 {
+    fn estimate_linearity(&self, _X: &Array2<f64>, _y: &Array1<f64>) -> f64 {
         // Mock implementation - would perform actual linearity test
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         rng.gen_range(0.0..1.0)
     }
@@ -1305,9 +1306,9 @@ impl AutoFeatureEngineer {
         values.len()
     }
 
-    fn calculate_feature_importance(&self, column: &ArrayView1<f64>, y: &Array1<f64>) -> f64 {
+    fn calculate_feature_importance(&self, _column: &ArrayView1<f64>, _y: &Array1<f64>) -> f64 {
         // Mock implementation - would calculate actual feature importance
-        use scirs2_core::random::Rng;
+        //         use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
         rng.gen_range(0.0..1.0)
     }
@@ -1321,7 +1322,7 @@ impl AutoFeatureEngineer {
             .collect()
     }
 
-    fn select_by_correlation_threshold(&self, X: &Array2<f64>, threshold: f64) -> Vec<usize> {
+    fn select_by_correlation_threshold(&self, X: &Array2<f64>, _threshold: f64) -> Vec<usize> {
         // Mock implementation - would calculate actual correlations
         (0..X.ncols()).collect()
     }

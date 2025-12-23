@@ -117,6 +117,12 @@ pub struct AdaptiveRBFSampler {
     config: AdaptiveDimensionConfig,
 }
 
+impl Default for AdaptiveRBFSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdaptiveRBFSampler {
     /// Create a new adaptive RBF sampler
     pub fn new() -> Self {
@@ -232,10 +238,10 @@ impl AdaptiveRBFSampler {
     fn compute_quality_score(
         &self,
         x_train: &Array2<f64>,
-        x_val: &Array2<f64>,
+        _x_val: &Array2<f64>,
         x_train_transformed: &Array2<f64>,
-        x_val_transformed: &Array2<f64>,
-        fitted_sampler: &crate::rbf_sampler::RBFSampler<sklears_core::traits::Trained>,
+        _x_val_transformed: &Array2<f64>,
+        _fitted_sampler: &crate::rbf_sampler::RBFSampler<sklears_core::traits::Trained>,
     ) -> Result<f64> {
         match &self.config.quality_metric {
             QualityMetric::KernelAlignment => {
@@ -397,9 +403,9 @@ impl AdaptiveRBFSampler {
 
     fn compute_approximation_error(
         &self,
-        x_train: &Array2<f64>,
+        _x_train: &Array2<f64>,
         x_val: &Array2<f64>,
-        x_train_transformed: &Array2<f64>,
+        _x_train_transformed: &Array2<f64>,
         x_val_transformed: &Array2<f64>,
     ) -> Result<f64> {
         // Compute approximation error based on kernel matrix approximation

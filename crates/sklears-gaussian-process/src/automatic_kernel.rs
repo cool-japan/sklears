@@ -190,7 +190,7 @@ impl AutomaticKernelConstructor {
     }
 
     /// Estimate noise level from data
-    fn estimate_noise_level(&self, X: &ArrayView2<f64>, y: &ArrayView1<f64>) -> SklResult<f64> {
+    fn estimate_noise_level(&self, _X: &ArrayView2<f64>, y: &ArrayView1<f64>) -> SklResult<f64> {
         // Simple approach: use variance of differences between nearby points
         if y.len() < 2 {
             return Ok(0.1); // Default noise level
@@ -265,7 +265,7 @@ impl AutomaticKernelConstructor {
     /// Detect periodic patterns in the data
     fn detect_periodicity(
         &self,
-        X: &ArrayView2<f64>,
+        _X: &ArrayView2<f64>,
         y: &ArrayView1<f64>,
     ) -> SklResult<(bool, Vec<f64>)> {
         // Simple autocorrelation-based periodicity detection
@@ -327,11 +327,12 @@ impl AutomaticKernelConstructor {
         ));
 
         // ARD RBF kernel if multi-dimensional
-        // TODO: Implement ARDRBF kernel - using regular RBF for now
         if characteristics.n_dimensions > 1 {
             kernels.push((
-                "ARD_RBF_Placeholder".to_string(),
-                Box::new(RBF::new(base_length_scale)) as Box<dyn Kernel>,
+                "ARD_RBF".to_string(),
+                Box::new(crate::kernels::ARDRBF::new(
+                    characteristics.length_scales.clone(),
+                )) as Box<dyn Kernel>,
             ));
         }
 
@@ -498,8 +499,8 @@ impl AutomaticKernelConstructor {
             // Extract train and test data
             let X_train = X.select(Axis(0), &train_indices);
             let y_train = y.select(Axis(0), &train_indices);
-            let X_test = X.select(Axis(0), &test_indices);
-            let y_test = y.select(Axis(0), &test_indices);
+            let _X_test = X.select(Axis(0), &test_indices);
+            let _y_test = y.select(Axis(0), &test_indices);
 
             // Evaluate on this fold
             let fold_score =

@@ -365,7 +365,7 @@ impl DiscriminantFeatureRanking<Untrained> {
     fn compute_relief(&self, x: &Array2<Float>, y: &Array1<i32>) -> Result<Array1<Float>> {
         let n_features = x.ncols();
         let n_samples = x.nrows();
-        let classes = self.unique_classes(y)?;
+        let _ = self.unique_classes(y)?;
 
         let mut scores = Array1::zeros(n_features);
 

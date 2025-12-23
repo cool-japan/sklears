@@ -1,6 +1,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
@@ -208,6 +209,12 @@ pub struct KernelStatistics {
     pub complexity: f64,
 }
 
+impl Default for KernelStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KernelStatistics {
     pub fn new() -> Self {
         Self {
@@ -252,7 +259,7 @@ impl MultipleKernelLearning {
 
     /// Fit the multiple kernel learning model
     pub fn fit(&mut self, x: &Array2<f64>, y: Option<&Array1<f64>>) -> Result<()> {
-        let (n_samples, _) = x.dim();
+        let (_n_samples, _) = x.dim();
 
         // Store training data
         self.training_data = Some(x.clone());
@@ -314,8 +321,7 @@ impl MultipleKernelLearning {
 
         let mut combined_features = None;
 
-        for (i, (base_kernel, &weight)) in self.base_kernels.iter().zip(weights.iter()).enumerate()
-        {
+        for (base_kernel, &weight) in self.base_kernels.iter().zip(weights.iter()) {
             if weight.abs() < 1e-12 {
                 continue; // Skip kernels with negligible weight
             }
@@ -598,7 +604,8 @@ impl MultipleKernelLearning {
                 if sum > 0.0 {
                     weights /= sum;
                 } else {
-                    weights.fill(1.0 / weights.len() as f64);
+                    let uniform_val = 1.0 / weights.len() as f64;
+                    weights.fill(uniform_val);
                 }
             }
             CombinationStrategy::Conic => {
@@ -619,7 +626,8 @@ impl MultipleKernelLearning {
                 if sum > 0.0 {
                     weights /= sum;
                 } else {
-                    weights.fill(1.0 / weights.len() as f64);
+                    let uniform_val = 1.0 / weights.len() as f64;
+                    weights.fill(uniform_val);
                 }
             }
         }
@@ -683,7 +691,7 @@ impl MultipleKernelLearning {
 
         if self.config.center_kernels {
             // Center kernel matrix
-            let n = kernel.nrows() as f64;
+            let _n = kernel.nrows() as f64;
             let row_means = kernel.mean_axis(Axis(1)).unwrap();
             let col_means = kernel.mean_axis(Axis(0)).unwrap();
             let total_mean = kernel.mean().unwrap();
@@ -723,7 +731,7 @@ impl MultipleKernelLearning {
         gamma: f64,
         n_components: usize,
     ) -> Result<Array2<f64>> {
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Generate random weights
         let mut weights = Array2::zeros((n_components, n_features));
@@ -754,7 +762,7 @@ impl MultipleKernelLearning {
         n_components: usize,
     ) -> Result<Array2<f64>> {
         // Use Cauchy distribution for Laplacian kernel
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Generate random weights from Cauchy distribution (approximated)
         let mut weights = Array2::zeros((n_components, n_features));

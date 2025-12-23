@@ -19,7 +19,7 @@ use crate::{
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::{
     error::{Result, SklearsError},
-    traits::Estimator,
+    // traits::Estimator,
 };
 use std::collections::HashMap;
 use std::fmt;
@@ -291,6 +291,12 @@ pub struct AutoMLPipeline {
     progress_callback: Option<Box<dyn AutoMLProgressCallback>>,
 }
 
+impl Default for AutoMLPipeline {
+    fn default() -> Self {
+        Self::new(AutoMLPipelineConfig::default())
+    }
+}
+
 impl AutoMLPipeline {
     /// Create a new AutoML pipeline
     pub fn new(config: AutoMLPipelineConfig) -> Self {
@@ -298,11 +304,6 @@ impl AutoMLPipeline {
             config,
             progress_callback: None,
         }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(AutoMLPipelineConfig::default())
     }
 
     /// Set progress callback
@@ -595,8 +596,8 @@ impl AutoMLPipeline {
     /// Perform hyperparameter optimization
     fn perform_hyperparameter_optimization(
         &self,
-        X: &Array2<f64>,
-        y: &Array1<f64>,
+        _X: &Array2<f64>,
+        _y: &Array1<f64>,
         algorithm: &RankedAlgorithm,
     ) -> Result<(RankedAlgorithm, HashMap<String, String>)> {
         // Mock implementation - would use actual hyperparameter optimization
@@ -611,8 +612,8 @@ impl AutoMLPipeline {
     /// Perform ensemble construction
     fn perform_ensemble_construction(
         &self,
-        X: &Array2<f64>,
-        y: &Array1<f64>,
+        _X: &Array2<f64>,
+        _y: &Array1<f64>,
         algorithm_selection: &AlgorithmSelectionResult,
     ) -> Result<EnsembleSelectionResult> {
         // Mock implementation - would use actual ensemble selection
@@ -677,8 +678,8 @@ impl AutoMLPipeline {
     /// Perform final training
     fn perform_final_training(
         &self,
-        X: &Array2<f64>,
-        y: &Array1<f64>,
+        _X: &Array2<f64>,
+        _y: &Array1<f64>,
         algorithm: &RankedAlgorithm,
     ) -> Result<f64> {
         // Mock implementation - would train the actual model
@@ -688,8 +689,8 @@ impl AutoMLPipeline {
     /// Perform model validation
     fn perform_model_validation(
         &self,
-        X: &Array2<f64>,
-        y: &Array1<f64>,
+        _X: &Array2<f64>,
+        _y: &Array1<f64>,
         algorithm: &RankedAlgorithm,
     ) -> Result<(f64, f64)> {
         // Mock implementation - would perform actual cross-validation
@@ -697,7 +698,7 @@ impl AutoMLPipeline {
     }
 
     /// Calculate baseline score
-    fn calculate_baseline_score(&self, X: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
+    fn calculate_baseline_score(&self, _X: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         match self.config.task_type {
             TaskType::Classification => {
                 // Most frequent class accuracy

@@ -5,8 +5,6 @@
 //! covariance, pathway analysis, and multi-omics covariance estimation.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-// use ndarray_rand::rand_distr::{Distribution, Normal, Uniform};
-// use ndarray_rand::RandomExt;
 use scirs2_core::random::essentials::Uniform;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;

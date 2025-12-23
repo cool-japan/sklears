@@ -151,7 +151,7 @@ fn demo_parallel_dag() -> SklResult<()> {
     dag.validate_config()?;
     println!("✅ DAG structure is valid");
 
-    let fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let _fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
     println!("✅ DAG training completed successfully");
 
     // Get predictions (note: predict method might not be available on trained DAG)
@@ -240,7 +240,7 @@ fn demo_conditional_dag() -> SklResult<()> {
     dag.validate_config()?;
     println!("✅ Conditional DAG structure is valid");
 
-    let fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let _fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
     println!("✅ Conditional DAG training completed");
 
     Ok(())
@@ -336,7 +336,7 @@ fn demo_advanced_dag() -> SklResult<()> {
     dag.validate_config()?;
     println!("✅ Advanced DAG structure is valid");
 
-    let fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let _fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
     println!("✅ Advanced DAG training completed with caching and monitoring");
 
     println!("\n📊 DAG Execution Summary:");
@@ -451,7 +451,7 @@ fn demo_custom_function_dag() -> SklResult<()> {
     dag.validate_config()?;
     println!("✅ Custom function DAG structure is valid");
 
-    let fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
+    let _fitted_dag = dag.fit(&X_combined.view(), &Some(&y.view()))?;
     println!("✅ Custom function DAG execution completed");
 
     Ok(())

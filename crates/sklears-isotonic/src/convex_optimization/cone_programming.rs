@@ -4,7 +4,7 @@
 //! providing different cone constraint types for enhanced flexibility and
 //! numerical stability in convex optimization formulations.
 
-use scirs2_core::ndarray::{Array1};
+use scirs2_core::ndarray::Array1;
 use sklears_core::{prelude::SklearsError, types::Float};
 
 /// Cone programming approach for isotonic regression
@@ -57,7 +57,6 @@ pub struct ConeProgrammingIsotonicRegression {
 /// - PositiveSemidefinite: Advanced constraint for matrix optimization
 /// - Exponential: Specialized for exponential relationships
 #[derive(Debug, Clone)]
-/// ConeType
 pub enum ConeType {
     /// Non-negative orthant
     NonNegative,
@@ -180,7 +179,7 @@ impl ConeProgrammingIsotonicRegression {
         let n = x.len();
         let mut fitted_y = y.clone();
 
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let old_y = fitted_y.clone();
 
             // Gradient step (least squares objective)
@@ -449,13 +448,8 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0];
         let y = array![1.5, 1.0, 2.5, 3.0];
 
-        let result = cone_programming_isotonic_regression(
-            &x,
-            &y,
-            true,
-            ConeType::NonNegative,
-            1e-4
-        );
+        let result =
+            cone_programming_isotonic_regression(&x, &y, true, ConeType::NonNegative, 1e-4);
         assert!(result.is_ok());
 
         let fitted = result.unwrap();

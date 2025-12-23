@@ -6,8 +6,6 @@
 use crate::traits::{SimdError, VectorArithmetic, VectorReduction};
 
 #[cfg(feature = "no-std")]
-use alloc::string::String;
-#[cfg(feature = "no-std")]
 use alloc::vec::Vec;
 
 /// Target-specific optimization levels
@@ -123,7 +121,7 @@ impl TargetOptimizedOps {
     fn detect_fma() -> bool {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            is_x86_feature_detected!("fma") || cfg!(target_feature = "fma")
+            crate::simd_feature_detected!("fma") || cfg!(target_feature = "fma")
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         {
@@ -135,7 +133,7 @@ impl TargetOptimizedOps {
     fn detect_avx512() -> bool {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            is_x86_feature_detected!("avx512f") || cfg!(target_feature = "avx512f")
+            crate::simd_feature_detected!("avx512f") || cfg!(target_feature = "avx512f")
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
         {
@@ -149,7 +147,7 @@ impl TargetOptimizedOps {
         // This is a placeholder for future implementation
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            // In the future, this would use is_x86_feature_detected!("avx10.1")
+            // In the future, this would use crate::simd_feature_detected!("avx10.1")
             false
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
@@ -205,7 +203,7 @@ impl TargetOptimizedOps {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             // Intel F16C extension
-            is_x86_feature_detected!("f16c")
+            crate::simd_feature_detected!("f16c")
         }
         #[cfg(target_arch = "aarch64")]
         {
@@ -305,8 +303,8 @@ impl TargetOptimizedOps {
 fn detect_optimization_target() -> OptimizationTarget {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
-            if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("fma") {
+            if crate::simd_feature_detected!("avx512f") {
                 OptimizationTarget::Skylake
             } else {
                 OptimizationTarget::Haswell
@@ -829,6 +827,7 @@ pub mod compile_time {
 
     /// Get CPU-specific optimization flags
     pub fn get_optimization_flags() -> Vec<&'static str> {
+        #[allow(unused_mut)]
         let mut flags = Vec::new();
 
         #[cfg(target_feature = "sse2")]
@@ -847,7 +846,7 @@ pub mod compile_time {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

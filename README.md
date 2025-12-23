@@ -7,13 +7,13 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025) — 10,013 tests passing, 69 skipped. See the [release notes](docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025) — 11,292 tests passing, 170 skipped. See the [release notes](docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.0-alpha.1`
+- **>99% scikit-learn API coverage** validated for `0.1.0-alpha.2`
 - **3-100x performance improvements** over Python implementations
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
@@ -161,10 +161,10 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.0-alpha.1"
+sklears = "0.1.0-alpha.2"
 
 # Or with specific features
-sklears = { version = "0.1.0-alpha.1", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.1.0-alpha.2", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
@@ -788,12 +788,12 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.1.0-alpha.1 — October 13, 2025)
+### Current Release Snapshot (0.1.0-alpha.2 — December 22, 2025)
 
 | Area | Status | Notes |
 |------|--------|-------|
-| API Coverage | ✅ >99% | End-to-end parity with scikit-learn’s v1.5 feature set across 25 crates |
-| Testing | ✅ 10,013 passing (69 skipped) | Workspace validated with unit, integration, property, and benchmark smoke tests |
+| API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 25 crates |
+| Testing | ✅ 11,292 passing (170 skipped) | Workspace validated with unit, integration, property, and benchmark smoke tests |
 | Performance | ✅ 3–100× over CPython | SIMD + multi-threaded kernels enabled by default |
 | GPU Acceleration | ✅ Available | CUDA/WebGPU backends for forests, neighbors, and deep models |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
@@ -822,15 +822,15 @@ This project is dual-licensed under MIT and Apache-2.0 licenses.
 ## 🙏 Acknowledgments
 
 - Inspired by [scikit-learn](https://scikit-learn.org/)'s excellent API design
-- Built on [numrs2](https://github.com/numrs/numrs2) for NumPy-like operations
-- Powered by [scirs2](https://github.com/scirs/scirs2) for scientific computing
+- Built on [numrs2](https://github.com/cool-japan/numrs) for NumPy-like operations
+- Powered by [scirs2](https://github.com/cool-japan/scirs) for scientific computing
 - Data handling via [Polars](https://github.com/pola-rs/polars) DataFrames
 - Design patterns from [linfa](https://github.com/rust-ml/linfa) and [Burn](https://github.com/burn-rs/burn)
 
 ## 📞 Contact
 
-- GitHub Issues: [sklears/sklears/issues](https://github.com/cool-japan/sklears/issues)
-- Discussions: [sklears/sklears/discussions](https://github.com/cool-japan/sklears/discussions)
+- GitHub Issues: [cool-japan/sklears/issues](https://github.com/cool-japan/sklears/issues)
+- Discussions: [cool-japan/sklears/discussions](https://github.com/cool-japan/sklears/discussions)
 
 ---
 

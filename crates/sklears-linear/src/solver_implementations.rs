@@ -319,7 +319,7 @@ impl OptimizationSolver for CoordinateDescentSolver {
         };
 
         for iteration in 0..config.max_iterations {
-            let obj_value_start = objective.value(&coefficients, &dummy_data)?;
+            let _obj_value_start = objective.value(&coefficients, &dummy_data)?;
             let mut max_coordinate_change: f64 = 0.0;
 
             // Update each coordinate
@@ -374,7 +374,7 @@ impl OptimizationSolver for CoordinateDescentSolver {
         })
     }
 
-    fn supports_objective(&self, objective: &dyn Objective) -> bool {
+    fn supports_objective(&self, _objective: &dyn Objective) -> bool {
         // Coordinate descent works well with separable objectives
         // For L1 regularization, it's particularly effective
         true
@@ -479,9 +479,9 @@ impl OptimizationSolver for ProximalGradientSolver {
 
     fn solve(
         &self,
-        objective: &dyn Objective,
-        initial_guess: &Array1<Float>,
-        config: &Self::Config,
+        _objective: &dyn Objective,
+        _initial_guess: &Array1<Float>,
+        _config: &Self::Config,
     ) -> Result<Self::Result> {
         // NOTE: This is a simplified implementation. In practice, proximal gradient
         // methods require separating the smooth and non-smooth parts of the objective.
@@ -502,7 +502,7 @@ impl OptimizationSolver for ProximalGradientSolver {
         "ProximalGradient"
     }
 
-    fn get_recommendations(&self, data: &ObjectiveData) -> SolverRecommendations {
+    fn get_recommendations(&self, _data: &ObjectiveData) -> SolverRecommendations {
         SolverRecommendations {
             max_iterations: Some(1000),
             tolerance: Some(1e-6),
@@ -545,7 +545,7 @@ impl SolverFactory {
 
 /// Utility function to convert from framework result to standard format
 pub fn convert_solver_result_to_standard(
-    result: &dyn std::fmt::Debug,
+    _result: &dyn std::fmt::Debug,
     solver_name: &str,
 ) -> crate::modular_framework::OptimizationResult {
     // This is a placeholder for result conversion

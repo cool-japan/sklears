@@ -4,7 +4,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom, Rng};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -15,11 +15,11 @@ use std::marker::PhantomData;
 /// Error-Correcting Output Codes (ECOC) strategies
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum ECOCStrategy {
-    /// Random binary codes
+    /// StdRng binary codes
     #[default]
-    Random,
+    StdRng,
     /// Dense random codes with balanced +1/-1 distribution
-    DenseRandom,
+    DenseStdRng,
     /// Exhaustive codes (all possible binary combinations)
     Exhaustive,
     /// BCH (Bose-Chaudhuri-Hocquenghem) codes for optimal error correction
@@ -41,7 +41,7 @@ pub struct ECOCConfig {
     pub strategy: ECOCStrategy,
     /// Code size multiplier (for random strategies)
     pub code_size: f64,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -79,7 +79,7 @@ impl Default for ECOCConfig {
 /// // Example with a hypothetical base classifier
 /// // let base_classifier = SomeClassifier::new();
 /// // let ecoc = ECOCClassifier::new(base_classifier)
-/// //     .strategy(ECOCStrategy::Random)
+/// //     .strategy(ECOCStrategy::StdRng)
 /// //     .code_size(2.0);
 /// ```
 #[derive(Debug)]
@@ -252,11 +252,11 @@ impl<C> ECOCClassifier<C, Untrained> {
     fn generate_code_matrix(
         &self,
         n_classes: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<Array2<i32>> {
         match &self.config.strategy {
-            ECOCStrategy::Random => self.generate_random_code_matrix(n_classes, rng),
-            ECOCStrategy::DenseRandom => self.generate_dense_random_code_matrix(n_classes, rng),
+            ECOCStrategy::StdRng => self.generate_random_code_matrix(n_classes, rng),
+            ECOCStrategy::DenseStdRng => self.generate_dense_random_code_matrix(n_classes, rng),
             ECOCStrategy::Exhaustive => self.generate_exhaustive_code_matrix(n_classes),
             ECOCStrategy::BCH { min_distance } => {
                 self.generate_bch_code_matrix(n_classes, *min_distance)
@@ -271,14 +271,14 @@ impl<C> ECOCClassifier<C, Untrained> {
     fn generate_random_code_matrix(
         &self,
         n_classes: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<Array2<i32>> {
         let code_length = ((n_classes as f64) * self.config.code_size).ceil() as usize;
         let mut code_matrix = Array2::zeros((n_classes, code_length));
 
         for i in 0..n_classes {
             for j in 0..code_length {
-                code_matrix[[i, j]] = if rng.random_f64() > 0.5 { 1 } else { -1 };
+                code_matrix[[i, j]] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
             }
         }
 
@@ -289,7 +289,7 @@ impl<C> ECOCClassifier<C, Untrained> {
     fn generate_dense_random_code_matrix(
         &self,
         n_classes: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<Array2<i32>> {
         let code_length = ((n_classes as f64) * self.config.code_size).ceil() as usize;
         let mut code_matrix = Array2::zeros((n_classes, code_length));
@@ -297,16 +297,16 @@ impl<C> ECOCClassifier<C, Untrained> {
         for j in 0..code_length {
             // Create balanced column (half +1, half -1)
             let mut column_values: Vec<i32> = Vec::with_capacity(n_classes);
-            for i in 0..(n_classes / 2) {
+            for _i in 0..(n_classes / 2) {
                 column_values.push(1);
             }
-            for i in (n_classes / 2)..n_classes {
+            for _i in (n_classes / 2)..n_classes {
                 column_values.push(-1);
             }
 
             // Shuffle the column
             for i in (1..column_values.len()).rev() {
-                let j = rng.random_range(0, i + 1);
+                let j = rng.gen_range(0..i + 1);
                 column_values.swap(i, j);
             }
 
@@ -412,7 +412,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         &self,
         n_classes: usize,
         target_distance: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<Array2<i32>> {
         if n_classes > 20 {
             return Err(SklearsError::InvalidInput(
@@ -424,7 +424,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         let mut code_length = std::cmp::max(target_distance * 2, n_classes);
         let max_attempts = 100;
 
-        for attempt in 0..max_attempts {
+        for _attempt in 0..max_attempts {
             let mut best_matrix = None;
             let mut best_min_distance = 0;
 
@@ -434,7 +434,7 @@ impl<C> ECOCClassifier<C, Untrained> {
 
                 // Initialize first row randomly
                 for j in 0..code_length {
-                    code_matrix[[0, j]] = if rng.random_f64() > 0.5 { 1 } else { -1 };
+                    code_matrix[[0, j]] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
                 }
 
                 // Generate subsequent rows to maximize minimum distance
@@ -469,7 +469,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         code_matrix: &mut Array2<i32>,
         row_index: usize,
         code_length: usize,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<()> {
         let mut best_row = Array1::zeros(code_length);
         let mut best_min_distance = 0;
@@ -478,7 +478,7 @@ impl<C> ECOCClassifier<C, Untrained> {
         for _ in 0..20 {
             let mut candidate_row = Array1::zeros(code_length);
             for j in 0..code_length {
-                candidate_row[j] = if rng.random_f64() > 0.5 { 1 } else { -1 };
+                candidate_row[j] = if rng.gen::<f64>() > 0.5 { 1 } else { -1 };
             }
 
             // Calculate minimum distance to existing rows
@@ -562,7 +562,7 @@ where
         // Validate inputs
         validate::check_consistent_length(x, y)?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Get unique classes
         let mut classes: Vec<i32> = y
@@ -582,9 +582,9 @@ where
         let n_classes = classes.len();
 
         // Generate code matrix
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         let code_matrix = self.generate_code_matrix(n_classes, &mut rng)?;

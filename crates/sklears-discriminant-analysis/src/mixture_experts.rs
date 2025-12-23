@@ -189,7 +189,7 @@ impl MixtureOfExpertsDiscriminantAnalysis<Trained> {
 }
 
 #[derive(Debug, Clone)]
-struct ExpertModel {
+pub struct ExpertModel {
     /// Expert weights for LDA/QDA
     weights: Array2<Float>,
     /// Expert bias
@@ -249,7 +249,7 @@ impl ExpertModel {
 }
 
 #[derive(Debug, Clone)]
-struct GatingNetwork {
+pub struct GatingNetwork {
     /// Gating network weights
     weights: Array2<Float>,
     /// Gating network bias
@@ -540,7 +540,7 @@ impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
         let n_experts = experts.len();
-        let n_classes = classes.len();
+        let _n_classes = classes.len();
 
         // Update expert parameters
         for (expert_idx, expert) in experts.iter_mut().enumerate() {
@@ -642,7 +642,7 @@ impl PredictProba<Array2<Float>, Array2<Float>> for MixtureOfExpertsDiscriminant
         }
 
         let n_classes = self.classes().len();
-        let n_experts = self.experts().len();
+        let _n_experts = self.experts().len();
         let mut predictions = Array2::zeros((n_samples, n_classes));
 
         // Compute gating network outputs

@@ -162,7 +162,7 @@ impl DemocraticCoLearning<Untrained> {
             distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
             // Adaptive k based on data size
-            let k = (distances.len().min(7).max(3)).min(X_train.nrows());
+            let k = distances.len().clamp(3, 7).min(X_train.nrows());
             let mut class_votes: HashMap<i32, f64> = HashMap::new();
             let mut total_weight = 0.0;
 
@@ -558,7 +558,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
 
                     distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-                    let k = distances.len().min(5).max(1);
+                    let k = distances.len().clamp(1, 5);
                     let mut view_votes: HashMap<i32, f64> = HashMap::new();
                     let mut view_weight = 0.0;
 

@@ -15,7 +15,7 @@ description = "Semi-supervised learning algorithms"
 [dependencies]
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
-numrs2 = { workspace = true }
+sklears-simd = { workspace = true }  # SIMD-optimized operations
 # SciRS2 Policy Compliant Dependencies
 scirs2-core = { workspace = true }
 scirs2-stats = { workspace = true }  # For statistical semi-supervised methods
@@ -26,9 +26,17 @@ scirs2-linalg = { workspace = true }  # For graph operations
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 
+# Performance - parallel processing and SIMD
+rayon = { workspace = true }
+
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "semi_supervised_benchmarks"
+harness = false
 
 [features]
 default = []

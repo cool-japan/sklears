@@ -199,7 +199,7 @@ impl SingleCellRNASeqImputer {
             let gene_values: Vec<f64> = X.column(j).iter().filter(|&&x| x > 0.0).cloned().collect();
             if !gene_values.is_empty() {
                 let gene_mean = gene_values.iter().sum::<f64>() / gene_values.len() as f64;
-                let gene_var = gene_values
+                let _gene_var = gene_values
                     .iter()
                     .map(|&x| (x - gene_mean).powi(2))
                     .sum::<f64>()
@@ -485,11 +485,9 @@ impl GenomicImputer {
         X: &ArrayView2<f64>,
         allele_freqs: &[f64],
     ) -> ImputationResult<Vec<bool>> {
-        let n_variants = X.ncols();
-        let mut valid = Vec::with_capacity(n_variants);
+        let mut valid = Vec::with_capacity(allele_freqs.len());
 
-        for j in 0..n_variants {
-            let freq = allele_freqs[j];
+        for (j, &freq) in allele_freqs.iter().enumerate() {
             let is_valid = freq >= self.min_allele_freq
                 && freq <= (1.0 - self.min_allele_freq)
                 && self.test_hardy_weinberg_equilibrium(X.column(j), freq);
@@ -1040,7 +1038,7 @@ impl MetabolomicsImputer {
     fn random_forest_imputation(&self, X: &Array2<f64>) -> ImputationResult<Array2<f64>> {
         // Simplified random forest - in practice would use a proper implementation
         let mut imputed = X.clone();
-        let (n_samples, n_metabolites) = X.dim();
+        let (_n_samples, n_metabolites) = X.dim();
 
         for j in 0..n_metabolites {
             let target_metabolite = X.column(j);
@@ -1119,7 +1117,7 @@ impl MetabolomicsImputer {
             sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
             let q10 = self.quantile(&sorted_values, 0.10);
-            let q25 = self.quantile(&sorted_values, 0.25);
+            let _q25 = self.quantile(&sorted_values, 0.25);
 
             for i in 0..n_samples {
                 if X[[i, j]].is_nan() || X[[i, j]] <= self.detection_limit {

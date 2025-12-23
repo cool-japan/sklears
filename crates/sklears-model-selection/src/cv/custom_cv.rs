@@ -170,7 +170,7 @@ impl PredefinedSplit {
     ///
     /// # Arguments
     /// * `test_fold` - Array where test_fold\[i\] is the fold number for sample i.
-    ///                 A value of -1 indicates that the sample should always be in the training set.
+    ///   A value of -1 indicates that the sample should always be in the training set.
     pub fn new(test_fold: Array1<i32>) -> Self {
         // Validate that fold indices are valid (-1 or non-negative)
         for &fold in test_fold.iter() {

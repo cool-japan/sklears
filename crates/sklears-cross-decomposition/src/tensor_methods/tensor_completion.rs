@@ -147,7 +147,7 @@ impl Fit<Array3<Float>, ()> for TensorCompletion<Untrained> {
             let mut factor = Array2::zeros((shape[mode], self.n_factors));
             for i in 0..shape[mode] {
                 for j in 0..self.n_factors {
-                    factor[[i, j]] = thread_rng().gen::<Float>() * 0.1;
+                    factor[[i, j]] = thread_rng().random::<Float>() * 0.1;
                 }
             }
             factor_matrices.push(factor);
@@ -387,7 +387,7 @@ impl TensorCompletion<Trained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::Array3;
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     #[test]
     fn test_tensor_completion_basic() {

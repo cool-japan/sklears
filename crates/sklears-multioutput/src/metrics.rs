@@ -1176,8 +1176,8 @@ pub fn wilcoxon_signed_rank_test(
 
         // Assign average rank to tied values
         let avg_rank = (i + j + 1) as f64 / 2.0;
-        for k in i..j {
-            ranks[k] = avg_rank;
+        for rank in ranks.iter_mut().take(j).skip(i) {
+            *rank = avg_rank;
         }
 
         i = j;

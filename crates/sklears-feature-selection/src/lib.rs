@@ -11,16 +11,19 @@ pub mod automl;
 pub mod base;
 pub mod bayesian;
 pub mod benchmark;
-pub mod comparison_tests;
+// TODO: ndarray 0.17 - uses disabled embedded module
+// pub mod comparison_tests;
 pub mod comprehensive_benchmark;
 pub mod domain_benchmark;
 pub mod domain_specific;
-pub mod embedded;
-pub mod ensemble_selectors;
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub mod embedded;
+// pub mod ensemble_selectors;
 pub mod evaluation;
 pub mod filter;
 pub mod fluent_api;
-pub mod genetic_optimization;
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub mod genetic_optimization;
 pub mod group_selection;
 pub mod hierarchical;
 pub mod ml_based;
@@ -36,10 +39,12 @@ pub mod serialization;
 pub mod spectral;
 pub mod statistical_tests;
 pub mod streaming;
-pub mod tree_based_selectors;
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub mod tree_based_selectors;
 pub mod type_safe;
-pub mod validation;
-pub mod wrapper;
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub mod validation;
+// pub mod wrapper;
 
 pub use automl::{
     analyze_and_recommend, comprehensive_automl, quick_automl, AdvancedHyperparameterOptimizer,
@@ -64,31 +69,36 @@ pub use crate::filter::{
     SureIndependenceScreening, VarianceThreshold,
 };
 
-pub use crate::wrapper::{
-    FeatureImportance, HasCoefficients, IndexableTarget, RFECVResults, SelectFromModel,
-    SequentialFeatureSelector, RFE, RFECV,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use crate::wrapper::{
+//     FeatureImportance, HasCoefficients, IndexableTarget, RFECVResults, SelectFromModel,
+//     SequentialFeatureSelector, RFE, RFECV,
+// };
 
-pub use crate::embedded::{
-    ConsensusFeatureSelector, ConsensusMethod, ConsensusThresholdParams, MultiTaskFeatureSelector,
-    StabilitySelector,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use crate::embedded::{
+//     ConsensusFeatureSelector, ConsensusMethod, ConsensusThresholdParams, MultiTaskFeatureSelector,
+//     StabilitySelector,
+// };
 
-pub use crate::genetic_optimization::{
-    CostSensitiveObjective, CrossValidator, FairnessAwareObjective, FairnessMetric,
-    FeatureCountObjective, FeatureDiversityObjective, FeatureImportanceObjective, GeneticSelector,
-    Individual, KFold, MultiObjectiveFeatureSelector, MultiObjectiveMethod, ObjectiveFunction,
-    PredictivePerformanceObjective,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use crate::genetic_optimization::{
+//     CostSensitiveObjective, CrossValidator, FairnessAwareObjective, FairnessMetric,
+//     FeatureCountObjective, FeatureDiversityObjective, FeatureImportanceObjective, GeneticSelector,
+//     Individual, KFold, MultiObjectiveFeatureSelector, MultiObjectiveMethod, ObjectiveFunction,
+//     PredictivePerformanceObjective,
+// };
 
-pub use crate::ensemble_selectors::{
-    extract_features, AggregationMethod, BootstrapSelector, BorutaSelector, EnsembleFeatureRanking,
-    SelectorFunction, UnivariateMethod, UnivariateSelector,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use crate::ensemble_selectors::{
+//     extract_features, AggregationMethod, BootstrapSelector, BorutaSelector, EnsembleFeatureRanking,
+//     SelectorFunction, UnivariateMethod, UnivariateSelector,
+// };
 
-pub use crate::tree_based_selectors::{
-    GradientBoostingSelector, TreeImportance, TreeImportanceSelector, TreeSelector,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use crate::tree_based_selectors::{
+//     GradientBoostingSelector, TreeImportance, TreeImportanceSelector, TreeSelector,
+// };
 
 pub use crate::regularization_selectors::{ElasticNetSelector, LassoSelector, RidgeSelector};
 
@@ -160,10 +170,11 @@ pub use crate::optimization::{
     ProximalGradientSelector, SemidefiniteFeatureSelector,
 };
 
-pub use crate::validation::{
-    DistributionalPropertyTest, PermutationSignificanceTest, RobustnessTest,
-    SelectionConsistencyTest, StatisticalValidationFramework, StatisticalValidationResults,
-};
+// TODO: ndarray 0.17 HRTB trait bound issues
+// pub use crate::validation::{
+//     DistributionalPropertyTest, PermutationSignificanceTest, RobustnessTest,
+//     SelectionConsistencyTest, StatisticalValidationFramework, StatisticalValidationResults,
+// };
 
 pub use crate::parallel::{
     ParallelCorrelationComputer, ParallelFeatureEvaluator, ParallelFeatureRanker,

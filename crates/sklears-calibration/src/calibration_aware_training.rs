@@ -101,7 +101,7 @@ impl CalibrationAwareTrainer {
         y_val: Option<&Array1<i32>>,
     ) -> Result<Array1<Float>> {
         let n_samples = x_train.nrows();
-        let n_features = x_train.ncols();
+        let _n_features = x_train.ncols();
 
         // Validate inputs
         if y_train.len() != n_samples {
@@ -210,7 +210,8 @@ impl CalibrationAwareTrainer {
                 row /= sum;
             } else {
                 // Handle numerical issues
-                row.fill(1.0 / row.len() as Float);
+                let uniform_val = 1.0 / row.len() as Float;
+                row.fill(uniform_val);
             }
         }
 

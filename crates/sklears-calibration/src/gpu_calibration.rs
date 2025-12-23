@@ -18,7 +18,7 @@ use sklears_core::{error::SklearsError, types::Float};
 pub struct ActivationFunction;
 
 impl ActivationFunction {
-    pub const Sigmoid: Self = Self;
+    pub const SIGMOID: Self = Self;
 }
 
 #[derive(Debug)]
@@ -72,6 +72,12 @@ pub struct GpuKernelInfo {
 #[derive(Debug)]
 pub struct GpuProfiler;
 
+impl Default for GpuProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpuProfiler {
     pub fn new() -> Self {
         Self
@@ -88,6 +94,12 @@ impl GpuProfiler {
 
 #[derive(Debug)]
 pub struct GpuUtils;
+
+impl Default for GpuUtils {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl GpuUtils {
     pub fn new() -> Self {
@@ -446,7 +458,7 @@ impl GpuCalibratedClassifier {
             },
         };
 
-        let _execution = gpu_utils.execute_kernel(&kernel_info).map_err(|e| {
+        gpu_utils.execute_kernel(&kernel_info).map_err(|e| {
             SklearsError::InvalidInput(format!("GPU kernel execution failed: {}", e))
         })?;
 
@@ -457,7 +469,7 @@ impl GpuCalibratedClassifier {
     fn execute_gpu_fit_1d(
         &self,
         probabilities: &[f32],
-        y: &[f32],
+        _y: &[f32],
     ) -> Result<Vec<f32>, SklearsError> {
         // Simple GPU calibration - apply sigmoid transformation
         let transformed: Vec<f32> = probabilities
@@ -504,7 +516,7 @@ impl GpuCalibratedClassifier {
 
             // Apply softmax
             let probs = GpuArrayOps::apply_activation(
-                ActivationFunction::Sigmoid,
+                ActivationFunction::SIGMOID,
                 &scaled_logits,
                 self.device_id,
             )
@@ -532,7 +544,7 @@ impl GpuCalibratedClassifier {
         X: &[f32],
         y: &[f32],
         n_samples: usize,
-        n_features: usize,
+        _n_features: usize,
     ) -> Result<Vec<f32>, SklearsError> {
         // Simplified sigmoid calibration: find optimal scaling and bias
         let mut best_a = 1.0f32;
@@ -548,7 +560,7 @@ impl GpuCalibratedClassifier {
 
                 // Apply sigmoid
                 let probs = GpuArrayOps::apply_activation(
-                    ActivationFunction::Sigmoid,
+                    ActivationFunction::SIGMOID,
                     &transformed,
                     self.device_id,
                 )
@@ -572,7 +584,7 @@ impl GpuCalibratedClassifier {
         let final_transformed: Array1<Float> =
             Array1::from_vec(X.iter().map(|&x| (best_a * x + best_b) as Float).collect());
         let final_probs = GpuArrayOps::apply_activation(
-            ActivationFunction::Sigmoid,
+            ActivationFunction::SIGMOID,
             &final_transformed,
             self.device_id,
         )

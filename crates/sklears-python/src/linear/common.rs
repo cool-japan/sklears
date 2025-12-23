@@ -4,6 +4,7 @@
 //! across all linear model implementations.
 
 // Re-export commonly used types and traits - Using SciRS2-Core for improved performance
+use numpy::Element;
 pub use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 pub use pyo3::exceptions::PyValueError;
 pub use pyo3::prelude::*;
@@ -209,6 +210,52 @@ pub fn get_available_memory_mb() -> f64 {
     // In a real implementation, you'd use system APIs to get actual available memory
     // For now, we assume 8GB as a reasonable default
     8192.0
+}
+
+/// Convert a read-only NumPy array view into an owned SciRS2 ndarray Array1
+pub fn pyarray_to_core_array1<T>(py_array: PyReadonlyArray1<T>) -> PyResult<Array1<T>>
+where
+    T: Clone + Element,
+{
+    let array_view = py_array.as_array();
+    Ok(Array1::from_vec(array_view.iter().cloned().collect()))
+}
+
+/// Convert a read-only NumPy array view into an owned SciRS2 ndarray Array2
+pub fn pyarray_to_core_array2<T>(py_array: PyReadonlyArray2<T>) -> PyResult<Array2<T>>
+where
+    T: Clone + Element,
+{
+    let array_view = py_array.as_array();
+    let shape = array_view.shape();
+    if shape.len() != 2 {
+        return Err(PyValueError::new_err("Expected a 2D array"));
+    }
+    let rows = shape[0];
+    let cols = shape[1];
+    Array2::from_shape_vec((rows, cols), array_view.iter().cloned().collect())
+        .map_err(|_| PyValueError::new_err("Failed to convert NumPy array to ndarray"))
+}
+
+/// Convert an ndarray Array1 into a Python-owned NumPy array object
+pub fn core_array1_to_py<'py, T>(py: Python<'py>, array: &Array1<T>) -> Py<PyArray1<T>>
+where
+    T: Clone + Element,
+{
+    let numpy_array = numpy::ndarray::Array1::from_vec(array.to_vec());
+    PyArray1::from_owned_array(py, numpy_array).into()
+}
+
+/// Convert an ndarray Array2 into a Python-owned NumPy array object
+pub fn core_array2_to_py<'py, T>(py: Python<'py>, array: &Array2<T>) -> PyResult<Py<PyArray2<T>>>
+where
+    T: Clone + Element,
+{
+    let (rows, cols) = array.dim();
+    let data: Vec<T> = array.iter().cloned().collect();
+    let numpy_array = numpy::ndarray::Array2::from_shape_vec((rows, cols), data)
+        .map_err(|_| PyValueError::new_err("Failed to convert ndarray to NumPy array"))?;
+    Ok(PyArray2::from_owned_array(py, numpy_array).into())
 }
 
 /// Performance monitoring structure

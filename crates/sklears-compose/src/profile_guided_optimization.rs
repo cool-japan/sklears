@@ -419,7 +419,7 @@ impl ProfileGuidedOptimizer {
         /// HardwareContext
         HardwareContext {
             cpu_cores,
-            cache_sizes: vec![32768, 262144, 8388608], // Typical L1, L2, L3
+            cache_sizes: vec![32768, 262_144, 8_388_608], // Typical L1, L2, L3
             simd_features: Self::detect_simd_features(),
             memory_bandwidth: 25.6, // Typical DDR4
             cpu_frequency: 3000.0,  // 3 GHz typical
@@ -596,7 +596,7 @@ impl ProfileGuidedOptimizer {
             "sparse_optimized".to_string()
         } else if data_size < 10000 {
             "small_data_optimized".to_string()
-        } else if data_size > 1000000 {
+        } else if data_size > 1_000_000 {
             "large_data_optimized".to_string()
         } else {
             "general_purpose".to_string()
@@ -610,9 +610,9 @@ impl ProfileGuidedOptimizer {
     ) -> OptimizationLevel {
         let data_size = characteristics.n_samples * characteristics.n_features;
 
-        if data_size > 1000000 {
+        if data_size > 1_000_000 {
             OptimizationLevel::Aggressive
-        } else if data_size > 100000 {
+        } else if data_size > 100_000 {
             OptimizationLevel::Advanced
         } else if data_size > 10000 {
             OptimizationLevel::Basic
@@ -638,7 +638,7 @@ impl ProfileGuidedOptimizer {
             .hardware_context
             .simd_features
             .contains(&SimdFeature::AVX2)
-            && data_size > 100000
+            && data_size > 100_000
         {
             ParallelStrategy::Hybrid
         } else if self.hardware_context.cpu_cores > 1 && data_size > 50000 {

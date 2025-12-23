@@ -722,36 +722,47 @@ impl ExecutionMonitoringCoordinator {
 /// Implementation of ExecutionMonitor trait for backwards compatibility
 impl ExecutionMonitor for ExecutionMonitoringCoordinator {
     fn start_monitoring(&mut self, session_id: String, config: MonitoringConfig) -> SklResult<MonitoringSession> {
-        // Synchronous wrapper around async method
-        // In real implementation, would use async runtime or return future
-        todo!("Implement synchronous wrapper for async start_monitoring")
+        // Synchronous wrapper around async method using tokio runtime
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.start_monitoring_session(session_id))
     }
 
     fn stop_monitoring(&mut self, session_id: String) -> SklResult<MonitoringReport> {
-        // Synchronous wrapper around async method
-        todo!("Implement synchronous wrapper for async stop_monitoring")
+        // Synchronous wrapper around async method using tokio runtime
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.stop_monitoring_session(&session_id))
     }
 
     fn record_task_event(&mut self, session_id: String, event: TaskExecutionEvent) -> SklResult<()> {
-        // Synchronous wrapper around async method
-        todo!("Implement synchronous wrapper for async record_task_event")
+        // Synchronous wrapper around async method using tokio runtime
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.record_task_event(&session_id, event))
     }
 
     fn record_resource_utilization(&mut self, session_id: String, utilization: ResourceUtilization) -> SklResult<()> {
         // Convert to metric and record
         let metric = PerformanceMetric::from_resource_utilization(&utilization);
-        // Synchronous wrapper around async method
-        todo!("Implement synchronous wrapper for async record_performance_metric")
+        // Synchronous wrapper around async method using tokio runtime
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.record_performance_metric(&session_id, metric))
     }
 
     fn record_performance_metric(&mut self, session_id: String, metric: PerformanceMetric) -> SklResult<()> {
-        // Synchronous wrapper around async method
-        todo!("Implement synchronous wrapper for async record_performance_metric")
+        // Synchronous wrapper around async method using tokio runtime
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.record_performance_metric(&session_id, metric))
     }
 
     fn get_monitoring_status(&self, session_id: &str) -> SklResult<MonitoringStatus> {
-        // Synchronous wrapper around async method
-        todo!("Implement synchronous wrapper for async get_monitoring_status")
+        // Synchronous wrapper around async method using tokio runtime
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.get_monitoring_status(session_id))
     }
 
     fn get_historical_data(&self, session_id: &str, time_range: TimeRange) -> SklResult<HistoricalMonitoringData> {
@@ -761,8 +772,11 @@ impl ExecutionMonitor for ExecutionMonitoringCoordinator {
     }
 
     fn generate_report(&self, session_id: &str, report_config: ReportConfig) -> SklResult<MonitoringReport> {
-        // Synchronous wrapper around async method
-        todo!("Implement synchronous wrapper for async generate_monitoring_report")
+        // Synchronous wrapper around async method using tokio runtime
+        let report_configuration = ReportConfiguration::from_report_config(&report_config);
+        tokio::runtime::Runtime::new()
+            .map_err(|e| SklearsError::RuntimeError(format!("Failed to create runtime: {}", e)))?
+            .block_on(self.generate_monitoring_report(session_id, report_configuration))
     }
 
     fn configure_alert_thresholds(&mut self, session_id: &str, thresholds: Vec<AlertThreshold>) -> SklResult<()> {
@@ -932,6 +946,20 @@ impl ReportConfiguration {
             format: ReportFormat::JSON,
             time_range: None,
             aggregation_level: AggregationLevel::Detailed,
+        }
+    }
+
+    fn from_report_config(config: &ReportConfig) -> Self {
+        Self {
+            include_metrics: config.include_metrics.unwrap_or(true),
+            include_events: config.include_events.unwrap_or(true),
+            include_performance: config.include_performance.unwrap_or(true),
+            include_health: config.include_health.unwrap_or(true),
+            include_alerts: config.include_alerts.unwrap_or(true),
+            include_anomalies: config.include_anomalies.unwrap_or(false),
+            format: config.format.clone().unwrap_or(ReportFormat::JSON),
+            time_range: config.time_range.clone(),
+            aggregation_level: config.aggregation_level.clone().unwrap_or(AggregationLevel::Detailed),
         }
     }
 }

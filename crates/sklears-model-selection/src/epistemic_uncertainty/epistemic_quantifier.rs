@@ -7,7 +7,7 @@ use super::uncertainty_methods::EpistemicUncertaintyMethod;
 use super::uncertainty_results::EpistemicUncertaintyResult;
 use super::uncertainty_types::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Float;
 use scirs2_core::random::Random;
 
 #[derive(Debug, Clone)]

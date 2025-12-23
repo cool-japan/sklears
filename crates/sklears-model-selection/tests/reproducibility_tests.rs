@@ -361,13 +361,13 @@ mod reproducibility_tests {
             param_names.sort();
             for param_name in param_names {
                 let value = match param_name.as_str() {
-                    "learning_rate" => ParameterValue::Float(rng.gen_range(0.001..0.1)),
+                    "learning_rate" => ParameterValue::Float(rng.random_range(0.001..0.1)),
                     "n_estimators" => ParameterValue::Integer(rng.gen_range(50..500)),
                     "criterion" => {
                         let choices = ["gini", "entropy"];
                         ParameterValue::String(choices[rng.gen_range(0..choices.len())].to_string())
                     }
-                    _ => ParameterValue::Float(rng.random::<f64>()),
+                    _ => ParameterValue::Float(rng.random()),
                 };
                 params.insert(param_name, value);
             }
@@ -387,7 +387,7 @@ mod reproducibility_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(seed);
         // Mock Bayesian optimization results
-        (0..10).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..10).map(|_| rng.random_range(-1.0..1.0)).collect()
     }
 
     fn run_evolutionary_algorithm(
@@ -399,7 +399,7 @@ mod reproducibility_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(seed);
         // Mock evolutionary algorithm results
-        (0..10).map(|_| rng.gen_range(-1.0..1.0)).collect()
+        (0..10).map(|_| rng.random_range(-1.0..1.0)).collect()
     }
 
     fn create_f32_data(n_samples: usize, n_features: usize, seed: u64) -> Vec<Vec<f32>> {
@@ -412,7 +412,7 @@ mod reproducibility_tests {
     fn create_f64_data(n_samples: usize, n_features: usize, seed: u64) -> Vec<Vec<f64>> {
         let mut rng = seeded_rng(seed);
         (0..n_samples)
-            .map(|_| (0..n_features).map(|_| rng.random::<f64>()).collect())
+            .map(|_| (0..n_features).map(|_| rng.random()).collect())
             .collect()
     }
 
@@ -450,7 +450,7 @@ mod reproducibility_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(seed);
         // Mock ensemble weights
-        (0..n_estimators).map(|_| rng.random::<f64>()).collect()
+        (0..n_estimators).map(|_| rng.random()).collect()
     }
 
     fn evaluate_model(
@@ -461,13 +461,13 @@ mod reproducibility_tests {
     ) -> Vec<f64> {
         let mut rng = seeded_rng(seed);
         // Mock evaluation scores
-        (0..5).map(|_| rng.gen_range(0.0..1.0)).collect()
+        (0..5).map(|_| rng.random_range(0.0..1.0)).collect()
     }
 
     fn run_parallel_cv(_x: &Array2<f64>, _y: &Array2<f64>, seed: u64) -> Vec<f64> {
         let mut rng = seeded_rng(seed);
         // Mock parallel CV results
-        (0..5).map(|_| rng.gen_range(0.0..1.0)).collect()
+        (0..5).map(|_| rng.random_range(0.0..1.0)).collect()
     }
 
     // Mock implementations for testing

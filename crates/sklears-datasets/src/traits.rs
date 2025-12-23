@@ -5,9 +5,12 @@
 //! and composable generation strategies.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::Random;
+use scirs2_core::random::{Distribution, RandNormal, Random};
 use std::collections::HashMap;
 use thiserror::Error;
+
+// Note: We inline the distribution sampling rather than using a helper function
+// because Random and Random<StdRng> are different types and hard to make generic
 
 /// Errors in the trait-based dataset framework
 #[derive(Error, Debug)]
@@ -42,16 +45,16 @@ pub trait Dataset {
     }
 
     /// Get features as an array view
-    fn features(&self) -> DatasetTraitResult<ArrayView2<f64>>;
+    fn features(&self) -> DatasetTraitResult<ArrayView2<'_, f64>>;
 
     /// Get a specific sample (row) by index
-    fn sample(&self, index: usize) -> DatasetTraitResult<ArrayView1<f64>>;
+    fn sample(&self, index: usize) -> DatasetTraitResult<ArrayView1<'_, f64>>;
 
     /// Check if the dataset has target values
     fn has_targets(&self) -> bool;
 
     /// Get targets as an array view (if available)
-    fn targets(&self) -> DatasetTraitResult<Option<ArrayView1<f64>>>;
+    fn targets(&self) -> DatasetTraitResult<Option<ArrayView1<'_, f64>>>;
 
     /// Get dataset metadata
     fn metadata(&self) -> HashMap<String, String> {
@@ -237,11 +240,11 @@ impl Dataset for InMemoryDataset {
         self.features.ncols()
     }
 
-    fn features(&self) -> DatasetTraitResult<ArrayView2<f64>> {
+    fn features(&self) -> DatasetTraitResult<ArrayView2<'_, f64>> {
         Ok(self.features.view())
     }
 
-    fn sample(&self, index: usize) -> DatasetTraitResult<ArrayView1<f64>> {
+    fn sample(&self, index: usize) -> DatasetTraitResult<ArrayView1<'_, f64>> {
         if index >= self.n_samples() {
             return Err(DatasetTraitError::DimensionMismatch {
                 expected: format!("index < {}", self.n_samples()),
@@ -255,7 +258,7 @@ impl Dataset for InMemoryDataset {
         self.targets.is_some()
     }
 
-    fn targets(&self) -> DatasetTraitResult<Option<ArrayView1<f64>>> {
+    fn targets(&self) -> DatasetTraitResult<Option<ArrayView1<'_, f64>>> {
         Ok(self.targets.as_ref().map(|t| t.view()))
     }
 
@@ -296,7 +299,7 @@ impl MutableDataset for InMemoryDataset {
     fn add_sample(
         &mut self,
         sample: ArrayView1<f64>,
-        target: Option<f64>,
+        _target: Option<f64>,
     ) -> DatasetTraitResult<()> {
         if sample.len() != self.n_features() {
             return Err(DatasetTraitError::DimensionMismatch {
@@ -435,22 +438,16 @@ impl GeneratorConfig {
 #[derive(Debug, Clone)]
 pub enum ConfigValue {
     /// Int
-
     Int(i64),
     /// Float
-
     Float(f64),
     /// String
-
     String(String),
     /// Bool
-
     Bool(bool),
     /// IntArray
-
     IntArray(Vec<i64>),
     /// FloatArray
-
     FloatArray(Vec<f64>),
 }
 
@@ -514,9 +511,10 @@ impl DatasetGenerator for ClassificationGenerator {
 
         // Generate features
         let mut features = Array2::<f64>::zeros((config.n_samples, config.n_features));
+        let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
-                *val = rng.gen_normal(0.0, 1.0);
+                *val = normal_dist.sample(&mut rng);
             }
         }
 
@@ -592,21 +590,23 @@ impl DatasetGenerator for RegressionGenerator {
 
         // Generate features
         let mut features = Array2::<f64>::zeros((config.n_samples, config.n_features));
+        let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
-                *val = rng.gen_normal(0.0, 1.0);
+                *val = normal_dist.sample(&mut rng);
             }
         }
 
         // Generate random coefficients
         let coefficients: Array1<f64> =
-            Array1::from_shape_fn(config.n_features, |_| rng.gen_range(-1.0..1.0));
+            Array1::from_shape_fn(config.n_features, |_| rng.random_range(-1.0, 1.0));
 
         // Generate targets
         let mut targets = Array1::<f64>::zeros(config.n_samples);
-        for (i, mut target) in targets.iter_mut().enumerate() {
+        for (i, target) in targets.iter_mut().enumerate() {
             let feature_row = features.row(i);
-            *target = feature_row.dot(&coefficients) + rng.gen_normal(0.0, noise);
+            let noise_dist = RandNormal::new(0.0, noise).unwrap();
+            *target = feature_row.dot(&coefficients) + noise_dist.sample(&mut rng);
         }
 
         let mut metadata = HashMap::new();

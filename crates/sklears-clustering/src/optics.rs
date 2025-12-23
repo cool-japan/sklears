@@ -489,13 +489,9 @@ impl Optics<Untrained> {
             let distance = self.calculate_distance(&core_point, &neighbor_point)?;
             let new_reachability = core_distance.max(distance);
 
-            if points[neighbor_idx].reachability_distance.is_none() {
-                points[neighbor_idx].reachability_distance = Some(new_reachability);
-                seeds.push(SeedItem {
-                    index: neighbor_idx,
-                    reachability: new_reachability,
-                });
-            } else if new_reachability < points[neighbor_idx].reachability_distance.unwrap() {
+            if points[neighbor_idx].reachability_distance.is_none()
+                || new_reachability < points[neighbor_idx].reachability_distance.unwrap()
+            {
                 points[neighbor_idx].reachability_distance = Some(new_reachability);
                 seeds.push(SeedItem {
                     index: neighbor_idx,

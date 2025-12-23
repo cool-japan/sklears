@@ -244,7 +244,7 @@ fn uniform_perturbation(
 
         for i in 0..perturbed.nrows() {
             for j in 0..perturbed.ncols() {
-                let noise = rng.gen_range(min_noise..=max_noise);
+                let noise = rng.gen_range(min_noise..max_noise);
                 perturbed[[i, j]] += noise;
             }
         }
@@ -430,7 +430,7 @@ fn distribution_preserving_perturbation(
                 let sampled_value = percentiles[idx];
 
                 // Add small perturbation while preserving distribution
-                let noise = rng.gen_range(-config.magnitude..=config.magnitude);
+                let noise = rng.gen_range(-config.magnitude..config.magnitude);
                 perturbed[[i, j]] = sampled_value + noise;
             }
         }
@@ -460,11 +460,11 @@ fn structured_perturbation(
         let mut perturbed = X.to_owned();
 
         // Randomly select which group to perturb
-        let group_start = rng.gen_range(0..=(n_features - group_size));
+        let group_start = rng.gen_range(0..(n_features - group_size + 1));
         let group_end = (group_start + group_size).min(n_features);
 
         // Apply structured perturbation to selected group
-        let group_perturbation = rng.gen_range(-config.magnitude..=config.magnitude);
+        let group_perturbation = rng.gen_range(-config.magnitude..config.magnitude);
 
         for i in 0..perturbed.nrows() {
             for j in group_start..group_end {

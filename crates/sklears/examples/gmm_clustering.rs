@@ -196,7 +196,7 @@ fn main() -> Result<()> {
         uncertain_points.len()
     );
     println!("\nExample uncertain points:");
-    for (idx, (i, unc, p1, p2)) in uncertain_points.iter().take(5).enumerate() {
+    for (idx, (_i, unc, p1, p2)) in uncertain_points.iter().take(5).enumerate() {
         println!(
             "  Point {}: uncertainty={:.3}, P(C1)={:.3}, P(C2)={:.3}",
             idx, unc, p1, p2
@@ -208,7 +208,7 @@ fn main() -> Result<()> {
 
 /// Create data from a true Gaussian mixture
 fn create_gaussian_mixture_data() -> Array2<f64> {
-    use scirs2_core::essentials::Normal;
+    use scirs2_core::random::essentials::Normal;
     use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
@@ -242,7 +242,7 @@ fn create_gaussian_mixture_data() -> Array2<f64> {
 
 /// Create data with overlapping clusters
 fn create_overlapping_clusters() -> Array2<f64> {
-    use scirs2_core::essentials::Normal;
+    use scirs2_core::random::essentials::Normal;
     use scirs2_core::random::{rngs::StdRng, Distribution, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);

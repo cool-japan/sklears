@@ -7,7 +7,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-use crate::dsl_impl::dsl_types::{PipelineConfig, PipelineStage, StageType};
+#[cfg(feature = "serde")]
+extern crate serde_yaml;
 
 /// Visual pipeline builder for creating ML pipelines through a drag-and-drop interface
 ///
@@ -67,20 +68,28 @@ impl VisualPipelineBuilder {
     ///
     /// Converts a visual pipeline configuration into executable code,
     /// including validation, optimization, and documentation generation.
-    pub fn build_pipeline_from_visual(&self, visual_config: &VisualPipelineConfig) -> crate::error::Result<GeneratedPipeline> {
+    pub fn build_pipeline_from_visual(
+        &self,
+        visual_config: &VisualPipelineConfig,
+    ) -> crate::error::Result<GeneratedPipeline> {
         // Validate the visual configuration
         let validation_result = self.validator.validate_visual_pipeline(visual_config)?;
         if !validation_result.is_valid {
-            return Err(crate::error::SklError::ValidationError(
-                format!("Pipeline validation failed: {}", validation_result.error_message.unwrap_or_default())
-            ));
+            return Err(crate::error::SklearsError::ValidationError(format!(
+                "Pipeline validation failed: {}",
+                validation_result.error_message.unwrap_or_default()
+            )));
         }
 
         // Generate DSL code from visual configuration
-        let dsl_code = self.code_generator.generate_dsl_from_visual(visual_config)?;
+        let dsl_code = self
+            .code_generator
+            .generate_dsl_from_visual(visual_config)?;
 
         // Generate Rust implementation code
-        let rust_code = self.code_generator.generate_rust_implementation(visual_config)?;
+        let rust_code = self
+            .code_generator
+            .generate_rust_implementation(visual_config)?;
 
         // Generate comprehensive documentation
         let documentation = self.generate_pipeline_documentation(visual_config)?;
@@ -106,7 +115,10 @@ impl VisualPipelineBuilder {
     ///
     /// Supports importing pipelines from multiple sources including JSON, YAML,
     /// scikit-learn pipelines, PyTorch models, and existing DSL macros.
-    pub fn import_pipeline(&mut self, import_data: &PipelineImportData) -> crate::error::Result<VisualPipelineConfig> {
+    pub fn import_pipeline(
+        &mut self,
+        import_data: &PipelineImportData,
+    ) -> crate::error::Result<VisualPipelineConfig> {
         match import_data.format {
             ImportFormat::Json => self.import_from_json(&import_data.content),
             ImportFormat::Yaml => self.import_from_yaml(&import_data.content),
@@ -121,12 +133,19 @@ impl VisualPipelineBuilder {
     ///
     /// Supports exporting to multiple formats for use in different environments
     /// and frameworks.
-    pub fn export_pipeline(&self, config: &VisualPipelineConfig, format: ExportFormat) -> crate::error::Result<String> {
+    pub fn export_pipeline(
+        &self,
+        config: &VisualPipelineConfig,
+        format: ExportFormat,
+    ) -> crate::error::Result<String> {
         self.export_manager.export(config, format)
     }
 
     /// Validate a visual pipeline configuration
-    pub fn validate_pipeline(&self, config: &VisualPipelineConfig) -> crate::error::Result<ValidationResult> {
+    pub fn validate_pipeline(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<ValidationResult> {
         self.validator.validate_visual_pipeline(config)
     }
 
@@ -134,7 +153,10 @@ impl VisualPipelineBuilder {
     ///
     /// Applies various optimization strategies to improve pipeline performance
     /// and resource usage.
-    pub fn optimize_pipeline(&self, config: &VisualPipelineConfig) -> crate::error::Result<VisualPipelineConfig> {
+    pub fn optimize_pipeline(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<VisualPipelineConfig> {
         let mut optimized_config = config.clone();
 
         // Apply component-level optimizations
@@ -161,17 +183,38 @@ impl VisualPipelineBuilder {
 
     /// Generate HTML interface for the visual builder
     fn generate_html_interface(&self) -> crate::error::Result<String> {
-        Ok(include_str!("../templates/visual_builder.html").to_string())
+        Ok(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Visual Pipeline Builder</title>
+    <link rel="stylesheet" href="visual_builder.css">
+</head>
+<body>
+    <div id="pipeline-canvas"></div>
+    <div id="component-library"></div>
+    <script src="visual_builder.js"></script>
+</body>
+</html>"#
+            .to_string())
     }
 
     /// Generate JavaScript logic for the visual builder
     fn generate_javascript_logic(&self) -> crate::error::Result<String> {
-        Ok(include_str!("../templates/visual_builder.js").to_string())
+        Ok(r#"
+// Visual Pipeline Builder JavaScript
+console.log('Visual Pipeline Builder loaded');
+"#
+        .to_string())
     }
 
     /// Generate CSS styling for the visual builder
     fn generate_css_styles(&self) -> crate::error::Result<String> {
-        Ok(include_str!("../templates/visual_builder.css").to_string())
+        Ok(r#"
+/* Visual Pipeline Builder CSS */
+#pipeline-canvas { width: 100%; height: 600px; border: 1px solid #ccc; }
+"#
+        .to_string())
     }
 
     /// Generate component definitions for the frontend
@@ -225,10 +268,17 @@ impl VisualPipelineBuilder {
     }
 
     /// Generate comprehensive documentation for the pipeline
-    fn generate_pipeline_documentation(&self, config: &VisualPipelineConfig) -> crate::error::Result<PipelineDocumentation> {
+    fn generate_pipeline_documentation(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<PipelineDocumentation> {
         Ok(PipelineDocumentation {
             overview: format!("Pipeline: {}", config.name),
-            components: config.components.iter().map(|c| format!("- {}: {}", c.name, c.description)).collect(),
+            components: config
+                .components
+                .iter()
+                .map(|c| format!("- {}: {}", c.name, c.description))
+                .collect(),
             data_flow: self.describe_data_flow(config)?,
             performance_notes: self.generate_performance_notes(config)?,
             usage_examples: self.generate_usage_examples(config)?,
@@ -236,7 +286,10 @@ impl VisualPipelineBuilder {
     }
 
     /// Analyze pipeline dependencies
-    fn analyze_dependencies(&self, config: &VisualPipelineConfig) -> crate::error::Result<Vec<String>> {
+    fn analyze_dependencies(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<Vec<String>> {
         let mut dependencies = HashSet::new();
 
         for component in &config.components {
@@ -247,14 +300,19 @@ impl VisualPipelineBuilder {
     }
 
     /// Generate performance optimization hints
-    fn generate_performance_hints(&self, config: &VisualPipelineConfig) -> crate::error::Result<Vec<PerformanceHint>> {
+    fn generate_performance_hints(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<Vec<PerformanceHint>> {
         let mut hints = Vec::new();
 
         // Analyze for common performance issues
         if config.components.len() > 10 {
             hints.push(PerformanceHint {
                 category: "Complexity".to_string(),
-                message: "Consider breaking down complex pipelines into smaller, reusable components".to_string(),
+                message:
+                    "Consider breaking down complex pipelines into smaller, reusable components"
+                        .to_string(),
                 severity: "Medium".to_string(),
             });
         }
@@ -309,32 +367,52 @@ mod tests {{
         // Component-level optimizations
         for component in &mut config.components {
             if component.component_type == "preprocessing" {
-                component.properties.insert("use_simd".to_string(), "true".to_string());
+                component
+                    .properties
+                    .insert("use_simd".to_string(), "true".to_string());
             }
         }
         Ok(())
     }
 
-    fn optimize_data_flow(&self, config: &mut VisualPipelineConfig) -> crate::error::Result<()> {
+    fn optimize_data_flow(&self, _config: &mut VisualPipelineConfig) -> crate::error::Result<()> {
         // Data flow optimizations
         Ok(())
     }
 
-    fn optimize_resource_usage(&self, config: &mut VisualPipelineConfig) -> crate::error::Result<()> {
+    fn optimize_resource_usage(
+        &self,
+        _config: &mut VisualPipelineConfig,
+    ) -> crate::error::Result<()> {
         // Resource usage optimizations
         Ok(())
     }
 
     fn describe_data_flow(&self, config: &VisualPipelineConfig) -> crate::error::Result<String> {
-        Ok(format!("Data flows through {} components", config.components.len()))
+        Ok(format!(
+            "Data flows through {} components",
+            config.components.len()
+        ))
     }
 
-    fn generate_performance_notes(&self, config: &VisualPipelineConfig) -> crate::error::Result<String> {
-        Ok(format!("Pipeline with {} components", config.components.len()))
+    fn generate_performance_notes(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<String> {
+        Ok(format!(
+            "Pipeline with {} components",
+            config.components.len()
+        ))
     }
 
-    fn generate_usage_examples(&self, config: &VisualPipelineConfig) -> crate::error::Result<Vec<String>> {
-        Ok(vec![format!("let pipeline = {}Pipeline::new()?;", config.name)])
+    fn generate_usage_examples(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<Vec<String>> {
+        Ok(vec![format!(
+            "let pipeline = {}Pipeline::new()?;",
+            config.name
+        )])
     }
 
     fn can_parallelize(&self, config: &VisualPipelineConfig) -> crate::error::Result<bool> {
@@ -347,27 +425,46 @@ mod tests {{
     }
 
     fn import_from_yaml(&self, content: &str) -> crate::error::Result<VisualPipelineConfig> {
-        Ok(serde_yaml::from_str(content)?)
+        #[cfg(feature = "serde")]
+        {
+            serde_yaml::from_str(content)
+                .map_err(|e| crate::error::SklearsError::SerializationError(e.to_string()))
+        }
+        #[cfg(not(feature = "serde"))]
+        {
+            let _ = content;
+            Err(crate::error::SklearsError::NotImplemented(
+                "YAML import requires the 'serde' feature".to_string(),
+            ))
+        }
     }
 
     fn import_from_sklearn(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
         // TODO: Implement sklearn pipeline import
-        Err(crate::error::SklError::NotImplemented("sklearn import not yet implemented".to_string()))
+        Err(crate::error::SklearsError::NotImplemented(
+            "sklearn import not yet implemented".to_string(),
+        ))
     }
 
     fn import_from_torch(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
         // TODO: Implement PyTorch model import
-        Err(crate::error::SklError::NotImplemented("PyTorch import not yet implemented".to_string()))
+        Err(crate::error::SklearsError::NotImplemented(
+            "PyTorch import not yet implemented".to_string(),
+        ))
     }
 
     fn import_from_dsl_macro(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
         // TODO: Implement DSL macro import
-        Err(crate::error::SklError::NotImplemented("DSL macro import not yet implemented".to_string()))
+        Err(crate::error::SklearsError::NotImplemented(
+            "DSL macro import not yet implemented".to_string(),
+        ))
     }
 
     fn import_from_onnx(&self, _content: &str) -> crate::error::Result<VisualPipelineConfig> {
         // TODO: Implement ONNX model import
-        Err(crate::error::SklError::NotImplemented("ONNX import not yet implemented".to_string()))
+        Err(crate::error::SklearsError::NotImplemented(
+            "ONNX import not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -480,6 +577,12 @@ pub struct ComponentLibrary {
     pub custom_components: Vec<ComponentDef>,
     /// Component categories for organization
     pub categories: Vec<ComponentCategory>,
+}
+
+impl Default for ComponentLibrary {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ComponentLibrary {
@@ -595,6 +698,12 @@ pub struct PipelineCanvas {
     pub connections: Vec<ComponentConnection>,
 }
 
+impl Default for PipelineCanvas {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineCanvas {
     pub fn new() -> Self {
         Self {
@@ -605,12 +714,6 @@ impl PipelineCanvas {
             components: Vec::new(),
             connections: Vec::new(),
         }
-    }
-}
-
-impl Default for PipelineCanvas {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -627,12 +730,18 @@ impl VisualCodeGenerator {
         }
     }
 
-    pub fn generate_dsl_from_visual(&self, config: &VisualPipelineConfig) -> crate::error::Result<String> {
+    pub fn generate_dsl_from_visual(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<String> {
         // Generate DSL macro code from visual configuration
         Ok(format!("// Generated DSL for {}", config.name))
     }
 
-    pub fn generate_rust_implementation(&self, config: &VisualPipelineConfig) -> crate::error::Result<String> {
+    pub fn generate_rust_implementation(
+        &self,
+        config: &VisualPipelineConfig,
+    ) -> crate::error::Result<String> {
         // Generate Rust implementation code
         Ok(format!("// Generated Rust code for {}", config.name))
     }
@@ -690,25 +799,56 @@ impl Default for VisualBuilderSettings {
 // Placeholder implementations for remaining types
 #[derive(Debug, Clone)]
 pub struct PipelineValidator;
+
+impl Default for PipelineValidator {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl PipelineValidator {
-    pub fn new() -> Self { Self }
-    pub fn validate_visual_pipeline(&self, _config: &VisualPipelineConfig) -> crate::error::Result<ValidationResult> {
-        Ok(ValidationResult { is_valid: true, error_message: None })
+    pub fn new() -> Self {
+        Self
+    }
+    pub fn validate_visual_pipeline(
+        &self,
+        _config: &VisualPipelineConfig,
+    ) -> crate::error::Result<ValidationResult> {
+        Ok(ValidationResult {
+            is_valid: true,
+            error_message: None,
+        })
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct PipelineExportManager;
+
+impl Default for PipelineExportManager {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl PipelineExportManager {
-    pub fn new() -> Self { Self }
-    pub fn export(&self, _config: &VisualPipelineConfig, _format: ExportFormat) -> crate::error::Result<String> {
+    pub fn new() -> Self {
+        Self
+    }
+    pub fn export(
+        &self,
+        _config: &VisualPipelineConfig,
+        _format: ExportFormat,
+    ) -> crate::error::Result<String> {
         Ok("// Exported code".to_string())
     }
 }
 
 // Supporting types
 #[derive(Debug, Clone)]
-pub struct ValidationResult { pub is_valid: bool, pub error_message: Option<String> }
+pub struct ValidationResult {
+    pub is_valid: bool,
+    pub error_message: Option<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct GeneratedPipeline {
@@ -723,28 +863,68 @@ pub struct GeneratedPipeline {
 }
 
 #[derive(Debug, Clone)]
-pub struct PipelineDocumentation { pub overview: String, pub components: Vec<String>, pub data_flow: String, pub performance_notes: String, pub usage_examples: Vec<String> }
+pub struct PipelineDocumentation {
+    pub overview: String,
+    pub components: Vec<String>,
+    pub data_flow: String,
+    pub performance_notes: String,
+    pub usage_examples: Vec<String>,
+}
 
 #[derive(Debug, Clone)]
-pub struct PerformanceHint { pub category: String, pub message: String, pub severity: String }
+pub struct PerformanceHint {
+    pub category: String,
+    pub message: String,
+    pub severity: String,
+}
 
 #[derive(Debug, Clone)]
-pub struct PipelineImportData { pub format: ImportFormat, pub content: String }
+pub struct PipelineImportData {
+    pub format: ImportFormat,
+    pub content: String,
+}
 
 #[derive(Debug, Clone)]
-pub struct WebInterface { pub html_template: String, pub javascript_code: String, pub css_styling: String, pub component_definitions: String, pub api_endpoints: Vec<ApiEndpoint>, pub websocket_handlers: Vec<WebSocketHandler> }
+pub struct WebInterface {
+    pub html_template: String,
+    pub javascript_code: String,
+    pub css_styling: String,
+    pub component_definitions: String,
+    pub api_endpoints: Vec<ApiEndpoint>,
+    pub websocket_handlers: Vec<WebSocketHandler>,
+}
 
 #[derive(Debug, Clone)]
-pub struct ApiEndpoint { pub path: String, pub method: String, pub description: String }
+pub struct ApiEndpoint {
+    pub path: String,
+    pub method: String,
+    pub description: String,
+}
 
 #[derive(Debug, Clone)]
-pub struct WebSocketHandler { pub event: String, pub description: String }
+pub struct WebSocketHandler {
+    pub event: String,
+    pub description: String,
+}
 
 #[derive(Debug, Clone)]
-pub enum ImportFormat { Json, Yaml, SklearnPipeline, TorchScript, DslMacro, OnnxModel }
+pub enum ImportFormat {
+    Json,
+    Yaml,
+    SklearnPipeline,
+    TorchScript,
+    DslMacro,
+    OnnxModel,
+}
 
 #[derive(Debug, Clone)]
-pub enum ExportFormat { Json, Yaml, RustCode, PythonCode, DslMacro }
+pub enum ExportFormat {
+    Json,
+    Yaml,
+    RustCode,
+    PythonCode,
+    DslMacro,
+}
 
 #[allow(non_snake_case)]
 #[cfg(test)]

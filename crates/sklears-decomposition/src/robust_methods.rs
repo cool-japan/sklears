@@ -1049,7 +1049,7 @@ mod tests {
 
     #[test]
     fn test_loss_functions() {
-        let config = RobustConfig::default();
+        let _config = RobustConfig::default();
         let rpca = RobustPCA::new();
 
         let residuals = vec![0.5, 1.0, 1.5, 2.0, 5.0];

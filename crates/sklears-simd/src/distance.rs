@@ -1,7 +1,7 @@
 //! SIMD-optimized distance calculations using platform intrinsics
 
 #[cfg(feature = "no-std")]
-use alloc::{format, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 
 /// SIMD-optimized Euclidean distance calculation
 pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
@@ -9,9 +9,9 @@ pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { euclidean_distance_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { euclidean_distance_sse2(a, b) };
         }
     }
@@ -103,9 +103,9 @@ pub fn manhattan_distance(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { manhattan_distance_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { manhattan_distance_sse2(a, b) };
         }
     }
@@ -185,9 +185,9 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { cosine_distance_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { cosine_distance_sse2(a, b) };
         }
     }
@@ -316,9 +316,9 @@ pub fn chebyshev_distance(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { chebyshev_distance_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { chebyshev_distance_sse2(a, b) };
         }
     }
@@ -407,9 +407,9 @@ pub fn minkowski_distance(a: &[f32], b: &[f32], p: f32) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { minkowski_distance_avx2(a, b, p) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { minkowski_distance_sse2(a, b, p) };
         }
     }
@@ -511,9 +511,9 @@ pub fn hamming_distance(a: &[u32], b: &[u32]) -> u32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { hamming_distance_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { hamming_distance_sse2(a, b) };
         }
     }
@@ -594,9 +594,9 @@ pub fn jaccard_similarity(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { jaccard_similarity_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { jaccard_similarity_sse2(a, b) };
         }
     }
@@ -724,9 +724,9 @@ pub fn mahalanobis_distance(a: &[f32], b: &[f32], inv_cov: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { mahalanobis_distance_avx2(a, b, inv_cov) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { mahalanobis_distance_sse2(a, b, inv_cov) };
         }
     }
@@ -907,9 +907,9 @@ pub fn canberra_distance(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { canberra_distance_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { canberra_distance_sse2(a, b) };
         }
     }
@@ -1040,9 +1040,9 @@ pub fn correlation_coefficient(a: &[f32], b: &[f32]) -> f32 {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { correlation_coefficient_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { correlation_coefficient_sse2(a, b) };
         }
     }
@@ -1193,7 +1193,7 @@ unsafe fn correlation_coefficient_avx2(a: &[f32], b: &[f32]) -> f32 {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;

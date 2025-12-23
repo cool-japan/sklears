@@ -8,9 +8,10 @@ use sklears::neighbors::KNeighborsClassifier;
 use sklears::prelude::*;
 // StandardScaler not available in facade, skipping preprocessing test
 // use sklears::preprocessing::StandardScaler;
-use sklears::data_generation::make_classification;
+use sklears::utils::data_generation::make_classification;
 
 #[test]
+#[allow(non_snake_case)]
 fn test_end_to_end_classification_pipeline() {
     // Generate synthetic data
     let (X, y) = make_classification(100, 4, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
@@ -46,6 +47,7 @@ fn test_end_to_end_classification_pipeline() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_clustering_and_classification() {
     // Generate blob data for clustering
     // Using make_classification instead as make_blobs is not available
@@ -97,6 +99,7 @@ fn test_preprocessing_pipeline() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_data_generation_consistency() {
     // Test that data generation functions produce consistent outputs
     let (X1, y1) = make_classification(50, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
@@ -118,6 +121,7 @@ fn test_data_generation_consistency() {
 }
 
 #[test]
+#[allow(non_snake_case)]
 fn test_cross_crate_type_compatibility() {
     // Test that types from different crates work together seamlessly
     let labels = array![0, 1, 2, 1, 0, 2];

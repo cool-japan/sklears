@@ -374,7 +374,7 @@ pub mod encoding {
         value: f64,
         max_rate: f64,
         duration_ms: f64,
-        timestep_us: f64,
+        _timestep_us: f64,
     ) -> Vec<SpikeEvent> {
         let mut spikes = Vec::new();
         let rate = (value.abs() * max_rate).min(max_rate);
@@ -425,9 +425,12 @@ pub mod encoding {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_neuromorphic_runtime_creation() {

@@ -61,7 +61,7 @@ where
 }
 
 fn simulate_model_prediction<E>(
-    model: &E,
+    _model: &E,
     input: &Array1<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>>
 where

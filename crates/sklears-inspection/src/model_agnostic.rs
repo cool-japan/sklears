@@ -451,7 +451,7 @@ fn generate_perturbation(
                 let max_val = col_values
                     .iter()
                     .fold(Float::NEG_INFINITY, |a, &b| a.max(b));
-                perturbation[i] = rng.gen_range(min_val..=max_val);
+                perturbation[i] = rng.gen_range(min_val..max_val);
             }
         }
         PerturbationStrategy::Empirical => {
@@ -464,7 +464,7 @@ fn generate_perturbation(
         }
         PerturbationStrategy::Targeted => {
             // Perturb only a subset of features
-            let n_perturb = rng.gen_range(1..=n_features);
+            let n_perturb = rng.gen_range(1..n_features + 1);
             let mut indices: Vec<usize> = (0..n_features).collect();
             indices.sort_by(|_, _| {
                 if rng.gen::<bool>() {
@@ -1056,7 +1056,7 @@ where
 
 /// Compute correlation between two arrays
 fn compute_correlation(a: &Array1<Float>, b: &Array1<Float>) -> Float {
-    if a.len() != b.len() || a.len() == 0 {
+    if a.len() != b.len() || a.is_empty() {
         return 0.0;
     }
 

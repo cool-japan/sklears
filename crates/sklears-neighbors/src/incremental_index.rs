@@ -390,7 +390,7 @@ impl IncrementalNeighborIndex {
 
     /// Apply all pending batch updates
     pub fn apply_pending_batch(&mut self) -> NeighborsResult<()> {
-        let batch = {
+        let _batch = {
             let mut batch = self.pending_batch.write().unwrap();
             if batch.is_empty() {
                 return Ok(());

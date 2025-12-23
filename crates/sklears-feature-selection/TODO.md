@@ -1,6 +1,6 @@
 # TODO: sklears-feature-selection Improvements
 
-## 0.1.0-alpha.1 progress checklist (2025-10-13)
+## 0.1.0-alpha.2 progress checklist (2025-12-22)
 
 - [x] Validated the sklears feature selection module as part of the 10,013 passing workspace tests (69 skipped).
 - [x] Published refreshed README and release notes for the alpha drop.
@@ -195,18 +195,18 @@
 ### Specialized Domains
 
 #### Bioinformatics
-- [ ] Add gene selection methods
-- [ ] Implement pathway-based selection
-- [ ] Include protein feature selection
-- [ ] Add genomic variant selection
-- [ ] Implement multi-omics integration
+- [x] Add gene selection methods - Implemented DESeq2-like, edgeR-like, and limma-like differential expression methods
+- [x] Implement pathway-based selection - Implemented GSEA and ORA (Over-Representation Analysis)
+- [x] Include protein feature selection - Implemented PPI (Protein-Protein Interaction) network analysis with centrality measures
+- [x] Add genomic variant selection - Implemented Variant Effect Prediction with conservation, protein impact, and domain scoring
+- [x] Implement multi-omics integration - Implemented integration across transcriptomics, proteomics, and metabolomics data
 
 #### Finance and Economics
-- [ ] Add factor selection for finance
-- [ ] Implement risk-based feature selection
-- [ ] Include regime-aware selection
-- [ ] Add macroeconomic factor selection
-- [ ] Implement portfolio optimization integration
+- [x] Add factor selection for finance - Implemented Fama-French 5-factor model (Market, SMB, HML, RMW, CMA)
+- [x] Implement risk-based feature selection - Implemented VaR, CVaR, tail risk, downside deviation, Sortino ratio, Omega ratio
+- [x] Include regime-aware selection - Implemented HMM-based market regime detection with regime transition probabilities
+- [x] Add macroeconomic factor selection - Implemented GDP, inflation, interest rate, and unemployment sensitivity analysis
+- [x] Implement portfolio optimization integration - Implemented mean-variance, minimum variance, maximum Sharpe, and risk parity portfolios
 
 #### Natural Language Processing
 - [ ] Add word importance selection

@@ -6,14 +6,14 @@
 use proptest::prelude::*;
 use scirs2_autograd::ndarray::Array1;
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod metric_properties {
     use super::*;
 
-    /// Property: Accuracy score should be between 0 and 1 for valid inputs
+    // Property: Accuracy score should be between 0 and 1 for valid inputs
     proptest! {
         #[test]
         fn test_accuracy_score_bounds(
@@ -24,7 +24,7 @@ mod metric_properties {
 
             // Generate ground truth labels
             let y_true: Vec<i32> = (0..n_samples)
-                .map(|_| (rng.gen::<f64>() * 3.0).floor() as i32) // 3 classes
+                .map(|_| (rng.random::<f64>() * 3.0).floor() as i32) // 3 classes
                 .collect();
 
             // Create predictions with deterministic accuracy
@@ -64,7 +64,7 @@ mod metric_properties {
         }
     }
 
-    /// Property: Perfect predictions should give maximum metric scores
+    // Property: Perfect predictions should give maximum metric scores
     proptest! {
         #[test]
         fn test_perfect_predictions(
@@ -74,7 +74,7 @@ mod metric_properties {
 
             // Generate identical true and predicted values
             let y_true: Vec<f64> = (0..n_samples)
-                .map(|_| rng.gen::<f64>() * 100.0)
+                .map(|_| rng.random::<f64>() * 100.0)
                 .collect();
             let y_pred = y_true.clone();
 
@@ -103,7 +103,7 @@ mod metric_properties {
         }
     }
 
-    /// Property: R² score properties for regression metrics
+    // Property: R² score properties for regression metrics
     proptest! {
         #[test]
         fn test_r2_score_properties(
@@ -112,7 +112,7 @@ mod metric_properties {
             let mut rng = thread_rng();
 
             let y_true: Vec<f64> = (0..n_samples)
-                .map(|_| rng.gen::<f64>() * 100.0)
+                .map(|_| rng.random::<f64>() * 100.0)
                 .collect();
 
             let y_mean = y_true.iter().sum::<f64>() / n_samples as f64;
@@ -120,7 +120,7 @@ mod metric_properties {
             // Test different prediction scenarios
 
             // 1. Predictions equal to mean (baseline)
-            let y_pred_mean = vec![y_mean; n_samples];
+            let _y_pred_mean = vec![y_mean; n_samples];
             let ss_tot: f64 = y_true.iter().map(|&y| (y - y_mean).powi(2)).sum();
             let ss_res_mean: f64 = y_true.iter()
                 .map(|&y| (y - y_mean).powi(2))
@@ -134,7 +134,7 @@ mod metric_properties {
 
             // 2. Random predictions (should typically give negative R²)
             let y_pred_random: Vec<f64> = (0..n_samples)
-                .map(|_| rng.gen::<f64>() * 200.0) // Wider range than true values
+                .map(|_| rng.random::<f64>() * 200.0) // Wider range than true values
                 .collect();
 
             let ss_res_random: f64 = y_true.iter()
@@ -150,7 +150,7 @@ mod metric_properties {
         }
     }
 
-    /// Property: Confusion matrix properties
+    // Property: Confusion matrix properties
     proptest! {
         #[test]
         fn test_confusion_matrix_properties(
@@ -160,11 +160,11 @@ mod metric_properties {
             let mut rng = thread_rng();
 
             let y_true: Vec<i32> = (0..n_samples)
-                .map(|_| (rng.gen::<f64>() * n_classes as f64).floor() as i32)
+                .map(|_| (rng.random::<f64>() * n_classes as f64).floor() as i32)
                 .collect();
 
             let y_pred: Vec<i32> = (0..n_samples)
-                .map(|_| (rng.gen::<f64>() * n_classes as f64).floor() as i32)
+                .map(|_| (rng.random::<f64>() * n_classes as f64).floor() as i32)
                 .collect();
 
             // Build confusion matrix manually
@@ -190,12 +190,7 @@ mod metric_properties {
 
             prop_assert_eq!(total_entries as usize, valid_samples);
 
-            // 2. Each entry should be non-negative
-            for row in &confusion_matrix {
-                for &entry in row {
-                    prop_assert!(entry >= 0);
-                }
-            }
+            // 2. Each entry is non-negative by type (u32)
 
             // 3. Matrix should be square
             prop_assert_eq!(confusion_matrix.len(), n_classes);
@@ -205,7 +200,7 @@ mod metric_properties {
         }
     }
 
-    /// Property: Precision and recall bounds and relationships
+    // Property: Precision and recall bounds and relationships
     proptest! {
         #[test]
         fn test_precision_recall_properties(
@@ -247,7 +242,7 @@ mod metric_properties {
                 prop_assert!((0.0..=1.0).contains(&f1));
 
                 // F1 should be ≤ min(precision, recall) and ≤ max(precision, recall)
-                let min_pr = precision.min(recall);
+                let _min_pr = precision.min(recall);
                 let max_pr = precision.max(recall);
                 prop_assert!(f1 <= max_pr + 1e-10);
 
@@ -264,7 +259,7 @@ mod metric_properties {
 mod metric_edge_cases {
     use super::*;
 
-    /// Property: Metrics should handle edge cases gracefully
+    // Property: Metrics should handle edge cases gracefully
     proptest! {
         #[test]
         fn test_empty_and_single_sample_cases(
@@ -272,8 +267,8 @@ mod metric_edge_cases {
             single_pred_value in -100.0f64..100.0,
         ) {
             // Test single sample case
-            let y_true_single = [single_true_value];
-            let y_pred_single = [single_pred_value];
+            let _y_true_single = [single_true_value];
+            let _y_pred_single = [single_pred_value];
 
             // MSE calculation
             let mse = (single_true_value - single_pred_value).powi(2);
@@ -290,7 +285,7 @@ mod metric_edge_cases {
         }
     }
 
-    /// Property: Metrics should handle constant predictions
+    // Property: Metrics should handle constant predictions
     proptest! {
         #[test]
         fn test_constant_predictions(
@@ -301,11 +296,11 @@ mod metric_edge_cases {
 
             // Generate varied true values
             let y_true: Vec<f64> = (0..n_samples)
-                .map(|_| rng.gen::<f64>() * 200.0 - 100.0)
+                .map(|_| rng.random::<f64>() * 200.0 - 100.0)
                 .collect();
 
             // Use constant predictions
-            let y_pred = vec![constant_pred; n_samples];
+            let _y_pred = vec![constant_pred; n_samples];
 
             // Calculate MSE
             let mse: f64 = y_true.iter()

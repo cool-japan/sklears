@@ -7,7 +7,7 @@
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -46,6 +46,24 @@ impl Default for CheckpointFormat {
     fn default() -> Self {
         CheckpointFormat::Binary
     }
+}
+
+#[cfg(feature = "serde")]
+fn serialize_to_binary<T>(value: &T) -> Result<Vec<u8>, bincode::error::EncodeError>
+where
+    T: Serialize,
+{
+    bincode::serde::encode_to_vec(value, bincode::config::standard())
+}
+
+#[cfg(feature = "serde")]
+fn deserialize_from_binary<T>(bytes: &[u8]) -> Result<T, bincode::error::DecodeError>
+where
+    T: DeserializeOwned,
+{
+    let (value, _): (T, usize) =
+        bincode::serde::decode_from_slice(bytes, bincode::config::standard())?;
+    Ok(value)
 }
 
 /// Model weights and biases
@@ -549,11 +567,12 @@ impl CheckpointManager {
             }
             CheckpointFormat::Binary => {
                 let path = self.checkpoint_dir.join(format!("{}.bin", filename));
-                let binary_data =
-                    bincode::serialize(checkpoint).map_err(|e| SklearsError::InvalidParameter {
+                let binary_data = serialize_to_binary(checkpoint).map_err(|e| {
+                    SklearsError::InvalidParameter {
                         name: "checkpoint".to_string(),
                         reason: format!("Failed to serialize checkpoint to binary: {}", e),
-                    })?;
+                    }
+                })?;
                 fs::write(&path, binary_data).map_err(|e| SklearsError::InvalidParameter {
                     name: "file_path".to_string(),
                     reason: format!("Failed to write checkpoint file: {}", e),
@@ -562,11 +581,12 @@ impl CheckpointManager {
             }
             CheckpointFormat::Compressed => {
                 let path = self.checkpoint_dir.join(format!("{}.bin.gz", filename));
-                let binary_data =
-                    bincode::serialize(checkpoint).map_err(|e| SklearsError::InvalidParameter {
+                let binary_data = serialize_to_binary(checkpoint).map_err(|e| {
+                    SklearsError::InvalidParameter {
                         name: "checkpoint".to_string(),
                         reason: format!("Failed to serialize checkpoint: {}", e),
-                    })?;
+                    }
+                })?;
 
                 use flate2::write::GzEncoder;
                 use flate2::Compression;
@@ -631,9 +651,11 @@ impl CheckpointManager {
                         name: "file_path".to_string(),
                         reason: format!("Failed to read checkpoint file: {}", e),
                     })?;
-                bincode::deserialize(&binary_data).map_err(|e| SklearsError::InvalidParameter {
-                    name: "checkpoint".to_string(),
-                    reason: format!("Failed to deserialize binary checkpoint: {}", e),
+                deserialize_from_binary(&binary_data).map_err(|e| {
+                    SklearsError::InvalidParameter {
+                        name: "checkpoint".to_string(),
+                        reason: format!("Failed to deserialize binary checkpoint: {}", e),
+                    }
                 })?
             }
             "gz" => {
@@ -653,9 +675,11 @@ impl CheckpointManager {
                         reason: format!("Failed to decompress checkpoint: {}", e),
                     }
                 })?;
-                bincode::deserialize(&binary_data).map_err(|e| SklearsError::InvalidParameter {
-                    name: "checkpoint".to_string(),
-                    reason: format!("Failed to deserialize compressed checkpoint: {}", e),
+                deserialize_from_binary(&binary_data).map_err(|e| {
+                    SklearsError::InvalidParameter {
+                        name: "checkpoint".to_string(),
+                        reason: format!("Failed to deserialize compressed checkpoint: {}", e),
+                    }
                 })?
             }
             #[cfg(feature = "mmap")]
@@ -742,7 +766,7 @@ impl CheckpointManager {
 
         // First, serialize the checkpoint to binary to get the size
         let binary_data =
-            bincode::serialize(checkpoint).map_err(|e| SklearsError::InvalidParameter {
+            serialize_to_binary(checkpoint).map_err(|e| SklearsError::InvalidParameter {
                 name: "checkpoint".to_string(),
                 reason: format!("Failed to serialize checkpoint: {}", e),
             })?;
@@ -797,7 +821,7 @@ impl CheckpointManager {
 
         // Deserialize from memory-mapped data
         let checkpoint: ModelCheckpoint =
-            bincode::deserialize(&mmap).map_err(|e| SklearsError::InvalidParameter {
+            deserialize_from_binary(&mmap).map_err(|e| SklearsError::InvalidParameter {
                 name: "checkpoint".to_string(),
                 reason: format!("Failed to deserialize memory-mapped checkpoint: {}", e),
             })?;

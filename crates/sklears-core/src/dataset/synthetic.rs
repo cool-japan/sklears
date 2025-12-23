@@ -102,8 +102,8 @@ pub fn make_regression(n_samples: usize, n_features: usize, noise: f64) -> Resul
     // Generate random features using Box-Muller transform for normal distribution
     let mut x_data = Vec::with_capacity(n_samples * n_features);
     for _ in 0..(n_samples * n_features + 1) / 2 {
-        let u1: f64 = rng.random();
-        let u2: f64 = rng.random();
+        let u1: f64 = rng.gen();
+        let u2: f64 = rng.gen();
         let z0 = (-2.0f64 * u1.ln()).sqrt() * (2.0f64 * std::f64::consts::PI * u2).cos();
         let z1 = (-2.0f64 * u1.ln()).sqrt() * (2.0f64 * std::f64::consts::PI * u2).sin();
         x_data.push(z0);
@@ -118,7 +118,7 @@ pub fn make_regression(n_samples: usize, n_features: usize, noise: f64) -> Resul
     // Generate random coefficients for linear combination
     let mut coef: Vec<f64> = Vec::with_capacity(n_features);
     for _ in 0..n_features {
-        coef.push(rng.random::<f64>() * 20.0 - 10.0); // Map [0,1] to [-10,10]
+        coef.push(rng.gen::<f64>() * 20.0 - 10.0); // Map [0,1] to [-10,10]
     }
 
     // Generate targets: y = X @ coef + noise
@@ -130,8 +130,8 @@ pub fn make_regression(n_samples: usize, n_features: usize, noise: f64) -> Resul
             y_i += x[[i, j]] * coef[j];
         }
         // Add noise using Box-Muller transform
-        let u1: f64 = rng.random();
-        let u2: f64 = rng.random();
+        let u1: f64 = rng.gen();
+        let u2: f64 = rng.gen();
         let noise_val =
             noise * (-2.0f64 * u1.ln()).sqrt() * (2.0f64 * std::f64::consts::PI * u2).cos();
         y_i += noise_val;
@@ -186,7 +186,7 @@ pub fn make_blobs(
     // Generate random cluster centers
     let mut center_coords: Vec<f64> = Vec::with_capacity(centers * n_features);
     for _ in 0..centers * n_features {
-        center_coords.push(rng.random::<f64>() * 20.0 - 10.0); // Map [0,1] to [-10,10]
+        center_coords.push(rng.gen::<f64>() * 20.0 - 10.0); // Map [0,1] to [-10,10]
     }
 
     let mut x_data = Vec::with_capacity(n_samples * n_features);
@@ -198,8 +198,8 @@ pub fn make_blobs(
             for feature_idx in 0..n_features {
                 let center_value = center_coords[center_idx * n_features + feature_idx];
                 // Generate normal random value using Box-Muller transform
-                let u1: f64 = rng.random();
-                let u2: f64 = rng.random();
+                let u1: f64 = rng.gen();
+                let u2: f64 = rng.gen();
                 let normal_val = cluster_std
                     * (-2.0f64 * u1.ln()).sqrt()
                     * (2.0f64 * std::f64::consts::PI * u2).cos();
@@ -216,8 +216,8 @@ pub fn make_blobs(
         for feature_idx in 0..n_features {
             let center_value = center_coords[center_idx * n_features + feature_idx];
             // Generate normal random value using Box-Muller transform
-            let u1: f64 = rng.random();
-            let u2: f64 = rng.random();
+            let u1: f64 = rng.gen();
+            let u2: f64 = rng.gen();
             let normal_val = cluster_std
                 * (-2.0f64 * u1.ln()).sqrt()
                 * (2.0f64 * std::f64::consts::PI * u2).cos();

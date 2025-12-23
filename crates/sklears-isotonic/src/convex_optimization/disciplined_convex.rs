@@ -4,7 +4,7 @@
 //! providing a flexible framework for combining different convex objectives and constraints
 //! with automated verification and optimization.
 
-use scirs2_core::ndarray::{Array1};
+use scirs2_core::ndarray::Array1;
 use sklears_core::{prelude::SklearsError, types::Float};
 
 /// Disciplined convex programming approach for isotonic regression
@@ -13,11 +13,6 @@ use sklears_core::{prelude::SklearsError, types::Float};
 /// for combining different convex objectives and constraints in isotonic regression.
 /// It supports various objectives (least squares, LAD, Huber, quantile) and
 /// constraints (monotonicity, bounds, smoothness, sparsity).
-///
-/// # Examples
-///
-/// ```rust
-/// use sklears_isotonic::convex_optimization::{
 #[derive(Debug, Clone)]
 pub struct DisciplinedConvexIsotonicRegression {
     increasing: bool,
@@ -38,7 +33,6 @@ pub struct DisciplinedConvexIsotonicRegression {
 /// - Huber: Combination of L2 and L1, robust with smoothness
 /// - Quantile: Asymmetric loss for quantile regression
 #[derive(Debug, Clone)]
-/// ConvexObjective
 pub enum ConvexObjective {
     /// Least squares (L2 loss)
     LeastSquares,
@@ -58,13 +52,11 @@ pub enum ConvexObjective {
 /// - Smoothness: Total variation regularization
 /// - Sparsity: L1 penalty for sparse solutions
 #[derive(Debug, Clone)]
-/// ConvexConstraint
 pub enum ConvexConstraint {
     /// Monotonicity constraint (increasing or decreasing)
     Monotonic { increasing: bool },
     /// Bound constraints (box constraints)
     Bounds {
-
         lower: Option<Float>,
 
         upper: Option<Float>,
@@ -196,11 +188,11 @@ impl DisciplinedConvexIsotonicRegression {
         x: &Array1<Float>,
         y: &Array1<Float>,
     ) -> Result<Array1<Float>, SklearsError> {
-        let n = x.len();
+        let _n = x.len();
         let mut fitted_y = y.clone();
 
         // Iterative optimization using alternating minimization
-        for iteration in 0..self.max_iterations {
+        for _iteration in 0..self.max_iterations {
             let old_y = fitted_y.clone();
 
             // Minimize objective function

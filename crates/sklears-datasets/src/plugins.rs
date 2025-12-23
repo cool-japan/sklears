@@ -8,9 +8,17 @@ use crate::traits::{
     Dataset, DatasetGenerator, DatasetTraitError, DatasetTraitResult, GeneratorConfig,
     InMemoryDataset,
 };
+use scirs2_core::random::{Distribution, Random, RandNormal};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
+
+// Helper function for generating normal random values
+#[inline]
+fn gen_normal_value(rng: &mut Random, mean: f64, std: f64) -> f64 {
+    let dist = RandNormal::new(mean, std).unwrap();
+    dist.sample(rng)
+}
 
 /// Plugin system errors
 #[derive(Error, Debug)]
@@ -411,7 +419,7 @@ impl PluginGenerator for CustomLinearGenerator {
         let mut features = Array2::<f64>::zeros((config.n_samples, config.n_features));
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
-                *val = rng.gen_range(-10.0..10.0);
+                *val = rng.random_range(-10.0, 10.0);
             }
         }
 
@@ -419,7 +427,7 @@ impl PluginGenerator for CustomLinearGenerator {
         let targets: Array1<f64> = features
             .rows()
             .into_iter()
-            .map(|row| row.sum() * slope + rng.gen_normal(0.0, 0.1))
+            .map(|row| row.sum() * slope + gen_normal_value(&mut rng, 0.0, 0.1))
             .collect();
 
         let mut metadata = std::collections::HashMap::new();

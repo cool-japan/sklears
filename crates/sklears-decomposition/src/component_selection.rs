@@ -180,7 +180,7 @@ impl CrossValidationSelector {
     /// Create cross-validation folds
     fn create_folds(&self, n_samples: usize) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
         let mut rng = match self.config.random_state {
-            Some(seed) => thread_rng(), // TODO: use seeded rng when available
+            Some(_seed) => thread_rng(), // TODO: use seeded rng when available
             None => thread_rng(),
         };
 
@@ -439,7 +439,7 @@ impl BootstrapSelector {
     ) -> Result<StabilityResult> {
         let (_n_samples, _) = data.dim();
         let mut rng = match self.config.random_state {
-            Some(seed) => thread_rng(), // TODO: use seeded rng when available
+            Some(_seed) => thread_rng(), // TODO: use seeded rng when available
             None => thread_rng(),
         };
 
@@ -977,7 +977,7 @@ impl ParallelAnalysis {
     pub fn analyze(&self, data: &Array2<Float>) -> Result<ComponentSelectionResult> {
         let (n_samples, n_features) = data.dim();
         let mut rng = match self.config.random_state {
-            Some(seed) => thread_rng(), // TODO: use seeded rng when available
+            Some(_seed) => thread_rng(), // TODO: use seeded rng when available
             None => thread_rng(),
         };
 
@@ -1185,7 +1185,8 @@ mod tests {
 
         let result = pa.analyze(&data).unwrap();
 
-        assert!(result.optimal_components >= 0);
+        // optimal_components is always >= 0 by type (usize)
+        assert!(result.optimal_components <= 3); // Can't exceed number of features
         assert_eq!(result.cv_scores.len(), 3);
     }
 

@@ -13,7 +13,7 @@ use std::f32::consts::PI;
 #[cfg(feature = "no-std")]
 extern crate alloc;
 #[cfg(feature = "no-std")]
-use alloc::{format, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 
 /// Mel-Frequency Cepstral Coefficients (MFCC) feature extraction
 pub mod mfcc {
@@ -572,7 +572,7 @@ pub mod pitch {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;

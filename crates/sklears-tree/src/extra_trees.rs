@@ -179,7 +179,7 @@ fn apply_feature_dropout<R: scirs2_core::random::Random + ?Sized>(
 
     for sample_idx in 0..n_samples {
         for feature_idx in 0..n_features {
-            if rng.gen::<f64>() < dropout_rate {
+            if rng.gen() < dropout_rate {
                 arr[[sample_idx, feature_idx]] = 0.0;
             }
         }
@@ -201,7 +201,7 @@ fn apply_sample_dropout<R: scirs2_core::random::Random + ?Sized>(
     let mut selected_indices = Vec::new();
 
     for i in 0..n_samples {
-        if rng.gen::<f64>() >= dropout_rate {
+        if rng.gen() >= dropout_rate {
             selected_indices.push(i);
         }
     }

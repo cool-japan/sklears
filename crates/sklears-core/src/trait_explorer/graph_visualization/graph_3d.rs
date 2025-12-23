@@ -453,9 +453,9 @@ impl Graph3DGenerator {
         // Initialize random positions in 3D space
         let mut rng = scirs2_core::random::Random::seed(42);
         for node in &graph.nodes {
-            let x = rng.gen_range(-200.0..200.0);
-            let y = rng.gen_range(-200.0..200.0);
-            let z = rng.gen_range(-200.0..200.0);
+            let x = rng.random_range(-200.0, 200.0);
+            let y = rng.random_range(-200.0, 200.0);
+            let z = rng.random_range(-200.0, 200.0);
             positions.insert(node.id.clone(), (x, y, z));
         }
 

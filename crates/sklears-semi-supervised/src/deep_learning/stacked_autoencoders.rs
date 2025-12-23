@@ -110,7 +110,7 @@ impl AutoencoderLayer {
         for i in 0..self.input_size {
             for j in 0..self.hidden_size {
                 // Generate uniform distributed random number in [-limit_encode, limit_encode]
-                let u: f64 = rng.gen_range(0.0..1.0);
+                let u: f64 = rng.random_range(0.0, 1.0);
                 weights_encode[(i, j)] = u * (2.0 * limit_encode) - limit_encode;
             }
         }
@@ -121,7 +121,7 @@ impl AutoencoderLayer {
         for i in 0..self.hidden_size {
             for j in 0..self.input_size {
                 // Generate uniform distributed random number in [-limit_decode, limit_decode]
-                let u: f64 = rng.gen_range(0.0..1.0);
+                let u: f64 = rng.random_range(0.0, 1.0);
                 weights_decode[(i, j)] = u * (2.0 * limit_decode) - limit_decode;
             }
         }
@@ -150,8 +150,8 @@ impl AutoencoderLayer {
         for i in 0..nrows {
             for j in 0..ncols {
                 // Generate normal distributed random number (mean=0.0, std=noise_factor)
-                let u1: f64 = rng.gen_range(0.0..1.0);
-                let u2: f64 = rng.gen_range(0.0..1.0);
+                let u1: f64 = rng.random_range(0.0, 1.0);
+                let u2: f64 = rng.random_range(0.0, 1.0);
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 noise[(i, j)] = z * self.noise_factor;
             }
@@ -469,7 +469,7 @@ impl StackedAutoencoders {
         for i in 0..*hidden_size {
             for j in 0..self.n_classes {
                 // Generate uniform distributed random number in [-limit, limit]
-                let u: f64 = rng.gen_range(0.0..1.0);
+                let u: f64 = rng.random_range(0.0, 1.0);
                 classifier_weights[(i, j)] = u * (2.0 * limit) - limit;
             }
         }

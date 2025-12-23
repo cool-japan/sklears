@@ -362,8 +362,8 @@ mod tests {
         let shrinkage = fitted.get_shrinkage();
         let effective_shrinkage = fitted.get_effective_shrinkage();
 
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
-        assert!(effective_shrinkage >= 0.0 && effective_shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
+        assert!((0.0..=1.0).contains(&effective_shrinkage));
     }
 
     #[test]
@@ -389,8 +389,8 @@ mod tests {
         let shrinkage = rb_fitted.get_shrinkage();
         let effective_shrinkage = rb_fitted.get_effective_shrinkage();
 
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
-        assert!(effective_shrinkage >= 0.0 && effective_shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
+        assert!((0.0..=1.0).contains(&effective_shrinkage));
 
         // The effective shrinkage should be close to but not necessarily identical to standard shrinkage
         assert!((shrinkage - effective_shrinkage).abs() < 0.5);
@@ -409,7 +409,7 @@ mod tests {
         let shrinkage = fitted.get_shrinkage();
         let effective_shrinkage = fitted.get_effective_shrinkage();
 
-        assert!(shrinkage >= 0.0 && shrinkage <= 1.0);
-        assert!(effective_shrinkage >= 0.0 && effective_shrinkage <= 1.0);
+        assert!((0.0..=1.0).contains(&shrinkage));
+        assert!((0.0..=1.0).contains(&effective_shrinkage));
     }
 }

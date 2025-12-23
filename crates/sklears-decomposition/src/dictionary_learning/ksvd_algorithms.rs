@@ -59,7 +59,7 @@ impl KSVDEncoder {
         data: &Array2<Float>,
         initial_dictionary: &Array2<Float>,
     ) -> Result<KSVDResult> {
-        let (n_samples, n_features) = data.dim();
+        let (n_samples, _n_features) = data.dim();
         let n_atoms = initial_dictionary.nrows();
 
         // Placeholder implementation

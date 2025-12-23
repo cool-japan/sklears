@@ -4,7 +4,7 @@
 //! algorithms in the semi-supervised learning crate, ensuring that algorithms
 //! converge properly under various conditions.
 
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -468,7 +468,7 @@ mod tests {
             .test_convergence_multiple_runs(
                 || {
                     let mut rng = Random::default();
-                    rng.gen_range(0.0..1.0f64)
+                    rng.random_range(0.0, 1.0f64)
                 }, // Random initial state
                 |s, _iter| {
                     *s *= 0.9;

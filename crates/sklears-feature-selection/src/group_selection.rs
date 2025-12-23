@@ -150,7 +150,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GroupLassoSelector<Untrained> {
         }
 
         // Prepare data
-        let (x_processed, y_processed, feature_means, feature_stds, y_mean) =
+        let (x_processed, y_processed, _feature_means, _feature_stds, y_mean) =
             self.preprocess_data(x, y)?;
 
         // Fit group LASSO using coordinate descent
@@ -271,7 +271,7 @@ impl GroupLassoSelector<Untrained> {
         }
 
         // Coordinate descent optimization
-        for iter in 0..self.max_iter {
+        for _iter in 0..self.max_iter {
             let coefficients_old = coefficients.clone();
 
             for (g, group) in self.feature_groups.iter().enumerate() {
@@ -536,7 +536,7 @@ impl Fit<Array2<Float>, Array1<Float>> for SparseGroupLassoSelector<Untrained> {
         // For simplicity, implement as a combination of group and element-wise penalties
         // In practice, this would use a more sophisticated optimization algorithm
 
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
         if n_samples != y.len() {
             return Err(SklearsError::InvalidInput(
                 "X and y must have the same number of samples".to_string(),
@@ -744,7 +744,7 @@ impl Fit<Array2<Float>, Array1<Float>> for HierarchicalStructuredSparsitySelecto
     type Fitted = HierarchicalStructuredSparsitySelector<Trained>;
 
     fn fit(self, x: &Array2<Float>, y: &Array1<Float>) -> SklResult<Self::Fitted> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         if n_samples != y.len() {
             return Err(SklearsError::InvalidInput(
@@ -1500,7 +1500,7 @@ impl OverlappingGroupSparsitySelector<Untrained> {
             }
 
             // Apply overlapping group soft thresholding
-            for (g, group) in self.overlapping_groups.iter().enumerate() {
+            for group in self.overlapping_groups.iter() {
                 // Compute group norm
                 let group_norm = group
                     .iter()

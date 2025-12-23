@@ -139,10 +139,10 @@ impl PlattScaling {
             // Predict on validation fold
             let val_scores: Array1<Float> =
                 Array1::from_vec(val_indices.iter().map(|&i| decision_scores[i]).collect());
-            let val_probs = fold_calibrator.predict_proba(&val_scores)?;
+            let _val_probs = fold_calibrator.predict_proba(&val_scores)?;
 
             // Store out-of-fold predictions
-            for (i, &idx) in val_indices.iter().enumerate() {
+            for &idx in val_indices.iter() {
                 cv_scores.push(decision_scores[idx]);
                 cv_labels.push(y_true[idx]);
             }
@@ -229,14 +229,14 @@ impl PlattScaling {
         let uncertainty_a = a.abs() * 0.1; // 10% relative uncertainty
         let uncertainty_b = b.abs() * 0.1; // 10% relative uncertainty
 
-        let rng = thread_rng();
+        let _rng = thread_rng();
 
         for bootstrap_idx in 0..n_bootstrap {
             // Perturb parameters
             let noise_a =
-                uncertainty_a * (2.0 * scirs2_core::random::thread_rng().gen::<Float>() - 1.0);
+                uncertainty_a * (2.0 * scirs2_core::random::thread_rng().random::<Float>() - 1.0);
             let noise_b =
-                uncertainty_b * (2.0 * scirs2_core::random::thread_rng().gen::<Float>() - 1.0);
+                uncertainty_b * (2.0 * scirs2_core::random::thread_rng().random::<Float>() - 1.0);
             let perturbed_a = a + noise_a;
             let perturbed_b = b + noise_b;
 

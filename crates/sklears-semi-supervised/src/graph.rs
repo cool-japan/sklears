@@ -507,7 +507,7 @@ fn power_iteration_eigenvectors(
         // Initialize random vector
         let mut v = Array1::<Float>::zeros(n);
         for i in 0..n {
-            v[i] = rng.gen::<Float>() - 0.5;
+            v[i] = rng.random::<Float>() - 0.5;
         }
 
         // Orthogonalize against previous eigenvectors
@@ -595,7 +595,7 @@ fn lanczos_eigenvectors(matrix: &Array2<Float>, n_eigenvectors: usize) -> SklRes
         // Random initialization
         let mut v = Array1::<Float>::zeros(n);
         for i in 0..n {
-            v[i] = rng.gen::<Float>() - 0.5;
+            v[i] = rng.random::<Float>() - 0.5;
         }
 
         // Simple power iteration (fewer iterations for speed)

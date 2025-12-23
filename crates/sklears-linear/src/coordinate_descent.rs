@@ -170,6 +170,7 @@ impl CoordinateDescentSolver {
     ///
     /// Minimizes: (1/2n) ||y - Xβ||² + α * ρ * ||β||₁ + α * (1-ρ)/2 * ||β||²
     /// where ρ is l1_ratio
+    #[allow(clippy::too_many_arguments)]
     pub fn solve_elastic_net_with_warm_start(
         &self,
         x: &Array2<Float>,
@@ -477,6 +478,7 @@ impl CoordinateDescentSolver {
     }
 
     /// Solve ElasticNet regression with early stopping using pre-split data
+    #[allow(clippy::too_many_arguments)]
     pub fn solve_elastic_net_with_early_stopping_split(
         &self,
         x_train: &Array2<Float>,

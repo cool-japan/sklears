@@ -7,8 +7,8 @@
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform, Untrained},
@@ -244,7 +244,7 @@ impl MultiScaleRBFSampler<Untrained> {
 
     /// Compute adaptive gamma values based on data characteristics
     fn compute_adaptive_gammas(&self, x: &Array2<Float>) -> Result<Vec<Float>> {
-        let (n_samples, n_features) = x.dim();
+        let (n_samples, _n_features) = x.dim();
 
         if n_samples < 2 {
             return Err(SklearsError::InvalidInput(
@@ -253,7 +253,7 @@ impl MultiScaleRBFSampler<Untrained> {
         }
 
         // Compute pairwise distances for a subset of points
-        let n_subset = (n_samples.min(100)) as usize;
+        let n_subset = n_samples.min(100);
         let mut distances = Vec::new();
 
         for i in 0..n_subset {
@@ -400,7 +400,7 @@ fn compute_attention_weights(gammas: &[Float]) -> Result<Array1<Float>> {
 
 impl Transform<Array2<Float>> for MultiScaleRBFSampler<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let gammas = self
+        let _gammas = self
             .gammas_
             .as_ref()
             .ok_or_else(|| SklearsError::NotFitted {
@@ -421,7 +421,7 @@ impl Transform<Array2<Float>> for MultiScaleRBFSampler<Trained> {
                     operation: "transform".to_string(),
                 })?;
 
-        let (n_samples, n_features) = x.dim();
+        let (_n_samples, n_features) = x.dim();
 
         // Generate features for each scale
         let mut scale_features = Vec::with_capacity(self.n_scales);
@@ -546,7 +546,7 @@ impl MultiScaleRBFSampler<Trained> {
 
         let mut result = scale_features[0].clone();
         for features in scale_features.iter().skip(1) {
-            result = result + features;
+            result += features;
         }
 
         result.mapv_inplace(|x| x / self.n_scales as Float);

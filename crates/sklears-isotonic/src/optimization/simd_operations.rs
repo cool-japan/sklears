@@ -24,7 +24,7 @@ pub fn simd_qp_matrix_vector_multiply(
         let mut dot_product = 0.0;
 
         // Optimized dot product computation
-        for (j, (&row_val, &vec_val)) in row.iter().zip(vector.iter()).enumerate() {
+        for (&row_val, &vec_val) in row.iter().zip(vector.iter()) {
             dot_product += row_val * vec_val;
         }
 
@@ -98,7 +98,7 @@ pub fn simd_gradient_computation(
         let jacobian_col = jacobian.column(j);
         let mut grad_component = 0.0;
 
-        for (i, (&jac_val, &res_val)) in jacobian_col.iter().zip(residuals.iter()).enumerate() {
+        for (&jac_val, &res_val) in jacobian_col.iter().zip(residuals.iter()) {
             grad_component += jac_val * res_val;
         }
 
@@ -171,7 +171,7 @@ pub fn simd_newton_step(
 
     // Simplified solver - in practice would use LAPACK
     let mut step = Array1::zeros(n);
-    for iter in 0..100 {
+    for _iter in 0..100 {
         let mut new_step = Array1::zeros(n);
 
         for i in 0..n {
@@ -250,7 +250,7 @@ pub fn simd_vector_norm(v: &Array1<Float>) -> Float {
 /// Optimized isotonic projection using pool-adjacent-violators
 pub fn simd_isotonic_projection(
     y: &Array1<Float>,
-    weights: Option<&Array1<Float>>,
+    _weights: Option<&Array1<Float>>,
     increasing: bool,
 ) -> Array1<Float> {
     // Use the existing isotonic regression implementation

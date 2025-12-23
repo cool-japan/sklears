@@ -96,7 +96,7 @@ impl<K: SparseKernel> StructuredKernelInterpolation<K> {
     ) -> Result<Array2<f64>> {
         let n = x.nrows();
         let n_grid = grid_points.nrows();
-        let n_features = x.ncols();
+        let _n_features = x.ncols();
 
         let mut weights = Array2::zeros((n, n_grid));
 
@@ -425,7 +425,7 @@ impl<K: SparseKernel> TensorSKI<K> {
     }
 
     /// Fit tensor SKI with full Kronecker structure
-    pub fn fit_tensor(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<FittedTensorSKI<K>> {
+    pub fn fit_tensor(&self, x: &Array2<f64>, _y: &Array1<f64>) -> Result<FittedTensorSKI<K>> {
         if !self.use_kronecker {
             return Err(SklearsError::InvalidInput(
                 "Tensor SKI requires Kronecker structure".to_string(),
@@ -628,7 +628,7 @@ mod tests {
         let kernel = RBFKernel::new(1.0, 1.0);
         let ski = StructuredKernelInterpolation::new(vec![3, 2], kernel);
 
-        let x = array![[0.0, 0.0], [1.0, 1.0]];
+        let _x = array![[0.0, 0.0], [1.0, 1.0]];
         let fitted_ski = FittedSKI {
             grid_points: array![
                 [0.0, 0.0],

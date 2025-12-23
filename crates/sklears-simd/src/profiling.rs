@@ -644,11 +644,18 @@ impl GlobalStats {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
     #[cfg(not(feature = "no-std"))]
     use std::time::Duration;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
 
     #[test]
     fn test_profiler_basic_functionality() {

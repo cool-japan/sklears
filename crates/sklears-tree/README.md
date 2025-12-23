@@ -7,7 +7,7 @@
 
 State-of-the-art tree-based algorithms for Rust with 5-20x performance improvements over scikit-learn. Features advanced algorithms like BART, soft trees, and LightGBM-style optimizations.
 
-> **Latest release:** `0.1.0-alpha.1` (October 13, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
 
 ## Overview
 

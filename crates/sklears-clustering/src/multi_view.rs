@@ -28,9 +28,8 @@
 
 use std::collections::HashMap;
 
-use numrs2::prelude::*;
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 
@@ -318,7 +317,7 @@ impl MultiViewKMeans {
             let mut selected_indices = (0..n_samples).collect::<Vec<_>>();
             // Fisher-Yates shuffle
             for i in (1..selected_indices.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.gen_range(0..i + 1);
                 selected_indices.swap(i, j);
             }
 

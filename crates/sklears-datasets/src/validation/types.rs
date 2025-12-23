@@ -184,7 +184,7 @@ impl fmt::Display for StatisticalSummary {
         writeln!(f, "Data Quality Score: {:.2}/100", self.data_quality_score)?;
         writeln!(f, "Missing Data Pattern: {}", self.missing_data_pattern)?;
         writeln!(f, "Generation Time: {}", self.generation_timestamp)?;
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         writeln!(f, "Feature Statistics:")?;
         for (i, feature) in self.feature_statistics.iter().enumerate() {
@@ -219,7 +219,7 @@ impl fmt::Display for StatisticalSummary {
         }
 
         if let Some(ref target) = self.target_statistics {
-            writeln!(f, "")?;
+            writeln!(f)?;
             writeln!(f, "Target Statistics:")?;
             writeln!(f, "  Type: {}", target.data_type)?;
             writeln!(f, "  Unique Values: {}", target.unique_count)?;
@@ -291,6 +291,12 @@ pub struct ValidationReport {
     pub overall_pass: bool,
 }
 
+impl Default for ValidationReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ValidationReport {
     /// Create a new validation report
     pub fn new() -> Self {
@@ -337,7 +343,7 @@ impl fmt::Display for ValidationReport {
             "Overall: {}",
             if self.overall_pass { "PASS" } else { "FAIL" }
         )?;
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         for result in &self.results {
             let status = if result.passed { "PASS" } else { "FAIL" };
@@ -425,7 +431,7 @@ impl DatasetQualityMetrics {
     /// Generate quality report summary
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        report.push_str(&format!("=== Dataset Quality Report ===\n"));
+        report.push_str(&"=== Dataset Quality Report ===\n".to_string());
         report.push_str(&format!(
             "Overall Quality Score: {:.2}/100\n",
             self.overall_quality_score
@@ -439,7 +445,7 @@ impl DatasetQualityMetrics {
         report.push_str(&format!("Accuracy: {:.2}/100\n", self.accuracy_score));
         report.push_str(&format!("Uniqueness: {:.2}/100\n", self.uniqueness_score));
         report.push_str(&format!("Timeliness: {:.2}/100\n", self.timeliness_score));
-        report.push_str(&format!("\nData Issues:\n"));
+        report.push_str(&"\nData Issues:\n".to_string());
         report.push_str(&format!(
             "- Missing Data: {:.2}%\n",
             self.missing_data_ratio * 100.0
@@ -461,14 +467,14 @@ impl DatasetQualityMetrics {
         report.push_str(&format!("\nFingerprint: {}\n", self.fingerprint));
 
         if !self.quality_issues.is_empty() {
-            report.push_str(&format!("\nQuality Issues:\n"));
+            report.push_str(&"\nQuality Issues:\n".to_string());
             for issue in &self.quality_issues {
                 report.push_str(&format!("- {}\n", issue));
             }
         }
 
         if !self.recommendations.is_empty() {
-            report.push_str(&format!("\nRecommendations:\n"));
+            report.push_str(&"\nRecommendations:\n".to_string());
             for rec in &self.recommendations {
                 report.push_str(&format!("- {}\n", rec));
             }
@@ -491,6 +497,12 @@ pub struct DataDriftReport {
     pub detection_method: String,
     pub confidence_level: f64,
     pub timestamp: String,
+}
+
+impl Default for DataDriftReport {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DataDriftReport {
@@ -546,6 +558,12 @@ pub struct AnomalyDetectionResult {
     pub anomaly_scores: Vec<f64>,
     pub detection_method: String,
     pub feature_anomalies: HashMap<String, Vec<usize>>,
+}
+
+impl Default for AnomalyDetectionResult {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AnomalyDetectionResult {

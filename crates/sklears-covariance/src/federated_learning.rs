@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array2, ArrayView2, Axis};
 use scirs2_core::random::essentials::{Normal, Uniform};
 use scirs2_core::random::Distribution;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Estimator, Fit};
 

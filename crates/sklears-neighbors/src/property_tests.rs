@@ -188,6 +188,78 @@ proptest! {
             prop_assert_eq!(probabilities.nrows(), X.nrows());
         }
     }
+
+    // NEW: Test distance metric properties
+    #[test]
+    fn test_distance_metric_properties(
+        x1 in prop::collection::vec(-10.0..10.0f64, 2..10),
+        x2 in prop::collection::vec(-10.0..10.0f64, 2..10)
+    ) {
+        if x1.len() != x2.len() {
+            return Ok(());
+        }
+
+        let a1 = Array1::from_vec(x1.clone());
+        let a2 = Array1::from_vec(x2.clone());
+
+        // Test Euclidean distance properties
+        let dist = Distance::Euclidean;
+
+        // Non-negativity: d(x, y) >= 0
+        let d12 = dist.calculate(&a1.view(), &a2.view());
+        prop_assert!(d12 >= 0.0);
+
+        // Identity: d(x, x) = 0
+        let d11 = dist.calculate(&a1.view(), &a1.view());
+        prop_assert!((d11 - 0.0).abs() < 1e-10);
+
+        // Symmetry: d(x, y) = d(y, x)
+        let d21 = dist.calculate(&a2.view(), &a1.view());
+        prop_assert!((d12 - d21).abs() < 1e-10);
+    }
+
+    // NEW: Test triangle inequality for distance metrics
+    #[test]
+    fn test_triangle_inequality(
+        x1 in prop::collection::vec(-5.0..5.0f64, 3..5),
+        x2 in prop::collection::vec(-5.0..5.0f64, 3..5),
+        x3 in prop::collection::vec(-5.0..5.0f64, 3..5)
+    ) {
+        if x1.len() != x2.len() || x2.len() != x3.len() {
+            return Ok(());
+        }
+
+        let a1 = Array1::from_vec(x1);
+        let a2 = Array1::from_vec(x2);
+        let a3 = Array1::from_vec(x3);
+
+        // Triangle inequality: d(x, z) <= d(x, y) + d(y, z)
+        let dist = Distance::Euclidean;
+        let d13 = dist.calculate(&a1.view(), &a3.view());
+        let d12 = dist.calculate(&a1.view(), &a2.view());
+        let d23 = dist.calculate(&a2.view(), &a3.view());
+
+        prop_assert!(d13 <= d12 + d23 + 1e-10); // Small epsilon for floating point errors
+    }
+
+    // NEW: Test that regressor predictions are bounded by training data range
+    #[test]
+    fn test_regressor_predictions_bounded((X, y) in small_regression_data()) {
+        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let regressor = KNeighborsRegressor::new(n_neighbors);
+
+        let fitted = regressor.fit(&X, &y).unwrap();
+        let predictions = fitted.predict(&X).unwrap();
+
+        let y_min = y.iter().cloned().fold(f64::INFINITY, f64::min);
+        let y_max = y.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+        // All predictions should be within training data range (plus small epsilon)
+        for &pred in predictions.iter() {
+            prop_assert!(pred >= y_min - 1e-10);
+            prop_assert!(pred <= y_max + 1e-10);
+        }
+    }
 }
 
 #[allow(non_snake_case)]

@@ -126,7 +126,8 @@ impl HighPrecisionArithmetic {
         let sum = probs.sum();
         if sum <= 0.0 || !sum.is_finite() {
             // Fallback to uniform distribution
-            probs.fill(1.0 / probs.len() as Float);
+            let uniform_val = 1.0 / probs.len() as Float;
+            probs.fill(uniform_val);
         } else {
             *probs /= sum;
         }
@@ -156,7 +157,7 @@ impl HighPrecisionArithmetic {
         }
 
         let mut kl = 0.0;
-        for (i, (&p_i, &q_i)) in p.iter().zip(q.iter()).enumerate() {
+        for (&p_i, &q_i) in p.iter().zip(q.iter()) {
             let p_safe = Self::clamp_probability(p_i);
             let q_safe = Self::clamp_probability(q_i);
 
@@ -493,6 +494,7 @@ impl PrecisionAwareProbabilityOps {
     }
 
     /// Create with default high-precision configuration
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new(HighPrecisionConfig::default())
     }

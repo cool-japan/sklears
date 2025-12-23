@@ -30,7 +30,7 @@ impl LossFunction {
                 let mut total_loss = 0.0;
                 for i in 0..y_pred.nrows() {
                     for j in 0..y_pred.ncols() {
-                        let pred = y_pred[[i, j]].max(1e-15).min(1.0 - 1e-15); // Clip for numerical stability
+                        let pred = y_pred[[i, j]].clamp(1e-15, 1.0 - 1e-15); // Clip for numerical stability
                         total_loss -= y_true[[i, j]] * pred.ln();
                     }
                 }
@@ -40,7 +40,7 @@ impl LossFunction {
                 let mut total_loss = 0.0;
                 for i in 0..y_pred.nrows() {
                     for j in 0..y_pred.ncols() {
-                        let pred = y_pred[[i, j]].max(1e-15).min(1.0 - 1e-15); // Clip for numerical stability
+                        let pred = y_pred[[i, j]].clamp(1e-15, 1.0 - 1e-15); // Clip for numerical stability
                         total_loss -=
                             y_true[[i, j]] * pred.ln() + (1.0 - y_true[[i, j]]) * (1.0 - pred).ln();
                     }

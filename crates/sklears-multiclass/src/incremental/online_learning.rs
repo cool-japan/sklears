@@ -69,11 +69,6 @@ impl<T: FloatBounds> OnlineLearner<T> {
         }
     }
 
-    /// Create a new online learner with default configuration
-    pub fn default() -> Self {
-        Self::new(OnlineLearningConfig::default())
-    }
-
     /// Initialize the learner with feature dimensions
     fn initialize(&mut self, n_features: usize) -> SklResult<()> {
         self.n_features = Some(n_features);
@@ -186,13 +181,13 @@ mod tests {
 
     #[test]
     fn test_online_learner_creation() {
-        let learner: OnlineLearner<f64> = OnlineLearner::default();
+        let learner: OnlineLearner<f64> = OnlineLearner::new(OnlineLearningConfig::default());
         assert_eq!(learner.n_classes_seen(), 0);
     }
 
     #[test]
     fn test_partial_fit_single() {
-        let mut learner: OnlineLearner<f64> = OnlineLearner::default();
+        let mut learner: OnlineLearner<f64> = OnlineLearner::new(OnlineLearningConfig::default());
         let x = array![1.0, 2.0, 3.0];
 
         assert!(learner.partial_fit_single(&x, 0).is_ok());
@@ -201,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_partial_fit_batch() {
-        let mut learner: OnlineLearner<f64> = OnlineLearner::default();
+        let mut learner: OnlineLearner<f64> = OnlineLearner::new(OnlineLearningConfig::default());
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![0, 1, 0];
 

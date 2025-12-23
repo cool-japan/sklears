@@ -72,7 +72,7 @@ impl PhaseBasedExtractor {
         }
 
         // Compute STFT to get phase information
-        let (magnitude, phase) = self.stft(signal)?;
+        let (_magnitude, phase) = self.stft(signal)?;
 
         let mut features = Vec::new();
 

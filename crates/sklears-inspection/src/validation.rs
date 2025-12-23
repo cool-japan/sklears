@@ -503,7 +503,7 @@ impl ValidationFramework {
         let explanation3 = method3(X, y)?;
 
         let explanations = vec![explanation1, explanation2, explanation3];
-        let method_names = vec!["method1", "method2", "method3"];
+        let method_names = ["method1", "method2", "method3"];
 
         // Compute pairwise correlations
         let n_methods = explanations.len();
@@ -736,7 +736,7 @@ impl ValidationFramework {
     }
 
     fn compute_correlation(&self, a: &Array1<Float>, b: &Array1<Float>) -> Float {
-        if a.len() != b.len() || a.len() == 0 {
+        if a.len() != b.len() || a.is_empty() {
             return 0.0;
         }
 

@@ -352,7 +352,7 @@ impl ClassificationDiagnostics {
         for &class in y.iter() {
             if let Some(pos) = unique_classes
                 .iter()
-                .position(|&c| (c as f64 - class as f64).abs() < 1e-10)
+                .position(|&c: &Float| (c - class).abs() < 1e-10)
             {
                 class_counts_vec[pos] += 1;
             } else {
@@ -408,7 +408,7 @@ impl ClassificationDiagnostics {
             );
         }
 
-        if minority_classes.len() > 0 {
+        if !minority_classes.is_empty() {
             recommendations.push(format!(
                 "Minority classes detected: {:?}. Consider oversampling or ensemble methods",
                 minority_classes
@@ -641,12 +641,7 @@ impl fmt::Display for CalibrationResult {
 impl fmt::Display for FeatureImportanceResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Feature Importance Results (method: {:?}):", self.method)?;
-        for (i, (name, score)) in self
-            .feature_names
-            .iter()
-            .zip(self.importance_scores.iter())
-            .enumerate()
-        {
+        for (name, score) in self.feature_names.iter().zip(self.importance_scores.iter()) {
             writeln!(f, "  {}: {:.4}", name, score)?;
         }
         Ok(())

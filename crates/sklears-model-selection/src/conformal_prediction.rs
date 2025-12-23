@@ -3,7 +3,6 @@
 //! This module provides conformal prediction algorithms that generate
 //! prediction intervals with finite-sample validity guarantees.
 
-use numrs2::prelude::*;
 use sklears_core::error::{Result, SklearsError};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -214,11 +213,12 @@ impl ConformalPredictor {
         let mut intervals = Vec::new();
 
         for (i, &pred) in predictions.iter().enumerate() {
-            let error_scale = if self.config.normalize && prediction_errors.is_some() {
-                prediction_errors.unwrap()[i].max(1e-8) // Avoid division by zero
-            } else {
-                1.0
-            };
+            let error_scale =
+                if let (true, Some(errors)) = (self.config.normalize, &prediction_errors) {
+                    errors[i].max(1e-8) // Avoid division by zero
+                } else {
+                    1.0
+                };
 
             let margin = threshold * error_scale;
             intervals.push((pred - margin, pred + margin));

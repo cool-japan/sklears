@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, SystemTime};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use serde::{Deserialize, Serialize};
 
 use super::optimization_engine::{TrendDirection, ConditionOperator};
@@ -659,12 +659,76 @@ impl RealTimeMetrics {
             TrendDirection::Stable
         };
 
+        // Calculate acceleration (rate of change of velocity)
+        let acceleration = if values.len() >= 4 {
+            // Split into two halves and calculate velocity for each
+            let mid = values.len() / 2;
+            let first_half = &values[mid..];
+            let second_half = &values[..mid];
+
+            let v1 = if first_half.len() >= 2 {
+                (first_half.first().unwrap() - first_half.last().unwrap()) / first_half.len() as f64
+            } else {
+                0.0
+            };
+
+            let v2 = if second_half.len() >= 2 {
+                (second_half.first().unwrap() - second_half.last().unwrap()) / second_half.len() as f64
+            } else {
+                0.0
+            };
+
+            // Acceleration is change in velocity
+            (v2 - v1) / (values.len() as f64 / 2.0)
+        } else {
+            0.0
+        };
+
+        // Calculate confidence based on data quantity and stability
+        let confidence = self.calculate_trend_confidence(values, velocity);
+
         MetricTrend {
             direction,
             velocity,
-            acceleration: 0.0, // TODO: Calculate acceleration
-            confidence: 0.8,   // TODO: Calculate confidence
+            acceleration,
+            confidence,
         }
+    }
+
+    /// Calculate confidence in trend analysis
+    fn calculate_trend_confidence(&self, values: &[f64], velocity: f64) -> f64 {
+        let mut confidence = 1.0;
+
+        // Factor 1: Data quantity (more points = higher confidence)
+        let data_factor = (values.len() as f64 / 10.0).min(1.0);
+        confidence *= 0.5 + 0.5 * data_factor;
+
+        // Factor 2: Trend consistency (lower variance relative to trend = higher confidence)
+        if values.len() >= 3 {
+            // Calculate expected values based on linear trend
+            let mean = values.iter().sum::<f64>() / values.len() as f64;
+            let variance = values.iter()
+                .map(|&v| (v - mean).powi(2))
+                .sum::<f64>() / values.len() as f64;
+
+            // Coefficient of variation (normalized variance)
+            let cv = if mean.abs() > 1e-10 {
+                variance.sqrt() / mean.abs()
+            } else {
+                variance.sqrt()
+            };
+
+            // Lower coefficient of variation = higher confidence
+            let consistency_factor = 1.0 / (1.0 + cv);
+            confidence *= consistency_factor;
+        }
+
+        // Factor 3: Strength of trend (stronger trends = higher confidence)
+        let velocity_strength = velocity.abs().min(1.0);
+        confidence *= 0.8 + 0.2 * velocity_strength;
+
+        // Ensure confidence is in valid range [0.0, 1.0]
+        confidence.clamp(0.0, 1.0)
     }
 }
 

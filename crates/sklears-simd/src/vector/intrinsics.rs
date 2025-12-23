@@ -19,11 +19,6 @@
 //! It provides the building blocks for vectorized computations while hiding
 //! platform-specific implementation details.
 
-#[cfg(feature = "no-std")]
-use alloc::vec;
-#[cfg(feature = "no-std")]
-use alloc::vec::Vec;
-
 // Import ARM64 feature detection macro
 #[cfg(all(target_arch = "aarch64", not(feature = "no-std")))]
 use std::arch::is_aarch64_feature_detected;
@@ -114,11 +109,11 @@ pub fn detect_simd_capabilities() -> SimdCapabilities {
 pub fn simd_width_f32() -> usize {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx512f") {
+        if crate::simd_feature_detected!("avx512f") {
             return 16; // 512 bits / 32 bits per f32 = 16 elements
-        } else if is_x86_feature_detected!("avx2") {
+        } else if crate::simd_feature_detected!("avx2") {
             return 8; // 256 bits / 32 bits per f32 = 8 elements
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return 4; // 128 bits / 32 bits per f32 = 4 elements
         }
     }
@@ -180,7 +175,7 @@ pub fn optimal_chunk_size(array_len: usize, min_chunk: Option<usize>) -> usize {
 #[derive(Debug, Clone, Copy)]
 pub struct F32x4 {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    inner: std::arch::x86_64::__m128,
+    inner: core::arch::x86_64::__m128,
     #[cfg(target_arch = "aarch64")]
     inner: aarch64::float32x4_t,
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
@@ -191,7 +186,7 @@ pub struct F32x4 {
 #[derive(Debug, Clone, Copy)]
 pub struct F32x8 {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    inner: std::arch::x86_64::__m256,
+    inner: core::arch::x86_64::__m256,
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     inner: [f32; 8],
 }
@@ -200,7 +195,7 @@ pub struct F32x8 {
 #[derive(Debug, Clone, Copy)]
 pub struct F32x16 {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    inner: std::arch::x86_64::__m512,
+    inner: core::arch::x86_64::__m512,
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     inner: [f32; 16],
 }
@@ -213,7 +208,7 @@ impl F32x4 {
         {
             unsafe {
                 Self {
-                    inner: std::arch::x86_64::_mm_set1_ps(value),
+                    inner: core::arch::x86_64::_mm_set1_ps(value),
                 }
             }
         }
@@ -240,7 +235,7 @@ impl F32x4 {
         {
             unsafe {
                 Self {
-                    inner: std::arch::x86_64::_mm_setr_ps(a, b, c, d),
+                    inner: core::arch::x86_64::_mm_setr_ps(a, b, c, d),
                 }
             }
         }
@@ -269,7 +264,7 @@ impl F32x4 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             Self {
-                inner: std::arch::x86_64::_mm_load_ps(ptr),
+                inner: core::arch::x86_64::_mm_load_ps(ptr),
             }
         }
 
@@ -294,7 +289,7 @@ impl F32x4 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             Self {
-                inner: std::arch::x86_64::_mm_loadu_ps(ptr),
+                inner: core::arch::x86_64::_mm_loadu_ps(ptr),
             }
         }
 
@@ -318,7 +313,7 @@ impl F32x4 {
     pub unsafe fn store_aligned(self, ptr: *mut f32) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            std::arch::x86_64::_mm_store_ps(ptr, self.inner);
+            core::arch::x86_64::_mm_store_ps(ptr, self.inner);
         }
 
         #[cfg(target_arch = "aarch64")]
@@ -340,7 +335,7 @@ impl F32x4 {
     pub unsafe fn store_unaligned(self, ptr: *mut f32) {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            std::arch::x86_64::_mm_storeu_ps(ptr, self.inner);
+            core::arch::x86_64::_mm_storeu_ps(ptr, self.inner);
         }
 
         #[cfg(target_arch = "aarch64")]
@@ -364,7 +359,7 @@ impl F32x4 {
         {
             unsafe {
                 Self {
-                    inner: std::arch::x86_64::_mm_add_ps(self.inner, other.inner),
+                    inner: core::arch::x86_64::_mm_add_ps(self.inner, other.inner),
                 }
             }
         }
@@ -398,7 +393,7 @@ impl F32x4 {
         {
             unsafe {
                 Self {
-                    inner: std::arch::x86_64::_mm_mul_ps(self.inner, other.inner),
+                    inner: core::arch::x86_64::_mm_mul_ps(self.inner, other.inner),
                 }
             }
         }
@@ -431,15 +426,15 @@ impl F32x4 {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             unsafe {
-                let temp = std::arch::x86_64::_mm_add_ps(
+                let temp = core::arch::x86_64::_mm_add_ps(
                     self.inner,
-                    std::arch::x86_64::_mm_movehl_ps(self.inner, self.inner),
+                    core::arch::x86_64::_mm_movehl_ps(self.inner, self.inner),
                 );
-                let result = std::arch::x86_64::_mm_add_ps(
+                let result = core::arch::x86_64::_mm_add_ps(
                     temp,
-                    std::arch::x86_64::_mm_shuffle_ps(temp, temp, 0x01),
+                    core::arch::x86_64::_mm_shuffle_ps(temp, temp, 0x01),
                 );
-                std::arch::x86_64::_mm_cvtss_f32(result)
+                core::arch::x86_64::_mm_cvtss_f32(result)
             }
         }
 
@@ -470,14 +465,14 @@ impl F32x4 {
         {
             unsafe {
                 match index {
-                    0 => std::arch::x86_64::_mm_cvtss_f32(self.inner),
-                    1 => std::arch::x86_64::_mm_cvtss_f32(std::arch::x86_64::_mm_shuffle_ps(
+                    0 => core::arch::x86_64::_mm_cvtss_f32(self.inner),
+                    1 => core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(
                         self.inner, self.inner, 0x01,
                     )),
-                    2 => std::arch::x86_64::_mm_cvtss_f32(std::arch::x86_64::_mm_shuffle_ps(
+                    2 => core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(
                         self.inner, self.inner, 0x02,
                     )),
-                    3 => std::arch::x86_64::_mm_cvtss_f32(std::arch::x86_64::_mm_shuffle_ps(
+                    3 => core::arch::x86_64::_mm_cvtss_f32(core::arch::x86_64::_mm_shuffle_ps(
                         self.inner, self.inner, 0x03,
                     )),
                     _ => unreachable!(),
@@ -513,7 +508,7 @@ impl F32x4 {
 fn detect_sse2() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("sse2")
+        crate::simd_feature_detected!("sse2")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -525,7 +520,7 @@ fn detect_sse2() -> bool {
 fn detect_sse3() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("sse3")
+        crate::simd_feature_detected!("sse3")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -537,7 +532,7 @@ fn detect_sse3() -> bool {
 fn detect_sse41() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("sse4.1")
+        crate::simd_feature_detected!("sse4.1")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -549,7 +544,7 @@ fn detect_sse41() -> bool {
 fn detect_sse42() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("sse4.2")
+        crate::simd_feature_detected!("sse4.2")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -561,7 +556,7 @@ fn detect_sse42() -> bool {
 fn detect_avx() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("avx")
+        crate::simd_feature_detected!("avx")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -573,7 +568,7 @@ fn detect_avx() -> bool {
 fn detect_avx2() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("avx2")
+        crate::simd_feature_detected!("avx2")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -585,7 +580,7 @@ fn detect_avx2() -> bool {
 fn detect_avx512f() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("avx512f")
+        crate::simd_feature_detected!("avx512f")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -597,7 +592,7 @@ fn detect_avx512f() -> bool {
 fn detect_fma() -> bool {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        is_x86_feature_detected!("fma")
+        crate::simd_feature_detected!("fma")
     }
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -702,9 +697,12 @@ pub fn preferred_alignment_f32() -> usize {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{vec, vec::Vec};
 
     #[test]
     fn test_simd_capabilities() {

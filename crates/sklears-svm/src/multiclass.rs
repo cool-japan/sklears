@@ -33,7 +33,7 @@ pub enum TreeNode {
     Leaf(Float),
     /// Internal node with classifier and children
     Internal {
-        classifier: SVC<Trained>,
+        classifier: Box<SVC<Trained>>,
         left_classes: Vec<Float>,
         right_classes: Vec<Float>,
         left_child: Box<TreeNode>,
@@ -59,6 +59,7 @@ impl HierarchicalTree {
     }
 
     /// Recursively predict using tree nodes
+    #[allow(clippy::only_used_in_recursion)]
     fn predict_node(&self, node: &TreeNode, x: &Array2<Float>) -> Result<Float> {
         match node {
             TreeNode::Leaf(class) => Ok(*class),
@@ -86,6 +87,7 @@ impl HierarchicalTree {
         Ok(path)
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_decision_path(
         &self,
         node: &TreeNode,
@@ -351,7 +353,7 @@ impl MultiClassSVC<Untrained> {
                 let mut codebook = Array2::zeros((n_classes, n_bits));
                 for i in 0..n_classes {
                     for j in 0..n_bits {
-                        codebook[[i, j]] = if rng.random::<bool>() { 1.0 } else { -1.0 };
+                        codebook[[i, j]] = if rng.gen::<bool>() { 1.0 } else { -1.0 };
                     }
                 }
                 return codebook;
@@ -412,7 +414,7 @@ impl MultiClassSVC<Untrained> {
             .fit(&x_binary, &y_binary)?;
 
             return Ok(TreeNode::Internal {
-                classifier: fitted_svc,
+                classifier: Box::new(fitted_svc),
                 left_classes: vec![left_class],
                 right_classes: vec![right_class],
                 left_child: Box::new(TreeNode::Leaf(left_class)),
@@ -482,7 +484,7 @@ impl MultiClassSVC<Untrained> {
         let right_child = Box::new(self.build_hierarchical_tree(x, y, &right_classes)?);
 
         Ok(TreeNode::Internal {
-            classifier: fitted_svc,
+            classifier: Box::new(fitted_svc),
             left_classes,
             right_classes,
             left_child,

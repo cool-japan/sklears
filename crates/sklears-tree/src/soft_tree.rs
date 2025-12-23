@@ -100,13 +100,13 @@ impl SoftTreeNode {
         temperature: f64,
         rng: &mut impl Rng,
     ) -> Self {
-        let feature_weights = Array1::from_iter((0..n_features).map(|_| rng.gen_range(-0.1..0.1)));
+        let feature_weights = Array1::from_iter((0..n_features).map(|_| rng.random_range(-0.1, 0.1)));
 
         Self {
             node_id,
             depth,
             feature_weights,
-            bias: rng.gen_range(-0.1..0.1),
+            bias: rng.random_range(-0.1, 0.1),
             temperature,
             left_child: None,
             right_child: None,

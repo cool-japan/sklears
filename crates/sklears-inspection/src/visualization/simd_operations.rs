@@ -79,7 +79,7 @@ pub fn simd_smooth_data(data: &[Float], window_size: usize) -> Vec<Float> {
     let half_window = window_size / 2;
 
     for i in 0..data.len() {
-        let start = if i >= half_window { i - half_window } else { 0 };
+        let start = i.saturating_sub(half_window);
         let end = (i + half_window + 1).min(data.len());
 
         let sum: Float = data[start..end].iter().sum();

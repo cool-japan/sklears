@@ -600,7 +600,7 @@ impl NumericalStability {
 
         // Choose algorithm based on matrix size and condition number
         match (n, condition_estimate) {
-            (n, cond) if n > 1000 => {
+            (n, _cond) if n > 1000 => {
                 // Large matrices: use iterative methods
                 log::info!("Using iterative method for large matrix (n={})", n);
                 self.iterative_eigen_decomposition(matrix, None, 100)

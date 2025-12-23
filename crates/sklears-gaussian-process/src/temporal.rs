@@ -238,69 +238,70 @@ impl Kernel for TemporalKernel {
 
     fn get_params(&self) -> Vec<f64> {
         match self {
-            Self::SquaredExponential { length_scale, variance } => vec![*length_scale, *variance],
-            Self::Matern { length_scale, variance, nu } => vec![*length_scale, *variance, *nu],
-            Self::RationalQuadratic { length_scale, variance, alpha } => vec![*length_scale, *variance, *alpha],
-            Self::LocallyPeriodic { length_scale, variance, period } => vec![*length_scale, *variance, *period],
-            Self::Periodic { period, variance, length_scale } => vec![*period, *variance, *length_scale],
-            Self::LinearTrend { variance, slope } => vec![*variance, *slope],
-            Self::WhiteNoise { variance } => vec![*variance],
+            Self::Exponential { variance, length_scale } => vec![*variance, *length_scale],
+            Self::LocallyPeriodic { variance, length_scale, period, periodicity_decay } => {
+                vec![*variance, *length_scale, *period, *periodicity_decay]
+            }
+            Self::Matern { variance, length_scale, nu } => vec![*variance, *length_scale, *nu],
+            Self::Changepoint { variance1, variance2, length_scale, changepoint, sharpness } => {
+                vec![*variance1, *variance2, *length_scale, *changepoint, *sharpness]
+            }
+            Self::MultiScale { kernels } => {
+                let mut params = Vec::new();
+                for kernel in kernels {
+                    params.extend(kernel.get_params());
+                }
+                params
+            }
         }
     }
 
     fn set_params(&mut self, params: &[f64]) -> SklResult<()> {
         match self {
-            Self::SquaredExponential { length_scale, variance } => {
+            Self::Exponential { variance, length_scale } => {
                 if params.len() != 2 {
-                    return Err(SklearsError::InvalidInput("SquaredExponential kernel requires 2 parameters".to_string()));
+                    return Err(SklearsError::InvalidInput("Exponential kernel requires 2 parameters".to_string()));
                 }
-                *length_scale = params[0];
-                *variance = params[1];
+                *variance = params[0];
+                *length_scale = params[1];
             }
-            Self::Matern { length_scale, variance, nu } => {
+            Self::LocallyPeriodic { variance, length_scale, period, periodicity_decay } => {
+                if params.len() != 4 {
+                    return Err(SklearsError::InvalidInput("LocallyPeriodic kernel requires 4 parameters".to_string()));
+                }
+                *variance = params[0];
+                *length_scale = params[1];
+                *period = params[2];
+                *periodicity_decay = params[3];
+            }
+            Self::Matern { variance, length_scale, nu } => {
                 if params.len() != 3 {
                     return Err(SklearsError::InvalidInput("Matern kernel requires 3 parameters".to_string()));
                 }
-                *length_scale = params[0];
-                *variance = params[1];
+                *variance = params[0];
+                *length_scale = params[1];
                 *nu = params[2];
             }
-            Self::RationalQuadratic { length_scale, variance, alpha } => {
-                if params.len() != 3 {
-                    return Err(SklearsError::InvalidInput("RationalQuadratic kernel requires 3 parameters".to_string()));
+            Self::Changepoint { variance1, variance2, length_scale, changepoint, sharpness } => {
+                if params.len() != 5 {
+                    return Err(SklearsError::InvalidInput("Changepoint kernel requires 5 parameters".to_string()));
                 }
-                *length_scale = params[0];
-                *variance = params[1];
-                *alpha = params[2];
-            }
-            Self::LocallyPeriodic { length_scale, variance, period } => {
-                if params.len() != 3 {
-                    return Err(SklearsError::InvalidInput("LocallyPeriodic kernel requires 3 parameters".to_string()));
-                }
-                *length_scale = params[0];
-                *variance = params[1];
-                *period = params[2];
-            }
-            Self::Periodic { period, variance, length_scale } => {
-                if params.len() != 3 {
-                    return Err(SklearsError::InvalidInput("Periodic kernel requires 3 parameters".to_string()));
-                }
-                *period = params[0];
-                *variance = params[1];
+                *variance1 = params[0];
+                *variance2 = params[1];
                 *length_scale = params[2];
+                *changepoint = params[3];
+                *sharpness = params[4];
             }
-            Self::LinearTrend { variance, slope } => {
-                if params.len() != 2 {
-                    return Err(SklearsError::InvalidInput("LinearTrend kernel requires 2 parameters".to_string()));
+            Self::MultiScale { kernels } => {
+                let mut offset = 0;
+                for kernel in kernels.iter_mut() {
+                    let n_params = kernel.get_params().len();
+                    if offset + n_params > params.len() {
+                        return Err(SklearsError::InvalidInput("Not enough parameters for MultiScale kernel".to_string()));
+                    }
+                    kernel.set_params(&params[offset..offset + n_params])?;
+                    offset += n_params;
                 }
-                *variance = params[0];
-                *slope = params[1];
-            }
-            Self::WhiteNoise { variance } => {
-                if params.len() != 1 {
-                    return Err(SklearsError::InvalidInput("WhiteNoise kernel requires 1 parameter".to_string()));
-                }
-                *variance = params[0];
             }
         }
         Ok(())

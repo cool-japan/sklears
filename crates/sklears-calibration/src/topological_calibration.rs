@@ -146,7 +146,7 @@ impl SimplicialComplex {
         self.simplices.push(simplex);
         self.simplices_by_dimension
             .entry(dimension)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(simplex_index);
     }
 
@@ -685,7 +685,7 @@ impl TopologicalCalibrationAnalyzer {
         probabilities: &Array1<Float>,
         y_true: &Array1<i32>,
     ) -> Result<MapperGraph> {
-        let n_points = probabilities.len();
+        let _n_points = probabilities.len();
 
         // Use calibration error as filter function
         let filter_values: Array1<Float> = probabilities

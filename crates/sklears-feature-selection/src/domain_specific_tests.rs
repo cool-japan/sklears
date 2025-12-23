@@ -15,7 +15,7 @@ mod tests {
 
     #[test]
     fn test_bioinformatics_selector_creation() {
-        let selector = BioinformaticsFeatureSelector::new()
+        let _selector = BioinformaticsFeatureSelector::new()
             .strategy(BioinformaticsStrategy::DifferentialExpression)
             .k(50)
             .p_value_threshold(0.01)

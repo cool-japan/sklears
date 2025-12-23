@@ -26,7 +26,6 @@ scirs2-neural = { workspace = true }
 scirs2-sparse = { workspace = true }
 
 # Other approved dependencies
-numrs2 = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 rayon = { workspace = true }

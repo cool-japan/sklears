@@ -183,7 +183,7 @@ impl ExplanationCache {
             self.partial_dependence_cache.lock().unwrap().clear();
 
             let mut stats = self.cache_hits.lock().unwrap();
-            stats.total_size = stats.total_size / 2;
+            stats.total_size /= 2;
         }
     }
 }

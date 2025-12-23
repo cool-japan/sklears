@@ -101,7 +101,7 @@ pub fn orthogonal_init(input_dim: usize, output_dim: usize, random_state: Option
 
     for i in 0..input_dim {
         for j in 0..output_dim {
-            weights[(i, j)] = rng.gen_range(-1.0..1.0);
+            weights[(i, j)] = rng.random_range(-1.0, 1.0);
         }
     }
 
@@ -412,7 +412,7 @@ pub fn shuffle_data(data: &mut Array2<f64>, random_state: Option<u64>) {
     let n_features = data.ncols();
 
     for i in (1..n_samples).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.gen_range(0..i + 1);
 
         if i != j {
             for k in 0..n_features {
@@ -442,7 +442,7 @@ pub fn train_test_split(
     let mut indices: Vec<usize> = (0..n_samples).collect();
 
     for i in (1..n_samples).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.gen_range(0..i + 1);
         indices.swap(i, j);
     }
 

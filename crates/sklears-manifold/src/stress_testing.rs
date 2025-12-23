@@ -78,7 +78,7 @@ pub mod synthetic_data {
 
         for i in 0..n_samples {
             let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.gen::<f64>());
-            let height = 21.0 * rng.gen::<f64>();
+            let height: f64 = 21.0 * rng.gen::<f64>();
 
             data[(i, 0)] = t * t.cos() + normal.sample(&mut rng);
             data[(i, 1)] = height + normal.sample(&mut rng);
@@ -423,24 +423,34 @@ impl ScalabilityTester {
     {
         let start_time = Instant::now();
 
+        // Calculate estimated memory usage for input data
+        let input_memory_mb = estimate_memory_usage_mb(data.nrows(), data.ncols());
+
         let result = algorithm_fn(data);
 
         let execution_time = start_time.elapsed();
 
         match result {
-            Ok(_embedding) => PerformanceMetrics {
-                execution_time,
-                memory_peak_mb: None, // TODO: Implement memory tracking
-                n_samples: data.nrows(),
-                n_features: data.ncols(),
-                n_components,
-                algorithm_name: algorithm_name.to_string(),
-                success: true,
-                error_message: None,
-            },
+            Ok(embedding) => {
+                // Calculate total memory including output embedding
+                let output_memory_mb =
+                    estimate_memory_usage_mb(embedding.nrows(), embedding.ncols());
+                let total_memory_mb = input_memory_mb + output_memory_mb;
+
+                PerformanceMetrics {
+                    execution_time,
+                    memory_peak_mb: Some(total_memory_mb),
+                    n_samples: data.nrows(),
+                    n_features: data.ncols(),
+                    n_components,
+                    algorithm_name: algorithm_name.to_string(),
+                    success: true,
+                    error_message: None,
+                }
+            }
             Err(error) => PerformanceMetrics {
                 execution_time,
-                memory_peak_mb: None,
+                memory_peak_mb: Some(input_memory_mb),
                 n_samples: data.nrows(),
                 n_features: data.ncols(),
                 n_components,
@@ -450,6 +460,22 @@ impl ScalabilityTester {
             },
         }
     }
+}
+
+/// Estimate memory usage in MB for an array of given dimensions
+fn estimate_memory_usage_mb(n_rows: usize, n_cols: usize) -> f64 {
+    // Each Float element is typically 8 bytes (f64)
+    let element_size = std::mem::size_of::<Float>();
+    let data_size_bytes = n_rows * n_cols * element_size;
+
+    // Add ndarray overhead (dimension info, strides, capacity)
+    // Approximate overhead: ~48 bytes for shape/stride info + allocation overhead
+    let overhead_bytes = 48 + (n_rows * n_cols * element_size / 100); // ~1% overhead
+
+    let total_bytes = data_size_bytes + overhead_bytes;
+
+    // Convert to MB
+    total_bytes as f64 / (1024.0 * 1024.0)
 }
 
 /// Generate a comprehensive performance report

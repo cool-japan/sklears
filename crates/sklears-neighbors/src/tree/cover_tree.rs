@@ -152,6 +152,7 @@ impl CoverTree {
     }
 
     /// Recursively build the cover tree
+    #[allow(clippy::only_used_in_recursion)]
     fn build_recursive(
         &self,
         node: &mut CoverNode,
@@ -276,6 +277,7 @@ impl CoverTree {
     }
 
     /// Recursively search a node and its children
+    #[allow(clippy::only_used_in_recursion)]
     fn search_node(
         &self,
         query: &ArrayView1<Float>,
@@ -339,6 +341,7 @@ impl CoverTree {
     }
 
     /// Compute the depth of the tree
+    #[allow(clippy::only_used_in_recursion)]
     fn compute_depth(&self, node: &CoverNode) -> usize {
         if node.children.is_empty() {
             1
@@ -353,6 +356,7 @@ impl CoverTree {
     }
 
     /// Count the total number of nodes
+    #[allow(clippy::only_used_in_recursion)]
     fn count_nodes(&self, node: &CoverNode) -> usize {
         1 + node
             .children

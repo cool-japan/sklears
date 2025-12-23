@@ -8,6 +8,7 @@ use scirs2_core::ndarray::array;
 use sklears_core::traits::{Fit, Predict};
 use sklears_ensemble::{AdaBoostAlgorithm, AdaBoostClassifier};
 
+#[allow(non_snake_case)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("AdaBoost SAMME vs SAMME.R Comparison");
     println!("=====================================");

@@ -190,7 +190,7 @@ impl AdmmSolver {
                     for i in 0..n_features {
                         ata_reg[[i, i]] = ata[[i, i]] + lambda2 + rho;
                     }
-                    let new_chol = self.cholesky_decomposition(&ata_reg)?;
+                    let _new_chol = self.cholesky_decomposition(&ata_reg)?;
                     // Note: In a real implementation, you'd update the Cholesky factor
                     // Here we're keeping it simple for demonstration
                 }

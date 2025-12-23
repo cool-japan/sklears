@@ -160,6 +160,11 @@ impl<T: MetricCategory> TypedMetric<T> {
     }
 
     /// Convert to a different metric category (unsafe)
+    ///
+    /// # Safety
+    /// This function performs an unsafe transmutation between metric categories.
+    /// Callers must ensure that the conversion is semantically valid and that
+    /// the underlying metric value is compatible with the target category.
     pub unsafe fn convert<U: MetricCategory>(self) -> TypedMetric<U> {
         TypedMetric::new(self.value)
     }

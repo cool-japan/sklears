@@ -386,7 +386,7 @@ impl LandmarkGraphConstruction {
     /// Estimate radius for density computation
     fn estimate_density_radius(&self, X: &ArrayView2<f64>) -> Result<f64, SklearsError> {
         let n_samples = X.nrows();
-        let sample_size = (n_samples / 10).max(10).min(100);
+        let sample_size = (n_samples / 10).clamp(10, 100);
 
         let mut distances = Vec::new();
 
@@ -454,7 +454,7 @@ impl LandmarkGraphConstruction {
             let k_landmarks = self.k_neighbors.min(n_landmarks);
             let mut weights = Vec::new();
             let mut total_weight = 0.0;
-
+            #[allow(clippy::needless_range_loop)]
             for k in 0..k_landmarks {
                 let weight =
                     (-landmark_distances[k].0.powi(2) / (2.0 * self.bandwidth.powi(2))).exp();
@@ -484,6 +484,7 @@ impl LandmarkGraphConstruction {
                 let mut j_weights = Vec::new();
                 let mut j_total_weight = 0.0;
 
+                #[allow(clippy::needless_range_loop)]
                 for k in 0..k_landmarks {
                     let weight =
                         (-j_landmark_distances[k].0.powi(2) / (2.0 * self.bandwidth.powi(2))).exp();
@@ -603,6 +604,7 @@ impl LandmarkGraphConstruction {
             let k_connect = self.k_neighbors.min(landmark_distances.len());
 
             // Connect to nearest landmarks
+            #[allow(clippy::needless_range_loop)]
             for k in 0..k_connect {
                 let landmark_idx = landmark_distances[k].1;
                 let weight =

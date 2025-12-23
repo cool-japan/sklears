@@ -332,7 +332,7 @@ pub fn maximize_activation<M: AttentionAnalyzer>(
     let (height, width) = input_shape;
     let mut rng = thread_rng();
     let input_dynamic =
-        Array2::<Float>::from_shape_fn((height, width), |_| rng.gen_range(-1.0..=1.0)).into_dyn();
+        Array2::<Float>::from_shape_fn((height, width), |_| rng.gen_range(-1.0..2.0)).into_dyn();
     let mut input = input_dynamic
         .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .unwrap();
@@ -684,7 +684,7 @@ mod tests {
             let mut rng = thread_rng();
             let result_dynamic =
                 Array3::<Float>::from_shape_fn((batch_size, n_heads, seq_len), |_| {
-                    rng.gen_range(0.0..=1.0)
+                    rng.gen_range(0.0..2.0)
                 })
                 .into_dyn();
             let result = result_dynamic.into_dimensionality::<Ix3>().unwrap();
@@ -698,7 +698,7 @@ mod tests {
         ) -> SklResult<Array2<Float>> {
             let mut rng = thread_rng();
             let result_dynamic =
-                Array2::<Float>::from_shape_fn((input.nrows(), 64), |_| rng.gen_range(0.0..=1.0))
+                Array2::<Float>::from_shape_fn((input.nrows(), 64), |_| rng.gen_range(0.0..2.0))
                     .into_dyn();
             let result = result_dynamic
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
@@ -714,7 +714,7 @@ mod tests {
             let mut rng = thread_rng();
             let (rows, cols) = input.dim();
             let result_dynamic =
-                Array2::<Float>::from_shape_fn((rows, cols), |_| rng.gen_range(-1.0..=1.0))
+                Array2::<Float>::from_shape_fn((rows, cols), |_| rng.gen_range(-1.0..2.0))
                     .into_dyn();
             let result = result_dynamic
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
@@ -732,7 +732,7 @@ mod tests {
             let mut rng = thread_rng();
             let result_dynamic =
                 Array3::<Float>::from_shape_fn((32, height / 2, width / 2), |_| {
-                    rng.gen_range(0.0..=1.0)
+                    rng.gen_range(0.0..2.0)
                 })
                 .into_dyn();
             let result = result_dynamic.into_dimensionality::<Ix3>().unwrap();
@@ -746,7 +746,7 @@ mod tests {
             let mut activations = HashMap::new();
             let mut rng = thread_rng();
             let result_dynamic =
-                Array2::<Float>::from_shape_fn((input.nrows(), 32), |_| rng.gen_range(0.0..=1.0))
+                Array2::<Float>::from_shape_fn((input.nrows(), 32), |_| rng.gen_range(0.0..2.0))
                     .into_dyn();
             let result = result_dynamic
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
@@ -761,7 +761,7 @@ mod tests {
         let model = MockAnalyzer;
         let mut rng = thread_rng();
         let input_dynamic =
-            Array2::<Float>::from_shape_fn((2, 10), |_| rng.gen_range(0.0..=1.0)).into_dyn();
+            Array2::<Float>::from_shape_fn((2, 10), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let input = input_dynamic
             .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .unwrap();
@@ -793,7 +793,7 @@ mod tests {
         let model = MockAnalyzer;
         let mut rng = thread_rng();
         let input_samples_dynamic =
-            Array3::<Float>::from_shape_fn((5, 20, 20), |_| rng.gen_range(0.0..=1.0)).into_dyn();
+            Array3::<Float>::from_shape_fn((5, 20, 20), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let input_samples = input_samples_dynamic.into_dimensionality::<Ix3>().unwrap();
         let config = AttentionConfig::default();
 
@@ -809,7 +809,7 @@ mod tests {
         let model = MockAnalyzer;
         let mut rng = thread_rng();
         let input_dynamic =
-            Array2::<Float>::from_shape_fn((20, 20), |_| rng.gen_range(0.0..=1.0)).into_dyn();
+            Array2::<Float>::from_shape_fn((20, 20), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let input = input_dynamic
             .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .unwrap();
@@ -831,7 +831,7 @@ mod tests {
     fn test_attention_entropy() {
         let mut rng = thread_rng();
         let attention_weights_dynamic =
-            Array3::<Float>::from_shape_fn((2, 3, 5), |_| rng.gen_range(0.0..=1.0)).into_dyn();
+            Array3::<Float>::from_shape_fn((2, 3, 5), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let attention_weights = attention_weights_dynamic
             .into_dimensionality::<Ix3>()
             .unwrap();
@@ -858,7 +858,7 @@ mod tests {
         let model = MockAnalyzer;
         let mut rng = thread_rng();
         let concept_dataset_dynamic =
-            Array3::<Float>::from_shape_fn((10, 20, 20), |_| rng.gen_range(0.0..=1.0)).into_dyn();
+            Array3::<Float>::from_shape_fn((10, 20, 20), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let concept_dataset = concept_dataset_dynamic
             .into_dimensionality::<Ix3>()
             .unwrap();

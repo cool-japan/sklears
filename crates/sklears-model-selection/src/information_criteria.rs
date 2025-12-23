@@ -14,7 +14,7 @@
 //! - TIC (Takeuchi Information Criterion)
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float as FloatTrait;
+// use scirs2_core::numeric::Float as FloatTrait;
 use sklears_core::error::{Result, SklearsError};
 use std::fmt::Debug;
 
@@ -354,7 +354,7 @@ impl InformationCriterionCalculator {
                 ));
             }
 
-            let normalized_weights: Vec<f64> = weights.iter().map(|&w| w / sum_weights).collect();
+            let _normalized_weights: Vec<f64> = weights.iter().map(|&w| w / sum_weights).collect();
 
             // LOO predictive density
             let loo_lpd = (sum_weights / n_samples as f64).ln() + max_log_like;
@@ -417,7 +417,7 @@ impl InformationCriterionCalculator {
         let model_names: Vec<String> = models.iter().map(|(name, _, _, _)| name.clone()).collect();
 
         // Calculate IC for each model
-        for (name, log_likelihood, n_params, n_data) in models {
+        for (_name, log_likelihood, n_params, n_data) in models {
             let result = match criterion {
                 InformationCriterion::AIC => self.aic(*log_likelihood, *n_params, *n_data),
                 InformationCriterion::AICc => self.aicc(*log_likelihood, *n_params, *n_data)?,

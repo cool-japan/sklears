@@ -2,9 +2,10 @@
 //! This module provides Mini-batch t-SNE for large-scale datasets that don't fit in memory.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
-use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -166,7 +167,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MiniBatchTSNE<Untrained> {
             let mut rng = if let Some(seed) = self.random_state {
                 StdRng::seed_from_u64(seed + iter as u64)
             } else {
-                StdRng::seed_from_u64(thread_rng().gen::<u64>())
+                StdRng::seed_from_u64(thread_rng().random::<u64>())
             };
 
             let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -291,7 +292,7 @@ impl MiniBatchTSNE<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut embedding = Array2::zeros((n_samples, self.n_components));

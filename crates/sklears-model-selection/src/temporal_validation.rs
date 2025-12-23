@@ -3,7 +3,6 @@
 //! This module provides sophisticated validation methods for time series data
 //! that respect temporal dependencies and prevent data leakage.
 
-use numrs2::prelude::*;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 
@@ -63,14 +62,13 @@ impl TemporalCrossValidator {
             ));
         }
 
-        let mut splits = Vec::new();
         let sorted_indices = self.sort_by_time(time_index)?;
 
-        if self.config.forward_chaining {
-            splits = self.forward_chaining_splits(&sorted_indices)?;
+        let mut splits = if self.config.forward_chaining {
+            self.forward_chaining_splits(&sorted_indices)?
         } else {
-            splits = self.sliding_window_splits(&sorted_indices)?;
-        }
+            self.sliding_window_splits(&sorted_indices)?
+        };
 
         // Apply temporal constraints
         self.apply_temporal_constraints(&mut splits, time_index)?;
@@ -161,7 +159,7 @@ impl TemporalCrossValidator {
     /// Apply temporal constraints to ensure no data leakage
     fn apply_temporal_constraints(
         &self,
-        splits: &mut Vec<(Vec<usize>, Vec<usize>)>,
+        splits: &mut [(Vec<usize>, Vec<usize>)],
         time_index: &[usize],
     ) -> Result<()> {
         for (train_indices, test_indices) in splits.iter_mut() {
@@ -203,7 +201,7 @@ impl SeasonalCrossValidator {
     /// Generate seasonal splits that maintain seasonal patterns
     pub fn split(
         &self,
-        n_samples: usize,
+        _n_samples: usize,
         time_index: &[usize],
     ) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
         let mut splits = Vec::new();
@@ -261,7 +259,7 @@ impl SeasonalCrossValidator {
         let mut train_indices = Vec::new();
         let mut test_indices = Vec::new();
 
-        for (season, indices) in seasonal_groups {
+        for indices in seasonal_groups.values() {
             let n_season_samples = indices.len();
             let test_size = (n_season_samples as f64 * self.config.test_size) as usize;
             let samples_per_split = test_size.max(1);
@@ -271,9 +269,7 @@ impl SeasonalCrossValidator {
 
             if test_start < n_season_samples {
                 // Add test samples
-                for i in test_start..test_end {
-                    test_indices.push(indices[i]);
-                }
+                test_indices.extend_from_slice(&indices[test_start..test_end]);
 
                 // Add training samples (excluding test and respecting temporal constraints)
                 for (i, &idx) in indices.iter().enumerate() {
@@ -311,7 +307,7 @@ impl BlockedTemporalCV {
     /// Generate blocked temporal splits
     pub fn split(
         &self,
-        n_samples: usize,
+        _n_samples: usize,
         time_index: &[usize],
     ) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
         let sorted_indices = self.sort_by_time(time_index)?;

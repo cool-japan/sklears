@@ -4,7 +4,7 @@
 //! class probabilities in multiclass classification problems.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom, Rng};
 use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Methods for interval estimation
@@ -96,7 +96,7 @@ impl IntervalEstimator {
         probabilities: &Array2<f64>,
         calibration_scores: Option<&Array2<f64>>,
     ) -> SklResult<Array2<f64>> {
-        let (n_samples, n_classes) = probabilities.dim();
+        let (_n_samples, _n_classes) = probabilities.dim();
 
         match &self.method {
             IntervalMethod::Bootstrap {
@@ -155,9 +155,9 @@ impl IntervalEstimator {
         let (n_samples, n_classes) = probabilities.dim();
         let mut intervals = Array2::zeros((n_samples, n_classes * 2));
 
-        let mut rng = match random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         for i in 0..n_samples {
@@ -195,14 +195,14 @@ impl IntervalEstimator {
     fn generate_bootstrap_sample(
         &self,
         probabilities: &Array1<f64>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<Array1<f64>> {
         let n_classes = probabilities.len();
 
         // Apply random perturbation to each probability
         let mut perturbed = Array1::zeros(n_classes);
         for (i, &p) in probabilities.iter().enumerate() {
-            let perturbation = rng.random_f64() * 0.4 + 0.8; // Perturbation range (0.8 to 1.2)
+            let perturbation: f64 = rng.gen::<f64>() * 0.4 + 0.8; // Perturbation range (0.8 to 1.2)
             perturbed[i] = (p * perturbation).max(1e-6);
         }
 

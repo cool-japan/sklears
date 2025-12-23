@@ -31,9 +31,9 @@ pub fn cross_product(a: &[f32], b: &[f32]) -> Result<Vec<f32>, &'static str> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return Ok(unsafe { cross_product_avx2(a, b) });
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return Ok(unsafe { cross_product_sse2(a, b) });
         }
     }
@@ -115,9 +115,9 @@ unsafe fn cross_product_avx2(a: &[f32], b: &[f32]) -> Vec<f32> {
 pub fn outer_product(a: &[f32], b: &[f32]) -> Vec<Vec<f32>> {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return unsafe { outer_product_avx2(a, b) };
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return unsafe { outer_product_sse2(a, b) };
         }
     }
@@ -229,9 +229,9 @@ pub fn euclidean_distance(a: &[f32], b: &[f32]) -> Result<f32, &'static str> {
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return Ok(unsafe { euclidean_distance_avx2(a, b) });
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return Ok(unsafe { euclidean_distance_sse2(a, b) });
         }
     }
@@ -375,9 +375,9 @@ pub fn hadamard_product(a: &[f32], b: &[f32]) -> Result<Vec<f32>, &'static str> 
 
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
-        if is_x86_feature_detected!("avx2") {
+        if crate::simd_feature_detected!("avx2") {
             return Ok(unsafe { hadamard_product_avx2(a, b) });
-        } else if is_x86_feature_detected!("sse2") {
+        } else if crate::simd_feature_detected!("sse2") {
             return Ok(unsafe { hadamard_product_sse2(a, b) });
         }
     }
@@ -545,7 +545,7 @@ pub fn cross_correlation_1d(signal: &[f32], template: &[f32]) -> Vec<f32> {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
 

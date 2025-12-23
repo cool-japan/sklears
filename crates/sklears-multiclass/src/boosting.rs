@@ -4,7 +4,7 @@
 //! for multiclass classification.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Random};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom, Rng};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, PredictProba, Trained, Untrained},
@@ -35,7 +35,7 @@ pub struct AdaBoostConfig {
     pub learning_rate: f64,
     /// AdaBoost strategy (M1 or M2)
     pub strategy: AdaBoostStrategy,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Maximum depth for base estimators (if applicable)
     pub max_depth: Option<usize>,
@@ -263,7 +263,7 @@ where
 
     fn fit(self, X: &Array2<f64>, y: &Array1<i32>) -> SklResult<Self::Fitted> {
         validate::check_consistent_length(X, y)?;
-        let (n_samples, _n_features) = X.dim();
+        let (_n_samples, _n_features) = X.dim();
 
         // Get unique classes
         let mut classes: Vec<i32> = y.iter().cloned().collect();
@@ -304,9 +304,9 @@ where
         let mut estimator_weights = Vec::new();
         let mut errors = Vec::new();
 
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         for t in 0..self.config.n_estimators {
@@ -403,9 +403,9 @@ where
         let mut estimator_weights = Vec::new();
         let mut errors = Vec::new();
 
-        let mut rng = match self.config.random_state {
-            Some(seed) => Random::seed(seed),
-            None => Random::seed(42),
+        let mut rng: CoreRandom<StdRng> = match self.config.random_state {
+            Some(seed) => seeded_rng(seed),
+            None => seeded_rng(42),
         };
 
         for t in 0..self.config.n_estimators {
@@ -496,7 +496,7 @@ where
         X: &Array2<f64>,
         y: &Array1<i32>,
         sample_weights: &Array1<f64>,
-        rng: &mut Random<StdRng>,
+        rng: &mut CoreRandom<StdRng>,
     ) -> SklResult<(Array2<f64>, Array1<i32>)> {
         let n_samples = X.nrows();
         let n_features = X.ncols();
@@ -513,7 +513,7 @@ where
         let mut y_bootstrap = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let r: f64 = rng.random_f64();
+            let r: f64 = rng.gen();
             let idx = cum_weights
                 .iter()
                 .position(|&w| w >= r)
@@ -656,7 +656,7 @@ pub struct GradientBoostingConfig {
     pub min_samples_leaf: usize,
     /// Fraction of samples used for fitting the individual base learners
     pub subsample: f64,
-    /// Random state for reproducibility
+    /// StdRng state for reproducibility
     pub random_state: Option<u64>,
     /// Loss function to be optimized
     pub loss: GradientBoostingLoss,

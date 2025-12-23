@@ -3,7 +3,6 @@
 //! This module provides cross-validation methods that account for spatial
 //! autocorrelation and geographic dependencies in spatial datasets.
 
-use numrs2::prelude::*;
 use scirs2_core::random::Rng;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashSet;
@@ -162,7 +161,7 @@ impl SpatialCrossValidator {
 
         // Initialize centroids randomly
         let mut rng = self.get_rng();
-        for i in 0..self.config.n_splits {
+        for _i in 0..self.config.n_splits {
             let idx = rng.gen_range(0..n_samples);
             centroids.push(coordinates[idx]);
         }
@@ -397,6 +396,7 @@ impl SpatialCrossValidator {
         neighbors
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn expand_cluster(
         &self,
         point: usize,
@@ -506,7 +506,8 @@ impl SpatialCrossValidator {
     }
 
     fn get_rng(&self) -> impl scirs2_core::random::Rng {
-        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
         match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => StdRng::seed_from_u64(42),

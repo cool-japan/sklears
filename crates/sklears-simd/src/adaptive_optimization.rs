@@ -148,23 +148,23 @@ impl AdaptiveOptimizer {
 
     /// Helper function to handle mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn lock_cache(&self) -> std::sync::MutexGuard<HashMap<String, AlgorithmPerformance>> {
+    fn lock_cache(&self) -> std::sync::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
         self.performance_cache.lock().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_cache(&self) -> spin::MutexGuard<HashMap<String, AlgorithmPerformance>> {
+    fn lock_cache(&self) -> spin::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
         self.performance_cache.lock()
     }
 
     /// Helper function to handle mutable mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
-    fn lock_cache_mut(&self) -> std::sync::MutexGuard<HashMap<String, AlgorithmPerformance>> {
+    fn lock_cache_mut(&self) -> std::sync::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
         self.performance_cache.lock().unwrap()
     }
 
     #[cfg(feature = "no-std")]
-    fn lock_cache_mut(&self) -> spin::MutexGuard<HashMap<String, AlgorithmPerformance>> {
+    fn lock_cache_mut(&self) -> spin::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
         self.performance_cache.lock()
     }
 
@@ -185,28 +185,36 @@ impl AdaptiveOptimizer {
         input: &T,
         strategy: DispatchStrategy,
     ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
-        let applicable_variants: Vec<&Box<dyn AlgorithmVariant<T>>> = variants
+        let applicable_variants: Vec<&'a dyn AlgorithmVariant<T>> = variants
             .iter()
             .filter(|variant| variant.is_applicable(input))
+            .map(|boxed| boxed.as_ref())
             .collect();
 
         if applicable_variants.is_empty() {
             return None;
         }
 
-        match strategy {
+        let selected = match strategy {
             DispatchStrategy::AlwaysFastest => self.select_fastest(&applicable_variants, input),
             DispatchStrategy::MostReliable => self.select_most_reliable(&applicable_variants),
             DispatchStrategy::Balanced => self.select_balanced(&applicable_variants, input),
             DispatchStrategy::DataDriven => self.select_data_driven(&applicable_variants, input),
             DispatchStrategy::MLGuided => self.select_ml_guided(&applicable_variants, input),
-        }
+        };
+
+        // Find the original Box corresponding to the selected trait object
+        selected.and_then(|selected_variant| {
+            variants.iter().find(|boxed| {
+                core::ptr::eq(boxed.as_ref() as *const _, selected_variant as *const _)
+            })
+        })
     }
 
     /// Execute algorithm with performance tracking
     pub fn execute_with_tracking<T>(
         &self,
-        variant: &Box<dyn AlgorithmVariant<T>>,
+        variant: &dyn AlgorithmVariant<T>,
         input: &T,
     ) -> Result<T, AlgorithmError> {
         #[cfg(not(feature = "no-std"))]
@@ -291,9 +299,9 @@ impl AdaptiveOptimizer {
 
     fn select_fastest<'a, T>(
         &self,
-        variants: &[&'a Box<dyn AlgorithmVariant<T>>],
+        variants: &[&'a dyn AlgorithmVariant<T>],
         _input: &T,
-    ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
+    ) -> Option<&'a dyn AlgorithmVariant<T>> {
         let cache = self.lock_cache();
 
         variants
@@ -309,8 +317,8 @@ impl AdaptiveOptimizer {
 
     fn select_most_reliable<'a, T>(
         &self,
-        variants: &[&'a Box<dyn AlgorithmVariant<T>>],
-    ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
+        variants: &[&'a dyn AlgorithmVariant<T>],
+    ) -> Option<&'a dyn AlgorithmVariant<T>> {
         let cache = self.lock_cache();
 
         variants
@@ -333,9 +341,9 @@ impl AdaptiveOptimizer {
 
     fn select_balanced<'a, T>(
         &self,
-        variants: &[&'a Box<dyn AlgorithmVariant<T>>],
+        variants: &[&'a dyn AlgorithmVariant<T>],
         _input: &T,
-    ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
+    ) -> Option<&'a dyn AlgorithmVariant<T>> {
         let cache = self.lock_cache();
 
         variants
@@ -352,9 +360,9 @@ impl AdaptiveOptimizer {
 
     fn select_data_driven<'a, T>(
         &self,
-        variants: &[&'a Box<dyn AlgorithmVariant<T>>],
+        variants: &[&'a dyn AlgorithmVariant<T>],
         input: &T,
-    ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
+    ) -> Option<&'a dyn AlgorithmVariant<T>> {
         // Simple heuristic: prefer algorithms with lower estimated cost
         variants
             .iter()
@@ -370,9 +378,9 @@ impl AdaptiveOptimizer {
 
     fn select_ml_guided<'a, T>(
         &self,
-        variants: &[&'a Box<dyn AlgorithmVariant<T>>],
+        variants: &[&'a dyn AlgorithmVariant<T>],
         input: &T,
-    ) -> Option<&'a Box<dyn AlgorithmVariant<T>>> {
+    ) -> Option<&'a dyn AlgorithmVariant<T>> {
         // Simplified ML-guided selection
         // In a real implementation, this would use a trained model
         let cache = self.lock_cache();
@@ -419,7 +427,7 @@ impl AdaptiveOptimizer {
                 use scirs2_core::random::thread_rng;
                 use scirs2_core::Rng;
                 let mut rng = thread_rng();
-                0.1 * rng.random::<f64>()
+                0.1 * rng.gen::<f64>()
             };
             base_score + exploration_factor
         } else {
@@ -586,9 +594,18 @@ impl Default for AutoTuningConfig {
 }
 
 #[allow(non_snake_case)]
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "no-std")]
+    use alloc::{
+        boxed::Box,
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
+
     #[cfg(not(feature = "no-std"))]
     use std::time::Duration;
 
@@ -612,7 +629,7 @@ mod tests {
                 use scirs2_core::random::thread_rng;
                 use scirs2_core::Rng;
                 let mut rng = thread_rng();
-                rng.random::<f64>()
+                rng.gen::<f64>()
             };
             if random_val < self.success_rate {
                 Ok(vec![1.0, 2.0, 3.0])
@@ -672,7 +689,7 @@ mod tests {
             success_rate: 1.0,
         });
 
-        let result = optimizer.execute_with_tracking(&variant, &input);
+        let result = optimizer.execute_with_tracking(variant.as_ref(), &input);
         assert!(result.is_ok());
 
         // Check that performance stats were recorded

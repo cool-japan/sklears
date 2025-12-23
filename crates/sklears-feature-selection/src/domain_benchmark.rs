@@ -1,7 +1,7 @@
 //! Benchmarking framework for domain-specific feature selection methods
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Distribution, Rng, StandardNormal};
+use scirs2_core::random::{thread_rng, Distribution, StandardNormal};
 use sklears_core::error::SklearsError;
 use sklears_core::traits::{Fit, Transform};
 use std::time::{Duration, Instant};
@@ -143,7 +143,7 @@ impl DomainBenchmarkFramework {
                             k,
                             strategy.clone(),
                         ) {
-                            Ok((fit_time, transform_time, quality, selected_count)) => {
+                            Ok((fit_time, transform_time, quality, _selected_count)) => {
                                 avg_fit_time += fit_time;
                                 avg_transform_time += transform_time;
                                 avg_quality += quality;
@@ -209,7 +209,7 @@ impl DomainBenchmarkFramework {
                             k,
                             strategy.clone(),
                         ) {
-                            Ok((fit_time, transform_time, quality, selected_count)) => {
+                            Ok((fit_time, transform_time, quality, _selected_count)) => {
                                 avg_fit_time += fit_time;
                                 avg_transform_time += transform_time;
                                 avg_quality += quality;
@@ -275,7 +275,7 @@ impl DomainBenchmarkFramework {
                             k,
                             strategy.clone(),
                         ) {
-                            Ok((fit_time, transform_time, quality, selected_count)) => {
+                            Ok((fit_time, transform_time, quality, _selected_count)) => {
                                 avg_fit_time += fit_time;
                                 avg_transform_time += transform_time;
                                 avg_quality += quality;

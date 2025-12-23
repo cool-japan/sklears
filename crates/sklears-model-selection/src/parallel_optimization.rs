@@ -5,7 +5,9 @@
 //! techniques to efficiently utilize available computational resources.
 
 use rayon::prelude::*;
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -290,7 +292,7 @@ impl ParallelOptimizer {
             + Sync
             + 'static,
     {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         let evaluation_fn = Arc::new(evaluation_fn);
 
         match &self.config.strategy {
@@ -752,7 +754,7 @@ impl ParallelOptimizer {
         let mut config = HashMap::new();
 
         for (i, &(low, high)) in parameter_bounds.iter().enumerate() {
-            let value = rng.gen_range(low..=high);
+            let value = rng.gen_range(low..high + 1.0);
             config.insert(format!("param_{}", i), value);
         }
 
@@ -822,7 +824,7 @@ impl ParallelOptimizer {
     /// Generate acquisition batch
     fn generate_acquisition_batch(
         &self,
-        acquisition_strategy: &BatchAcquisitionStrategy,
+        _acquisition_strategy: &BatchAcquisitionStrategy,
         parameter_bounds: &[(Float, Float)],
         batch_size: usize,
     ) -> Result<Vec<HashMap<String, Float>>, Box<dyn std::error::Error>> {

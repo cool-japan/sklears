@@ -422,6 +422,7 @@ impl RTree {
     }
 
     /// Recursive range query
+    #[allow(clippy::only_used_in_recursion)]
     fn range_query_recursive(
         &self,
         node: &RTreeNode,
@@ -636,7 +637,7 @@ impl QuadTree {
         &self,
         bounds: Rectangle,
         points: Vec<QuadPoint>,
-        depth: usize,
+        _depth: usize,
     ) -> NeighborsResult<QuadTreeNode> {
         let mut children: [Option<Box<QuadTreeNode>>; 4] = [None, None, None, None];
 
@@ -734,6 +735,7 @@ impl QuadTree {
     }
 
     /// Recursive range query
+    #[allow(clippy::only_used_in_recursion)]
     fn range_query_recursive(
         &self,
         node: &QuadTreeNode,
@@ -786,7 +788,10 @@ impl QuadTree {
                     candidates.push((point.clone(), distance));
                 }
             }
-            QuadTreeNode::Internal { bounds, children } => {
+            QuadTreeNode::Internal {
+                bounds: _,
+                children,
+            } => {
                 // Sort children by minimum distance to query point
                 let mut child_distances: Vec<(usize, Float)> = children
                     .iter()
@@ -1099,6 +1104,7 @@ impl OctTree {
     }
 
     /// Recursive range query
+    #[allow(clippy::only_used_in_recursion)]
     fn range_query_recursive(
         &self,
         node: &OctTreeNode,
@@ -1311,6 +1317,7 @@ impl OctTree {
     }
 
     /// Calculate height of a subtree
+    #[allow(clippy::only_used_in_recursion)]
     fn node_height(&self, node: &OctTreeNode) -> usize {
         match node {
             OctTreeNode::Leaf { .. } => 1,
@@ -1659,7 +1666,7 @@ impl SpatialHash {
         // Generate all combinations of offsets in the given radius
         let mut offsets = vec![vec![]];
 
-        for dim in 0..self.dimensions {
+        for _dim in 0..self.dimensions {
             let mut new_offsets = Vec::new();
             for offset in offsets {
                 for delta in -radius..=radius {

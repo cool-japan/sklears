@@ -7,7 +7,7 @@
 use crate::sparse_gp::core::*;
 use crate::sparse_gp::kernels::{KernelOps, SparseKernel};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
 
 /// Inducing point selection strategies implementation
@@ -48,7 +48,7 @@ impl InducingPointSelector {
 
         // Fisher-Yates shuffle
         for i in (1..n_samples).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.gen_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -326,7 +326,7 @@ impl SparseApproximationMethods {
         }
 
         // Compute K_nm (cross-covariance between data and inducing points)
-        let k_nm = kernel.kernel_matrix(x, inducing_points);
+        let _k_nm = kernel.kernel_matrix(x, inducing_points);
 
         // For SoR: use only inducing point subset
         // Solve (K_mm + σ²I) α = K_mn y_subset
@@ -351,8 +351,8 @@ impl SparseApproximationMethods {
         kernel: &K,
         noise_variance: f64,
     ) -> Result<(Array1<f64>, Array2<f64>)> {
-        let n = x.nrows();
-        let m = inducing_points.nrows();
+        let _n = x.nrows();
+        let _m = inducing_points.nrows();
 
         // Compute kernel matrices
         let k_mm = kernel.kernel_matrix(inducing_points, inducing_points);
@@ -402,7 +402,7 @@ impl SparseApproximationMethods {
         block_size: usize,
     ) -> Result<(Array1<f64>, Array2<f64>)> {
         let n = x.nrows();
-        let m = inducing_points.nrows();
+        let _m = inducing_points.nrows();
 
         if block_size >= n {
             // If block size >= n, PIC reduces to standard GP
@@ -411,7 +411,7 @@ impl SparseApproximationMethods {
 
         // Compute kernel matrices
         let k_mm = kernel.kernel_matrix(inducing_points, inducing_points);
-        let k_nm = kernel.kernel_matrix(x, inducing_points);
+        let _k_nm = kernel.kernel_matrix(x, inducing_points);
 
         let k_mm_inv = KernelOps::invert_using_cholesky(&k_mm)?;
 
@@ -479,7 +479,7 @@ impl SparseApproximationMethods {
         y: &Array1<f64>,
         x: &Array2<f64>,
         inducing_points: &Array2<f64>,
-        kernel: &K,
+        _kernel: &K,
     ) -> Result<Array1<f64>> {
         let n = x.nrows();
         let m = inducing_points.nrows();

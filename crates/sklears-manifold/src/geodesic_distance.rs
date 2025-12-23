@@ -365,7 +365,7 @@ pub fn landmark_geodesic(
     let mut rng = if let Some(s) = seed {
         StdRng::seed_from_u64(s)
     } else {
-        StdRng::seed_from_u64(thread_rng().gen::<u64>())
+        StdRng::seed_from_u64(thread_rng().random::<u64>())
     };
 
     let mut landmarks = Vec::new();

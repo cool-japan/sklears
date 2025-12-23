@@ -346,10 +346,10 @@ impl AdvancedGpuOps {
         &mut self,
         a: &Array2<Float>,
         b: &Array2<Float>,
-        device_id: usize,
+        _device_id: usize,
     ) -> Result<Array2<Float>> {
-        let (m, k) = a.dim();
-        let (_, n) = b.dim();
+        let (_m, _k) = a.dim();
+        let (_, _n) = b.dim();
 
         // For now, use CPU implementation as fallback
         // In a real implementation, this would:
@@ -366,10 +366,10 @@ impl AdvancedGpuOps {
         &mut self,
         a: &ArrayView2<Float>,
         b: &Array2<Float>,
-        device_id: usize,
+        _device_id: usize,
     ) -> Result<Array2<Float>> {
-        let (m, k) = a.dim();
-        let (_, n) = b.dim();
+        let (_m, _k) = a.dim();
+        let (_, _n) = b.dim();
 
         // Convert view to owned array for dot product
         let a_owned = a.to_owned();
@@ -541,7 +541,7 @@ impl AdvancedGpuOps {
             ));
         }
 
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
         // For very large matrices, use distributed computation
         if m * n * k > 1_000_000_000 {
@@ -565,7 +565,7 @@ impl AdvancedGpuOps {
         // - 2.5D matrix multiplication algorithms
 
         // For now, use simple block-wise distribution
-        let (m, k) = a.dim();
+        let (m, _k) = a.dim();
         let (_, n) = b.dim();
         let num_gpus = self.config.device_ids.len();
 
@@ -840,7 +840,7 @@ mod tests {
 
         // Test deallocation
         pool.deallocate(ptr1).unwrap();
-        let ptr3 = pool.allocate(128).unwrap();
+        let _ptr3 = pool.allocate(128).unwrap();
 
         let (used, total) = pool.memory_usage();
         assert_eq!(total, 1024);

@@ -111,19 +111,19 @@ fn demo_financial_data_analysis() -> Result<(), Box<dyn std::error::Error>> {
 
     for _ in 0..100 {
         // Generate correlated returns for a portfolio using direct random generation
-        let market_shock: f64 = (rng.gen::<f64>() * 2.0 - 1.0) * 0.01;
+        let market_shock: f64 = (rng.random::<f64>() * 2.0 - 1.0) * 0.01;
 
         // Tech stock - high volatility, correlated with market
-        let tech_return = market_shock * 1.5 + (rng.gen::<f64>() * 2.0 - 1.0) * 0.02;
+        let tech_return = market_shock * 1.5 + (rng.random::<f64>() * 2.0 - 1.0) * 0.02;
 
         // Utility stock - low volatility, less correlated
-        let utility_return = market_shock * 0.5 + (rng.gen::<f64>() * 2.0 - 1.0) * 0.008;
+        let utility_return = market_shock * 0.5 + (rng.random::<f64>() * 2.0 - 1.0) * 0.008;
 
         // Bond - low volatility, slightly negatively correlated
-        let bond_return = -market_shock * 0.2 + (rng.gen::<f64>() * 2.0 - 1.0) * 0.005;
+        let bond_return = -market_shock * 0.2 + (rng.random::<f64>() * 2.0 - 1.0) * 0.005;
 
         // Commodity - moderate volatility, different correlation pattern
-        let commodity_return = market_shock * 0.8 + (rng.gen::<f64>() * 2.0 - 1.0) * 0.015;
+        let commodity_return = market_shock * 0.8 + (rng.random::<f64>() * 2.0 - 1.0) * 0.015;
 
         financial_data.push(vec![
             tech_return,

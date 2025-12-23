@@ -4,7 +4,8 @@
 //! prevention, memory-based approaches, and progressive learning strategies.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
+use scirs2_core::random::Rng;
 use sklears_core::{
     error::Result as SklResult,
     prelude::{Predict, SklearsError},
@@ -227,7 +228,7 @@ impl MemoryBuffer {
                 }
                 SamplingStrategy::Reservoir => {
                     // Standard reservoir sampling
-                    let replace_idx = thread_rng().gen_range(0..=self.samples.len());
+                    let replace_idx = thread_rng().gen_range(0..(self.samples.len() + 1));
                     if replace_idx < self.samples.len() {
                         if let Some(old_sample) = self.samples.get(replace_idx) {
                             let count = self

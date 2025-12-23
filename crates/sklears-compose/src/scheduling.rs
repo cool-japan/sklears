@@ -208,7 +208,7 @@ impl Default for ResourcePool {
         Self {
             available_cpu: 4,
             available_memory: 8192,
-            available_disk: 100000,
+            available_disk: 100_000,
             available_gpu: 0,
             utilization_history: Vec::new(),
         }
@@ -763,7 +763,7 @@ impl TaskScheduler {
                 .duration_since(SystemTime::now())
                 .unwrap_or(Duration::ZERO)
                 .as_secs() as i64;
-            score += 1000000 / (time_to_deadline + 1); // Higher score for urgent tasks
+            score += 1_000_000 / (time_to_deadline + 1); // Higher score for urgent tasks
         }
 
         // Adjust for submission time (older tasks get higher priority)

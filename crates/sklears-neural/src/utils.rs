@@ -197,7 +197,7 @@ pub fn create_batches_regression(
 /// Initialize weights based on initialization strategy
 pub fn initialize_weights(rows: usize, cols: usize, init: &WeightInit) -> Array2<f64> {
     use scirs2_core::random::essentials::{Normal, Uniform};
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
 
@@ -232,7 +232,7 @@ pub fn initialize_weights(rows: usize, cols: usize, init: &WeightInit) -> Array2
 /// Initialize biases
 pub fn initialize_biases(size: usize, init: &WeightInit) -> Array1<f64> {
     use scirs2_core::random::essentials::{Normal, Uniform};
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     let mut rng = thread_rng();
 

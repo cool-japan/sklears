@@ -9,7 +9,8 @@ use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4};
 use scirs2_core::random::essentials::{
     Normal, Normal as RandNormal, Uniform, Uniform as RandUniform,
 };
-use scirs2_core::random::{ChaCha8Rng, Distribution, Rng, SeedableRng};
+use scirs2_core::random::{Distribution, Rng};
+use scirs2_core::{ChaCha8Rng, SeedableRng};
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
 
@@ -602,7 +603,7 @@ impl<T: FloatBounds> TimeSeriesAugmentation<T> {
         let mut result = Array2::zeros((n_samples, n_features));
 
         for i in 0..n_samples {
-            let start_idx = rng.gen_range(0..=(n_features - window_size));
+            let start_idx = rng.gen_range(0..(n_features - window_size + 1));
             let original_row = data.row(i);
 
             // Copy the selected window and pad with zeros or repeat

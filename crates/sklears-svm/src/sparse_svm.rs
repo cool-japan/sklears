@@ -4,7 +4,8 @@
 //! through L1 regularization, producing models with many zero coefficients.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Data};
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::{SeedableRng, StdRng};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict},
@@ -208,7 +209,6 @@ impl SparseSVM {
                 "cyclic" => (0..n_features).collect(),
                 "random" => {
                     let mut indices: Vec<usize> = (0..n_features).collect();
-                    use scirs2_core::rand_prelude::SliceRandom;
                     indices.shuffle(&mut rng);
                     indices
                 }

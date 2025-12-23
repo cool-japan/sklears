@@ -4,12 +4,11 @@
 //! time series data, including Dynamic Time Warping (DTW), autoregressive kernels,
 //! spectral kernels, and other time-series specific kernel methods.
 
-use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Distribution;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::Result;
 
 /// Time series kernel type
@@ -408,7 +407,7 @@ impl AutoregressiveKernelApproximation {
 
     /// Fit the autoregressive kernel approximation
     pub fn fit(&mut self, time_series: &Array3<f64>) -> Result<()> {
-        let (n_series, n_timepoints, n_features) = time_series.dim();
+        let (n_series, _n_timepoints, n_features) = time_series.dim();
 
         if let TimeSeriesKernelType::Autoregressive { order, lambda } = &self.config.kernel_type {
             // Fit AR models to each time series
@@ -431,13 +430,13 @@ impl AutoregressiveKernelApproximation {
 
     /// Transform time series using AR kernel features
     pub fn transform(&self, time_series: &Array3<f64>) -> Result<Array2<f64>> {
-        let ar_coefficients = self.ar_coefficients.as_ref().ok_or("Model not fitted")?;
+        let _ar_coefficients = self.ar_coefficients.as_ref().ok_or("Model not fitted")?;
         let random_features = self
             .random_features
             .as_ref()
             .ok_or("Random features not generated")?;
 
-        let (n_series, n_timepoints, n_features) = time_series.dim();
+        let (n_series, _n_timepoints, _n_features) = time_series.dim();
         let n_components = self.config.n_components;
 
         let mut features = Array2::zeros((n_series, n_components));
@@ -586,7 +585,7 @@ impl SpectralKernelApproximation {
 
     /// Fit the spectral kernel approximation
     pub fn fit(&mut self, time_series: &Array3<f64>) -> Result<()> {
-        let (n_series, n_timepoints, n_features) = time_series.dim();
+        let (n_series, _n_timepoints, n_features) = time_series.dim();
 
         if let TimeSeriesKernelType::Spectral {
             n_frequencies,
@@ -616,7 +615,7 @@ impl SpectralKernelApproximation {
     pub fn transform(&self, time_series: &Array3<f64>) -> Result<Array2<f64>> {
         let frequency_features = self.frequency_features.as_ref().ok_or("Model not fitted")?;
 
-        let (n_series, n_timepoints, n_features) = time_series.dim();
+        let (n_series, _n_timepoints, _n_features) = time_series.dim();
         let n_components = self.config.n_components;
 
         let mut features = Array2::zeros((n_series, n_components));

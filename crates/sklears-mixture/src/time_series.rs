@@ -47,7 +47,7 @@ impl HiddenMarkovModelBuilder {
     }
 
     pub fn build(self) -> HiddenMarkovModel {
-        /// HiddenMarkovModel
+        // Return HiddenMarkovModel
         HiddenMarkovModel
     }
 }
@@ -91,7 +91,7 @@ impl RegimeSwitchingModelBuilder {
     }
 
     pub fn build(self) -> RegimeSwitchingModel {
-        /// RegimeSwitchingModel
+        // Return RegimeSwitchingModel
         RegimeSwitchingModel
     }
 }
@@ -118,7 +118,7 @@ impl SwitchingStateSpaceModelBuilder {
     }
 
     pub fn build(self) -> SwitchingStateSpaceModel {
-        /// SwitchingStateSpaceModel
+        // Return SwitchingStateSpaceModel
         SwitchingStateSpaceModel
     }
 }
@@ -141,7 +141,7 @@ impl TemporalGaussianMixtureBuilder {
     }
 
     pub fn build(self) -> TemporalGaussianMixture {
-        /// TemporalGaussianMixture
+        // Return TemporalGaussianMixture
         TemporalGaussianMixture
     }
 }
@@ -175,7 +175,7 @@ impl DynamicMixtureBuilder {
     }
 
     pub fn build(self) -> DynamicMixture {
-        /// DynamicMixture
+        // Return DynamicMixture
         DynamicMixture
     }
 }

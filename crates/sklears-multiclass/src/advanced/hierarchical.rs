@@ -5,7 +5,7 @@
 //! hierarchical classification with support for various traversal strategies.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::Random;
+use scirs2_core::random::seeded_rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -21,8 +21,8 @@ use std::marker::PhantomData;
 /// Strategy for building nested dichotomies tree
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DichotomyStrategy {
-    /// Random splits at each node
-    Random,
+    /// StdRng splits at each node
+    StdRng,
     /// Balanced splits (try to keep equal-sized subtrees)
     Balanced,
     /// Class-distance based splits (cluster similar classes)
@@ -31,7 +31,7 @@ pub enum DichotomyStrategy {
 
 impl Default for DichotomyStrategy {
     fn default() -> Self {
-        Self::Random
+        Self::StdRng
     }
 }
 
@@ -40,7 +40,7 @@ impl Default for DichotomyStrategy {
 pub struct NestedDichotomiesConfig {
     /// Strategy for building the dichotomy tree
     pub strategy: DichotomyStrategy,
-    /// Random seed for reproducible splits
+    /// StdRng seed for reproducible splits
     pub random_seed: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -312,8 +312,8 @@ pub enum PartitioningStrategy {
     MostFrequent,
     /// Select the class with the least samples
     LeastFrequent,
-    /// Random selection
-    Random,
+    /// StdRng selection
+    StdRng,
 }
 
 impl Default for PartitioningStrategy {
@@ -327,7 +327,7 @@ impl Default for PartitioningStrategy {
 pub struct RecursiveBinaryPartitioningConfig {
     /// Strategy for selecting which class to partition
     pub strategy: PartitioningStrategy,
-    /// Random seed for reproducible partitioning
+    /// StdRng seed for reproducible partitioning
     pub random_seed: Option<u64>,
     /// Number of parallel jobs
     pub n_jobs: Option<i32>,
@@ -597,15 +597,15 @@ where
 
                 Ok(class_counts.into_iter().map(|(class, _)| class).collect())
             }
-            PartitioningStrategy::Random => {
+            PartitioningStrategy::StdRng => {
                 let mut rng = match self.config.random_seed {
-                    Some(seed) => Random::seed(seed),
-                    None => Random::seed(42),
+                    Some(seed) => seeded_rng(seed),
+                    None => seeded_rng(42),
                 };
 
                 let mut shuffled_classes = classes.to_vec();
                 for i in (1..shuffled_classes.len()).rev() {
-                    let j = rng.random_range(0, i + 1);
+                    let j = rng.gen_range(0..i + 1);
                     shuffled_classes.swap(i, j);
                 }
 
@@ -615,6 +615,7 @@ where
     }
 
     /// Build the partitioning tree recursively
+    #[allow(clippy::only_used_in_recursion)]
     fn build_partition_tree(&self, classes: &[i32]) -> BinaryPartition<C> {
         // Base case: single class
         if classes.len() == 1 {
@@ -1185,7 +1186,7 @@ pub struct TaxonomyConfig {
     pub use_semantic_similarity: bool,
     /// Minimum support for taxonomy concepts
     pub min_concept_support: usize,
-    /// Random state for reproducible results
+    /// StdRng state for reproducible results
     pub random_state: Option<u64>,
 }
 

@@ -173,6 +173,12 @@ impl MetricHistory {
     }
 }
 
+impl Default for MetricHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Convergence tracker for optimization algorithms
 #[derive(Debug, Clone)]
 pub struct ConvergenceTracker {
@@ -195,11 +201,6 @@ impl ConvergenceTracker {
             metrics,
             current_iteration: 0,
         }
-    }
-
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(ConvergenceConfig::default())
     }
 
     /// Record metrics for current iteration
@@ -373,6 +374,12 @@ impl ConvergenceTracker {
     }
 }
 
+impl Default for ConvergenceTracker {
+    fn default() -> Self {
+        Self::new(ConvergenceConfig::default())
+    }
+}
+
 /// Convergence criteria for determining when optimization should stop
 #[derive(Debug, Clone)]
 pub struct ConvergenceCriteria {
@@ -421,6 +428,12 @@ impl ConvergenceCriteria {
         self.criteria
             .push(ConvergenceCriterion::ParameterStability { threshold, window });
         self
+    }
+}
+
+impl Default for ConvergenceCriteria {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -529,7 +542,7 @@ impl ConvergenceAnalysis {
     /// Compare convergence between different runs
     pub fn compare_convergence(
         histories: &[&MetricHistory],
-        metric: ConvergenceMetric,
+        _metric: ConvergenceMetric,
     ) -> ComparisonResult {
         if histories.is_empty() {
             return ComparisonResult {
@@ -587,7 +600,6 @@ pub struct ComparisonResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
 
     #[test]
     fn test_metric_history() {

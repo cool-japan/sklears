@@ -18,7 +18,7 @@ crate-type = ["cdylib"]
 [dependencies]
 # Core sklears dependencies (enabled with SciRS2 compatibility)
 sklears-core = { workspace = true }
-sklears-linear = { workspace = true }
+sklears-linear = { workspace = true, features = ["bayesian", "elastic-net", "logistic-regression"] }
 sklears-metrics = { workspace = true }
 # TODO: Enable other crates as they get SciRS2 compatibility
 # sklears = { workspace = true, features = ["all-algorithms"] }
@@ -39,10 +39,10 @@ sklears-metrics = { workspace = true }
 # sklears-utils = { workspace = true }
 
 # Python bindings
-pyo3 = { version = "0.26", features = ["extension-module", "chrono", "indexmap"] }
+pyo3 = { version = "0.25", features = ["extension-module", "chrono", "indexmap"] }
 
 # Array and data handling
-numpy = "0.26"
+numpy = "0.25"
 # SciRS2-Core integration for high-performance array operations
 scirs2-autograd = { workspace = true }  # Primary source for ndarray types
 scirs2-core = { workspace = true }  # Core SciRS2 functionality

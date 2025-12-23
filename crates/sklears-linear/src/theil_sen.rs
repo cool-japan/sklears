@@ -4,11 +4,9 @@
 //! It estimates the slope as the median of all slopes between pairs of points.
 //! This makes it robust to outliers.
 
-use ndarray_linalg::Solve;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::SliceRandomExt;
-use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
-use scirs2_linalg::solve;
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
 use std::marker::PhantomData;
 
 use sklears_core::{
@@ -163,9 +161,9 @@ fn spatial_median(points: &Array2<Float>, max_iter: usize, tol: Float) -> Array1
 
         // Update median
         median = Array1::zeros(n_features);
-        for i in 0..n_points {
-            if weights[i] > 0.0 {
-                median = median + &points.row(i) * weights[i] / total_weight;
+        for (i, &weight) in weights.iter().enumerate().take(n_points) {
+            if weight > 0.0 {
+                median = median + &points.row(i) * weight / total_weight;
             }
         }
 
@@ -249,7 +247,7 @@ fn get_combinations(
 impl Fit<Array2<Float>, Array1<Float>> for TheilSenRegressor<Untrained> {
     type Fitted = TheilSenRegressor<Trained>;
 
-    fn fit(mut self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Self::Fitted> {
+    fn fit(self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Self::Fitted> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
@@ -374,12 +372,8 @@ fn solve_least_squares(x: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Fl
     let xtx = xt.dot(x);
     let xty = xt.dot(y);
 
-    match xtx.solve(&xty.view()) {
-        Ok(coef) => Ok(coef.clone()),
-        Err(_) => Err(SklearsError::NumericalError(
-            "Failed to solve least squares".to_string(),
-        )),
-    }
+    scirs2_linalg::solve(&xtx.view(), &xty.view(), None)
+        .map_err(|e| SklearsError::NumericalError(format!("Failed to solve least squares: {}", e)))
 }
 
 impl Predict<Array2<Float>, Array1<Float>> for TheilSenRegressor<Trained> {

@@ -185,7 +185,7 @@ where
             // Perturb the feature for all samples
             for sample_idx in 0..n_samples {
                 let (min_val, max_val) = feature_bounds[feature_idx];
-                let perturbed_value = rng.gen_range(min_val..=max_val);
+                let perturbed_value = rng.gen_range(min_val..max_val);
                 X_perturbed[[sample_idx, feature_idx]] = perturbed_value;
             }
 
@@ -522,7 +522,7 @@ fn generate_sobol_matrix(
     for i in 0..n_samples {
         for j in 0..n_features {
             let (min_val, max_val) = feature_bounds[j];
-            matrix[[i, j]] = rng.gen_range(min_val..=max_val);
+            matrix[[i, j]] = rng.gen_range(min_val..max_val);
         }
     }
 

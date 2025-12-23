@@ -216,8 +216,6 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
         let mut importance = Array1::zeros(n_features);
 
         for j in 0..n_features {
-            let mut feature_score = 0.0;
-
             // Compute variance of class means for this feature
             let means_j: Array1<Float> = data.class_means.column(j).to_owned();
             let mean_of_means = means_j.mean().unwrap();
@@ -227,8 +225,7 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
                 .unwrap();
 
             // Feature importance is between-class variance / within-class variance
-            feature_score = between_class_var / data.diagonal_covariance[j];
-            importance[j] = feature_score;
+            importance[j] = between_class_var / data.diagonal_covariance[j];
         }
 
         importance
@@ -283,7 +280,7 @@ impl Fit<Array2<Float>, Array1<i32>> for DiagonalLinearDiscriminantAnalysis<Untr
             let means = x.mean_axis(Axis(0)).unwrap();
             let stds = self.compute_feature_stds(x, &means);
 
-            for (i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
+            for (_i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
                 for j in 0..n_features {
                     sample[j] = (sample[j] - means[j]) / stds[j];
                 }
@@ -405,7 +402,7 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
         let mut x_processed = x.clone();
 
         if let (Some(means), Some(scales)) = (&data.feature_means, &data.feature_scales) {
-            for (i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
+            for (_i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
                 for j in 0..data.n_features {
                     sample[j] = (sample[j] - means[j]) / scales[j];
                 }

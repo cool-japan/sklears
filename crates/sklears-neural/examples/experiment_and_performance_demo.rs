@@ -5,15 +5,15 @@
 //! machine learning experiments.
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{seeded_rng, Rng};
 
 use sklears_neural::{
     // Memory leak detection
     memory_leak_tests::MemoryLeakDetector,
     // Performance testing
-    BenchmarkSuite,
-    Experiment,
+    performance_testing::BenchmarkSuite,
     // Experiment tracking
+    Experiment,
     ExperimentTracker,
     InMemoryBackend,
     PerformanceProfiler,
@@ -87,13 +87,13 @@ fn simulate_training_with_metrics(
     println!("🏃 Simulating training with metric logging...");
 
     // Simulate 10 epochs of training
-    let mut rng = Random::seed(42);
+    let mut rng = seeded_rng(42);
     for epoch in 1..=10 {
         // Simulate decreasing loss with some noise
-        let loss = 1.0 * (-0.1 * epoch as f64).exp() + rng.gen::<f64>() * 0.1;
+        let loss = 1.0 * (-0.1 * epoch as f64).exp() + rng.random::<f64>() * 0.1;
 
         // Simulate increasing accuracy
-        let accuracy = 0.5 + 0.4 * (1.0 - (-0.1 * epoch as f64).exp()) + rng.gen::<f64>() * 0.05;
+        let accuracy = 0.5 + 0.4 * (1.0 - (-0.1 * epoch as f64).exp()) + rng.random::<f64>() * 0.05;
 
         // Log metrics
         tracker.log_metric("train_loss".to_string(), loss, Some(epoch))?;
@@ -193,7 +193,7 @@ fn add_neural_network_benchmarks(suite: &mut BenchmarkSuite) {
         let x = Array2::ones((1000, 10));
 
         // Simulate forward pass computation
-        for i in 0..100 {
+        for _i in 0..100 {
             let _ = x.mapv(|v: f64| v.tanh()); // Simulate activation function
             profiler.record_operation();
             profiler.record_samples(x.nrows() as u64);
@@ -369,19 +369,19 @@ fn combined_demo() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn generate_sample_data(samples: usize, features: usize) -> Array2<f64> {
-    let mut rng = Random::seed(42);
-    Array2::from_shape_fn((samples, features), |_| rng.gen::<f64>())
+    let mut rng = seeded_rng(42);
+    Array2::from_shape_fn((samples, features), |_| rng.random())
 }
 
 fn generate_sample_labels(samples: usize, classes: usize) -> Vec<usize> {
-    let mut rng = Random::seed(42);
-    (0..samples).map(|_| rng.gen_range(0..classes)).collect()
+    let mut rng = seeded_rng(42);
+    (0..samples).map(|_| rng.random_range(0..classes)).collect()
 }
 
 fn simulate_model_training(
     profiler: &mut PerformanceProfiler,
     x: &Array2<f64>,
-    y: &[usize],
+    _y: &[usize],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (n_samples, n_features) = x.dim();
 

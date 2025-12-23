@@ -119,14 +119,12 @@ impl GroupStructure {
     /// Create groups automatically by dividing features into equal-sized blocks
     pub fn create_blocks(n_features: usize, block_size: usize) -> Result<Self> {
         let mut groups = Vec::new();
-        let mut group_id = 0;
 
-        for start in (0..n_features).step_by(block_size) {
+        for (group_id, start) in (0..n_features).step_by(block_size).enumerate() {
             let end = (start + block_size).min(n_features);
             let features: Vec<usize> = (start..end).collect();
 
             groups.push(FeatureGroup::new(group_id, features).name(format!("Block_{group_id}")));
-            group_id += 1;
         }
 
         Self::new(groups, n_features)
@@ -135,17 +133,15 @@ impl GroupStructure {
     /// Create groups for one-hot encoded categorical features
     pub fn create_categorical_groups(categorical_ranges: Vec<(usize, usize)>) -> Result<Self> {
         let mut groups = Vec::new();
-        let mut group_id = 0;
         let mut total_features = 0;
 
-        for (start, end) in categorical_ranges {
+        for (group_id, (start, end)) in categorical_ranges.into_iter().enumerate() {
             let features: Vec<usize> = (start..end).collect();
             total_features = total_features.max(end);
 
             groups.push(
                 FeatureGroup::new(group_id, features).name(format!("Categorical_{group_id}")),
             );
-            group_id += 1;
         }
 
         Self::new(groups, total_features)

@@ -208,7 +208,7 @@ impl DistributedNeighborSearch {
         }
 
         // Collect partition statistics
-        for (i, (_, _, stats)) in partition_results.iter().enumerate() {
+        for (_i, (_, _, stats)) in partition_results.iter().enumerate() {
             partition_stats.push(stats.clone());
             total_network_time += stats.search_time_ms;
         }

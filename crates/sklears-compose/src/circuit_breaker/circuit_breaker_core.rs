@@ -347,6 +347,12 @@ impl AdvancedCircuitBreaker {
         let old_state = *state;
         *state = new_state;
 
+        // Reset half-open counters when leaving half-open state
+        if old_state == CircuitBreakerState::HalfOpen && new_state != CircuitBreakerState::HalfOpen
+        {
+            self.stats.reset_half_open_counters();
+        }
+
         // Record state transition event
         self.event_recorder
             .record_state_change(self.id.clone(), old_state, new_state)?;
@@ -426,10 +432,9 @@ impl CircuitBreaker for AdvancedCircuitBreaker {
                 }
             }
             CircuitBreakerState::HalfOpen => {
-                // Check if we have quota for half-open requests
-                // TODO: Track half_open_requests in stats
-                let _stats = self.stats.get_stats();
-                true // Simplified for now - allow requests in half-open state
+                // Track half-open requests
+                self.stats.track_half_open_request();
+                true // Allow requests in half-open state for testing recovery
             }
         }
     }
@@ -448,11 +453,15 @@ impl CircuitBreaker for AdvancedCircuitBreaker {
         // Check for state transitions
         let state = self.state.read().unwrap();
         if *state == CircuitBreakerState::HalfOpen {
+            // Track half-open successes
+            self.stats.track_half_open_success();
+
             // Check if we should close the circuit
-            let stats = self.stats.get_stats();
-            // TODO: Track half_open_successes separately
-            if stats.successful_requests > 0 {
-                // Simplified logic for now
+            let half_open_successes = self.stats.get_half_open_successes();
+
+            // Close circuit after sufficient successful requests in half-open state
+            // Using a threshold of 3 successful requests as a reasonable default
+            if half_open_successes >= 3 {
                 drop(state); // Release read lock
                 let _ = self.transition_state(CircuitBreakerState::Closed);
             }

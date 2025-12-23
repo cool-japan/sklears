@@ -64,7 +64,7 @@ impl LshIndex {
         let mut projection_matrix = Array2::zeros((num_hashes, dimension));
         use scirs2_core::random::*;
         let mut rng = thread_rng();
-        let normal = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+        let normal = scirs2_core::random::essentials::Normal::new(0.0, 1.0).unwrap();
 
         for i in 0..num_hashes {
             for j in 0..dimension {
@@ -103,8 +103,8 @@ impl LshIndex {
         let mut b_params = Array1::zeros(num_hashes);
 
         for i in 0..num_hashes {
-            a_params[i] = rng.gen_range(1.0..prime as Float);
-            b_params[i] = rng.gen_range(0.0..prime as Float);
+            a_params[i] = rng.gen_range(1.0..(prime as Float));
+            b_params[i] = rng.gen_range(0.0..(prime as Float));
         }
 
         let hash_family = HashFamily::MinHash {

@@ -422,4 +422,80 @@ mod tests {
 
         assert!(summary.contains("patch_size=(5, 5)"));
     }
+
+    #[test]
+    fn test_reconstruct_with_overlapping_patches() {
+        // Create a simple image where we can verify overlapping averaging
+        let image = Array2::from_shape_vec(
+            (4, 4),
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0,
+            ],
+        )
+        .unwrap();
+
+        // Extract patches with size 2x2 (will have overlapping regions)
+        let patches = extract_patches_2d(&image.view(), (2, 2), None, None).unwrap();
+
+        // Should have 9 patches (3x3 grid)
+        assert_eq!(patches.dim(), (9, 2, 2));
+
+        // Reconstruct
+        let reconstructed = reconstruct_from_patches_2d(&patches.view(), (4, 4)).unwrap();
+
+        // Due to averaging of overlapping regions, the reconstruction should be close
+        // Corner pixels appear in 1 patch, edge pixels in 2 patches, center pixels in 4 patches
+        assert_eq!(reconstructed.dim(), (4, 4));
+
+        // Corner pixels (appear in only 1 patch) should match exactly
+        assert_eq!(reconstructed[[0, 0]], 1.0);
+        assert_eq!(reconstructed[[0, 3]], 4.0);
+        assert_eq!(reconstructed[[3, 0]], 13.0);
+        assert_eq!(reconstructed[[3, 3]], 16.0);
+
+        // Center pixels appear in 4 patches, should be averaged correctly
+        // For example, reconstructed[[1, 1]] appears in patches at positions (0,0), (0,1), (1,0), (1,1)
+        let expected_center = 6.0; // This is the original value
+        assert!((reconstructed[[1, 1]] - expected_center).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_reconstruct_exact_coverage() {
+        // Test reconstruction when patches exactly tile the image (no overlap)
+        // Create a 4x4 image
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
+
+        // Extract 2x2 patches - this will give us overlapping patches in raster scan order
+        let patches = extract_patches_2d(&image.view(), (2, 2), None, None).unwrap();
+
+        // We get 9 patches from a 4x4 image with 2x2 patches (3x3 grid of positions)
+        assert_eq!(patches.dim(), (9, 2, 2));
+
+        let reconstructed = reconstruct_from_patches_2d(&patches.view(), (4, 4)).unwrap();
+
+        // Reconstruction should be close to original (averaging overlaps)
+        assert_eq!(reconstructed.dim(), (4, 4));
+
+        // Corner values should be exact (no overlap)
+        assert_eq!(reconstructed[[0, 0]], image[[0, 0]]);
+        assert_eq!(reconstructed[[0, 3]], image[[0, 3]]);
+        assert_eq!(reconstructed[[3, 0]], image[[3, 0]]);
+        assert_eq!(reconstructed[[3, 3]], image[[3, 3]]);
+    }
+
+    #[test]
+    fn test_reconstruct_single_patch() {
+        // Edge case: reconstruct from a single 2x2 patch
+        let patch = Array3::from_shape_vec((1, 2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+
+        let reconstructed = reconstruct_from_patches_2d(&patch.view(), (2, 2)).unwrap();
+
+        // Single patch placed at (0,0) should perfectly reconstruct the 2x2 image
+        assert_eq!(reconstructed.dim(), (2, 2));
+        assert_eq!(reconstructed[[0, 0]], 1.0);
+        assert_eq!(reconstructed[[0, 1]], 2.0);
+        assert_eq!(reconstructed[[1, 0]], 3.0);
+        assert_eq!(reconstructed[[1, 1]], 4.0);
+    }
 }

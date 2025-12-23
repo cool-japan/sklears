@@ -473,7 +473,7 @@ impl SimdMatrixOps {
     /// SIMD-accelerated covariance matrix computation
     pub fn simd_covariance(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
         let n_samples = data.nrows() as Float;
-        let n_features = data.ncols();
+        let _n_features = data.ncols();
 
         // Compute mean using SIMD
         let mean = self.simd_column_mean(data)?;
@@ -567,7 +567,10 @@ impl SimdMatrixOps {
             }
         }
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-        false
+        {
+            let _ = feature;
+            false
+        }
     }
 }
 
@@ -799,7 +802,7 @@ impl AdvancedSimdOps {
         let mut result = vec![0.0; len];
 
         for i in (0..simd_len).step_by(4) {
-            let x_vec = _mm256_loadu_pd(x.as_ptr().add(i));
+            let _x_vec = _mm256_loadu_pd(x.as_ptr().add(i));
 
             // Fast exp approximation using polynomial approximation
             // This is a simplified implementation - real SIMD exp would use more sophisticated methods
