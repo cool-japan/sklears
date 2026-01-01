@@ -1,12 +1,101 @@
-//! Core types and error handling for dataset format operations
+//! Auto-generated module
 //!
-//! This module defines the core types, error enums, and configuration
-//! structures used across all format modules.
+//! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
+#[cfg(feature = "parquet")]
+use arrow::datatypes::{DataType, Field, Schema};
+#[cfg(feature = "cloud-storage")]
+use url::Url;
 
+use super::functions::FormatResult;
+
+
+/// Configuration for CSV format
+#[derive(Debug, Clone)]
+pub struct CsvConfig {
+    /// Field delimiter (default: ',')
+    pub delimiter: char,
+    /// Include header row
+    pub has_header: bool,
+    /// Quote character for fields containing delimiter
+    pub quote_char: char,
+    /// Escape character for quotes within quoted fields
+    pub escape_char: Option<char>,
+}
+#[cfg(feature = "cloud-storage")]
+/// Configuration for cloud storage providers
+#[derive(Debug, Clone)]
+pub enum CloudStorageProvider {
+    #[cfg(feature = "cloud-s3")]
+    S3 { bucket: String, region: String, key: String },
+    #[cfg(feature = "cloud-gcs")]
+    GoogleCloudStorage { bucket: String, object_name: String, project_id: String },
+}
+#[cfg(feature = "cloud-storage")]
+impl CloudStorageProvider {
+    /// Parse a cloud storage URL into a provider configuration
+    pub fn from_url(url: &str) -> FormatResult<Self> {
+        let parsed_url = Url::parse(url)?;
+        match parsed_url.scheme() {
+            #[cfg(feature = "cloud-s3")]
+            "s3" => {
+                let bucket = parsed_url
+                    .host_str()
+                    .ok_or_else(|| FormatError::UrlParse(url::ParseError::EmptyHost))?;
+                let key = parsed_url.path().trim_start_matches('/');
+                let region = parsed_url
+                    .query_pairs()
+                    .find(|(name, _)| name == "region")
+                    .map(|(_, value)| value.to_string())
+                    .unwrap_or_else(|| "us-east-1".to_string());
+                Ok(CloudStorageProvider::S3 {
+                    bucket: bucket.to_string(),
+                    region,
+                    key: key.to_string(),
+                })
+            }
+            #[cfg(feature = "cloud-gcs")]
+            "gs" => {
+                let bucket = parsed_url
+                    .host_str()
+                    .ok_or_else(|| FormatError::UrlParse(url::ParseError::EmptyHost))?;
+                let object_name = parsed_url.path().trim_start_matches('/');
+                let project_id = parsed_url
+                    .query_pairs()
+                    .find(|(name, _)| name == "project")
+                    .map(|(_, value)| value.to_string())
+                    .ok_or_else(|| {
+                        FormatError::CloudStorage(
+                            "Missing project_id parameter".to_string(),
+                        )
+                    })?;
+                Ok(CloudStorageProvider::GoogleCloudStorage {
+                    bucket: bucket.to_string(),
+                    object_name: object_name.to_string(),
+                    project_id,
+                })
+            }
+            _ => {
+                Err(
+                    FormatError::CloudStorage(
+                        format!("Unsupported URL scheme: {}", parsed_url.scheme()),
+                    ),
+                )
+            }
+        }
+    }
+}
+/// Serializable dataset for JSON export (fallback when serde is not available)
+#[cfg(not(feature = "serde"))]
+#[derive(Debug)]
+pub struct SerializableDataset {
+    pub features: Vec<Vec<f64>>,
+    pub targets: Vec<serde_json::Value>,
+    pub feature_names: Option<Vec<String>>,
+    pub target_names: Option<Vec<String>>,
+    pub metadata: Option<serde_json::Value>,
+}
 /// Error types for format operations
 #[derive(Error, Debug)]
 pub enum FormatError {
@@ -43,52 +132,4 @@ pub enum FormatError {
     #[cfg(feature = "cloud-gcs")]
     #[error("Google Cloud Storage error: {0}")]
     Gcs(String),
-}
-
-pub type FormatResult<T> = Result<T, FormatError>;
-
-/// Configuration for CSV format
-#[derive(Debug, Clone)]
-pub struct CsvConfig {
-    /// Field delimiter (default: ',')
-    pub delimiter: char,
-    /// Include header row
-    pub has_header: bool,
-    /// Quote character for fields containing delimiter
-    pub quote_char: char,
-    /// Escape character for quotes within quoted fields
-    pub escape_char: Option<char>,
-}
-
-impl Default for CsvConfig {
-    fn default() -> Self {
-        Self {
-            delimiter: ',',
-            has_header: true,
-            quote_char: '"',
-            escape_char: Some('\\'),
-        }
-    }
-}
-
-/// Serializable dataset for JSON export
-#[cfg(feature = "serde")]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SerializableDataset {
-    pub features: Vec<Vec<f64>>,
-    pub targets: Vec<serde_json::Value>,
-    pub feature_names: Option<Vec<String>>,
-    pub target_names: Option<Vec<String>>,
-    pub metadata: Option<serde_json::Value>,
-}
-
-/// Serializable dataset for JSON export (fallback when serde is not available)
-#[cfg(not(feature = "serde"))]
-#[derive(Debug)]
-pub struct SerializableDataset {
-    pub features: Vec<Vec<f64>>,
-    pub targets: Vec<serde_json::Value>,
-    pub feature_names: Option<Vec<String>>,
-    pub target_names: Option<Vec<String>>,
-    pub metadata: Option<serde_json::Value>,
 }

@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use serde_json;
 
 #[cfg(feature = "serde")]
-use bincode;
+use oxicode;
 
 #[cfg(feature = "serde")]
 use chrono;
@@ -49,20 +49,20 @@ impl Default for CheckpointFormat {
 }
 
 #[cfg(feature = "serde")]
-fn serialize_to_binary<T>(value: &T) -> Result<Vec<u8>, bincode::error::EncodeError>
+fn serialize_to_binary<T>(value: &T) -> Result<Vec<u8>, oxicode::Error>
 where
     T: Serialize,
 {
-    bincode::serde::encode_to_vec(value, bincode::config::standard())
+    oxicode::serde::encode_to_vec(value, oxicode::config::standard())
 }
 
 #[cfg(feature = "serde")]
-fn deserialize_from_binary<T>(bytes: &[u8]) -> Result<T, bincode::error::DecodeError>
+fn deserialize_from_binary<T>(bytes: &[u8]) -> Result<T, oxicode::Error>
 where
     T: DeserializeOwned,
 {
-    let (value, _): (T, usize) =
-        bincode::serde::decode_from_slice(bytes, bincode::config::standard())?;
+    let (value, _bytes_read) =
+        oxicode::serde::decode_from_slice(bytes, oxicode::config::standard())?;
     Ok(value)
 }
 

@@ -46,7 +46,7 @@ impl Timestamp {
         self.timestamp / 1000
     }
 
-    /// Convert to DateTime<Utc>
+    /// Convert to `DateTime<Utc>`
     pub fn to_datetime_utc(&self) -> DateTime<Utc> {
         let naive = DateTime::from_timestamp_millis(self.timestamp)
             .unwrap_or_default()

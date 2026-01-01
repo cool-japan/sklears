@@ -5,7 +5,8 @@
 //! the multiclass case).
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use std::marker::PhantomData;
 
 use sklears_core::{
@@ -216,7 +217,7 @@ impl Fit<Array2<Float>, Array1<Int>> for RidgeClassifier<Untrained> {
             // Binary case: solve once
             let xt_y = x_centered.t().dot(&y_centered.column(0));
 
-            match solve(&xt_x_reg.view(), &xt_y.view(), None) {
+            match xt_x_reg.solve(&xt_y) {
                 Ok(solution) => {
                     coef.row_mut(0).assign(&(-&solution));
                     coef.row_mut(1).assign(&solution);
@@ -232,7 +233,7 @@ impl Fit<Array2<Float>, Array1<Int>> for RidgeClassifier<Untrained> {
             for k in 0..n_classes {
                 let xt_y = x_centered.t().dot(&y_centered.column(k));
 
-                match solve(&xt_x_reg.view(), &xt_y.view(), None) {
+                match xt_x_reg.solve(&xt_y) {
                     Ok(solution) => {
                         coef.row_mut(k).assign(&solution);
                     }

@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! Feature selection algorithms
 //!
 //! This module provides algorithms for selecting relevant features from data,

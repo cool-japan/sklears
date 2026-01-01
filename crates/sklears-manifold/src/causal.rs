@@ -46,7 +46,8 @@
 //! ```
 
 use scirs2_core::essentials::{Normal, Uniform};
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+use scirs2_linalg::compat::ArrayLinalgExt;
+
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
@@ -69,7 +70,7 @@ use std::collections::{HashMap, HashSet};
 pub struct CausalGraph {
     /// Number of variables
     pub n_variables: usize,
-    /// Adjacency matrix: edges[i][j] = true if i -> j
+    /// Adjacency matrix: edges\[i\]\[j\] = true if i -> j
     pub edges: Vec<Vec<bool>>,
     /// Variable names (optional)
     pub variable_names: Option<Vec<String>>,
@@ -675,12 +676,10 @@ impl CausalEmbedding<Untrained> {
         // Use SVD for initial embedding
         let svd = X
             .t()
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::FitError(format!("SVD failed: {}", e)))?;
 
-        let vt = svd
-            .2
-            .ok_or_else(|| SklearsError::FitError("SVD V matrix not computed".to_string()))?;
+        let vt = svd.2;
 
         let k = self.embedding_dim.min(vt.nrows());
         let mut embeddings = vt.slice(s![..k, ..]).t().to_owned();

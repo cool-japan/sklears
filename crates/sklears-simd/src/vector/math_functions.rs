@@ -25,7 +25,7 @@ use std::arch::is_aarch64_feature_detected;
 
 /// SIMD-optimized element-wise sine function
 ///
-/// Computes result[i] = sin(input[i]) for all elements using SIMD instructions.
+/// Computes result\[i\] = sin(input\[i\]) for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `input` - Input vector (angles in radians)
@@ -86,7 +86,7 @@ pub fn sin_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise cosine function
 ///
-/// Computes result[i] = cos(input[i]) for all elements using SIMD instructions.
+/// Computes result\[i\] = cos(input\[i\]) for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `input` - Input vector (angles in radians)
@@ -147,7 +147,7 @@ pub fn cos_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise tangent function
 ///
-/// Computes result[i] = tan(input[i]) for all elements using SIMD instructions.
+/// Computes result\[i\] = tan(input\[i\]) for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `input` - Input vector (angles in radians)
@@ -207,7 +207,7 @@ pub fn tan_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise exponential function
 ///
-/// Computes result[i] = exp(input[i]) for all elements using SIMD instructions.
+/// Computes result\[i\] = exp(input\[i\]) for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `input` - Input vector
@@ -266,7 +266,7 @@ pub fn exp_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise natural logarithm function
 ///
-/// Computes result[i] = ln(input[i]) for all elements using SIMD instructions.
+/// Computes result\[i\] = ln(input\[i\]) for all elements using SIMD instructions.
 /// Input values must be positive; negative inputs will produce NaN.
 ///
 /// # Arguments
@@ -326,7 +326,7 @@ pub fn ln_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise square root function
 ///
-/// Computes result[i] = sqrt(input[i]) for all elements using SIMD instructions.
+/// Computes result\[i\] = sqrt(input\[i\]) for all elements using SIMD instructions.
 /// Input values must be non-negative; negative inputs will produce NaN.
 ///
 /// # Arguments
@@ -388,7 +388,7 @@ pub fn sqrt_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise power function
 ///
-/// Computes result[i] = base[i] ^ exponent[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = base\[i\] ^ exponent\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `base` - Base vector
@@ -455,7 +455,7 @@ pub fn pow_vec(base: &[f32], exponent: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise square function
 ///
-/// Computes result[i] = input[i] * input[i] for all elements.
+/// Computes result\[i\] = input\[i\] * input\[i\] for all elements.
 /// This is more efficient than using pow_vec with exponent 2.
 ///
 /// # Arguments
@@ -516,7 +516,7 @@ pub fn square_vec(input: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise reciprocal function
 ///
-/// Computes result[i] = 1.0 / input[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = 1.0 / input\[i\] for all elements using SIMD instructions.
 /// Division by zero results in infinity according to IEEE 754 standard.
 ///
 /// # Arguments

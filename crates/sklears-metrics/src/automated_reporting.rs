@@ -396,7 +396,7 @@ pub fn generate_metric_report(
     // Generate metadata
     let metadata = ReportMetadata {
         title: config.title.clone(),
-        timestamp: "2025-07-03T00:00:00Z".to_string(), // Would use actual timestamp
+        timestamp: "2026-01-03T00:00:00Z".to_string(), // Would use actual timestamp
         author: config.author.clone(),
         version: "1.0".to_string(),
         dataset_info: DatasetInfo {

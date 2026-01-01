@@ -1148,7 +1148,10 @@ mod tests {
 
         // Check that values are in [0, 1] range
         for &val in result.iter() {
-            assert!(val >= 0.0 && val <= 1.0, "Values should be in [0, 1] range");
+            assert!(
+                (0.0..=1.0).contains(&val),
+                "Values should be in [0, 1] range"
+            );
         }
 
         // Check that min/max values are mapped correctly

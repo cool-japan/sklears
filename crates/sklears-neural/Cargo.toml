@@ -26,7 +26,7 @@ serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_yaml = { version = "0.9", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
-bincode = { version = "2.0", optional = true }
+oxicode = { workspace = true, optional = true }
 flate2 = { version = "1.1", optional = true }
 thiserror = { workspace = true }
 log = { workspace = true }
@@ -46,7 +46,7 @@ proptest = { workspace = true }
 default = []
 parallel = ["rayon"]
 # gpu = ["cudarc", "bytemuck", "half"]  # Disabled for macOS compatibility
-serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:chrono", "dep:bincode", "dep:flate2"]
+serde = ["dep:serde", "dep:serde_json", "dep:serde_yaml", "dep:chrono", "dep:oxicode", "dep:flate2"]
 mmap = ["memmap2"]
 
 [[example]]

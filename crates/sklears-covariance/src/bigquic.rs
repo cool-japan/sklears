@@ -6,6 +6,7 @@
 //! computational speed are critical.
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -383,7 +384,7 @@ impl BigQUIC<Untrained> {
 
     /// Compute log determinant of a matrix
     fn log_determinant(matrix: &Array2<f64>) -> SklResult<f64> {
-        use scirs2_core::ndarray::ndarray_linalg::Determinant;
+        use scirs2_linalg::compat::ArrayLinalgExt;
         let det = matrix.det().map_err(|e| {
             SklearsError::NumericalError(format!("Failed to compute determinant: {}", e))
         })?;
@@ -399,7 +400,6 @@ impl BigQUIC<Untrained> {
 
     /// Invert a matrix
     fn invert_matrix(matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         matrix
             .inv()
             .map_err(|e| SklearsError::NumericalError(format!("Failed to invert matrix: {}", e)))
@@ -480,7 +480,6 @@ impl BigQUIC<BigQUICTrained> {
 
     /// Compute the condition number of the precision matrix
     pub fn get_condition_number(&self) -> SklResult<f64> {
-        use scirs2_core::ndarray::ndarray_linalg::Norm;
         let norm = self.state.precision.norm_l2();
 
         let inv_norm = BigQUIC::<Untrained>::invert_matrix(&self.state.precision)?.norm_l2();

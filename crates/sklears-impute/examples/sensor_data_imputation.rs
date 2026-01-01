@@ -41,7 +41,7 @@
 //! ```
 
 use scirs2_core::ndarray::{s, Array2, Array3};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_impute::core::{ImputationError, ImputationMetadata};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};

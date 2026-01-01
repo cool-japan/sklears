@@ -3,6 +3,7 @@
 //! This module provides robust statistical functions including weighted median,
 //! Huber robust mean, and quantile calculations for use in isotonic regression.
 
+use crate::utils::safe_float_cmp;
 use scirs2_core::ndarray::Array1;
 use sklears_core::types::Float;
 
@@ -207,7 +208,7 @@ pub mod robust_statistics {
 
         let mut sorted_values: Vec<(Float, usize)> =
             values.iter().enumerate().map(|(i, &v)| (v, i)).collect();
-        sorted_values.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        sorted_values.sort_by(|a, b| safe_float_cmp(&a.0, &b.0));
 
         let n = sorted_values.len();
         let q1_idx = n / 4;

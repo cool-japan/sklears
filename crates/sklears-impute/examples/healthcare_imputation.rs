@@ -18,7 +18,7 @@
 //! and includes sensitivity analysis for regulatory compliance.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 

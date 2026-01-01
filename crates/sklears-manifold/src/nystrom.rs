@@ -3,13 +3,13 @@
 //! the Nyström method, which enables scalable kernel-based manifold learning
 //! algorithms by approximating large kernel matrices with smaller submatrices.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Transform},

@@ -7,8 +7,9 @@
 use crate::{
     FastfoodTransform, Nystroem, RBFSampler, StructuredRandomFeatures, Trained, Untrained,
 };
-use scirs2_core::ndarray::ndarray_linalg::solve::Solve;
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
+
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::{Estimator, Fit, Float, Predict};
@@ -395,14 +396,13 @@ impl RobustKernelRidgeRegression<Untrained> {
                     }
                 })?,
                 Solver::SVD => {
-                    let (u, s, vt) = weighted_xtx.svd(true, true).map_err(|e| {
-                        SklearsError::InvalidParameter {
-                            name: "svd".to_string(),
-                            reason: format!("SVD decomposition failed: {:?}", e),
-                        }
-                    })?;
-                    let u = u.unwrap();
-                    let vt = vt.unwrap();
+                    let (u, s, vt) =
+                        weighted_xtx
+                            .svd(true)
+                            .map_err(|e| SklearsError::InvalidParameter {
+                                name: "svd".to_string(),
+                                reason: format!("SVD decomposition failed: {:?}", e),
+                            })?;
                     let ut_b = u.t().dot(&weighted_xty);
                     let s_inv = s.mapv(|x| if x > 1e-10 { 1.0 / x } else { 0.0 });
                     let y_svd = ut_b * s_inv;

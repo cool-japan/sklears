@@ -3,12 +3,12 @@
 //! This module implements various approaches for learning manifolds from time-varying data,
 //! including dynamic embedding tracking, temporal trajectory analysis, and streaming updates.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, Norm, Solve, SVD, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -267,7 +267,8 @@ impl TemporalManifold<Untrained> {
         }
 
         let diff = embedding1 - embedding2;
-        let loss = diff.norm_l2().powi(2) / (embedding1.nrows() * embedding1.ncols()) as f64;
+        let loss = diff.mapv(|x: f64| x * x).sum().sqrt().powi(2)
+            / (embedding1.nrows() * embedding1.ncols()) as f64;
         Ok(loss)
     }
 
@@ -314,7 +315,7 @@ impl TemporalManifold<Untrained> {
             velocity_profiles.push(velocity.clone());
 
             // Trajectory length
-            let length = velocity.norm_l2();
+            let length = velocity.mapv(|x: f64| x * x).sum().sqrt();
             trajectory_lengths.push(length);
 
             // Acceleration (second derivative)
@@ -351,8 +352,8 @@ impl TemporalManifold<Untrained> {
             let vel1 = v1.row(i);
             let vel2 = v2.row(i);
 
-            let v1_norm = vel1.norm_l2();
-            let v2_norm = vel2.norm_l2();
+            let v1_norm = vel1.mapv(|x: f64| x * x).sum().sqrt();
+            let v2_norm = vel2.mapv(|x: f64| x * x).sum().sqrt();
 
             if v1_norm > 1e-10 && v2_norm > 1e-10 {
                 // Compute angle between velocity vectors
@@ -377,8 +378,8 @@ impl TemporalManifold<Untrained> {
             let vel1 = v1.row(i);
             let vel2 = v2.row(i);
 
-            let v1_norm = vel1.norm_l2();
-            let v2_norm = vel2.norm_l2();
+            let v1_norm = vel1.mapv(|x: f64| x * x).sum().sqrt();
+            let v2_norm = vel2.mapv(|x: f64| x * x).sum().sqrt();
 
             if v1_norm > 1e-10 && v2_norm > 1e-10 {
                 let dot_product = vel1.dot(&vel2);
@@ -404,7 +405,7 @@ impl TemporalManifold<Untrained> {
         // For each point, find k nearest neighbors
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -476,7 +477,7 @@ impl TemporalManifold<Untrained> {
 
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -666,11 +667,8 @@ impl TemporalManifold<Untrained> {
 
         // Solve using pseudoinverse
         let (u, s, vt) = xt_x
-            .svd(true, true)
-            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+            .svd(true)
+            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?; // vt is directly available
 
         // Compute pseudoinverse
         let mut s_inv = Array1::zeros(s.len());
@@ -879,11 +877,8 @@ impl StreamingTemporalManifold<Untrained> {
         let xt_y = x.t().dot(embedding);
 
         let (u, s, vt) = xt_x
-            .svd(true, true)
-            .map_err(|e| SklearsError::InvalidInput(format!("Transform SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+            .svd(true)
+            .map_err(|e| SklearsError::InvalidInput(format!("Transform SVD failed: {}", e)))?; // vt is directly available
 
         let mut s_inv = Array1::zeros(s.len());
         for (i, &val) in s.iter().enumerate() {
@@ -931,11 +926,11 @@ impl StreamingTemporalManifold<TrainedStreamingTemporalManifold> {
             // Compare mean and standard deviation of embeddings
             let new_mean = new_embedding.mean_axis(Axis(0)).unwrap();
             let prev_mean = prev_embedding.mean_axis(Axis(0)).unwrap();
-            let mean_change = (&new_mean - &prev_mean).norm_l2();
+            let mean_change = (&new_mean - &prev_mean).mapv(|x: f64| x * x).sum().sqrt();
 
             let new_std = new_embedding.std_axis(Axis(0), 0.0);
             let prev_std = prev_embedding.std_axis(Axis(0), 0.0);
-            let std_change = (&new_std - &prev_std).norm_l2();
+            let std_change = (&new_std - &prev_std).mapv(|x: f64| x * x).sum().sqrt();
 
             let total_change = mean_change + std_change;
             total_change > self.adaptation_threshold
@@ -964,12 +959,9 @@ impl StreamingTemporalManifold<TrainedStreamingTemporalManifold> {
         let xt_x = data.t().dot(data);
         let xt_y = data.t().dot(embedding);
 
-        let (u, s, vt) = xt_x.svd(true, true).map_err(|e| {
+        let (u, s, vt) = xt_x.svd(true).map_err(|e| {
             SklearsError::InvalidInput(format!("Update transform SVD failed: {}", e))
-        })?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+        })?; // vt is directly available
 
         let mut s_inv = Array1::zeros(s.len());
         for (i, &val) in s.iter().enumerate() {

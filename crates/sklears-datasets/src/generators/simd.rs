@@ -10,7 +10,9 @@
 use scirs2_core::simd::SimdOps;
 
 use scirs2_core::ndarray::{Array1, Array2, ShapeBuilder};
-use scirs2_core::random::{Distribution, RandNormal, Random};
+#[cfg(feature = "simd")]
+use scirs2_core::random::Random;
+use scirs2_core::random::{Distribution, RandNormal};
 use thiserror::Error;
 
 // Helper function for generating normal random values

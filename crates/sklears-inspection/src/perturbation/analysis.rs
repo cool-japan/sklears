@@ -10,7 +10,11 @@ use crate::{Float, SklResult};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 
+/// Analyze model robustness using perturbation techniques
 ///
+/// # Examples
+///
+/// ```ignore
 /// let X = array![[0.5, 0.7], [0.3, 0.9]];
 /// let config = PerturbationConfig {
 ///     strategy: PerturbationStrategy::Gaussian,

@@ -6,6 +6,8 @@
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+use crate::core::{isotonic_regression, LossFunction, MonotonicityConstraint};
+use crate::utils::safe_float_cmp;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -13,8 +15,6 @@ use sklears_core::{
     types::Float,
 };
 use std::marker::PhantomData;
-
-use crate::core::{isotonic_regression, LossFunction, MonotonicityConstraint};
 
 /// Parallel isotonic regression model
 ///
@@ -153,7 +153,7 @@ impl Fit<Array2<Float>, Array2<Float>> for ParallelIsotonicRegression<Untrained>
 
                     // Sort by x values
                     let mut indices: Vec<usize> = (0..n_samples).collect();
-                    indices.sort_by(|&a, &b| x_col[a].partial_cmp(&x_col[b]).unwrap());
+                    indices.sort_by(|&a, &b| safe_float_cmp(&x_col[a], &x_col[b]));
 
                     let x_sorted: Array1<Float> = indices.iter().map(|&i| x_col[i]).collect();
                     let y_sorted: Array1<Float> = indices.iter().map(|&i| y_col[i]).collect();
@@ -187,7 +187,7 @@ impl Fit<Array2<Float>, Array2<Float>> for ParallelIsotonicRegression<Untrained>
                         .map(|(&x, &y)| (x, y))
                         .collect();
                     let mut x_y_fitted_sorted = x_y_fitted;
-                    x_y_fitted_sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    x_y_fitted_sorted.sort_by(|a, b| safe_float_cmp(&a.0, &b.0));
 
                     let (x_sorted, y_sorted): (Vec<Float>, Vec<Float>) =
                         x_y_fitted_sorted.into_iter().unzip();
@@ -226,7 +226,7 @@ impl Fit<Array2<Float>, Array2<Float>> for ParallelIsotonicRegression<Untrained>
 
                 // Sort by x values
                 let mut indices: Vec<usize> = (0..n_samples).collect();
-                indices.sort_by(|&a, &b| x_col[a].partial_cmp(&x_col[b]).unwrap());
+                indices.sort_by(|&a, &b| safe_float_cmp(&x_col[a], &x_col[b]));
 
                 let x_sorted: Array1<Float> = indices.iter().map(|&i| x_col[i]).collect();
                 let y_sorted: Array1<Float> = indices.iter().map(|&i| y_col[i]).collect();
@@ -260,7 +260,7 @@ impl Fit<Array2<Float>, Array2<Float>> for ParallelIsotonicRegression<Untrained>
                     .map(|(&x, &y)| (x, y))
                     .collect();
                 let mut x_y_fitted_sorted = x_y_fitted;
-                x_y_fitted_sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                x_y_fitted_sorted.sort_by(|a, b| safe_float_cmp(&a.0, &b.0));
 
                 let (x_sorted, y_sorted): (Vec<Float>, Vec<Float>) =
                     x_y_fitted_sorted.into_iter().unzip();

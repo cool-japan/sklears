@@ -4,8 +4,8 @@
 //! allowing for non-linear classification boundaries through the kernel trick.
 
 // ✅ Using SciRS2 dependencies following SciRS2 policy
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Eigh, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_linalg::compat::{Eig, Eigh, UPLO};
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
@@ -1072,8 +1072,11 @@ impl KernelDiscriminantAnalysis {
         let is_symmetric = self.is_approximately_symmetric(matrix)?;
 
         let (eigenvals, eigenvecs) = if is_symmetric {
+            // Symmetrize matrix for numerical stability before eigendecomposition
+            let symmetric_matrix = (matrix + &matrix.t()) / 2.0;
+
             // Use symmetric eigenvalue solver for better numerical stability
-            let (vals, vecs) = matrix.eigh(UPLO::Upper).map_err(|e| {
+            let (vals, vecs) = symmetric_matrix.eigh(UPLO::Upper).map_err(|e| {
                 SklearsError::NumericalError(format!("Symmetric eigendecomposition failed: {}", e))
             })?;
 

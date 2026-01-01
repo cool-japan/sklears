@@ -9,7 +9,7 @@
 //! ```
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_impute::core::ImputationError;
 use std::time::SystemTime;
 

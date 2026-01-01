@@ -137,7 +137,7 @@ fn generate_well_conditioned_regression(
 
     // Generate true coefficients
     let true_coefs: Array1<Float> = (0..n_features)
-        .map(|i| rng.random_range(-2.0, 2.0))
+        .map(|i| rng.random_range(-2.0..2.0))
         .collect::<Vec<_>>()
         .into();
 

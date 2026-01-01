@@ -16,7 +16,7 @@ fn generate_test_data() -> (Array2<f64>, Array1<i32>) {
 
     for i in 0..n_samples {
         for j in 0..n_features {
-            data[[i, j]] = rng.random_range(-1.0, 1.0);
+            data[[i, j]] = rng.random_range(-1.0..1.0);
         }
         targets[i] = if data.row(i).sum() > 0.0 { 1 } else { 0 };
     }
@@ -47,8 +47,8 @@ fn bench_knn_simd_integration(c: &mut Criterion) {
 fn bench_distance_functions(c: &mut Criterion) {
     let mut rng = thread_rng();
     let size = 100;
-    let a: Array1<f64> = Array1::from_vec((0..size).map(|_| rng.random_range(-1.0, 1.0)).collect());
-    let b: Array1<f64> = Array1::from_vec((0..size).map(|_| rng.random_range(-1.0, 1.0)).collect());
+    let a: Array1<f64> = Array1::from_vec((0..size).map(|_| rng.random_range(-1.0..1.0)).collect());
+    let b: Array1<f64> = Array1::from_vec((0..size).map(|_| rng.random_range(-1.0..1.0)).collect());
 
     c.bench_function("euclidean_distance_simd", |bench| {
         bench.iter(|| {

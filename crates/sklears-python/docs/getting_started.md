@@ -1,6 +1,6 @@
 # Getting Started with Sklears Python Bindings
 
-Welcome to Sklears! This guide will help you get up and running with the high-performance machine learning library that provides 3-100x speedups over scikit-learn while maintaining full API compatibility.
+Welcome to Sklears! This guide will help you get up and running with the high-performance machine learning library that provides 14-20x speedups (validated) over scikit-learn while maintaining full API compatibility.
 
 ## Table of Contents
 

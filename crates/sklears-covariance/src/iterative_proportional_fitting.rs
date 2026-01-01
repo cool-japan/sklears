@@ -4,8 +4,8 @@
 //! IPF is particularly useful for estimating structured covariance matrices that satisfy
 //! certain marginal constraints or conditional independence assumptions.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Inverse, SVD};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -859,12 +859,10 @@ impl IPFCovariance {
         match &self.rank_method {
             RankMethod::PseudoInverse => {
                 // Use SVD-based pseudo-inverse
-                if let Ok((u, s, vt)) = covariance.svd(true, true) {
-                    if let (Some(u), Some(vt)) = (u, vt) {
-                        let s_inv = s.mapv(|x| if x > 1e-12 { 1.0 / x } else { 0.0 });
-                        let precision = vt.t().dot(&Array2::from_diag(&s_inv)).dot(&u.t());
-                        return Ok(Some(precision));
-                    }
+                if let Ok((u, s, vt)) = covariance.svd(true) {
+                    let s_inv = s.mapv(|x| if x > 1e-12 { 1.0 / x } else { 0.0 });
+                    let precision = vt.t().dot(&Array2::from_diag(&s_inv)).dot(&u.t());
+                    return Ok(Some(precision));
                 }
                 Ok(None)
             }
@@ -888,7 +886,7 @@ impl IPFCovariance {
 
     /// Compute effective rank
     fn compute_effective_rank(&self, matrix: &Array2<f64>) -> SklResult<usize> {
-        if let Ok((_, s, _)) = matrix.svd(false, false) {
+        if let Ok((_, s, _)) = matrix.svd(false) {
             let threshold = s[0] * 1e-12; // Relative to largest singular value
             let rank = s.iter().filter(|&&x| x > threshold).count();
             Ok(rank)
@@ -899,7 +897,7 @@ impl IPFCovariance {
 
     /// Compute condition number
     fn compute_condition_number(&self, matrix: &Array2<f64>) -> SklResult<f64> {
-        if let Ok((_, s, _)) = matrix.svd(false, false) {
+        if let Ok((_, s, _)) = matrix.svd(false) {
             let max_s = s.iter().fold(0.0f64, |a, &b| f64::max(a, b));
             let min_s = s.iter().fold(f64::INFINITY, |a, &b| a.min(b));
             if min_s > 1e-15 {

@@ -45,7 +45,7 @@ impl ClusteringValidator {
     /// .unwrap();
     ///
     /// // Define clustering function
-    /// let clustering_fn = |data: &Array2<f64>, k: usize| -> Result<Vec<i32>> {
+    /// let clustering_fn = |data: &Array2`<f64>`, k: usize| -> Result<Vec<i32>> {
     ///     // Your clustering implementation here
     ///     // For example, K-means clustering
     ///     Ok((0..data.nrows()).map(|i| (i % k) as i32).collect())
@@ -296,7 +296,7 @@ impl ClusteringValidator {
             for j in 0..n_features {
                 let range = max_vals[j] - min_vals[j];
                 if range > 0.0 {
-                    reference_data[(i, j)] = min_vals[j] + rng.random_range(0.0, 1.0) * range;
+                    reference_data[(i, j)] = min_vals[j] + rng.random_range(0.0..1.0) * range;
                 } else {
                     reference_data[(i, j)] = min_vals[j];
                 }

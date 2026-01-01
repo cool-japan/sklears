@@ -25,7 +25,7 @@ use std::arch::is_aarch64_feature_detected;
 
 /// SIMD-optimized element-wise vector addition
 ///
-/// Computes c[i] = a[i] + b[i] for all elements using SIMD instructions
+/// Computes c\[i\] = a\[i\] + b\[i\] for all elements using SIMD instructions
 /// when available. The operation is performed in-place on the output vector.
 ///
 /// # Arguments
@@ -86,7 +86,7 @@ pub fn add_vec(a: &[f32], b: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise vector subtraction
 ///
-/// Computes c[i] = a[i] - b[i] for all elements using SIMD instructions.
+/// Computes c\[i\] = a\[i\] - b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector (minuend)
@@ -146,7 +146,7 @@ pub fn subtract_vec(a: &[f32], b: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise vector multiplication
 ///
-/// Computes c[i] = a[i] * b[i] for all elements using SIMD instructions.
+/// Computes c\[i\] = a\[i\] * b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -206,7 +206,7 @@ pub fn multiply_vec(a: &[f32], b: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized element-wise vector division
 ///
-/// Computes c[i] = a[i] / b[i] for all elements using SIMD instructions.
+/// Computes c\[i\] = a\[i\] / b\[i\] for all elements using SIMD instructions.
 /// Division by zero results in infinity or NaN according to IEEE 754 standard.
 ///
 /// # Arguments
@@ -267,7 +267,7 @@ pub fn divide_vec(a: &[f32], b: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized fused multiply-add operation
 ///
-/// Computes a[i] = a[i] * b[i] + c[i] for all elements in-place on vector `a`.
+/// Computes a\[i\] = a\[i\] * b\[i\] + c\[i\] for all elements in-place on vector `a`.
 /// This operation provides maximum performance and precision when FMA instructions
 /// are available, as it performs multiplication and addition in a single step.
 ///
@@ -326,7 +326,7 @@ pub fn fma(a: &mut [f32], b: &[f32], c: &[f32]) {
 
 /// SIMD-optimized vector scaling (scalar multiplication)
 ///
-/// Computes result[i] = vector[i] * scalar for all elements.
+/// Computes result\[i\] = vector\[i\] * scalar for all elements.
 /// This is optimized for the common case of multiplying a vector by a scalar value.
 ///
 /// # Arguments
@@ -385,7 +385,7 @@ pub fn scale_vec(vector: &[f32], scalar: f32, result: &mut [f32]) {
 
 /// SIMD-optimized in-place vector scaling
 ///
-/// Computes vector[i] = vector[i] * scalar for all elements in-place.
+/// Computes vector\[i\] = vector\[i\] * scalar for all elements in-place.
 /// This is more memory-efficient than the out-of-place version.
 ///
 /// # Arguments
@@ -487,7 +487,7 @@ pub fn scale_vec_inplace(vector: &mut [f32], scalar: f32) {
 
 /// SIMD-optimized vector absolute value
 ///
-/// Computes result[i] = |vector[i]| for all elements.
+/// Computes result\[i\] = |vector\[i\]| for all elements.
 ///
 /// # Arguments
 /// * `vector` - Input vector
@@ -544,7 +544,7 @@ pub fn abs_vec(vector: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized vector negation
 ///
-/// Computes result[i] = -vector[i] for all elements.
+/// Computes result\[i\] = -vector\[i\] for all elements.
 ///
 /// # Arguments
 /// * `vector` - Input vector
@@ -601,7 +601,7 @@ pub fn neg_vec(vector: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized vector reciprocal
 ///
-/// Computes result[i] = 1.0 / vector[i] for all elements.
+/// Computes result\[i\] = 1.0 / vector\[i\] for all elements.
 /// Division by zero results in infinity according to IEEE 754 standard.
 ///
 /// # Arguments
@@ -659,7 +659,7 @@ pub fn reciprocal_vec(vector: &[f32], result: &mut [f32]) {
 
 /// SIMD-optimized vector squaring
 ///
-/// Computes result[i] = vector[i] * vector[i] for all elements.
+/// Computes result\[i\] = vector\[i\] * vector\[i\] for all elements.
 ///
 /// # Arguments
 /// * `vector` - Input vector

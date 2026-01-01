@@ -5,9 +5,9 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-High-performance linear models for Rust with 3-100x speedup over scikit-learn, featuring advanced solvers, numerical stability, and GPU acceleration.
+High-performance linear models for Rust with 14-20x speedup (validated) over scikit-learn, featuring advanced solvers, numerical stability, and GPU acceleration.
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -252,8 +252,8 @@ Licensed under either of:
 ```bibtex
 @software{sklears_linear,
   title = {sklears-linear: High-Performance Linear Models for Rust},
-  author = {Cool Japan Team},
-  year = {2025},
+  author = {COOLJAPAN OU (Team KitaSan)},
+  year = {2026},
   url = {https://github.com/cool-japan/sklears}
 }
 ```

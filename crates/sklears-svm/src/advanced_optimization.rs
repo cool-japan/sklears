@@ -13,7 +13,7 @@
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_linalg::{cholesky, lu, solve};
+use scirs2_linalg::compat::{cholesky, lu, solve};
 
 use crate::kernels::{create_kernel, Kernel, KernelType};
 use sklears_core::error::{Result, SklearsError};

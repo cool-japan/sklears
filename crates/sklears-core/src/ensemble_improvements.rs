@@ -741,7 +741,7 @@ impl TrainedBaseModel for TrainedRandomForestModel {
         let mut rng = Random::seed(self.id as u64);
 
         let predictions =
-            Array1::from_iter((0..x.nrows()).map(|_| rng.random_range(0.0_f64, 3.0_f64).round()));
+            Array1::from_iter((0..x.nrows()).map(|_| rng.random_range(0.0_f64..3.0_f64).round()));
 
         Ok(predictions)
     }

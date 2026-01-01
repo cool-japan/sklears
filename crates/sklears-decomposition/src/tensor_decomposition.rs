@@ -529,7 +529,7 @@ impl CPDecomposition<Untrained> {
         let b_na = DMatrix::from_row_slice(b.nrows(), b.ncols(), &b_vec);
 
         // Compute pseudoinverse using SVD
-        let svd = a_na.svd(true, true);
+        let svd = a_na.svd(true);
         let tolerance = 1e-12;
 
         let u = svd
@@ -908,7 +908,7 @@ impl TuckerDecomposition<Untrained> {
         // Convert to nalgebra for SVD
         let matrix_vec: Vec<f64> = matrix.iter().cloned().collect();
         let na_matrix = DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &matrix_vec);
-        let svd = na_matrix.svd(true, true);
+        let svd = na_matrix.svd(true);
 
         let u = svd
             .u
@@ -1083,7 +1083,7 @@ impl TuckerDecomposition<Untrained> {
             chol.solve(&b_na)
         } else {
             // Use pseudoinverse
-            let svd = a_na.svd(true, true);
+            let svd = a_na.svd(true);
             let tolerance = 1e-12;
 
             let u = svd

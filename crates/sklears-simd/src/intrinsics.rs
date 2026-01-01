@@ -289,7 +289,10 @@ pub mod optimization {
             }
             #[cfg(not(feature = "no-std"))]
             {
-                core::arch::x86_64::_mm_prefetch(_ptr as *const i8, core::arch::x86_64::_MM_HINT_T0);
+                core::arch::x86_64::_mm_prefetch(
+                    _ptr as *const i8,
+                    core::arch::x86_64::_MM_HINT_T0,
+                );
             }
         }
     }

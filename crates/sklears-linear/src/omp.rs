@@ -3,7 +3,8 @@
 use std::marker::PhantomData;
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
@@ -202,7 +203,8 @@ impl Fit<Array2<Float>, Array1<Float>> for OrthogonalMatchingPursuit<Untrained> 
                 gram_reg[[i, i]] += 1e-10;
             }
 
-            let coef_active = &solve(&gram_reg.view(), &x_active_t_y.view(), None)
+            let coef_active = &gram_reg
+                .solve(&x_active_t_y)
                 .map_err(|e| SklearsError::NumericalError(format!("Failed to solve: {}", e)))?;
 
             // Update full coefficient vector

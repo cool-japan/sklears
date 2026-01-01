@@ -443,7 +443,6 @@ impl OutlierDetectionMethod {
         let n_features = x.ncols();
 
         // Simplified isolation forest using random cuts
-        use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
 
         for _ in 0..n_trees {

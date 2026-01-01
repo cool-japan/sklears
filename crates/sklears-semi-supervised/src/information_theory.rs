@@ -172,7 +172,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
             transformation[[i, i]] = 1.0; // Start with identity
             for j in 0..n_features {
                 if i != j {
-                    transformation[[i, j]] = rng.random_range(-0.1, 0.1);
+                    transformation[[i, j]] = rng.random_range(-0.1..0.1);
                 }
             }
         }
@@ -512,7 +512,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for InformationBottleneck<U
         let mut projection = Array2::<f64>::zeros((n_features, self.n_components));
         for i in 0..n_features {
             for j in 0..self.n_components {
-                projection[[i, j]] = rng.random_range(-0.1, 0.1);
+                projection[[i, j]] = rng.random_range(-0.1..0.1);
             }
         }
 
@@ -1024,7 +1024,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for KLDivergenceOptimizatio
         let mut weights = Array2::<f64>::zeros((n_features, n_classes));
         for i in 0..n_features {
             for j in 0..n_classes {
-                weights[[i, j]] = rng.random_range(-0.1, 0.1);
+                weights[[i, j]] = rng.random_range(-0.1..0.1);
             }
         }
 
@@ -1075,7 +1075,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for KLDivergenceOptimizatio
                 // Create augmented version (simplified: add small noise)
                 let mut X_aug = X.row(idx).to_owned();
                 for j in 0..n_features {
-                    X_aug[j] += rng.random_range(-0.01, 0.01);
+                    X_aug[j] += rng.random_range(-0.01..0.01);
                 }
 
                 // Compute prediction on augmented sample

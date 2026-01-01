@@ -603,7 +603,7 @@ impl ResultSet {
         self.execution_time = time;
     }
 
-    /// Convert result set to ndarray Array2<f64> for ML processing
+    /// Convert result set to ndarray `Array2<f64>` for ML processing
     pub fn to_array2(&self) -> Result<Array2<f64>, DatabaseError> {
         if self.rows.is_empty() {
             return Err(DatabaseError::ConversionFailed(
@@ -634,7 +634,7 @@ impl ResultSet {
         Ok(data)
     }
 
-    /// Convert specific column to Array1<f64>
+    /// Convert specific column to `Array1<f64>`
     pub fn column_to_array1(&self, column: &str) -> Result<Array1<f64>, DatabaseError> {
         if !self.columns.contains(&column.to_string()) {
             return Err(DatabaseError::ConversionFailed(format!(

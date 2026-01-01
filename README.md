@@ -7,14 +7,14 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025) — 11,292 tests passing, 170 skipped. See the [release notes](docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026) — 11,160 tests passing (11,159 passed, 1 intermittent), 171 skipped. See the [release notes](docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.0-alpha.2`
-- **3-100x performance improvements** over Python implementations
+- **>99% scikit-learn API coverage** validated for `0.1.0-beta.1`
+- **14-20x performance improvements (validated)** over Python implementations
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
 - **Zero-copy operations** for efficient data handling
@@ -161,10 +161,10 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.0-alpha.2"
+sklears = "0.1.0-beta.1"
 
 # Or with specific features
-sklears = { version = "0.1.0-alpha.2", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.1.0-beta.1", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
@@ -513,7 +513,7 @@ let results: Vec<_> = folds
 - **Rust**: Zero-cost abstractions, predictable performance, no GC pauses
 - **Python**: Interpretation overhead, unpredictable GC pauses, reference counting
 - **Memory**: Rust uses 50-90% less memory than equivalent Python code
-- **Speed**: 3-100x faster execution, especially for CPU-intensive tasks
+- **Speed**: 14-20x faster execution (validated), especially for CPU-intensive tasks
 
 ## 🛠️ Advanced Usage
 
@@ -788,7 +788,7 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.1.0-alpha.2 — December 22, 2025)
+### Current Release Snapshot (0.1.0-beta.1 — January 1, 2026)
 
 | Area | Status | Notes |
 |------|--------|-------|
@@ -798,7 +798,7 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 | GPU Acceleration | ✅ Available | CUDA/WebGPU backends for forests, neighbors, and deep models |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
 
-### Next Up (toward 0.1.0-beta)
+### Next Up (toward 0.1.0 Stable)
 1. **Stabilize Public APIs** — finalize breaking-change policy and document RFC process
 2. **Docs & Guides** — expand cookbook coverage, polish Python bridge documentation
 3. **Release Automation** — wire up crates.io + PyPI publishing pipelines

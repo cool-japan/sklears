@@ -7,6 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::Distribution;
 use scirs2_core::StandardNormal;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit};
 use std::collections::HashMap;
 
@@ -393,8 +394,6 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         &self,
         matrix: &Array2<f64>,
     ) -> Result<(Array1<f64>, Array2<f64>), SklearsError> {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         let (eigenvalues, eigenvectors) = matrix.eigh(UPLO::Lower).map_err(|e| {
             SklearsError::InvalidOperation(format!("Eigendecomposition failed: {:?}", e))
         })?;
@@ -419,7 +418,6 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
     }
 
     fn matrix_inverse(&self, matrix: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         matrix
             .inv()
             .map_err(|e| SklearsError::InvalidInput(format!("Matrix inversion failed: {}", e)))
@@ -697,8 +695,6 @@ impl PortfolioOptimizer {
         &self,
         covariance: &Array2<f64>,
     ) -> Result<Array1<f64>, SklearsError> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
-
         let cov_inv = covariance.inv().map_err(|_| {
             SklearsError::InvalidInput("Covariance matrix not invertible".to_string())
         })?;
@@ -779,8 +775,6 @@ impl PortfolioOptimizer {
         &self,
         covariance: &Array2<f64>,
     ) -> Result<Array1<f64>, SklearsError> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
-
         let cov_inv = covariance.inv().map_err(|_| {
             SklearsError::InvalidInput("Covariance matrix not invertible".to_string())
         })?;
@@ -1116,8 +1110,6 @@ impl StressTesting {
     }
 
     fn ensure_valid_correlation(&self, corr: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         // Eigenvalue decomposition
         let (mut eigenvals, eigenvecs) = corr.eigh(UPLO::Lower).map_err(|e| {
             SklearsError::InvalidOperation(format!("Eigendecomposition failed: {:?}", e))

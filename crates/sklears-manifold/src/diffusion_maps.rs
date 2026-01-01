@@ -2,8 +2,8 @@
 //!
 //! This module provides Diffusion Maps for non-linear dimensionality reduction through diffusion processes.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -268,8 +268,12 @@ impl DiffusionMaps<Untrained> {
         &self,
         transition_matrix: &Array2<f64>,
     ) -> SklResult<(Array2<f64>, Array2<f64>)> {
+        // Symmetrize the matrix to ensure numerical stability for eigendecomposition
+        // Matrix should be symmetric but may have small numerical errors
+        let symmetric_matrix = (transition_matrix + &transition_matrix.t()) / 2.0;
+
         // Compute eigendecomposition
-        let (eigenvals, eigenvecs) = transition_matrix
+        let (eigenvals, eigenvecs) = symmetric_matrix
             .eigh(UPLO::Lower)
             .map_err(|e| SklearsError::InvalidInput(format!("Eigendecomposition failed: {e}")))?;
 

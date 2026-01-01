@@ -21,7 +21,7 @@ impl BatchNorm {
 
     /// Apply batch normalization to a batch of data
     /// Input shape: [batch_size, features]
-    /// mean, variance, gamma, beta shape: [features]
+    /// mean, variance, gamma, beta shape: \[features\]
     pub fn forward(
         &self,
         input: &[f32],
@@ -180,7 +180,7 @@ impl LayerNorm {
 pub mod batch_matmul {
     use super::*;
 
-    /// Batch matrix multiplication: C[i] = A[i] * B[i]
+    /// Batch matrix multiplication: C\[i\] = A\[i\] * B\[i\]
     /// All matrices have the same dimensions
     pub fn batch_matmul_f32(
         a: &[f32],
@@ -215,7 +215,7 @@ pub mod batch_matmul {
         }
     }
 
-    /// Batch matrix multiplication with broadcasting: C[i] = A[i] * B
+    /// Batch matrix multiplication with broadcasting: C\[i\] = A\[i\] * B
     /// A is batched, B is shared across all batches
     pub fn batch_matmul_broadcast_f32(
         a: &[f32],

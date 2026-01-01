@@ -25,8 +25,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> representing the intrinsic 1D coordinate
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` representing the intrinsic 1D coordinate
     ///
     /// # Examples
     ///
@@ -74,8 +74,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> representing the intrinsic 1D coordinate
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` representing the intrinsic 1D coordinate
     pub fn s_curve(n_samples: usize, noise: f64, random_state: u64) -> (Array2<f64>, Array1<f64>) {
         let mut rng = StdRng::seed_from_u64(random_state);
         let mut data = Array2::zeros((n_samples, 3));
@@ -110,8 +110,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> for visualization
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` for visualization
     pub fn twin_peaks(
         n_samples: usize,
         noise: f64,
@@ -154,8 +154,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> representing the azimuthal angle
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` representing the azimuthal angle
     pub fn severed_sphere(
         n_samples: usize,
         noise: f64,
@@ -209,8 +209,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> representing the parameter along the strip
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` representing the parameter along the strip
     pub fn mobius_strip(
         n_samples: usize,
         noise: f64,
@@ -255,8 +255,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> representing the major angle
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` representing the major angle
     pub fn torus(
         n_samples: usize,
         major_radius: f64,
@@ -300,8 +300,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `colors` is an Array1<f64> representing position along the helix
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `colors` is an `Array1<f64>` representing position along the helix
     pub fn helix(
         n_samples: usize,
         n_turns: f64,
@@ -342,8 +342,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, colors) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, n_dimensions)
-    /// * `colors` is an Array1<f64> representing the first spherical coordinate
+    /// * `data` is an `Array2<f64>` of shape (n_samples, n_dimensions)
+    /// * `colors` is an `Array1<f64>` representing the first spherical coordinate
     pub fn hyperellipsoid(
         n_samples: usize,
         n_dimensions: usize,
@@ -403,8 +403,8 @@ impl BenchmarkDatasets {
     /// # Returns
     ///
     /// Returns a tuple of (data, labels) where:
-    /// * `data` is an Array2<f64> of shape (n_samples, 3)
-    /// * `labels` is an Array1<usize> indicating cluster membership
+    /// * `data` is an `Array2<f64>` of shape (n_samples, 3)
+    /// * `labels` is an Array1`<usize>` indicating cluster membership
     pub fn gaussian_mixture_on_manifold(
         n_samples: usize,
         n_clusters: usize,

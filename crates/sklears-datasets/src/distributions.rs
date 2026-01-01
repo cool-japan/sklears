@@ -284,7 +284,7 @@ pub fn make_multivariate_mixture(
     let mut centers = Array2::zeros((n_components, n_features));
     for i in 0..n_components {
         for j in 0..n_features {
-            centers[[i, j]] = rng.random_range(-10.0, 10.0);
+            centers[[i, j]] = rng.random_range(-10.0..10.0);
         }
     }
 
@@ -299,7 +299,7 @@ pub fn make_multivariate_mixture(
             let mut covs = Array2::zeros((n_components, n_features));
             for i in 0..n_components {
                 for j in 0..n_features {
-                    covs[[i, j]] = cluster_std * cluster_std * rng.random_range(0.5, 2.0);
+                    covs[[i, j]] = cluster_std * cluster_std * rng.random_range(0.5..2.0);
                 }
             }
             covs
@@ -308,7 +308,7 @@ pub fn make_multivariate_mixture(
             // Spherical covariance: same variance for all features in each component
             let mut covs = Array2::zeros((n_components, n_features));
             for i in 0..n_components {
-                let variance = cluster_std * cluster_std * rng.random_range(0.5, 2.0);
+                let variance = cluster_std * cluster_std * rng.random_range(0.5..2.0);
                 for j in 0..n_features {
                     covs[[i, j]] = variance;
                 }
@@ -446,7 +446,7 @@ pub fn make_heavy_tailed_distribution(
             }
 
             for i in 0..n_samples {
-                let u: f64 = rng.random_range(-PI / 2.0, PI / 2.0);
+                let u: f64 = rng.random_range(-PI / 2.0..PI / 2.0);
                 samples[i] = location + scale * u.tan();
             }
         }

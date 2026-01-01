@@ -1,11 +1,11 @@
 //! Utility functions for information-theoretic manifold learning methods
 
 use super::bregman_divergence::BregmanDivergenceType;
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Rng;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::f64::consts::{E, PI};
 
@@ -399,35 +399,31 @@ pub fn compute_natural_gradient(
     // Solve Fisher^{-1} * gradient for natural gradient
     // Using pseudo-inverse for numerical stability
     let (u, s, vt) = regularized_fisher
-        .svd(true, true)
+        .svd(true)
         .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?;
 
-    if let (Some(u_mat), Some(vt_mat)) = (u, vt) {
-        // Compute pseudo-inverse using SVD
-        let mut s_inv = Array1::zeros(s.len());
-        for (i, &si) in s.iter().enumerate() {
-            if si > 1e-10 {
-                s_inv[i] = 1.0 / si;
-            }
+    let (u_mat, vt_mat) = (u, vt);
+    // Compute pseudo-inverse using SVD
+    let mut s_inv = Array1::zeros(s.len());
+    for (i, &si) in s.iter().enumerate() {
+        if si > 1e-10 {
+            s_inv[i] = 1.0 / si;
         }
-
-        // Fisher^{-1} = V * S^{-1} * U^T
-        let s_inv_diag = Array2::from_diag(&s_inv);
-        let fisher_inv = vt_mat.t().dot(&s_inv_diag).dot(&u_mat.t());
-
-        // Natural gradient = Fisher^{-1} * gradient
-        let natural_grad_flat = fisher_inv.dot(&grad_vec);
-
-        // Reshape back to original shape
-        let natural_gradient =
-            Array2::from_shape_vec((n_samples, n_components), natural_grad_flat.to_vec())
-                .map_err(|e| SklearsError::InvalidInput(format!("Reshape failed: {}", e)))?;
-
-        Ok(natural_gradient)
-    } else {
-        // Fallback to regular gradient if SVD fails
-        Ok(gradient.clone())
     }
+
+    // Fisher^{-1} = V * S^{-1} * U^T
+    let s_inv_diag = Array2::from_diag(&s_inv);
+    let fisher_inv = vt_mat.t().dot(&s_inv_diag).dot(&u_mat.t());
+
+    // Natural gradient = Fisher^{-1} * gradient
+    let natural_grad_flat = fisher_inv.dot(&grad_vec);
+
+    // Reshape back to original shape
+    let natural_gradient =
+        Array2::from_shape_vec((n_samples, n_components), natural_grad_flat.to_vec())
+            .map_err(|e| SklearsError::InvalidInput(format!("Reshape failed: {}", e)))?;
+
+    Ok(natural_gradient)
 }
 
 /// Compute stress gradient for embedding

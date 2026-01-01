@@ -1,8 +1,8 @@
 use scirs2_core::essentials::Normal;
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
 use scirs2_core::Distribution;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -130,10 +130,10 @@ impl GenomicManifoldAnalysis<Untrained> {
                 let centered = data - &mean.insert_axis(Axis(0));
 
                 let (_, _, vt) = centered
-                    .svd(false, true)
+                    .svd(false)
                     .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
-                let v = vt.unwrap().t().to_owned();
+                let v = vt.t().to_owned();
                 let n_comp = self.n_components.min(v.ncols());
                 let projection = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
 
@@ -147,9 +147,9 @@ impl GenomicManifoldAnalysis<Untrained> {
                 let mean = data.mean_axis(Axis(0)).unwrap();
                 let centered = data - &mean.insert_axis(Axis(0));
                 let (_, _, vt) = centered
-                    .svd(false, true)
+                    .svd(false)
                     .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-                let v = vt.unwrap().t().to_owned();
+                let v = vt.t().to_owned();
                 let n_comp = self.n_components.min(v.ncols());
                 let projection = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
                 let mut embedding = centered.dot(&projection);
@@ -182,9 +182,9 @@ impl GenomicManifoldAnalysis<Untrained> {
                 let mean = data.mean_axis(Axis(0)).unwrap();
                 let centered = data - &mean.insert_axis(Axis(0));
                 let (_, _, vt) = centered
-                    .svd(false, true)
+                    .svd(false)
                     .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-                let v = vt.unwrap().t().to_owned();
+                let v = vt.t().to_owned();
                 let n_comp = self.n_components.min(v.ncols());
                 let projection = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
                 Ok(centered.dot(&projection))
@@ -278,9 +278,9 @@ impl Fit<Array2<f64>, ()> for GenomicManifoldAnalysis<Untrained> {
         // Compute projection matrix
         let centered = &normalized - &gene_mean.clone().insert_axis(Axis(0));
         let (_, _, vt) = centered
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-        let v = vt.unwrap().t().to_owned();
+        let v = vt.t().to_owned();
         let n_comp = self.n_components.min(v.ncols());
         let projection_matrix = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
 
@@ -526,10 +526,10 @@ impl Fit<Vec<Array2<f64>>, ()> for ProteinStructureManifold<Untrained> {
 
         // Compute manifold embedding using PCA
         let (_, _, vt) = centered
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
-        let v = vt.unwrap().t().to_owned();
+        let v = vt.t().to_owned();
         let n_comp = self.n_components.min(v.ncols());
         let projection_matrix = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
 
@@ -731,8 +731,11 @@ impl Fit<Array2<f64>, ()> for PhylogeneticEmbedding<Untrained> {
             }
         }
 
+        // Symmetrize to ensure numerical stability for eigendecomposition
+        let symmetric_gram = (&gram + &gram.t()) / 2.0;
+
         // Eigendecomposition
-        let (eigenvalues, eigenvectors) = gram.eigh(UPLO::Lower).map_err(|e| {
+        let (eigenvalues, eigenvectors) = symmetric_gram.eigh(UPLO::Lower).map_err(|e| {
             SklearsError::NumericalError(format!("Eigendecomposition failed: {}", e))
         })?;
 
@@ -961,10 +964,10 @@ impl Fit<Array2<f64>, ()> for SingleCellTrajectory<Untrained> {
 
         // Compute trajectory embedding using PCA
         let (_, _, vt) = centered
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
-        let v = vt.unwrap().t().to_owned();
+        let v = vt.t().to_owned();
         let n_comp = self.n_components.min(v.ncols());
         let projection = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
 
@@ -1118,10 +1121,10 @@ impl Fit<Array2<f64>, ()> for MetabolicPathwayManifold<Untrained> {
 
         // Compute pathway embedding using PCA
         let (_, _, vt) = centered
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
-        let v = vt.unwrap().t().to_owned();
+        let v = vt.t().to_owned();
         let n_comp = self.n_components.min(v.ncols());
         let projection_matrix = v.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
 

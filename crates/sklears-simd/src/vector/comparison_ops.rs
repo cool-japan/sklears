@@ -24,7 +24,7 @@ use std::arch::is_aarch64_feature_detected;
 
 /// SIMD-optimized element-wise equality comparison
 ///
-/// Computes result[i] = a[i] == b[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = a\[i\] == b\[i\] for all elements using SIMD instructions.
 /// Returns a boolean mask where true indicates elements are equal.
 ///
 /// # Arguments
@@ -85,7 +85,7 @@ pub fn eq_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise not-equal comparison
 ///
-/// Computes result[i] = a[i] != b[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = a\[i\] != b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -145,7 +145,7 @@ pub fn ne_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise less-than comparison
 ///
-/// Computes result[i] = a[i] < b[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = a\[i\] < b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -205,7 +205,7 @@ pub fn lt_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise less-than-or-equal comparison
 ///
-/// Computes result[i] = a[i] <= b[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = a\[i\] <= b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -265,7 +265,7 @@ pub fn le_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise greater-than comparison
 ///
-/// Computes result[i] = a[i] > b[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = a\[i\] > b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -325,7 +325,7 @@ pub fn gt_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise greater-than-or-equal comparison
 ///
-/// Computes result[i] = a[i] >= b[i] for all elements using SIMD instructions.
+/// Computes result\[i\] = a\[i\] >= b\[i\] for all elements using SIMD instructions.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -385,7 +385,7 @@ pub fn ge_vec(a: &[f32], b: &[f32], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise logical AND operation
 ///
-/// Computes result[i] = a[i] && b[i] for all boolean elements.
+/// Computes result\[i\] = a\[i\] && b\[i\] for all boolean elements.
 /// This is typically used to combine boolean masks from comparison operations.
 ///
 /// # Arguments
@@ -446,7 +446,7 @@ pub fn and_vec(a: &[bool], b: &[bool], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise logical OR operation
 ///
-/// Computes result[i] = a[i] || b[i] for all boolean elements.
+/// Computes result\[i\] = a\[i\] || b\[i\] for all boolean elements.
 ///
 /// # Arguments
 /// * `a` - First input boolean vector
@@ -506,7 +506,7 @@ pub fn or_vec(a: &[bool], b: &[bool], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise logical XOR operation
 ///
-/// Computes result[i] = a[i] ^ b[i] for all boolean elements.
+/// Computes result\[i\] = a\[i\] ^ b\[i\] for all boolean elements.
 ///
 /// # Arguments
 /// * `a` - First input boolean vector
@@ -566,7 +566,7 @@ pub fn xor_vec(a: &[bool], b: &[bool], result: &mut [bool]) {
 
 /// SIMD-optimized element-wise logical NOT operation
 ///
-/// Computes result[i] = !input[i] for all boolean elements.
+/// Computes result\[i\] = !input\[i\] for all boolean elements.
 ///
 /// # Arguments
 /// * `input` - Input boolean vector

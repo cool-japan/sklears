@@ -24,13 +24,13 @@ use crate::CrossValidator;
 ///         let mut splits = Vec::new();
 ///         
 ///         // First fold: even indices for train, odd for test
-///         let train1: Vec<usize> = (0..n_samples).filter(|&i| i % 2 == 0).collect();
-///         let test1: Vec<usize> = (0..n_samples).filter(|&i| i % 2 == 1).collect();
+///         let train1: `Vec<usize>` = (0..n_samples).filter(|&i| i % 2 == 0).collect();
+///         let test1: `Vec<usize>` = (0..n_samples).filter(|&i| i % 2 == 1).collect();
 ///         splits.push((train1, test1));
 ///         
 ///         // Second fold: odd indices for train, even for test
-///         let train2: Vec<usize> = (0..n_samples).filter(|&i| i % 2 == 1).collect();
-///         let test2: Vec<usize> = (0..n_samples).filter(|&i| i % 2 == 0).collect();
+///         let train2: `Vec<usize>` = (0..n_samples).filter(|&i| i % 2 == 1).collect();
+///         let test2: `Vec<usize>` = (0..n_samples).filter(|&i| i % 2 == 0).collect();
 ///         splits.push((train2, test2));
 ///         
 ///         splits

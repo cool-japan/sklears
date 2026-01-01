@@ -131,9 +131,10 @@ impl ModelSerializer {
                 })?;
             }
             SerializationFormat::Binary => {
-                let binary_data = bincode::serialize(model).map_err(|e| {
-                    SklearsError::InvalidInput(format!("Binary serialization failed: {}", e))
-                })?;
+                let binary_data = oxicode::serde::encode_to_vec(model, oxicode::config::standard())
+                    .map_err(|e| {
+                        SklearsError::InvalidInput(format!("Binary serialization failed: {}", e))
+                    })?;
                 file.write_all(&binary_data).map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to write file: {}", e))
                 })?;
@@ -171,9 +172,17 @@ impl ModelSerializer {
                     SklearsError::InvalidInput(format!("JSON deserialization failed: {}", e))
                 })
             }
-            SerializationFormat::Binary => bincode::deserialize(&buffer).map_err(|e| {
-                SklearsError::InvalidInput(format!("Binary deserialization failed: {}", e))
-            }),
+            SerializationFormat::Binary => {
+                let (model, _bytes_read) =
+                    oxicode::serde::decode_from_slice(&buffer, oxicode::config::standard())
+                        .map_err(|e| {
+                            SklearsError::InvalidInput(format!(
+                                "Binary deserialization failed: {}",
+                                e
+                            ))
+                        })?;
+                Ok(model)
+            }
             SerializationFormat::MessagePack => rmp_serde::from_slice(&buffer).map_err(|e| {
                 SklearsError::InvalidInput(format!("MessagePack deserialization failed: {}", e))
             }),
@@ -194,15 +203,17 @@ impl ModelSerializer {
 
     /// Save a model to binary bytes
     pub fn to_binary(model: &SerializableModel) -> SklResult<Vec<u8>> {
-        bincode::serialize(model)
+        oxicode::serde::encode_to_vec(model, oxicode::config::standard())
             .map_err(|e| SklearsError::InvalidInput(format!("Binary serialization failed: {}", e)))
     }
 
     /// Load a model from binary bytes
     pub fn from_binary(data: &[u8]) -> SklResult<SerializableModel> {
-        bincode::deserialize(data).map_err(|e| {
-            SklearsError::InvalidInput(format!("Binary deserialization failed: {}", e))
-        })
+        let (model, _bytes_read) =
+            oxicode::serde::decode_from_slice(data, oxicode::config::standard()).map_err(|e| {
+                SklearsError::InvalidInput(format!("Binary deserialization failed: {}", e))
+            })?;
+        Ok(model)
     }
 }
 

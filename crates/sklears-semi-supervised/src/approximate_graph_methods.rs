@@ -191,7 +191,7 @@ impl ApproximateKNN {
         for _ in 0..self.n_projections {
             let mut vec = Array1::<f64>::zeros(n_features);
             for j in 0..n_features {
-                vec[j] = rng.random_range(-1.0, 1.0);
+                vec[j] = rng.random_range(-1.0..1.0);
             }
             // Normalize
             let norm = vec.iter().map(|x| x * x).sum::<f64>().sqrt();
@@ -457,7 +457,7 @@ impl ApproximateSpectralClustering {
         let mut omega = Array2::<f64>::zeros((n, k));
         for i in 0..n {
             for j in 0..k {
-                omega[[i, j]] = rng.random_range(-1.0, 1.0);
+                omega[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -534,7 +534,7 @@ impl ApproximateSpectralClustering {
             // Random initial vector
             let mut v = Array1::<f64>::zeros(n);
             for i in 0..n {
-                v[i] = rng.random_range(-1.0, 1.0);
+                v[i] = rng.random_range(-1.0..1.0);
             }
 
             // Power iteration

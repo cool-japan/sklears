@@ -228,7 +228,7 @@ impl ImportanceSampler {
         let mut used_indices = HashSet::new();
 
         for _ in 0..self.sample_size {
-            let random_value: Float = rng.random_range(0.0, 1.0);
+            let random_value: Float = rng.random_range(0.0..1.0);
 
             // Find index using binary search on cumulative distribution
             let mut idx = 0;
@@ -648,7 +648,7 @@ impl SystematicSampler {
         };
 
         let interval = population_size as f64 / sample_size as f64;
-        let start = rng.random_range(0.0, interval);
+        let start = rng.random_range(0.0..interval);
 
         let mut indices = Vec::with_capacity(sample_size);
         for i in 0..sample_size {

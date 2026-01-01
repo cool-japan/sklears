@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -40,6 +40,6 @@ let imputed = imputer.fit_transform(&x)?;
 
 ## Status
 
-- Included in the 11,292 passing workspace tests for `0.1.0-alpha.2`.
+- Included in the 11,292 passing workspace tests for `0.1.0-beta.1`.
 - Supports dense and sparse matrices with deterministic output.
 - Future tasks (streaming imputers, categorical encoders) tracked in this crate’s `TODO.md`.

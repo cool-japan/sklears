@@ -59,7 +59,7 @@ tokio-stream = { version = "0.1", optional = true }
 # Distributed computing (MPI-style)
 # Note: default-features = false disables libffi to avoid ARM64 macOS compilation issues
 mpi = { version = "0.8", optional = true, default-features = false }
-bincode = { version = "1.3", optional = true }
+oxicode = { workspace = true, optional = true }
 
 # Note: ndarray and rand are provided through SciRS2 dependencies
 # Direct ndarray/rand imports are not used per SciRS2 policy
@@ -82,7 +82,7 @@ optimized = ["parallel", "simd"]
 serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
 mmap = ["memmap2"]
 latex = ["tinytemplate"]  # LaTeX/PDF export functionality (tex disabled until migration to latex crate)
-distributed = ["mpi", "bincode"]  # Message-passing distributed metrics (requires full MPI installation)
+distributed = ["mpi", "oxicode"]  # Message-passing distributed metrics (requires full MPI installation)
 disabled-for-stability = []  # Feature flag for experimental/unstable code
 # Note: "distributed" excluded from "full" due to platform-specific MPI requirements
 # Note: "sparse" removed from "full" - use scirs2-sparse instead (SciRS2 Policy)

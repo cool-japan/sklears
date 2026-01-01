@@ -484,7 +484,6 @@ pub mod probabilistic {
     impl CountMinSketch {
         pub fn new(width: usize, depth: usize) -> Self {
             use scirs2_core::random::thread_rng;
-            use scirs2_core::Rng;
             let mut rng = thread_rng();
             let hash_functions: Vec<u64> = (0..depth).map(|_| rng.random::<u64>()).collect();
 
@@ -612,7 +611,6 @@ pub mod probabilistic {
                 ((size as f64 / expected_elements as f64) * 2.0_f64.ln()).ceil() as usize;
 
             use scirs2_core::random::thread_rng;
-            use scirs2_core::Rng;
             let mut rng = thread_rng();
             let hash_functions: Vec<u64> = (0..hash_count).map(|_| rng.random::<u64>()).collect();
 
@@ -670,7 +668,6 @@ pub mod sketching {
             );
 
             use scirs2_core::random::thread_rng;
-            use scirs2_core::Rng;
             let mut rng = thread_rng();
             let scale = (projected_dim as f32).sqrt();
 

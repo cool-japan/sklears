@@ -3,8 +3,8 @@
 //! This module provides a flexible middleware system for composing manifold learning
 //! algorithms, preprocessing steps, and post-processing operations in a pipeline.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -748,7 +748,7 @@ fn estimate_intrinsic_dimensionality(data: &Array2<f64>) -> f64 {
 
 /// Estimate condition number
 fn estimate_condition_number(data: &Array2<f64>) -> f64 {
-    if let Ok((_, singular_values, _)) = data.svd(false, false) {
+    if let Ok((_, singular_values, _)) = data.svd(false) {
         if let (Some(&max_sv), Some(&min_sv)) = (
             singular_values
                 .iter()

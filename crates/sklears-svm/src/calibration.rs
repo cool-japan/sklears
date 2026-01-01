@@ -6,7 +6,6 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::thread_rng;
-use scirs2_core::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,

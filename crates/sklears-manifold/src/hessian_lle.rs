@@ -2,8 +2,8 @@
 //!
 //! This module provides HLLE for non-linear dimensionality reduction using Hessian eigenmaps.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -271,33 +271,32 @@ impl HessianLLE<Untrained> {
 
             // Compute local tangent space via SVD
             let (_, _, vt) = neighborhood
-                .svd(true, true)
+                .svd(true)
                 .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {e}")))?;
 
-            if let Some(vt_matrix) = vt {
-                // Use the first few principal components as tangent space
-                let tangent_dim = (n_features - 1).min(self.n_neighbors - 1);
+            let vt_matrix = vt;
+            // Use the first few principal components as tangent space
+            let tangent_dim = (n_features - 1).min(self.n_neighbors - 1);
 
-                // Compute local coordinates in tangent space
-                let mut tangent_coords = Array2::zeros((self.n_neighbors, tangent_dim));
-                for k in 0..self.n_neighbors {
-                    for d in 0..tangent_dim {
-                        let mut coord = 0.0;
-                        for f in 0..n_features {
-                            coord += neighborhood[[k, f]] * vt_matrix[[d, f]];
-                        }
-                        tangent_coords[[k, d]] = coord;
+            // Compute local coordinates in tangent space
+            let mut tangent_coords = Array2::zeros((self.n_neighbors, tangent_dim));
+            for k in 0..self.n_neighbors {
+                for d in 0..tangent_dim {
+                    let mut coord = 0.0;
+                    for f in 0..n_features {
+                        coord += neighborhood[[k, f]] * vt_matrix[[d, f]];
                     }
+                    tangent_coords[[k, d]] = coord;
                 }
+            }
 
-                // Compute local Hessian in tangent space
-                let local_hessian = self.compute_local_hessian(&tangent_coords, tangent_dim)?;
+            // Compute local Hessian in tangent space
+            let local_hessian = self.compute_local_hessian(&tangent_coords, tangent_dim)?;
 
-                // Add to global Hessian matrix
-                for (a, &neighbor_a) in neighbors.iter().enumerate() {
-                    for (b, &neighbor_b) in neighbors.iter().enumerate() {
-                        global_hessian[[neighbor_a, neighbor_b]] += local_hessian[[a, b]];
-                    }
+            // Add to global Hessian matrix
+            for (a, &neighbor_a) in neighbors.iter().enumerate() {
+                for (b, &neighbor_b) in neighbors.iter().enumerate() {
+                    global_hessian[[neighbor_a, neighbor_b]] += local_hessian[[a, b]];
                 }
             }
         }

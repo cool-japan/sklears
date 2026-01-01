@@ -7,7 +7,8 @@ use std::marker::PhantomData;
 
 use ndarray_linalg::Solve;
 use scirs2_core::ndarray::{stack, Array, Axis};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
@@ -347,7 +348,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GeneralizedLinearModel<Untrained> {
             let xtwx = xtw.dot(&x_weighted);
             let xtwz = xtw.dot(&z_weighted);
 
-            let mut params = &xtwx.solve(&xtwz.view()).map_err(|e| {
+            let mut params = &xtwx.solve(&xtwz).map_err(|e| {
                 SklearsError::NumericalError(format!(
                     "Failed to solve weighted least squares: {}",
                     e

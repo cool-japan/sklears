@@ -4,12 +4,12 @@
 //! of the same data. Multi-view learning is particularly useful when data comes from
 //! different sources, sensors, or modalities.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Transform},
@@ -486,11 +486,8 @@ impl Fit<(Array2<Float>, Array2<Float>), ()> for CanonicalCorrelationAnalysis {
 
         // SVD of the transformed matrix
         let (u, s, vt) = m
-            .svd(true, true)
-            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+            .svd(true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?; // vt is directly available
 
         // Take the top n_components
         let n_components = self.n_components.min(s.len());

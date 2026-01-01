@@ -542,12 +542,12 @@ mod property_tests {
             // Generate synthetic data with linear relationships
             let mut true_data = Array2::zeros((n_samples, n_features));
             for i in 0..n_samples {
-                true_data[[i, 0]] = rng.random_range(-2.0, 2.0);
-                true_data[[i, 1]] = 0.5 * true_data[[i, 0]] + rng.random_range(-0.1, 0.1);
+                true_data[[i, 0]] = rng.random_range(-2.0..2.0);
+                true_data[[i, 1]] = 0.5 * true_data[[i, 0]] + rng.random_range(-0.1..0.1);
                 true_data[[i, 2]] = -0.3 * true_data[[i, 0]]
                     + 0.7 * true_data[[i, 1]]
-                    + rng.random_range(-0.1, 0.1);
-                true_data[[i, 3]] = 0.2 * true_data[[i, 1]] + rng.random_range(-0.1, 0.1);
+                    + rng.random_range(-0.1..0.1);
+                true_data[[i, 3]] = 0.2 * true_data[[i, 1]] + rng.random_range(-0.1..0.1);
             }
 
             // Introduce MCAR missing pattern
@@ -615,10 +615,10 @@ mod property_tests {
             // Generate multivariate normal data
             let mut true_data = Array2::zeros((n_samples, n_features));
             for i in 0..n_samples {
-                let z = rng.random_range(-2.0, 2.0);
-                true_data[[i, 0]] = z + rng.random_range(-0.2, 0.2);
-                true_data[[i, 1]] = 0.8 * z + rng.random_range(-0.3, 0.3);
-                true_data[[i, 2]] = -0.6 * z + rng.random_range(-0.25, 0.25);
+                let z = rng.random_range(-2.0..2.0);
+                true_data[[i, 0]] = z + rng.random_range(-0.2..0.2);
+                true_data[[i, 1]] = 0.8 * z + rng.random_range(-0.3..0.3);
+                true_data[[i, 2]] = -0.6 * z + rng.random_range(-0.25..0.25);
             }
 
             // Introduce missing values
@@ -756,19 +756,19 @@ mod property_tests {
             let mut rng = Random::default();
 
             for i in 0..n_samples {
-                true_data[[i, 0]] = rng.random_range(-1.0, 1.0);
+                true_data[[i, 0]] = rng.random_range(-1.0..1.0);
                 #[allow(clippy::unnecessary_cast)]
                 {
                     true_data[[i, 1]] =
-                        (true_data[[i, 0]] as f64).powi(2) + rng.random_range(-0.1, 0.1);
+                        (true_data[[i, 0]] as f64).powi(2) + rng.random_range(-0.1..0.1);
                 }
                 #[allow(clippy::unnecessary_cast)]
                 {
                     true_data[[i, 2]] =
-                        (true_data[[i, 0]] as f64 * 2.0).sin() + rng.random_range(-0.1, 0.1);
+                        (true_data[[i, 0]] as f64 * 2.0).sin() + rng.random_range(-0.1..0.1);
                 }
                 true_data[[i, 3]] =
-                    true_data[[i, 1]] * 0.5 + true_data[[i, 2]] * 0.3 + rng.random_range(-0.1, 0.1);
+                    true_data[[i, 1]] * 0.5 + true_data[[i, 2]] * 0.3 + rng.random_range(-0.1..0.1);
             }
 
             // Introduce missing values
@@ -1054,12 +1054,12 @@ mod property_tests {
             // Create data with some linear relationships for better imputation testing
             for i in 0..n_samples {
                 // First feature is base
-                data[[i, 0]] = rng.random_range(-10.0, 10.0);
+                data[[i, 0]] = rng.random_range(-10.0..10.0);
 
                 // Other features have relationships with first feature plus noise
                 for j in 1..n_features {
                     let base_relationship = data[[i, 0]] * (j as f64 * 0.5);
-                    let noise = rng.random_range(-1.0, 1.0);
+                    let noise = rng.random_range(-1.0..1.0);
                     data[[i, j]] = base_relationship + noise;
                 }
             }

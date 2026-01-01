@@ -4,8 +4,8 @@
 //! NOTE: Full SIMD functionality requires nightly Rust features. This provides scalar
 //! fallback implementations that maintain the API for stable Rust compatibility.
 
-use scirs2_core::ndarray::ndarray_linalg::SVD;
 use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::error::{Result, SklearsError};
 
 /// SIMD-accelerated sparse GP operations
@@ -172,10 +172,8 @@ pub mod simd_sparse_gp {
         } else {
             // Fall back to SVD for larger matrices
             let (u, s, _vt) = matrix
-                .svd(true, true)
+                .svd(true)
                 .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?;
-            let u =
-                u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
             Ok((s, u))
         }
     }
@@ -236,10 +234,8 @@ pub mod simd_sparse_gp {
         // Full implementation would use cubic formula
 
         let (u, s, _vt) = matrix
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?;
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
         Ok((s, u))
     }
 
@@ -249,10 +245,8 @@ pub mod simd_sparse_gp {
         // Full implementation would use quartic formula or specialized algorithms
 
         let (u, s, _vt) = matrix
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?;
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
         Ok((s, u))
     }
 }

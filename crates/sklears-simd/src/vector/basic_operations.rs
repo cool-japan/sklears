@@ -309,14 +309,14 @@ pub fn cross_product(a: &[f32], b: &[f32]) -> Result<Vec<f32>, &'static str> {
 /// SIMD-optimized outer product computation
 ///
 /// Computes the outer product of two vectors, resulting in a matrix
-/// where element (i,j) = a[i] * b[j].
+/// where element (i,j) = a\[i\] * b\[j\].
 ///
 /// # Arguments
 /// * `a` - First vector (m elements)
 /// * `b` - Second vector (n elements)
 ///
 /// # Returns
-/// An m×n matrix represented as Vec<Vec<f32>>
+/// An m×n matrix represented as `Vec<Vec<f32>>`
 ///
 /// # Examples
 /// ```rust

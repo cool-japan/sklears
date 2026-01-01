@@ -1407,11 +1407,11 @@ impl<F: NdFloat + FromPrimitive> NonparametricCovarianceBuilder<F> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::ndarray_linalg::EigVals;
     use scirs2_core::ndarray::Array2;
     use scirs2_core::random::Distribution;
     use scirs2_core::Random;
     use scirs2_core::StandardNormal;
+    use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 
     fn generate_nonlinear_data(n_samples: usize, n_features: usize) -> Array2<f64> {
         let mut rng = Random::seed(42);
@@ -1617,8 +1617,8 @@ mod tests {
         let covariance = fitted.covariance();
 
         // Check that covariance matrix is positive definite
-        let eigenvals = covariance.eigvals().unwrap();
-        assert!(eigenvals.iter().all(|&x| x.re > 0.0 && x.im.abs() < 1e-10));
+        let eigenvals = covariance.eigvalsh(UPLO::Lower).unwrap();
+        assert!(eigenvals.iter().all(|&x| x > 0.0));
     }
 
     #[test]

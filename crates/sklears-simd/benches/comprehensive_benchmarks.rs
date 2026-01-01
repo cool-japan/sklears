@@ -13,7 +13,7 @@ use sklears_simd::vector::{dot_product, mean, norm_l2};
 
 fn generate_random_vector(size: usize) -> Vec<f32> {
     let mut rng = thread_rng();
-    (0..size).map(|_| rng.random_range(-1.0, 1.0)).collect()
+    (0..size).map(|_| rng.random_range(-1.0..1.0)).collect()
 }
 
 fn generate_random_matrix(rows: usize, cols: usize) -> Vec<Vec<f32>> {

@@ -7,7 +7,8 @@
 
 use crate::kernels::{Kernel, KernelType};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Predict, Trained, Untrained},
@@ -207,7 +208,7 @@ impl LSSVM<Untrained> {
         }
 
         // Solve the linear system using scirs2-linalg
-        let solution = solve(&a_matrix.view(), &b_vector.view(), None).map_err(|e| {
+        let solution = a_matrix.solve(&b_vector).map_err(|e| {
             SklearsError::NumericalError(format!("Failed to solve LS-SVM linear system: {}", e))
         })?;
 
@@ -234,7 +235,7 @@ impl LSSVM<Untrained> {
         }
 
         // Solve the linear system using scirs2-linalg
-        let alpha = solve(&a_matrix.view(), &y.view(), None).map_err(|e| {
+        let alpha = a_matrix.solve(y).map_err(|e| {
             SklearsError::NumericalError(format!("Failed to solve LS-SVM linear system: {}", e))
         })?;
 

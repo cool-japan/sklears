@@ -40,8 +40,8 @@ pub struct HasTarget;
 /// use sklears_core::dataset::Dataset;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
-/// let features = Array2::<f64>::zeros((100, 4));
-/// let targets = Array1::<f64>::zeros(100);
+/// let features = Array2::`<f64>`::zeros((100, 4));
+/// let targets = Array1::`<f64>`::zeros(100);
 ///
 /// let dataset = Dataset::builder()
 ///     .data(features)

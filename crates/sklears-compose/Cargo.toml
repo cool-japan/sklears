@@ -31,7 +31,7 @@ serde_json = { version = "1.0", optional = true }
 serde_yaml = { version = "0.9", optional = true }
 chrono = { version = "0.4", features = ["serde"] }
 num_cpus = "1.17"
-uuid = { version = "1.18", features = ["v4"] }
+uuid = { version = "1.19", features = ["v4"] }
 # ❌ REMOVED: rand_chacha - use scirs2_core::random instead (SciRS2 Policy violation)
 futures = "0.3"
 tokio = { version = "1.47", features = ["full"] }

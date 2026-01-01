@@ -4,8 +4,8 @@
 //! for kernel approximation methods based on approximation quality metrics.
 
 use crate::RBFSampler;
-use scirs2_core::ndarray::ndarray_linalg::{Norm, SVD};
 use scirs2_core::ndarray::{concatenate, s, Array2, Axis};
+use scirs2_linalg::compat::{Norm, SVD};
 use sklears_core::traits::Fit;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -298,7 +298,7 @@ impl AdaptiveRBFSampler {
     fn compute_effective_rank(&self, x_transformed: &Array2<f64>) -> Result<f64> {
         // Compute SVD of transformed data
         let (_, s, _) = x_transformed
-            .svd(true, true)
+            .svd(true)
             .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
 
         // Compute effective rank using entropy

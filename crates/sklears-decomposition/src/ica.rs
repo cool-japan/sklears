@@ -7,8 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{thread_rng, Rng, SeedableRng};
-use scirs2_linalg::eigen::standard::eigh;
-use scirs2_linalg::inv;
+use scirs2_linalg::compat::{eigh, ArrayLinalgExt, UPLO};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -327,7 +326,7 @@ impl ICA<Untrained> {
         let cov = x.t().dot(x) / (n_samples - 1) as f64;
 
         // Eigendecomposition using scirs2-linalg
-        let (eigenvalues, eigenvectors) = eigh(&cov.view(), None).map_err(|e| {
+        let (eigenvalues, eigenvectors) = eigh(&cov.view(), UPLO::Lower).map_err(|e| {
             SklearsError::NumericalError(format!("Eigendecomposition failed: {:?}", e))
         })?;
 
@@ -572,7 +571,7 @@ impl ICA<Untrained> {
         // For square matrices, compute inverse directly
         if n_components == n_features {
             // Use scirs2-linalg for inversion
-            let comp_inv = inv(&components.view(), None).map_err(|e| {
+            let comp_inv = components.inv().map_err(|e| {
                 SklearsError::NumericalError(format!("Matrix inversion failed: {:?}", e))
             })?;
 
@@ -585,7 +584,7 @@ impl ICA<Untrained> {
             let gram = components.dot(&comp_t);
 
             // Use scirs2-linalg for inversion
-            let gram_inv = inv(&gram.view(), None).map_err(|e| {
+            let gram_inv = gram.inv().map_err(|e| {
                 SklearsError::NumericalError(format!("Gram matrix inversion failed: {:?}", e))
             })?;
 

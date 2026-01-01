@@ -387,13 +387,13 @@ fn generate_caching_logic(cache_transforms: bool) -> TokenStream {
                 std::hash::Hash::hash(&std::any::TypeId::of::<()>()));
 
             if let Some(cached_result) = self.cache.get(&cache_key) {
-                if let Ok(deserialized) = bincode::deserialize(cached_result) {
+                if let Ok(deserialized) = oxicode::serde::decode_from_slice(cached_result, oxicode::config::standard()) {
                     return Ok(deserialized);
                 }
             }
 
             // Store result in cache
-            if let Ok(serialized) = bincode::serialize(&result) {
+            if let Ok(serialized) = oxicode::serde::encode_to_vec(&result, oxicode::config::standard()) {
                 self.cache.insert(cache_key, serialized);
             }
         }

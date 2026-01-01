@@ -7,8 +7,9 @@
 use crate::{
     FastfoodTransform, Nystroem, RBFSampler, StructuredRandomFeatures, Trained, Untrained,
 };
-use scirs2_core::ndarray::ndarray_linalg::solve::Solve;
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
+
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::{Estimator, Fit, Float, Predict};
@@ -333,13 +334,11 @@ impl MultiTaskKernelRidgeRegression<Untrained> {
 
             let (u, s, vt) =
                 regularized_xtx
-                    .svd(true, true)
+                    .svd(true)
                     .map_err(|e| SklearsError::InvalidParameter {
                         name: "svd".to_string(),
                         reason: format!("SVD decomposition failed: {:?}", e),
                     })?;
-            let u = u.unwrap();
-            let vt = vt.unwrap();
 
             // Solve using SVD
             let xty = x_f64.t().dot(&y_task_f64);

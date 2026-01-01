@@ -6,11 +6,12 @@
 
 use crate::sparse_gp::core::*;
 use crate::sparse_gp::kernels::{KernelOps, SparseKernel};
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+
 use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::thread_rng;
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::error::{Result, SklearsError};
 
 /// Scalable inference method implementations
@@ -315,10 +316,8 @@ impl TridiagonalEigenSolver {
 
         // Use SVD for eigendecomposition (simplified approach)
         let (u, s, _vt) = tri_matrix
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?;
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
 
         Ok((s, u))
     }

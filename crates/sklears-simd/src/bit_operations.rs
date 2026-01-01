@@ -14,7 +14,9 @@ pub mod popcount {
         {
             if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("popcnt") {
                 return unsafe { popcount_u64_slice_avx2(data) };
-            } else if crate::simd_feature_detected!("sse4.2") && crate::simd_feature_detected!("popcnt") {
+            } else if crate::simd_feature_detected!("sse4.2")
+                && crate::simd_feature_detected!("popcnt")
+            {
                 return unsafe { popcount_u64_slice_sse42(data) };
             }
         }
@@ -35,7 +37,9 @@ pub mod popcount {
         {
             if crate::simd_feature_detected!("avx2") && crate::simd_feature_detected!("popcnt") {
                 return unsafe { popcount_u32_slice_avx2(data) };
-            } else if crate::simd_feature_detected!("sse4.2") && crate::simd_feature_detected!("popcnt") {
+            } else if crate::simd_feature_detected!("sse4.2")
+                && crate::simd_feature_detected!("popcnt")
+            {
                 return unsafe { popcount_u32_slice_sse42(data) };
             }
         }

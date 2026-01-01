@@ -2,12 +2,12 @@
 //! This module implements various hierarchical approaches for manifold learning,
 //! including multi-scale embeddings and coarse-to-fine optimization.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, Norm, Solve, SVD, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -322,14 +322,19 @@ impl HierarchicalManifold<Untrained> {
             for i in 0..n_samples {
                 for j in (i + 1)..n_samples {
                     // High-dimensional distance
-                    let hd_dist = (&x.row(i) - &x.row(j)).norm_l2();
+                    let hd_dist = (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt();
 
                     // Previous level distance
-                    let prev_dist =
-                        (&previous_embedding.row(i) - &previous_embedding.row(j)).norm_l2();
+                    let prev_dist = (&previous_embedding.row(i) - &previous_embedding.row(j))
+                        .mapv(|x: f64| x * x)
+                        .sum()
+                        .sqrt();
 
                     // Current embedding distance
-                    let curr_dist = (&refined.row(i) - &refined.row(j)).norm_l2();
+                    let curr_dist = (&refined.row(i) - &refined.row(j))
+                        .mapv(|x: f64| x * x)
+                        .sum()
+                        .sqrt();
 
                     // Loss: weighted combination of preservation of previous level and high-dimensional distances
                     let target_dist = scale_factor * hd_dist + (1.0 - scale_factor) * prev_dist;
@@ -373,11 +378,8 @@ impl HierarchicalManifold<Untrained> {
 
         // Solve using pseudoinverse
         let (u, s, vt) = xt_x
-            .svd(true, true)
-            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+            .svd(true)
+            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?; // vt is directly available
 
         // Compute pseudoinverse
         let mut s_inv = Array1::zeros(s.len());
@@ -410,7 +412,7 @@ impl HierarchicalManifold<Untrained> {
 
             for j in 0..n_samples {
                 if i != j {
-                    let dist = (&x.row(i) - &x.row(j)).norm_l2();
+                    let dist = (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt();
                     distances.push((j, dist));
                 }
             }
@@ -494,7 +496,7 @@ impl HierarchicalManifold<Untrained> {
 
             for j in 0..n_samples {
                 if i != j {
-                    let dist = (&x.row(i) - &x.row(j)).norm_l2();
+                    let dist = (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt();
                     distances.push((j, dist));
                 }
             }
@@ -815,8 +817,11 @@ impl MultiScaleEmbedding<Untrained> {
 
         for i in 0..n_samples {
             for j in (i + 1)..n_samples {
-                let hd_dist = (&x.row(i) - &x.row(j)).norm_l2();
-                let ld_dist = (&embedding.row(i) - &embedding.row(j)).norm_l2();
+                let hd_dist = (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt();
+                let ld_dist = (&embedding.row(i) - &embedding.row(j))
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt();
 
                 correlation_sum += hd_dist * ld_dist;
                 count += 1;
@@ -1170,8 +1175,11 @@ impl AdaptiveResolutionManifold<Untrained> {
 
         for i in 0..n_samples {
             for j in (i + 1)..n_samples {
-                let hd_dist = (&x.row(i) - &x.row(j)).norm_l2();
-                let ld_dist = (&embedding.row(i) - &embedding.row(j)).norm_l2();
+                let hd_dist = (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt();
+                let ld_dist = (&embedding.row(i) - &embedding.row(j))
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt();
 
                 stress_num += (hd_dist - ld_dist).powi(2);
                 stress_den += hd_dist.powi(2);
@@ -1200,7 +1208,7 @@ impl AdaptiveResolutionManifold<Untrained> {
         for i in 0..n_samples {
             // Find k-NN in high-dimensional space
             let mut hd_distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             let hd_neighbors: Vec<usize> = hd_distances
@@ -1212,7 +1220,15 @@ impl AdaptiveResolutionManifold<Untrained> {
 
             // Find k-NN in low-dimensional space
             let mut ld_distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&embedding.row(i) - &embedding.row(j)).norm_l2()))
+                .map(|j| {
+                    (
+                        j,
+                        (&embedding.row(i) - &embedding.row(j))
+                            .mapv(|x: f64| x * x)
+                            .sum()
+                            .sqrt(),
+                    )
+                })
                 .collect();
             ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             let ld_neighbors: Vec<usize> = ld_distances
@@ -1247,7 +1263,15 @@ impl AdaptiveResolutionManifold<Untrained> {
         for i in 0..n_samples {
             // Find k-NN in embedding space
             let mut ld_distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&embedding.row(i) - &embedding.row(j)).norm_l2()))
+                .map(|j| {
+                    (
+                        j,
+                        (&embedding.row(i) - &embedding.row(j))
+                            .mapv(|x: f64| x * x)
+                            .sum()
+                            .sqrt(),
+                    )
+                })
                 .collect();
             ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             let ld_neighbors: Vec<usize> = ld_distances
@@ -1259,7 +1283,7 @@ impl AdaptiveResolutionManifold<Untrained> {
 
             // Rank in high-dimensional space
             let mut hd_distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -1289,7 +1313,7 @@ impl AdaptiveResolutionManifold<Untrained> {
         for i in 0..n_samples {
             // Find k-NN in high-dimensional space
             let mut hd_distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             let hd_neighbors: Vec<usize> = hd_distances
@@ -1301,7 +1325,15 @@ impl AdaptiveResolutionManifold<Untrained> {
 
             // Rank in embedding space
             let mut ld_distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&embedding.row(i) - &embedding.row(j)).norm_l2()))
+                .map(|j| {
+                    (
+                        j,
+                        (&embedding.row(i) - &embedding.row(j))
+                            .mapv(|x: f64| x * x)
+                            .sum()
+                            .sqrt(),
+                    )
+                })
                 .collect();
             ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 

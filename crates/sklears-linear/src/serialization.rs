@@ -269,13 +269,13 @@ pub mod serde_support {
         }
 
         /// Serialize a model to binary format using bincode
-        pub fn to_binary<T: Serialize>(model: &T) -> Result<Vec<u8>, bincode::Error> {
-            bincode::serialize(model)
+        pub fn to_binary<T: Serialize>(model: &T) -> Result<Vec<u8>, oxicode::Error> {
+            oxicode::serde::encode_to_vec(model, oxicode::config::standard())
         }
 
         /// Deserialize a model from binary format using bincode
-        pub fn from_binary<T: for<'de> Deserialize<'de>>(data: &[u8]) -> Result<T, bincode::Error> {
-            bincode::deserialize(data)
+        pub fn from_binary<T: for<'de> Deserialize<'de>>(data: &[u8]) -> Result<T, oxicode::Error> {
+            oxicode::serde::decode_from_slice(data, oxicode::config::standard())
         }
 
         /// Save a model to file
@@ -292,7 +292,8 @@ pub mod serde_support {
                     serde_json::to_writer_pretty(writer, model)?;
                 }
                 SerializationFormat::Bincode => {
-                    bincode::serialize_into(writer, model)?;
+                    let bytes = oxicode::serde::encode_to_vec(model, oxicode::config::standard())?;
+                    writer.write_all(&bytes)?;
                 }
                 SerializationFormat::MessagePack => {
                     rmp_serde::encode::write(&mut writer, model)?;
@@ -312,7 +313,12 @@ pub mod serde_support {
 
             let model = match format {
                 SerializationFormat::Json => serde_json::from_reader(reader)?,
-                SerializationFormat::Bincode => bincode::deserialize_from(reader)?,
+                SerializationFormat::Bincode => {
+                    let mut bytes = Vec::new();
+                    let mut reader_mut = reader;
+                    reader_mut.read_to_end(&mut bytes)?;
+                    oxicode::serde::decode_from_slice(&bytes, oxicode::config::standard())?
+                }
                 SerializationFormat::MessagePack => rmp_serde::decode::from_read(reader)?,
             };
 
@@ -398,12 +404,12 @@ pub mod serde_support {
         }
 
         /// Convert to binary format
-        fn to_binary(&self) -> Result<Vec<u8>, bincode::Error> {
+        fn to_binary(&self) -> Result<Vec<u8>, oxicode::Error> {
             ModelSerializer::to_binary(self)
         }
 
         /// Create from binary format
-        fn from_binary(data: &[u8]) -> Result<Self, bincode::Error>
+        fn from_binary(data: &[u8]) -> Result<Self, oxicode::Error>
         where
             Self: Sized,
         {

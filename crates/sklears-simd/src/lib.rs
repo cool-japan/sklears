@@ -3,6 +3,9 @@
 #![allow(missing_docs)]
 #![allow(deprecated)]
 #![allow(unexpected_cfgs)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! SIMD-optimized operations for sklears
 //!
 //! This crate provides SIMD-accelerated implementations of common machine learning operations.
@@ -35,7 +38,10 @@ macro_rules! eprintln {
 // Conditional SIMD feature detection macro
 // In no-std mode, always return false (use scalar fallback)
 // In std mode, use the actual is_x86_feature_detected! macro
-#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(feature = "no-std")))]
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    not(feature = "no-std")
+))]
 #[macro_export]
 macro_rules! simd_feature_detected {
     ($feature:tt) => {

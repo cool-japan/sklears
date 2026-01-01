@@ -784,7 +784,10 @@ mod tests {
         let mean2 = bn.running_mean().unwrap().clone();
 
         // Running mean should have changed (compare element by element)
-        let means_changed = mean1.iter().zip(mean2.iter()).any(|(&a, &b): (&f64, &f64)| (a - b).abs() > 1e-10);
+        let means_changed = mean1
+            .iter()
+            .zip(mean2.iter())
+            .any(|(&a, &b): (&f64, &f64)| (a - b).abs() > 1e-10);
         assert!(means_changed);
 
         // Should have tracked 2 batches

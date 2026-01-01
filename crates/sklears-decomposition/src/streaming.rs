@@ -3,8 +3,8 @@
 //! This module provides streaming implementations of decomposition algorithms
 //! for real-time processing of data streams.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD};
 use scirs2_core::ndarray::{Array1, Array2, Axis, Zip};
+use scirs2_linalg::compat::{Eigh, SVD};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -141,9 +141,12 @@ impl StreamingPCA {
     /// Update the PCA decomposition
     fn update_decomposition(&mut self) -> Result<()> {
         if let Some(ref cov) = self.covariance_matrix {
+            // Symmetrize covariance matrix for numerical stability
+            let symmetric_cov = (cov + &cov.t()) / 2.0;
+
             // Eigendecomposition of covariance matrix
-            let (eigenvalues, eigenvectors) = cov
-                .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
+            let (eigenvalues, eigenvectors) = symmetric_cov
+                .eigh(scirs2_linalg::compat::UPLO::Upper)
                 .map_err(|e| {
                     SklearsError::InvalidOperation(format!("Eigendecomposition failed: {:?}", e))
                 })?;
@@ -196,7 +199,7 @@ impl StreamingPCA {
         // Compute the principal angles between subspaces
         let ab = a.dot(&b.t());
         let (_u, s, _vt) = ab
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::InvalidOperation(format!("SVD failed: {:?}", e)))?;
 
         // Average cosine of principal angles
@@ -502,7 +505,7 @@ impl StreamingICA {
     fn compute_subspace_similarity(&self, a: &Array2<Float>, b: &Array2<Float>) -> Result<Float> {
         let ab = a.dot(&b.t());
         let (_u, s, _vt) = ab
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::InvalidOperation(format!("SVD failed: {:?}", e)))?;
 
         let similarity = s.iter().map(|&x| x.powi(2)).sum::<Float>() / s.len() as Float;

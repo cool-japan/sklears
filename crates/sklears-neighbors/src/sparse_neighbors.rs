@@ -227,7 +227,7 @@ impl SparseNeighborMatrix {
     /// * `sample_idx` - Index of the sample
     ///
     /// # Returns
-    /// * `NeighborsResult<(Vec<u32>, Vec<Float>)>` - Neighbor indices and distances
+    /// * `NeighborsResult<(Vec<u32>, Vec`<Float>`)>` - Neighbor indices and distances
     pub fn get_neighbors(&self, sample_idx: usize) -> NeighborsResult<(Vec<u32>, Vec<Float>)> {
         if sample_idx >= self.shape.0 {
             return Err(NeighborsError::InvalidInput(format!(
@@ -323,7 +323,7 @@ impl SparseNeighborMatrix {
     /// * `k` - Number of nearest neighbors to return
     ///
     /// # Returns
-    /// * `NeighborsResult<(Vec<u32>, Vec<Float>)>` - K nearest neighbor indices and distances
+    /// * `NeighborsResult<(Vec<u32>, Vec`<Float>`)>` - K nearest neighbor indices and distances
     pub fn get_k_neighbors(
         &self,
         sample_idx: usize,
@@ -376,7 +376,7 @@ impl SparseNeighborMatrix {
     /// Convert to dense neighbor matrices
     ///
     /// # Returns
-    /// * `NeighborsResult<(Array2<u32>, Array2<Float>)>` - Dense neighbor indices and distances
+    /// * `NeighborsResult<(Array2<u32>, Array2`<Float>`)>` - Dense neighbor indices and distances
     pub fn to_dense(&self) -> NeighborsResult<(Array2<u32>, Array2<Float>)> {
         let mut neighbor_indices = Array2::zeros(self.shape);
         let mut neighbor_distances = Array2::from_elem(self.shape, Float::INFINITY);

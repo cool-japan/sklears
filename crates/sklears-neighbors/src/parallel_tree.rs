@@ -210,7 +210,7 @@ impl ParallelTreeIndex {
     /// * `k` - Number of neighbors to find
     ///
     /// # Returns
-    /// * `NeighborsResult<(Vec<usize>, Vec<Float>)>` - Neighbor indices and distances
+    /// * `NeighborsResult<(`Vec<usize>`, Vec`<Float>`)>` - Neighbor indices and distances
     pub fn query_knn(
         &self,
         query_point: ArrayView1<Float>,
@@ -232,7 +232,7 @@ impl ParallelTreeIndex {
     /// * `radius` - Search radius
     ///
     /// # Returns
-    /// * `NeighborsResult<(Vec<usize>, Vec<Float>)>` - Neighbor indices and distances
+    /// * `NeighborsResult<(`Vec<usize>`, Vec`<Float>`)>` - Neighbor indices and distances
     pub fn query_radius(
         &self,
         query_point: ArrayView1<Float>,

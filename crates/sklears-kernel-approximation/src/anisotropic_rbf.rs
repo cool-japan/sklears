@@ -21,7 +21,6 @@
 //!
 //! # References
 
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Inverse, SVD};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
@@ -29,6 +28,7 @@ use scirs2_core::random::seq::SliceRandom;
 use scirs2_core::random::Rng;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
+use scirs2_linalg::compat::{Eig, Inverse, SVD};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Fit, Transform};
 use std::f64::consts::PI;
@@ -183,13 +183,9 @@ impl AnisotropicRBFSampler {
 
         // Compute log determinant and log likelihood
         // Use SVD for numerical stability instead of cholesky
-        let (u, s, vt) = k.svd(true, true).map_err(|e| {
+        let (u, s, vt) = k.svd(true).map_err(|e| {
             SklearsError::NumericalError(format!("SVD decomposition failed: {:?}", e))
         })?;
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
-        let vt =
-            vt.ok_or_else(|| SklearsError::NumericalError("VT matrix not computed".to_string()))?;
         let s_inv = s.mapv(|x| if x > 1e-10 { 1.0 / x.sqrt() } else { 0.0 });
         let s_inv_diag = Array2::from_diag(&s_inv);
         let _k_inv_sqrt = u.dot(&s_inv_diag).dot(&vt);
@@ -549,7 +545,7 @@ impl RobustAnisotropicRBFSampler {
             }
 
             // Compute determinant
-            if let Ok((_, s, _)) = cov_reg.svd(false, false) {
+            if let Ok((_, s, _)) = cov_reg.svd(false) {
                 let log_det: f64 = s.mapv(|x| if x > 1e-10 { x.ln() } else { -23.0 }).sum();
                 let det = log_det.exp();
 
@@ -657,11 +653,9 @@ impl Fit<Array2<f64>, ()> for RobustAnisotropicRBFSampler {
 
         // Cholesky decomposition of precision matrix for sampling
         // Use SVD decomposition for sampling
-        let (u, s, _vt) = precision.svd(true, true).map_err(|e| {
+        let (u, s, _vt) = precision.svd(true).map_err(|e| {
             SklearsError::NumericalError(format!("SVD decomposition failed: {:?}", e))
         })?;
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
         let s_sqrt = s.mapv(|x| x.sqrt());
         let precision_sqrt = u.dot(&Array2::from_diag(&s_sqrt));
 

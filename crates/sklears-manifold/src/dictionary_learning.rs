@@ -1,12 +1,12 @@
 //! Dictionary Learning implementation
 //! This module provides Dictionary Learning for manifold learning through sparse representation.
 
-use scirs2_core::ndarray::ndarray_linalg::SVD;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -204,10 +204,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for DictionaryLearning<Untrained> {
                 }
 
                 // Update dictionary atom using SVD
-                if let Ok((u, _s, _vt)) = residual.svd(true, true) {
-                    if let Some(u) = u {
-                        dictionary.column_mut(k).assign(&u.column(0));
-                    }
+                if let Ok((u, _s, _vt)) = residual.svd(true) {
+                    dictionary.column_mut(k).assign(&u.column(0));
                 }
             }
 

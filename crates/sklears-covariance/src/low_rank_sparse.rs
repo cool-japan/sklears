@@ -6,6 +6,7 @@
 //! pairwise relationships).
 
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -383,15 +384,10 @@ impl LowRankSparseCovariance<Untrained> {
 
     /// Nuclear norm proximal operator using SVD
     fn nuclear_norm_prox(&self, matrix: &Array2<f64>, threshold: f64) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::SVD;
-
         // Compute SVD
         let (u, s, vt) = matrix
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
 
         // Apply soft thresholding to singular values
         let s_thresh = s.mapv(|val| (val - threshold).max(0.0));
@@ -439,10 +435,8 @@ impl LowRankSparseCovariance<Untrained> {
 
     /// Compute nuclear norm (sum of singular values)
     fn nuclear_norm(&self, matrix: &Array2<f64>) -> SklResult<f64> {
-        use scirs2_core::ndarray::ndarray_linalg::SVD;
-
         let (_, s, _) = matrix
-            .svd(false, false)
+            .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
         Ok(s.sum())
@@ -450,9 +444,7 @@ impl LowRankSparseCovariance<Untrained> {
 
     /// Compute rank of a matrix
     fn compute_rank(matrix: &Array2<f64>, threshold: f64) -> usize {
-        use scirs2_core::ndarray::ndarray_linalg::SVD;
-
-        if let Ok((_, s, _)) = matrix.svd(false, false) {
+        if let Ok((_, s, _)) = matrix.svd(false) {
             s.iter().filter(|&&val| val > threshold).count()
         } else {
             0
@@ -466,7 +458,6 @@ impl LowRankSparseCovariance<Untrained> {
 
     /// Compute precision matrix
     fn compute_precision(covariance: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         covariance.inv().map_err(|e| {
             SklearsError::NumericalError(format!("Failed to invert covariance matrix: {}", e))
         })
@@ -558,6 +549,7 @@ impl LowRankSparseCovariance<LowRankSparseCovarianceTrained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
+    use scirs2_linalg::compat::ArrayLinalgExt;
 
     #[test]
     fn test_low_rank_sparse_basic() {

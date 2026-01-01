@@ -5,7 +5,7 @@
 //! formats and get rich, contextual results.
 
 use scirs2_core::ndarray::array;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_covariance::{
     polars_utils, CovarianceDataFrame, DataFrameEstimator, EmpiricalCovariance,
 };

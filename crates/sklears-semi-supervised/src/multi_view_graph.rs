@@ -398,7 +398,7 @@ impl HeterogeneousGraphLearning {
             let mut embedding = Array2::<f64>::zeros((n_nodes, *embed_dim));
             for i in 0..n_nodes {
                 for j in 0..*embed_dim {
-                    embedding[[i, j]] = rng.random_range(-1.0, 1.0);
+                    embedding[[i, j]] = rng.random_range(-1.0..1.0);
                 }
             }
 

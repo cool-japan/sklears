@@ -4,8 +4,8 @@
 //! the geometry of probability distributions.
 
 use super::utils::{compute_global_fisher_information, compute_local_fisher_information};
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},

@@ -6,7 +6,8 @@
 
 use ndarray_linalg::Solve;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use std::marker::PhantomData;
 
 use sklears_core::{
@@ -332,7 +333,7 @@ fn solve_irls(
         let xt_w_y = x_weighted.t().dot(&y_adjusted);
 
         // Solve weighted least squares
-        match xt_w_x_reg.solve(&xt_w_y.view()) {
+        match xt_w_x_reg.solve(&xt_w_y) {
             Ok(new_beta) => {
                 // Check convergence
                 let beta_change = (new_beta.clone() - &beta).mapv(|x| x.abs()).sum();

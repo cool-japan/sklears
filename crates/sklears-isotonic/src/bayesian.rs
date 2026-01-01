@@ -3,6 +3,7 @@
 //! This module implements Bayesian approaches to isotonic regression that provide
 //! not only point estimates but also credible intervals and posterior sampling.
 
+use crate::utils::safe_float_cmp;
 use crate::algorithms::{pool_adjacent_violators_decreasing, pool_adjacent_violators_increasing};
 use crate::core::{LossFunction, MonotonicityConstraint};
 use scirs2_core::ndarray::{Array1, Array2, Axis};

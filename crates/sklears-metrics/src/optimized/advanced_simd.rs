@@ -343,7 +343,7 @@ fn is_sve_available() -> bool {
 pub mod simd_roadmap {
     //! # SIMD Implementation Roadmap
     //!
-    //! ## Phase 1: Portable SIMD (Q4 2025)
+    //! ## Phase 1: Portable SIMD (Q1 2026)
     //! - Wait for `std::simd` stabilization
     //! - Implement using portable SIMD API
     //! - Cover MAE, MSE, R², dot products

@@ -6,6 +6,7 @@
 //! missing observations.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -257,14 +258,9 @@ impl ALSCovariance<Untrained> {
 
     /// Initialize using SVD
     fn initialize_svd(&self, matrix: &Array2<f64>) -> SklResult<(Array2<f64>, Array2<f64>)> {
-        use scirs2_core::ndarray::ndarray_linalg::SVD;
-
-        let (u, s, vt) = matrix.svd(true, true).map_err(|e| {
+        let (u, s, vt) = matrix.svd(true).map_err(|e| {
             SklearsError::NumericalError(format!("SVD initialization failed: {}", e))
         })?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
 
         // Take the top k factors
         let left_factors = u.slice(s![.., ..self.n_factors]).to_owned();
@@ -458,8 +454,7 @@ impl ALSCovariance<Untrained> {
 
     /// Solve linear system Ax = b
     fn solve_linear_system(&self, a: &Array2<f64>, b: &Array1<f64>) -> SklResult<Array1<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Solve;
-        a.solve_into(b.clone()).map_err(|e| {
+        a.solve(b).map_err(|e| {
             SklearsError::NumericalError(format!("Failed to solve linear system: {}", e))
         })
     }
@@ -471,7 +466,6 @@ impl ALSCovariance<Untrained> {
 
     /// Compute precision matrix
     fn compute_precision(covariance: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         covariance.inv().map_err(|e| {
             SklearsError::NumericalError(format!("Failed to invert covariance matrix: {}", e))
         })
@@ -568,8 +562,6 @@ impl ALSCovariance<ALSCovarianceTrained> {
 
     /// Compute the condition number of the factor matrices
     pub fn get_condition_number(&self) -> SklResult<f64> {
-        use scirs2_core::ndarray::ndarray_linalg::Norm;
-
         let left_norm = self.state.left_factors.norm_l2();
         let right_norm = self.state.right_factors.norm_l2();
 
@@ -583,6 +575,7 @@ impl ALSCovariance<ALSCovarianceTrained> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
+    use scirs2_linalg::compat::ArrayLinalgExt;
 
     #[test]
     fn test_als_covariance_basic() {

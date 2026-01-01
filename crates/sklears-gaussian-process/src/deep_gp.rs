@@ -499,7 +499,7 @@ impl DeepGaussianProcessRegressor<Untrained> {
             // For now, we'll just update the means slightly
             for layer in &mut deep_layers {
                 for i in 0..layer.variational_mean.len() {
-                    layer.variational_mean[i] += rng.random_range(-0.01, 0.01) * self.learning_rate;
+                    layer.variational_mean[i] += rng.random_range(-0.01..0.01) * self.learning_rate;
                 }
             }
         }

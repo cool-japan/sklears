@@ -50,7 +50,7 @@
 //! ```
 
 use scirs2_core::ndarray::{Array3, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 // Note: using fallback implementations since SIMD functions may not be available
 // use scirs2_core::simd_ops::{mean_f64_simd, variance_f64_simd};
 use sklears_core::{

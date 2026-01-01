@@ -4,6 +4,7 @@
 //! structures and adaptive weighting schemes for robust isotonic regression that
 //! automatically adjust to handle outliers and heteroscedasticity.
 
+use crate::utils::safe_float_cmp;
 use std::marker::PhantomData;
 use std::collections::{HashMap, HashSet, VecDeque};
 use scirs2_core::ndarray::{s, Array1, Array2};

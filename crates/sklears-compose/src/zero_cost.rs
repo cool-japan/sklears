@@ -759,13 +759,13 @@ impl<T> PooledBuffer<T> {
     }
 
     /// Get mutable reference to the buffer
-    pub fn as_mut(&mut self) -> &mut Vec<T> {
+    pub fn buffer_mut(&mut self) -> &mut Vec<T> {
         self.buffer.as_mut().unwrap()
     }
 
     /// Get immutable reference to the buffer
     #[must_use]
-    pub fn as_ref(&self) -> &Vec<T> {
+    pub fn buffer_ref(&self) -> &Vec<T> {
         self.buffer.as_ref().unwrap()
     }
 }

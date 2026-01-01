@@ -33,12 +33,12 @@ fn generate_dataset(
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
     // Generate random features
-    let X_var = Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-5.0, 5.0));
+    let X_var = Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-5.0..5.0));
 
     // Generate labels based on simple linear combination with noise
-    let weights: Array1<f64> = Array1::from_shape_fn(n_features, |_| rng.random_range(-1.0, 1.0));
+    let weights: Array1<f64> = Array1::from_shape_fn(n_features, |_| rng.random_range(-1.0..1.0));
     let y = X.dot(&weights).mapv(|x| {
-        let class = ((x + rng.random_range(-0.5, 0.5)) / 2.0).floor() as i32;
+        let class = ((x + rng.random_range(-0.5..0.5)) / 2.0).floor() as i32;
         (class % n_classes as i32) as f64
     });
 
@@ -54,8 +54,8 @@ fn generate_regression_dataset(
 ) -> (Array2<f64>, Array1<f64>) {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
-    let X_var = Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-5.0, 5.0));
-    let weights: Array1<f64> = Array1::from_shape_fn(n_features, |_| rng.random_range(-1.0, 1.0));
+    let X_var = Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-5.0..5.0));
+    let weights: Array1<f64> = Array1::from_shape_fn(n_features, |_| rng.random_range(-1.0..1.0));
     let y = X
         .dot(&weights)
         .mapv(|x| x + rng.gen_range(-noise_level..noise_level));

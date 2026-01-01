@@ -7,13 +7,14 @@
 use super::utils::{
     compute_ib_gradient, compute_mutual_information, compute_mutual_information_2d,
 };
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -166,11 +167,10 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, Float>> for InformationBottleneck
             encoder_weights = encoder_weights + learning_rate * grad;
 
             // Orthogonalize weights (optional regularization)
-            let (u, _, vt) = encoder_weights.svd(true, true).unwrap();
-            if let (Some(u_mat), Some(vt_mat)) = (u, vt) {
-                use scirs2_core::ndarray::s;
-                encoder_weights = u_mat.slice(s![.., ..self.n_components]).dot(&vt_mat);
-            }
+            let (u, _, vt) = encoder_weights.svd(true).unwrap();
+            let (u_mat, vt_mat) = (u, vt);
+            use scirs2_core::ndarray::s;
+            encoder_weights = u_mat.slice(s![.., ..self.n_components]).dot(&vt_mat);
         }
 
         // Compute final embedding and statistics

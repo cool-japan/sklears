@@ -2,8 +2,8 @@
 //!
 //! This module provides LTSA for non-linear dimensionality reduction through local tangent space alignment.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -272,25 +272,20 @@ impl LTSA<Untrained> {
 
             // Compute local tangent space via SVD
             let (_, s, vt) = neighborhood
-                .svd(true, true)
+                .svd(true)
                 .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {e}")))?;
 
-            if let Some(vt_matrix) = vt {
-                // Take the first n_components principal components as tangent space
-                let mut tangent_space = Array2::zeros((self.n_components, n_features));
-                for comp in 0..self.n_components {
-                    if comp < s.len() && s[comp] > 1e-12 {
-                        for d in 0..n_features {
-                            tangent_space[[comp, d]] = vt_matrix[[comp, d]];
-                        }
+            let vt_matrix = vt;
+            // Take the first n_components principal components as tangent space
+            let mut tangent_space = Array2::zeros((self.n_components, n_features));
+            for comp in 0..self.n_components {
+                if comp < s.len() && s[comp] > 1e-12 {
+                    for d in 0..n_features {
+                        tangent_space[[comp, d]] = vt_matrix[[comp, d]];
                     }
                 }
-                local_tangent_spaces.push(tangent_space);
-            } else {
-                return Err(SklearsError::InvalidInput(
-                    "SVD failed to compute right singular vectors".to_string(),
-                ));
             }
+            local_tangent_spaces.push(tangent_space);
         }
 
         Ok(local_tangent_spaces)

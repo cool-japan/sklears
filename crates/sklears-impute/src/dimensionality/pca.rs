@@ -312,7 +312,7 @@ impl PCAImputer<Untrained> {
 
         for k in 0..n.min(self.n_components) {
             // Random initialization
-            let mut v = Array1::from_shape_fn(n, |_| rng.random_range(-1.0, 1.0));
+            let mut v = Array1::from_shape_fn(n, |_| rng.random_range(-1.0..1.0));
 
             // Power iteration
             for _iter in 0..100 {

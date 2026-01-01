@@ -707,7 +707,7 @@ impl MatrixCompletion<Untrained> {
         let matrix_vec: Vec<f64> = matrix.iter().cloned().collect();
         let na_matrix = DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &matrix_vec);
 
-        let svd = na_matrix.svd(true, true);
+        let svd = na_matrix.svd(true);
         let u = svd
             .u
             .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
@@ -745,7 +745,7 @@ impl MatrixCompletion<Untrained> {
         let matrix_vec: Vec<f64> = matrix.iter().cloned().collect();
         let na_matrix = DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &matrix_vec);
 
-        let svd = na_matrix.svd(true, true);
+        let svd = na_matrix.svd(true);
         let u = svd
             .u
             .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
@@ -785,7 +785,7 @@ impl MatrixCompletion<Untrained> {
             let qr = a_na.clone().qr();
             qr.solve(&b_na).unwrap_or_else(|| {
                 // Fallback to pseudoinverse
-                let svd = a_na.svd(true, true);
+                let svd = a_na.svd(true);
                 let tolerance = 1e-12;
 
                 let u = svd.u.unwrap();
@@ -1282,7 +1282,7 @@ impl LowRankMatrixRecovery<Untrained> {
         let (m, n) = matrix.dim();
         let matrix_na = DMatrix::from_row_slice(m, n, matrix.as_slice().unwrap());
 
-        let svd = matrix_na.svd(true, true);
+        let svd = matrix_na.svd(true);
 
         let u = svd.u.ok_or_else(|| {
             SklearsError::NumericalError("Failed to compute U matrix in SVD".to_string())

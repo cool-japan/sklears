@@ -193,7 +193,8 @@ impl SelectionResultsIO {
             }
             ExportFormat::Csv => Self::export_benchmark_csv(&serializable, path)?,
             ExportFormat::Binary => {
-                let encoded = bincode::serialize(&serializable)?;
+                let encoded =
+                    oxicode::serde::encode_to_vec(&serializable, oxicode::config::standard())?;
                 std::fs::write(path, encoded)?;
             }
             _ => return Err("Export format not supported for benchmark results".into()),
@@ -221,7 +222,8 @@ impl SelectionResultsIO {
             }
             ExportFormat::Binary => {
                 let content = std::fs::read(path)?;
-                let results = bincode::deserialize(&content)?;
+                let (results, _bytes_read) =
+                    oxicode::serde::decode_from_slice(&content, oxicode::config::standard())?;
                 Ok(results)
             }
             _ => Err("Import format not supported for benchmark results".into()),
@@ -476,7 +478,7 @@ impl SelectionResultsIO {
         data: &SerializableSelectionResult,
         path: P,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let encoded = bincode::serialize(data)?;
+        let encoded = oxicode::serde::encode_to_vec(data, oxicode::config::standard())?;
         std::fs::write(path, encoded)?;
         Ok(())
     }
@@ -511,7 +513,8 @@ impl SelectionResultsIO {
         path: P,
     ) -> Result<SerializableSelectionResult, Box<dyn std::error::Error>> {
         let content = std::fs::read(path)?;
-        let result = bincode::deserialize(&content)?;
+        let (result, _bytes_read) =
+            oxicode::serde::decode_from_slice(&content, oxicode::config::standard())?;
         Ok(result)
     }
 

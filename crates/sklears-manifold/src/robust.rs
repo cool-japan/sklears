@@ -3,13 +3,13 @@
 //! outliers, noise, and contamination in the data while preserving the underlying
 //! manifold structure.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, Norm, Solve, SVD, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -318,7 +318,7 @@ impl RobustManifold<Untrained> {
 
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -334,7 +334,10 @@ impl RobustManifold<Untrained> {
             let mut reachability_distances = Vec::new();
             for &neighbor in &k_neighbors {
                 let neighbor_k_dist = self.compute_k_distance(x, neighbor, k);
-                let direct_dist = (&x.row(i) - &x.row(neighbor)).norm_l2();
+                let direct_dist = (&x.row(i) - &x.row(neighbor))
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt();
                 reachability_distances.push(direct_dist.max(neighbor_k_dist));
             }
 
@@ -530,7 +533,10 @@ impl RobustManifold<Untrained> {
             }
 
             // Check convergence
-            let change = (&current_mean - &prev_mean).norm_l2();
+            let change = (&current_mean - &prev_mean)
+                .mapv(|x: f64| x * x)
+                .sum()
+                .sqrt();
             if change < self.tolerance {
                 break;
             }
@@ -649,13 +655,13 @@ impl RobustManifold<Untrained> {
             // Influence score (simplified as reconstruction error)
             let reconstructed = x.row(i).dot(&transform);
             let residual = &embedding.row(i) - &reconstructed;
-            influence_scores[i] = residual.norm_l2();
+            influence_scores[i] = residual.mapv(|x: f64| x * x).sum().sqrt();
 
             // Leverage score (diagonal of hat matrix approximation)
             leverage_scores[i] = self.compute_leverage_score(x, i)?;
 
             // Standardized residual
-            let residual_norm = residual.norm_l2();
+            let residual_norm = residual.mapv(|x: f64| x * x).sum().sqrt();
             let scale_estimate = self.compute_scale_estimate(x)?;
             standardized_residuals[i] = residual_norm / scale_estimate;
 
@@ -718,7 +724,10 @@ impl RobustManifold<Untrained> {
             let mut local_density = 0.0;
             for &other_idx in indices {
                 if idx != other_idx {
-                    let dist = (&x.row(idx) - &x.row(other_idx)).norm_l2();
+                    let dist = (&x.row(idx) - &x.row(other_idx))
+                        .mapv(|x: f64| x * x)
+                        .sum()
+                        .sqrt();
                     if dist > 1e-10 {
                         local_density += 1.0 / dist;
                     }
@@ -736,7 +745,12 @@ impl RobustManifold<Untrained> {
         let n_samples = x.nrows();
         let mut distances: Vec<f64> = (0..n_samples)
             .filter(|&i| i != point_idx)
-            .map(|i| (&x.row(point_idx) - &x.row(i)).norm_l2())
+            .map(|i| {
+                (&x.row(point_idx) - &x.row(i))
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt()
+            })
             .collect();
         distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
         distances[k.min(distances.len() - 1)]
@@ -746,7 +760,15 @@ impl RobustManifold<Untrained> {
         let n_samples = x.nrows();
         let mut distances: Vec<(usize, f64)> = (0..n_samples)
             .filter(|&i| i != point_idx)
-            .map(|i| (i, (&x.row(point_idx) - &x.row(i)).norm_l2()))
+            .map(|i| {
+                (
+                    i,
+                    (&x.row(point_idx) - &x.row(i))
+                        .mapv(|x: f64| x * x)
+                        .sum()
+                        .sqrt(),
+                )
+            })
             .collect();
         distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -755,7 +777,10 @@ impl RobustManifold<Untrained> {
         let mut reachability_distances = Vec::new();
         for &neighbor in &k_neighbors {
             let neighbor_k_dist = self.compute_k_distance(x, neighbor, k);
-            let direct_dist = (&x.row(point_idx) - &x.row(neighbor)).norm_l2();
+            let direct_dist = (&x.row(point_idx) - &x.row(neighbor))
+                .mapv(|x: f64| x * x)
+                .sum()
+                .sqrt();
             reachability_distances.push(direct_dist.max(neighbor_k_dist));
         }
 
@@ -770,11 +795,8 @@ impl RobustManifold<Untrained> {
 
     fn pseudo_inverse(&self, matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (u, s, vt) = matrix
-            .svd(true, true)
-            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+            .svd(true)
+            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?; // vt is directly available
 
         let mut s_inv = Array1::zeros(s.len());
         for (i, &val) in s.iter().enumerate() {
@@ -817,7 +839,7 @@ impl RobustManifold<Untrained> {
 
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -901,7 +923,7 @@ impl RobustManifold<Untrained> {
 
         for i in 0..n_samples {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
-                .map(|j| (j, (&x.row(i) - &x.row(j)).norm_l2()))
+                .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
             distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
@@ -1004,7 +1026,10 @@ impl RobustManifold<Untrained> {
         let mut nearest_idx = 0;
 
         for i in 0..inlier_data.nrows() {
-            let dist = (outlier - &inlier_data.row(i)).norm_l2();
+            let dist = (outlier - &inlier_data.row(i))
+                .mapv(|x: f64| x * x)
+                .sum()
+                .sqrt();
             if dist < min_dist {
                 min_dist = dist;
                 nearest_idx = i;
@@ -1033,11 +1058,19 @@ impl RobustManifold<Untrained> {
 
         // Approximate using distance to centroid
         let centroid = x.mean_axis(Axis(0)).unwrap();
-        let dist_to_centroid = (&x.row(point_idx) - &centroid).norm_l2();
+        let dist_to_centroid = (&x.row(point_idx) - &centroid)
+            .mapv(|x: f64| x * x)
+            .sum()
+            .sqrt();
         let avg_dist = x
             .rows()
             .into_iter()
-            .map(|row| (&row.to_owned() - &centroid).norm_l2())
+            .map(|row| {
+                (&row.to_owned() - &centroid)
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt()
+            })
             .sum::<f64>()
             / n_samples as f64;
 
@@ -1051,7 +1084,12 @@ impl RobustManifold<Untrained> {
         let mut deviations: Vec<f64> = x
             .rows()
             .into_iter()
-            .map(|row| (&row.to_owned() - &centroid).norm_l2())
+            .map(|row| {
+                (&row.to_owned() - &centroid)
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt()
+            })
             .collect();
         deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -1207,11 +1245,8 @@ impl RobustManifold<TrainedRobustManifold> {
 
     fn pseudo_inverse(&self, matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (u, s, vt) = matrix
-            .svd(true, true)
-            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?;
-
-        let u = u.unwrap();
-        let vt = vt.unwrap();
+            .svd(true)
+            .map_err(|e| SklearsError::InvalidInput(format!("SVD failed: {}", e)))?; // vt is directly available
 
         let mut s_inv = Array1::zeros(s.len());
         for (i, &val) in s.iter().enumerate() {

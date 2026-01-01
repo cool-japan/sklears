@@ -26,7 +26,7 @@ fn generate_dataset(
     // Generate data
     for i in 0..n_samples {
         for j in 0..n_features {
-            X[[i, j]] = rng.random_range(-1.0, 1.0);
+            X[[i, j]] = rng.random_range(-1.0..1.0);
         }
     }
 

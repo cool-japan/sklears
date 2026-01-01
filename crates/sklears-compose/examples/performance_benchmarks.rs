@@ -11,7 +11,6 @@
 //! - Scalability with dataset size
 //! - SIMD optimization benefits
 //!
-use scirs2_core::random::Rng;
 // Run with: cargo run --example performance_benchmarks
 
 use scirs2_core::ndarray::{Array1, Array2};

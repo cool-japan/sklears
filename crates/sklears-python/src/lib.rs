@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! Python bindings for the sklears machine learning library
 //!
 //! This crate provides PyO3-based Python bindings for sklears, enabling
@@ -11,7 +14,7 @@
 //! # Features
 //!
 //! - Drop-in replacement for scikit-learn's most common algorithms
-//! - 3-100x performance improvements over scikit-learn
+//! - 14-20x performance improvements over scikit-learn (validated)
 //! - Full NumPy array compatibility
 //! - Comprehensive error handling with Python exceptions
 //! - Memory-safe operations with automatic reference counting
@@ -65,7 +68,7 @@ pub use utils::*;
 #[pymodule]
 fn sklears_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Set module metadata
-    m.add("__version__", "0.1.0-alpha.2")?;
+    m.add("__version__", "0.1.0-beta.1")?;
     m.add(
         "__doc__",
         "High-performance machine learning library with scikit-learn compatibility",

@@ -22,7 +22,8 @@
 //! ```
 
 use scirs2_core::essentials::{Normal, Uniform};
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+use scirs2_linalg::compat::ArrayLinalgExt;
+
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
@@ -438,12 +439,10 @@ impl DocumentEmbedding<Untrained> {
 
     fn compute_embeddings(&self, tfidf: &ArrayView2<Float>) -> SklResult<Array2<Float>> {
         let svd = tfidf
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::FitError(format!("SVD computation failed: {}", e)))?;
 
-        let vt = svd
-            .2
-            .ok_or_else(|| SklearsError::FitError("SVD V matrix not computed".to_string()))?;
+        let vt = svd.2;
 
         let k = self.embedding_dim.min(vt.nrows());
         let embeddings = vt.slice(s![..k, ..]).t().to_owned();

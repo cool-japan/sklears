@@ -13,7 +13,6 @@
 
 use scirs2_core::ndarray::{Array2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::traits::Fit;
 use sklears_covariance::{
     adaptive_shrinkage,

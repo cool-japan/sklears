@@ -14,7 +14,7 @@
 /// Creates a quick dataset for testing and demonstration purposes
 ///
 /// # Examples
-/// ```rust,ignore
+/// ```ignore
 /// use sklears_core::quick_dataset;
 /// // SciRS2 Policy: Using scirs2_core::ndarray (COMPLIANT)
 /// use scirs2_core::ndarray::{arr1, arr2};
@@ -23,7 +23,7 @@
 ///     data: arr2(&[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
 ///     target: arr1(&[0.0, 1.0, 0.0])
 /// );
-/// ```rust,ignore
+/// ```
 #[macro_export]
 macro_rules! quick_dataset {
     (data: $data:expr, target: $target:expr) => {

@@ -266,7 +266,7 @@ impl ConstrainedKMeans {
             } else {
                 // If we run out of points, use random initialization
                 for j in 0..n_features {
-                    centroids[[k, j]] = rng.random_range(-1.0, 1.0);
+                    centroids[[k, j]] = rng.random_range(-1.0..1.0);
                 }
             }
         }

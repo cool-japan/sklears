@@ -473,7 +473,11 @@ impl SimdOps {
         _mm256_storeu_ps(result_array.as_mut_ptr(), sum);
         let mut total = result_array.iter().sum::<f32>();
 
-        total += array.iter().skip(simd_len).take(len - simd_len).sum::<f32>();
+        total += array
+            .iter()
+            .skip(simd_len)
+            .take(len - simd_len)
+            .sum::<f32>();
 
         total
     }
@@ -495,7 +499,11 @@ impl SimdOps {
         _mm_storeu_ps(result_array.as_mut_ptr(), sum);
         let mut total = result_array.iter().sum::<f32>();
 
-        total += array.iter().skip(simd_len).take(len - simd_len).sum::<f32>();
+        total += array
+            .iter()
+            .skip(simd_len)
+            .take(len - simd_len)
+            .sum::<f32>();
 
         total
     }

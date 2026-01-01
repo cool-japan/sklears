@@ -14,7 +14,7 @@ use scirs2_core::random::{
     essentials::{Normal, Uniform},
     seeded_rng, CoreRandom,
 };
-use scirs2_linalg::LinalgError;
+use scirs2_linalg::compat::LinalgError;
 use thiserror::Error;
 
 /// Errors for Bayesian SVM

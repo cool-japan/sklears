@@ -65,7 +65,7 @@
 /// use sklears_core::memory_safety::SafeMemoryPool;
 ///
 /// fn pooled_allocation_example() {
-///     let mut pool = SafeMemoryPool::<f64>::new();
+///     let mut pool = SafeMemoryPool::`<f64>`::new();
 ///     
 ///     // Safe allocation with automatic cleanup
 ///     let buffer = pool.allocate(1000);

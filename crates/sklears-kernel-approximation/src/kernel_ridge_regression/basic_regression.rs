@@ -9,7 +9,8 @@
 use crate::{
     FastfoodTransform, Nystroem, RBFSampler, StructuredRandomFeatures, Trained, Untrained,
 };
-use scirs2_core::ndarray::ndarray_linalg::solve::Solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;

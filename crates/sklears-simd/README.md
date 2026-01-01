@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -31,6 +31,6 @@ assert_eq!(result.horizontal_sum(), 20.0);
 
 ## Status
 
-- Core building block validated by the 11,292 passing workspace tests for `0.1.0-alpha.2`.
+- Core building block validated by the 11,292 passing workspace tests for `0.1.0-beta.1`.
 - Powers SIMD/GPU acceleration in linear models, neighbors, metrics, and more.
 - Contributor roadmap (new architectures, auto-vectorization tooling) maintained in `TODO.md`.

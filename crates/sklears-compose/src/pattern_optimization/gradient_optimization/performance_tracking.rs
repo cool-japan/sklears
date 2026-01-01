@@ -439,7 +439,7 @@ impl PerformanceTracker {
 
     fn serialize_to_binary(&self, report: &PerformanceReport) -> SklResult<Vec<u8>> {
         // Simplified binary serialization
-        Ok(bincode::serialize(report)?)
+        Ok(oxicode::serde::encode_to_vec(report, oxicode::config::standard())?)
     }
 }
 

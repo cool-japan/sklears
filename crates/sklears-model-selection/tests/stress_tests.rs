@@ -1,6 +1,6 @@
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{seeded_rng, Rng};
+use scirs2_core::random::seeded_rng;
 use sklears_model_selection::*;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

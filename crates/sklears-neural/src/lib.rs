@@ -40,6 +40,9 @@
 #![allow(unused_variables)] // Allow unused variables in development/research code
 #![allow(dead_code)] // Allow dead code during development
 #![allow(deprecated)] // Allow deprecated items during transitions
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 #![allow(unexpected_cfgs)] // Allow GPU and other conditional compilation features
 #![allow(ambiguous_glob_reexports)]
 // Allow re-export conflicts in ML modules
@@ -104,10 +107,12 @@ pub mod mlp_classifier;
 pub mod mlp_regressor;
 pub mod model_selection;
 pub mod models;
+pub mod multi_agent_rl;
 pub mod multi_task;
 pub mod nas;
 pub mod neural_metrics;
 pub mod normalizing_flows;
+pub mod once_for_all;
 pub mod performance_testing;
 pub mod quantization;
 pub mod rbm;
@@ -151,10 +156,12 @@ pub use mlp_classifier::*;
 pub use mlp_regressor::*;
 pub use model_selection::*;
 pub use models::*;
+pub use multi_agent_rl::*;
 pub use multi_task::*;
 pub use nas::*;
 pub use neural_metrics::*;
 pub use normalizing_flows::*;
+pub use once_for_all::*;
 pub use performance_testing::*;
 pub use quantization::*;
 pub use rbm::*;

@@ -4,8 +4,8 @@
 //! The EM algorithm iteratively estimates missing values and updates covariance parameters,
 //! providing principled handling of missing data without imputation artifacts.
 
-use scirs2_core::ndarray::ndarray_linalg::{Determinant, Inverse};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},

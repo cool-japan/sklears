@@ -349,7 +349,7 @@ impl MmapNeighborIndex {
     /// * `sample_idx` - Index of the sample to retrieve neighbors for
     ///
     /// # Returns
-    /// * `NeighborsResult<(Array1<u32>, Array1<Float>)>` - Neighbor indices and distances
+    /// * `NeighborsResult<(Array1<u32>, Array1`<Float>`)>` - Neighbor indices and distances
     #[cfg(feature = "memmap")]
     pub fn get_neighbors(
         &self,
@@ -479,7 +479,7 @@ impl MmapNeighborIndex {
     /// * `sample_idx` - Index of the sample to retrieve
     ///
     /// # Returns
-    /// * `NeighborsResult<Array1<Float>>` - Sample data
+    /// * `NeighborsResult<Array1`<Float>`>` - Sample data
     #[cfg(feature = "memmap")]
     pub fn get_sample(&self, sample_idx: usize) -> NeighborsResult<Array1<Float>> {
         if sample_idx >= self.header.n_samples as usize {

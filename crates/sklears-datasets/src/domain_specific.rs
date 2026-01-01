@@ -236,7 +236,7 @@ pub fn make_synthetic_image_classification(
     let mut prototypes = Array2::zeros((n_classes, n_pixels));
     for i in 0..n_classes {
         for j in 0..n_pixels {
-            prototypes[[i, j]] = rng.random_range(0.0, 1.0);
+            prototypes[[i, j]] = rng.random_range(0.0..1.0);
         }
     }
 

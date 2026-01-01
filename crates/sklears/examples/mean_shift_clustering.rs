@@ -7,7 +7,6 @@
 
 use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears::clustering::MeanShift;
 use sklears::prelude::*;
 

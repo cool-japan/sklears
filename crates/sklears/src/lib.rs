@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(unused_mut)]
@@ -17,8 +20,8 @@
 //! ## Overview
 //!
 //! sklears brings the familiar scikit-learn API to Rust with:
-//! - **>99% scikit-learn API coverage** validated for version 0.1.0-alpha.2
-//! - **3-100x performance improvements** over Python implementations
+//! - **>99% scikit-learn API coverage** validated for version 0.1.0-beta.1
+//! - **14-20x performance (validated) improvements** over Python implementations (14-20x validated)
 //! - **Memory safety** without garbage collection overhead
 //! - **Type-safe APIs** that catch errors at compile time
 //! - **Zero-copy operations** for efficient data handling

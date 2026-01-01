@@ -2,8 +2,8 @@
 //!
 //! This module provides Spectral Embedding for graph-based manifold learning through eigendecomposition of Laplacian matrices.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},

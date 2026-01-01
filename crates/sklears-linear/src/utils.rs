@@ -4,7 +4,7 @@
 //! core algorithms used by various linear models.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::{qr, solve, svd};
+use scirs2_linalg::compat::{qr, svd, ArrayLinalgExt};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -297,7 +297,7 @@ fn solve_cholesky(a: &Array2<Float>, b: &Array1<Float>) -> Result<Array1<Float>>
     }
 
     // Use scirs2's linear solver which handles Cholesky decomposition
-    solve(&a.view(), &b.view(), None)
+    a.solve(&b)
         .map_err(|e| SklearsError::NumericalError(format!("Cholesky decomposition failed: {}", e)))
 }
 
@@ -339,7 +339,7 @@ pub fn stable_normal_equations(
     }
 
     // Use QR decomposition via scirs2
-    let (q, r) = qr(&a.view(), None)
+    let (q, r) = qr(&a.view())
         .map_err(|e| SklearsError::NumericalError(format!("QR decomposition failed: {}", e)))?;
 
     // Check for rank deficiency
@@ -427,7 +427,8 @@ pub fn stable_ridge_regression(
     }
 
     // Solve using scirs2's linear solver
-    let x = solve(&regularized_ata.view(), &atb.view(), None)
+    let x = regularized_ata
+        .solve(&atb)
         .map_err(|e| SklearsError::NumericalError(format!("Linear solve failed: {}", e)))?;
 
     Ok(x)
@@ -506,7 +507,8 @@ pub fn solve_with_iterative_refinement(
     }
 
     // Get initial solution using direct method
-    let mut x = solve(&a.view(), &b.view(), None)
+    let mut x = a
+        .solve(&b)
         .map_err(|e| SklearsError::NumericalError(format!("Initial solve failed: {}", e)))?;
 
     // Check if iterative refinement is needed
@@ -532,7 +534,7 @@ pub fn solve_with_iterative_refinement(
         }
 
         // Solve A*delta_x = residual
-        let delta_x = &solve(&a.view(), &residual.view(), None).map_err(|e| {
+        let delta_x = &a.solve(&residual).map_err(|e| {
             SklearsError::NumericalError(format!("Refinement iteration {} failed: {}", iter, e))
         })?;
 
@@ -606,7 +608,7 @@ pub fn enhanced_ridge_regression(
         solve_with_iterative_refinement(&gram, &xy, max_iter, tol)?
     } else {
         // Standard solve for well-conditioned matrices
-        solve(&gram.view(), &xy.view(), None)
+        gram.solve(&xy)
             .map_err(|e| SklearsError::NumericalError(format!("Linear solve failed: {}", e)))?
     };
 
@@ -654,7 +656,7 @@ pub fn svd_ridge_regression(
     }
 
     // Use SVD via scirs2-linalg: A = U S V^T
-    let (u, s, vt) = svd(&a.view(), true, None)
+    let (u, s, vt) = svd(&a.view(), true)
         .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
     // Compute regularized solution: x = V * (S^2 + alpha*I)^(-1) * S * U^T * b
@@ -753,7 +755,7 @@ pub fn accurate_condition_number(a: &Array2<Float>) -> Result<Float> {
     }
 
     // Compute SVD to get singular values using scirs2-linalg
-    let (_, s, _) = svd(&a.view(), false, None)
+    let (_, s, _) = svd(&a.view(), false)
         .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
     if s.is_empty() {
@@ -787,7 +789,7 @@ pub fn rank_revealing_qr(a: &Array2<Float>, rcond: Option<Float>) -> Result<Rank
     let rcond = rcond.unwrap_or(Float::EPSILON * n_samples.max(n_features) as Float);
 
     // For now, use regular QR and estimate rank from R diagonal
-    let (q, r) = qr(&a.view(), None)
+    let (q, r) = qr(&a.view())
         .map_err(|e| SklearsError::NumericalError(format!("QR decomposition failed: {}", e)))?;
 
     // Estimate rank from R diagonal elements

@@ -78,7 +78,7 @@ pub struct HalvingGridSearchConfig {
 /// param_distributions.insert("fit_intercept".to_string(),
 ///     ParameterDistribution::Choice(vec![true.into(), false.into()]));
 ///
-/// let search: HalvingGridSearch<scirs2_core::ndarray::Array2<f64>, scirs2_core::ndarray::Array1<f64>> = HalvingGridSearch::new(param_distributions)
+/// let search: HalvingGridSearch<scirs2_core::ndarray::Array2`<f64>`, scirs2_core::ndarray::Array1`<f64>`> = HalvingGridSearch::new(param_distributions)
 ///     .n_candidates(8)
 ///     .factor(2.0)
 ///     .cv(Box::new(KFold::new(3)))

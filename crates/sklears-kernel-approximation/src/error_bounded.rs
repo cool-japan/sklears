@@ -4,8 +4,8 @@
 //! and adaptive algorithms that guarantee approximation quality.
 
 use crate::{Nystroem, RBFSampler};
-use scirs2_core::ndarray::ndarray_linalg::Norm;
 use scirs2_core::ndarray::Array2;
+use scirs2_linalg::compat::Norm;
 use sklears_core::traits::Fit;
 use sklears_core::{error::Result, traits::Transform};
 

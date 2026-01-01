@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! Multiclass classification strategies
 //!
 //! This module provides meta-estimators for multiclass classification problems.

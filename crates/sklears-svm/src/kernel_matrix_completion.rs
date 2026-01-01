@@ -16,7 +16,7 @@
 //! - Regularized Matrix Completion
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::{svd, LinalgError};
+use scirs2_linalg::compat::{svd, LinalgError};
 use thiserror::Error;
 
 /// Errors for kernel matrix completion

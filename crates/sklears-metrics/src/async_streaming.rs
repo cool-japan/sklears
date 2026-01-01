@@ -342,7 +342,7 @@ impl StreamingMetricsComputer {
             averaging_strategy: "Streaming".to_string(),
             has_confidence_intervals: false,
             sample_size: accumulator.total_samples,
-            timestamp: "2025-07-04T00:00:00Z".to_string(), // Would use actual timestamp
+            timestamp: "2026-01-04T00:00:00Z".to_string(), // Would use actual timestamp
             config_summary: format!(
                 "Streaming computation, chunk_size: {}, window_size: {:?}",
                 self.config.chunk_size, self.config.window_size
@@ -439,7 +439,7 @@ where
                         let acc = accumulator.lock().unwrap();
                         acc.total_samples
                     },
-                    timestamp: "2025-07-04T00:00:00Z".to_string(),
+                    timestamp: "2026-01-04T00:00:00Z".to_string(),
                     config_summary: "Real-time metric computation".to_string(),
                 };
 

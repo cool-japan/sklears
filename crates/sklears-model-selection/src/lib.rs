@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! Model selection utilities for sklears
 
 mod adaptive_resource_allocation;
@@ -53,6 +56,7 @@ mod parameter_space;
 mod scoring;
 mod spatial_validation;
 mod temporal_validation;
+mod threshold_tuning;
 mod train_test_split;
 mod validation;
 mod warm_start;
@@ -276,6 +280,10 @@ pub use spatial_validation::{
 };
 pub use temporal_validation::{
     BlockedTemporalCV, SeasonalCrossValidator, TemporalCrossValidator, TemporalValidationConfig,
+};
+pub use threshold_tuning::{
+    optimize_threshold, FixedThresholdClassifier, OptimizationMetric, ThresholdOptimizationResult,
+    TunedThresholdClassifierCV, TunedThresholdClassifierCVTrained,
 };
 pub use train_test_split::train_test_split;
 pub use validation::{

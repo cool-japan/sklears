@@ -3,13 +3,13 @@
 //! This module implements various Bayesian approaches for covariance matrix estimation,
 //! including inverse-Wishart priors, variational Bayes, hierarchical models, and MCMC sampling.
 
-use scirs2_core::ndarray::ndarray_linalg::{Cholesky, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2, Axis, NdFloat};
 use scirs2_core::numeric::FromPrimitive;
 use scirs2_core::random::essentials::Uniform;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;
 use scirs2_core::StandardNormal;
+use scirs2_linalg::compat::ArrayLinalgExt;
 
 use crate::utils::{matrix_determinant, matrix_inverse, regularize_matrix, validate_data};
 use sklears_core::prelude::*;
@@ -684,7 +684,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
 
         // Cholesky decomposition of scale matrix
         let scale_f64 = scale.mapv(|x| x.to_f64().unwrap_or(0.0));
-        let chol_f64 = scale_f64.cholesky(UPLO::Lower).map_err(|_| {
+        let chol_f64 = scale_f64.cholesky().map_err(|_| {
             SklearsError::NumericalError("Failed to compute Cholesky decomposition".to_string())
         })?;
         let chol = chol_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
@@ -980,9 +980,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceBuilder<F> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::ndarray_linalg::EigVals;
     use scirs2_core::ndarray::Array2;
     use scirs2_core::Random;
+    use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 
     fn generate_test_data(n_samples: usize, n_features: usize) -> Array2<f64> {
         let mut rng = Random::seed(42);
@@ -1014,8 +1014,8 @@ mod tests {
         assert_eq!(fitted.covariance().shape(), &[3, 3]);
 
         // Check that covariance matrix is positive definite
-        let eigenvals = fitted.covariance().eigvals().unwrap();
-        assert!(eigenvals.iter().all(|&x| x.re > 0.0 && x.im.abs() < 1e-10));
+        let eigenvals = fitted.covariance().eigvalsh(UPLO::Lower).unwrap();
+        assert!(eigenvals.iter().all(|&x| x > 0.0));
     }
 
     #[test]
@@ -1102,8 +1102,8 @@ mod tests {
         assert_eq!(pred_cov.shape(), &[3, 3]);
 
         // Check positive definiteness
-        let eigenvals = pred_cov.eigvals().unwrap();
-        assert!(eigenvals.iter().all(|&x| x.re > 0.0 && x.im.abs() < 1e-10));
+        let eigenvals = pred_cov.eigvalsh(UPLO::Lower).unwrap();
+        assert!(eigenvals.iter().all(|&x| x > 0.0));
     }
 
     #[test]

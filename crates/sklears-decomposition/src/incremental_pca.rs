@@ -1,7 +1,7 @@
 //! Incremental Principal Component Analysis implementation
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::svd;
+use scirs2_linalg::compat::svd;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform, Untrained},
@@ -201,7 +201,7 @@ impl IncrementalPCA<Untrained> {
         let matrix =
             nalgebra::DMatrix::from_iterator(n_samples, n_features, x_centered.iter().cloned());
 
-        let svd = matrix.svd(true, true);
+        let svd = matrix.svd(true);
 
         // Extract components and singular values
         let vt = svd.v_t.ok_or_else(|| {

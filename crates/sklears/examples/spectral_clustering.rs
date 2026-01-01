@@ -6,7 +6,7 @@
 //! - Comparison with K-means on challenging datasets
 
 use scirs2_core::ndarray::{array, Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears::clustering::{Affinity, KMeans, KMeansConfig, SpectralClustering};
 use sklears::prelude::*;
 use std::f64::consts::PI;

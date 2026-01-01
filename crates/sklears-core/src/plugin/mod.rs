@@ -348,7 +348,7 @@ pub type PluginCreateFn = fn() -> BoxedPlugin;
 ///
 /// #[derive(Debug)]
 /// struct LinearRegression {
-///     coefficients: Vec<f64>,
+///     coefficients: Vec`<f64>`,
 ///     intercept: f64,
 /// }
 ///
@@ -362,7 +362,7 @@ pub type PluginCreateFn = fn() -> BoxedPlugin;
 ///             description: "Simple linear regression algorithm".to_string(),
 ///             author: "SKLears Team".to_string(),
 ///             category: PluginCategory::Algorithm,
-///             supported_types: vec![TypeId::of::<f64>()],
+///             supported_types: vec![TypeId::of::`<f64>`()],
 ///             capabilities: vec![PluginCapability::Parallel],
 ///             ..Default::default()
 ///         }
@@ -378,7 +378,7 @@ pub type PluginCreateFn = fn() -> BoxedPlugin;
 ///     }
 ///
 ///     fn is_compatible(&self, input_type: TypeId) -> bool {
-///         input_type == TypeId::of::<f64>()
+///         input_type == TypeId::of::`<f64>`()
 ///     }
 ///
 ///     fn as_any(&self) -> &dyn Any { self }

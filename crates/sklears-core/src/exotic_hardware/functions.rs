@@ -116,7 +116,7 @@ pub async fn example_exotic_hardware_usage() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exotic_hardware::{HardwareId, HardwareType, Complex64};
+    use crate::exotic_hardware::{Complex64, HardwareId, HardwareType};
     #[cfg(feature = "async_support")]
     #[tokio::test]
     async fn test_tpu_device_creation() {

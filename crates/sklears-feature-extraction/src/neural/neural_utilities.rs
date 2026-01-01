@@ -101,7 +101,7 @@ pub fn orthogonal_init(input_dim: usize, output_dim: usize, random_state: Option
 
     for i in 0..input_dim {
         for j in 0..output_dim {
-            weights[(i, j)] = rng.random_range(-1.0, 1.0);
+            weights[(i, j)] = rng.random_range(-1.0..1.0);
         }
     }
 

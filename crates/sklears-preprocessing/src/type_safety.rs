@@ -75,8 +75,8 @@ impl<const N: usize> Dimension for Known<N> {
 ///
 /// # Type Parameters
 /// * `S` - State marker (Unfitted or Fitted)
-/// * `InDim` - Input dimension marker (Dynamic or Known<N>)
-/// * `OutDim` - Output dimension marker (Dynamic or Known<N>)
+/// * `InDim` - Input dimension marker (Dynamic or `Known<N>`)
+/// * `OutDim` - Output dimension marker (Dynamic or `Known<N>`)
 #[derive(Debug, Clone)]
 pub struct TypeSafeTransformer<S: TransformState, InDim: Dimension, OutDim: Dimension> {
     /// Configuration

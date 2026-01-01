@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -48,6 +48,6 @@ let y_pred = fitted.predict(&x)?;
 
 ## Status
 
-- Fully validated by the 11,292 passing workspace tests bundled with `0.1.0-alpha.2`.
+- Fully validated by the 11,292 passing workspace tests bundled with `0.1.0-beta.1`.
 - Benchmarks show 8–20× speedups versus scikit-learn for large PLS problems.
 - Upcoming enhancements (incremental fit, streaming CCA) tracked in `TODO.md`.

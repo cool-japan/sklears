@@ -460,7 +460,7 @@ pub fn norm_l2(input: &[f32]) -> f32 {
 
 /// SIMD-optimized population variance of a vector
 ///
-/// Computes the population variance using the formula: Var(X) = E[X²] - E[X]²
+/// Computes the population variance using the formula: Var(X) = E\[X²\] - E\[X\]²
 ///
 /// # Arguments
 /// * `input` - Input vector (must not be empty)

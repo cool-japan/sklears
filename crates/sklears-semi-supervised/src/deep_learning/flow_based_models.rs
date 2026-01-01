@@ -63,7 +63,7 @@ impl AffineCouplingLayer {
                 let mut w = Array2::zeros((output_size, input_size));
                 for i in 0..output_size {
                     for j in 0..input_size {
-                        w[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * scale;
+                        w[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * scale;
                     }
                 }
                 w
@@ -85,7 +85,7 @@ impl AffineCouplingLayer {
                 let mut w = Array2::zeros((output_size, input_size));
                 for i in 0..output_size {
                     for j in 0..input_size {
-                        w[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * scale;
+                        w[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * scale;
                     }
                 }
                 w
@@ -330,7 +330,7 @@ impl NormalizingFlow<Untrained> {
             let mut w = Array2::zeros((n_classes, input_dim));
             for i in 0..n_classes {
                 for j in 0..input_dim {
-                    w[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * 0.1;
+                    w[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * 0.1;
                 }
             }
             w
@@ -488,7 +488,7 @@ impl NormalizingFlow<NormalizingFlowTrained> {
             let mut rng = Random::default();
             let mut z = Array1::zeros(latent_dim);
             for i in 0..latent_dim {
-                z[i] = rng.random_range(-3.0, 3.0) / 3.0;
+                z[i] = rng.random_range(-3.0..3.0) / 3.0;
             }
             let z = z;
 

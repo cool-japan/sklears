@@ -55,7 +55,9 @@
       "Bash(do cargo test -p sklears-neural test_mlp_classifier_xor_problem -- --test-threads=1)",
       "Bash(done)",
       "Bash(for i in {1..20})",
-      "Bash(do cargo nextest run -p sklears-neural test_mlp_classifier_xor_problem --no-fail-fast)"
+      "Bash(do cargo nextest run -p sklears-neural test_mlp_classifier_xor_problem --no-fail-fast)",
+      "Bash(do echo \"Run $i:\")",
+      "Bash(for i in 1 2 3 4 5 6 7 8 9 10)"
     ]
   },
   "enableAllProjectMcpServers": false

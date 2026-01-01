@@ -7,6 +7,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::SliceRandomExt;
 use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use std::marker::PhantomData;
 
 use sklears_core::{
@@ -372,7 +373,7 @@ fn solve_least_squares(x: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Fl
     let xtx = xt.dot(x);
     let xty = xt.dot(y);
 
-    scirs2_linalg::solve(&xtx.view(), &xty.view(), None)
+    xtx.solve(&xty)
         .map_err(|e| SklearsError::NumericalError(format!("Failed to solve least squares: {}", e)))
 }
 

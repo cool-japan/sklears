@@ -4,8 +4,8 @@
 //! independent components in the data, which can be useful for understanding the underlying
 //! structure and estimating covariance matrices that capture non-Gaussian dependencies.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Inverse, SVD};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -331,11 +331,8 @@ impl ICACovariance {
             WhiteningMethod::PCA => {
                 // Use SVD for PCA whitening
                 let (u, s, vt) = x
-                    .svd(true, true)
+                    .svd(true)
                     .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-                let u = u.ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-                let vt =
-                    vt.ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
 
                 // Take first n_components
                 let s_trunc = s.slice(s![..n_components]).to_owned();

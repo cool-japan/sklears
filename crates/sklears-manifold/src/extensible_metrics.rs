@@ -5,6 +5,7 @@
 //! custom user-defined metrics and automatic metric selection.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use std::sync::{Arc, RwLock};
 
 /// Trait for distance metrics
@@ -302,7 +303,6 @@ impl MahalanobisDistance {
 
     /// Create from covariance matrix (will compute inverse)
     pub fn from_covariance(cov: Array2<f64>) -> SklResult<Self> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         let inv_cov = cov.inv().map_err(|_| {
             SklearsError::InvalidInput("Covariance matrix is not invertible".to_string())
         })?;

@@ -2,13 +2,13 @@
 //! This module implements various similarity learning approaches for manifold embeddings,
 //! including metric learning, contrastive learning, and related techniques.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, Norm, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -242,8 +242,11 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MetricLearning<Untrained>
 
         // Compute transformation matrix for dimensionality reduction
         let transformation_matrix = if self.n_components < n_features {
+            // Symmetrize the matrix to ensure numerical stability for eigendecomposition
+            let symmetric_metric = (&metric_matrix + &metric_matrix.t()) / 2.0;
+
             // Use eigendecomposition to find the top eigenvectors
-            let (eigenvalues, eigenvectors) = metric_matrix.eigh(UPLO::Upper).map_err(|e| {
+            let (eigenvalues, eigenvectors) = symmetric_metric.eigh(UPLO::Upper).map_err(|e| {
                 SklearsError::InvalidInput(format!("Eigendecomposition failed: {}", e))
             })?;
 
@@ -348,7 +351,10 @@ impl MetricLearning<Untrained> {
 
     /// Project matrix to positive semidefinite
     fn project_to_psd(&self, matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
-        let (eigenvalues, eigenvectors) = matrix
+        // Symmetrize the matrix to ensure numerical stability for eigendecomposition
+        let symmetric_matrix = (matrix + &matrix.t()) / 2.0;
+
+        let (eigenvalues, eigenvectors) = symmetric_matrix
             .eigh(UPLO::Upper)
             .map_err(|e| SklearsError::InvalidInput(format!("Eigendecomposition failed: {}", e)))?;
 
@@ -550,7 +556,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastiveLearning<Untra
                 let ej = xj.dot(&embedding_matrix);
 
                 // Compute distance in embedding space
-                let dist = (&ei - &ej).norm_l2();
+                let dist = (&ei - &ej).mapv(|x: f64| x * x).sum().sqrt();
 
                 // Compute contrastive loss and gradients
                 let (loss, grad_factor) = if *is_similar {
@@ -833,8 +839,8 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for TripletLoss<Untrained> {
                 let en = negative.dot(&embedding_matrix);
 
                 // Compute distances
-                let dist_pos = (&ea - &ep).norm_l2();
-                let dist_neg = (&ea - &en).norm_l2();
+                let dist_pos = (&ea - &ep).mapv(|x: f64| x * x).sum().sqrt();
+                let dist_neg = (&ea - &en).mapv(|x: f64| x * x).sum().sqrt();
 
                 // Triplet loss
                 let loss = (dist_pos - dist_neg + self.margin).max(0.0);
@@ -960,7 +966,10 @@ impl TripletLoss<Untrained> {
                         if neg_label != anchor_label {
                             for &neg_idx in neg_indices {
                                 let neg_embedding = x.row(neg_idx).dot(embedding_matrix);
-                                let dist = (&anchor_embedding - &neg_embedding).norm_l2();
+                                let dist = (&anchor_embedding - &neg_embedding)
+                                    .mapv(|x: f64| x * x)
+                                    .sum()
+                                    .sqrt();
                                 if dist < hardest_neg_dist {
                                     hardest_neg_dist = dist;
                                     hardest_negative = Some(neg_idx);
@@ -1363,10 +1372,10 @@ impl SiameseNetworks<Untrained> {
     /// Compute distance between embeddings
     fn compute_distance(&self, embed1: &Array1<f64>, embed2: &Array1<f64>) -> SklResult<f64> {
         match self.distance_metric.as_str() {
-            "euclidean" => Ok((embed1 - embed2).norm_l2()),
+            "euclidean" => Ok((embed1 - embed2).mapv(|x: f64| x * x).sum().sqrt()),
             "cosine" => {
-                let norm1 = embed1.norm_l2();
-                let norm2 = embed2.norm_l2();
+                let norm1 = embed1.mapv(|x: f64| x * x).sum().sqrt();
+                let norm2 = embed2.mapv(|x: f64| x * x).sum().sqrt();
                 if norm1 < 1e-8 || norm2 < 1e-8 {
                     Ok(1.0) // Maximum cosine distance
                 } else {
@@ -1393,14 +1402,14 @@ impl SiameseNetworks<Untrained> {
         match self.distance_metric.as_str() {
             "euclidean" => {
                 let diff = embed1 - embed2;
-                let norm = diff.norm_l2().max(1e-8);
+                let norm = diff.mapv(|x: f64| x * x).sum().sqrt().max(1e-8);
                 let grad1 = &diff / norm;
                 let grad2 = -&grad1;
                 Ok((grad1, grad2))
             }
             "cosine" => {
-                let norm1 = embed1.norm_l2();
-                let norm2 = embed2.norm_l2();
+                let norm1 = embed1.mapv(|x: f64| x * x).sum().sqrt();
+                let norm2 = embed2.mapv(|x: f64| x * x).sum().sqrt();
 
                 if norm1 < 1e-8 || norm2 < 1e-8 {
                     // Handle degenerate case - return zero gradients

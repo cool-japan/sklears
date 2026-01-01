@@ -106,7 +106,11 @@ impl Default for CounterfactualConfig {
     }
 }
 
+/// Generate a counterfactual explanation for a given instance
 ///
+/// # Examples
+///
+/// ```ignore
 /// let predict_fn = |x: &scirs2_core::ndarray::ArrayView2<f64>| -> Vec<f64> {
 ///     x.rows().into_iter()
 ///         .map(|row| if row.iter().sum::<f64>() > 5.0 { 1.0 } else { 0.0 })

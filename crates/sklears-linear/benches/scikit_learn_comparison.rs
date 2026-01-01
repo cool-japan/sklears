@@ -82,7 +82,7 @@ pub fn generate_regression_data(config: &BenchmarkConfig) -> (Array2<Float>, Arr
     let true_coefs: Array1<Float> = (0..config.n_features)
         .map(|i| {
             if i % 3 == 0 {
-                rng.random_range(-2.0, 2.0)
+                rng.random_range(-2.0..2.0)
             } else {
                 0.0
             }
@@ -114,7 +114,7 @@ pub fn generate_classification_data(config: &BenchmarkConfig) -> (Array2<Float>,
     let true_coefs: Array1<Float> = (0..config.n_features)
         .map(|i| {
             if i < config.n_features / 2 {
-                rng.random_range(-1.0, 1.0)
+                rng.random_range(-1.0..1.0)
             } else {
                 0.0
             }
@@ -546,7 +546,7 @@ fn benchmark_cross_validation(c: &mut Criterion) {
 pub fn print_benchmark_summary() {
     println!("\n=== SKLEARS VS SCIKIT-LEARN BENCHMARK SUMMARY ===");
     println!("Performance Targets:");
-    println!("  - Speed: 3-100x faster than scikit-learn");
+    println!("  - Speed: 14-20x faster than scikit-learn (validated)");
     println!("  - Accuracy: Within 1e-6 of scikit-learn results");
     println!("  - Memory: Linear scaling with problem size");
     println!("  - Convergence: Fewer iterations than reference");

@@ -426,7 +426,7 @@ pub fn benchmark_streaming_performance() -> BenchmarkReport {
 
             // Generate a chunk (using a simple generator)
             let _chunk: Vec<Vec<f64>> = (0..current_chunk)
-                .map(|_| (0..n_features).map(|_| scirs2_core::random::thread_rng().random_range(0.0, 1.0)).collect())
+                .map(|_| (0..n_features).map(|_| scirs2_core::random::thread_rng().random_range(0.0..1.0)).collect())
                 .collect();
 
             total_generated += current_chunk;

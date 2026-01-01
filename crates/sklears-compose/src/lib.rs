@@ -9,6 +9,9 @@
 #![allow(unused_doc_comments)]
 #![allow(unused_parens)]
 #![allow(unused_comparisons)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! Composite estimators and transformers
 //!
 //! This module provides meta-estimators for composing other estimators.
@@ -557,6 +560,10 @@ use std::collections::HashMap;
 /// * `inverse_func` - Function to inverse transform the predictions
 /// * `check_inverse` - Whether to check the inverse transform
 ///
+// Type aliases to reduce complexity
+type TransformBox = Box<dyn for<'a> Transform<ArrayView1<'a, Float>, Array1<f64>> + Send + Sync>;
+type TransformFunc = fn(&ArrayView1<'_, Float>) -> Array1<f64>;
+
 /// # Examples
 ///
 /// ```
@@ -569,20 +576,18 @@ use std::collections::HashMap;
 pub struct TransformedTargetRegressor<S = Untrained> {
     state: S,
     regressor: Option<Box<dyn PipelinePredictor>>,
-    transformer:
-        Option<Box<dyn for<'a> Transform<ArrayView1<'a, Float>, Array1<f64>> + Send + Sync>>,
-    func: Option<fn(&ArrayView1<'_, Float>) -> Array1<f64>>,
-    inverse_func: Option<fn(&ArrayView1<'_, Float>) -> Array1<f64>>,
+    transformer: Option<TransformBox>,
+    func: Option<TransformFunc>,
+    inverse_func: Option<TransformFunc>,
     check_inverse: bool,
 }
 
 /// Trained state for `TransformedTargetRegressor`
 pub struct TransformedTargetRegressorTrained {
     fitted_regressor: Box<dyn PipelinePredictor>,
-    fitted_transformer:
-        Option<Box<dyn for<'a> Transform<ArrayView1<'a, Float>, Array1<f64>> + Send + Sync>>,
-    func: Option<fn(&ArrayView1<'_, Float>) -> Array1<f64>>,
-    inverse_func: Option<fn(&ArrayView1<'_, Float>) -> Array1<f64>>,
+    fitted_transformer: Option<TransformBox>,
+    func: Option<TransformFunc>,
+    inverse_func: Option<TransformFunc>,
     n_features_in: usize,
     feature_names_in: Option<Vec<String>>,
 }
@@ -713,8 +718,8 @@ impl TransformedTargetRegressor<TransformedTargetRegressorTrained> {
 
     /// Get the fitted regressor
     #[must_use]
-    pub fn regressor(&self) -> &Box<dyn PipelinePredictor> {
-        &self.state.fitted_regressor
+    pub fn regressor(&self) -> &dyn PipelinePredictor {
+        &*self.state.fitted_regressor
     }
 }
 

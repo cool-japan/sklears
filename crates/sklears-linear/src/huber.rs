@@ -4,6 +4,7 @@
 //! It uses the Huber loss function which is quadratic for small errors and linear for large errors.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use std::marker::PhantomData;
 
 use sklears_core::{
@@ -171,7 +172,8 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
         let xt_y = x_centered.t().dot(&y_centered);
 
         // Solve normal equations
-        let mut coef = scirs2_linalg::solve(&xt_x_reg.view(), &xt_y.view(), None)
+        let mut coef = xt_x_reg
+            .solve(&xt_y)
             .unwrap_or_else(|_| Array1::zeros(n_features));
 
         // IRLS iterations
@@ -208,7 +210,7 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
             let xt_w_y = x_weighted.t().dot(&y_weighted);
 
             // Solve weighted normal equations
-            match scirs2_linalg::solve(&xt_w_x_reg.view(), &xt_w_y.view(), None) {
+            match xt_w_x_reg.solve(&xt_w_y) {
                 Ok(new_coef) => {
                     // Check for convergence
                     let coef_change = (&new_coef - &coef).mapv(|x| x.abs()).sum();

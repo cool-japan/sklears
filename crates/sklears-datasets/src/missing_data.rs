@@ -297,7 +297,7 @@ pub fn make_imbalanced_classification(
     let mut centers = Array2::zeros((n_classes, n_features));
     for i in 0..n_classes {
         for j in 0..n_features {
-            centers[[i, j]] = rng.random_range(-5.0, 5.0);
+            centers[[i, j]] = rng.random_range(-5.0..5.0);
         }
     }
 

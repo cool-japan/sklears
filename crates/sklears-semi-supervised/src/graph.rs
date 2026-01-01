@@ -429,7 +429,7 @@ pub fn spectral_clustering(
 ///
 /// # Returns
 ///
-/// * `SklResult<Array2<Float>>` - Spectral embedding (n_samples x n_components)
+/// * `SklResult<Array2`<Float>`>` - Spectral embedding (n_samples x n_components)
 #[allow(non_snake_case)]
 pub fn spectral_embedding(
     adjacency: &Array2<Float>,
@@ -743,7 +743,7 @@ fn kmeans_clustering(
 ///
 /// # Returns
 ///
-/// * `SklResult<Array2<Float>>` - Combined multi-scale adjacency matrix
+/// * `SklResult<Array2`<Float>`>` - Combined multi-scale adjacency matrix
 ///
 /// # Examples
 ///
@@ -983,7 +983,7 @@ pub fn multi_scale_spectral_clustering(
 ///
 /// # Returns
 ///
-/// * `SklResult<(Array2<Float>, Vec<usize>)>` - Combined graph and selected scales
+/// * `SklResult<(Array2`<Float>`, `Vec<usize>`)>` - Combined graph and selected scales
 pub fn adaptive_multi_scale_graph_construction(
     X: &Array2<Float>,
     min_scale: usize,

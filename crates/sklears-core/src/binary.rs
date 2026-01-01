@@ -231,9 +231,11 @@ impl BinarySerializer {
     #[cfg(feature = "binary")]
     pub fn serialize<T: Serialize>(&self, data: &T) -> Result<Vec<u8>> {
         let serialized = match self.config.format {
-            BinaryFormat::Bincode => bincode::serialize(data).map_err(|e| {
-                SklearsError::SerializationError(format!("Bincode serialization failed: {}", e))
-            })?,
+            BinaryFormat::Bincode => {
+                oxicode::serde::encode_to_vec(data, oxicode::config::standard()).map_err(|e| {
+                    SklearsError::SerializationError(format!("Oxicode serialization failed: {}", e))
+                })?
+            }
             BinaryFormat::MessagePack => {
                 #[cfg(feature = "messagepack")]
                 {
@@ -253,8 +255,8 @@ impl BinarySerializer {
                 }
             }
             BinaryFormat::Custom => {
-                // For custom format, fallback to bincode for now
-                bincode::serialize(data).map_err(|e| {
+                // For custom format, fallback to oxicode for now
+                oxicode::serde::encode_to_vec(data, oxicode::config::standard()).map_err(|e| {
                     SklearsError::SerializationError(format!("Custom serialization failed: {}", e))
                 })?
             }
@@ -269,9 +271,17 @@ impl BinarySerializer {
         let decompressed = self.decompress(data)?;
 
         match self.config.format {
-            BinaryFormat::Bincode => bincode::deserialize(&decompressed).map_err(|e| {
-                SklearsError::DeserializationError(format!("Bincode deserialization failed: {}", e))
-            }),
+            BinaryFormat::Bincode => {
+                let (value, _bytes_read) =
+                    oxicode::serde::decode_from_slice(&decompressed, oxicode::config::standard())
+                        .map_err(|e| {
+                        SklearsError::DeserializationError(format!(
+                            "Oxicode deserialization failed: {}",
+                            e
+                        ))
+                    })?;
+                Ok(value)
+            }
             BinaryFormat::MessagePack => {
                 #[cfg(feature = "messagepack")]
                 {
@@ -291,13 +301,16 @@ impl BinarySerializer {
                 }
             }
             BinaryFormat::Custom => {
-                // For custom format, fallback to bincode for now
-                bincode::deserialize(&decompressed).map_err(|e| {
-                    SklearsError::DeserializationError(format!(
-                        "Custom deserialization failed: {}",
-                        e
-                    ))
-                })
+                // For custom format, fallback to oxicode for now
+                let (value, _bytes_read) =
+                    oxicode::serde::decode_from_slice(&decompressed, oxicode::config::standard())
+                        .map_err(|e| {
+                        SklearsError::DeserializationError(format!(
+                            "Custom deserialization failed: {}",
+                            e
+                        ))
+                    })?;
+                Ok(value)
             }
         }
     }

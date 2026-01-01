@@ -7,7 +7,7 @@
 
 The foundational crate for sklears, providing core traits, types, and utilities that power the entire machine learning ecosystem. Production-ready with 100% test coverage.
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -21,9 +21,9 @@ The foundational crate for sklears, providing core traits, types, and utilities 
 
 ## Status
 
-- **Implementation**: 0.1.0-alpha.2 ships with >99% of the planned v0.1 APIs implemented.
-- **Validation**: Covered by the 11,292 passing workspace tests (69 skipped) executed on December 22, 2025.
-- **Performance**: Achieves 3-100x improvements as designed via SIMD, threading, and cache-friendly layouts.
+- **Implementation**: 0.1.0-beta.1 ships with >99% of the planned v0.1 APIs implemented.
+- **Validation**: Covered by the 11,292 passing workspace tests (69 skipped) executed on January 1, 2026.
+- **Performance**: Achieves 14-20x improvements (validated) as designed via SIMD, threading, and cache-friendly layouts.
 - **API Stability**: Breaking changes still possible before beta; stabilization roadmap tracked in the root `TODO.md`.
 
 ## Core Trait System
@@ -330,8 +330,8 @@ Licensed under either of:
 ```bibtex
 @software{sklears_core,
   title = {sklears-core: Type-Safe ML Foundation for Rust},
-  author = {Cool Japan Team},
-  year = {2025},
+  author = {COOLJAPAN OU (Team KitaSan)},
+  year = {2026},
   url = {https://github.com/cool-japan/sklears}
 }
 ```

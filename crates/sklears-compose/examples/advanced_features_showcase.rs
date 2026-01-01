@@ -11,7 +11,6 @@
 //! This showcases the cutting-edge capabilities that make sklears-compose
 //! suitable for production ML workflows and research applications.
 //!
-use scirs2_core::random::Rng;
 // Run with: cargo run --example advanced_features_showcase
 
 use scirs2_core::ndarray::{Array1, Array2};

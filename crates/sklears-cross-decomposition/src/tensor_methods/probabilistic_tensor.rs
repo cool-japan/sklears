@@ -10,10 +10,10 @@
 //! - Robust probabilistic tensor decomposition with outlier handling
 //! - Hierarchical Bayesian models for multi-level tensor analysis
 
-use scirs2_core::ndarray::ndarray_linalg::Inverse;
 use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, ArrayView3, Axis, Dim, Ix2, Ix3};
 use scirs2_core::ndarray_ext::random::RandomExt;
 use scirs2_core::random::{thread_rng, RandUniform, Random, Rng};
+use scirs2_linalg::compat::Inverse;
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;

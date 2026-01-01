@@ -4,8 +4,8 @@
 //! used in discriminant analysis, with focus on eigenvalue decomposition and condition monitoring.
 
 // ✅ Using SciRS2 dependencies following SciRS2 policy
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Axis, Ix2, OwnedRepr};
+use scirs2_linalg::compat::{Eigh, UPLO};
 use sklears_core::{error::Result, prelude::SklearsError, types::Float};
 use std::collections::VecDeque;
 use std::f64;

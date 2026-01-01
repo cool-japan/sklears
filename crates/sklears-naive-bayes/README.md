@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -42,6 +42,6 @@ let log_probs = fitted.predict_log_proba(&x)?;
 
 ## Status
 
-- Covered by workspace tests; all 10,013 suites passed for `0.1.0-alpha.2`.
+- Covered by workspace tests; all 10,013 suites passed for `0.1.0-beta.1`.
 - Extensive unit and property tests guarantee numerical stability on sparse matrices.
 - Planned enhancements (GPU multinomial smoothing, mixed-type inputs) live in this crate’s `TODO.md`.

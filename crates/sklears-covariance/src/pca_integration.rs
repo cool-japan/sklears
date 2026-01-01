@@ -5,10 +5,10 @@
 //! Unlike the factor model's PCA method, this focuses specifically on PCA-based covariance
 //! with advanced features and optimizations.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Inverse, SVD};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::Distribution;
 use scirs2_core::StandardNormal;
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -365,13 +365,8 @@ impl PCACovariance {
         Option<Array2<f64>>,
     )> {
         let (u, s, vt) = x
-            .svd(true, true)
+            .svd(true)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("SVD failed to compute U".to_string()))?;
-        let vt = vt
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed to compute V^T".to_string()))?;
 
         // Take first n_components
         let components = vt.slice(s![..n_components, ..]).to_owned();
@@ -441,29 +436,27 @@ impl PCACovariance {
 
             // Update components using incremental SVD
             let (_, s, vt) = chunk_centered
-                .svd(false, true)
+                .svd(false)
                 .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-            if let Some(vt) = vt {
-                let new_components = vt.slice(s![..n_components.min(vt.nrows()), ..]).to_owned();
+            let new_components = vt.slice(s![..n_components.min(vt.nrows()), ..]).to_owned();
 
-                // Merge with existing components (simplified incremental update)
-                if n_samples_seen == 0 {
-                    components = new_components;
-                    explained_variance = s
-                        .slice(s![..n_components])
-                        .mapv(|x| x * x / (batch_size as f64 - 1.0));
-                } else {
-                    // Weighted average of components (simplified)
-                    let weight_old = n_samples_seen as f64 / new_n_samples as f64;
-                    let weight_new = batch_size as f64 / new_n_samples as f64;
+            // Merge with existing components (simplified incremental update)
+            if n_samples_seen == 0 {
+                components = new_components;
+                explained_variance = s
+                    .slice(s![..n_components])
+                    .mapv(|x| x * x / (batch_size as f64 - 1.0));
+            } else {
+                // Weighted average of components (simplified)
+                let weight_old = n_samples_seen as f64 / new_n_samples as f64;
+                let weight_new = batch_size as f64 / new_n_samples as f64;
 
-                    components = &components * weight_old + &new_components * weight_new;
-                    let new_explained_variance = s
-                        .slice(s![..n_components])
-                        .mapv(|x| x * x / (batch_size as f64 - 1.0));
-                    explained_variance =
-                        &explained_variance * weight_old + &new_explained_variance * weight_new;
-                }
+                components = &components * weight_old + &new_components * weight_new;
+                let new_explained_variance = s
+                    .slice(s![..n_components])
+                    .mapv(|x| x * x / (batch_size as f64 - 1.0));
+                explained_variance =
+                    &explained_variance * weight_old + &new_explained_variance * weight_new;
             }
 
             n_samples_seen = new_n_samples;
@@ -613,9 +606,8 @@ impl PCACovariance {
 
             // Perform standard PCA on weighted data
             let (u, s, vt) = weighted_x
-                .svd(true, true)
+                .svd(true)
                 .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-            let vt = vt.ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
 
             let components = vt.slice(s![..n_components, ..]).to_owned();
 
@@ -654,9 +646,8 @@ impl PCACovariance {
         }
 
         let (_, s, vt) = weighted_x
-            .svd(false, true)
+            .svd(false)
             .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
-        let vt = vt.ok_or_else(|| SklearsError::NumericalError("Final SVD failed".to_string()))?;
 
         let components = vt.slice(s![..n_components, ..]).to_owned();
         let singular_values = s.slice(s![..n_components]).to_owned();

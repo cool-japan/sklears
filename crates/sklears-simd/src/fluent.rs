@@ -314,7 +314,6 @@ impl MatrixBuilder {
     /// Create a matrix filled with random values
     pub fn random(rows: usize, cols: usize, min: f32, max: f32) -> Self {
         use scirs2_core::random::thread_rng;
-        use scirs2_core::Rng;
         let mut rng = thread_rng();
         let data: Vec<f32> = (0..rows * cols)
             .map(|_| {

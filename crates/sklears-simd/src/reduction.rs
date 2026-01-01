@@ -339,7 +339,7 @@ unsafe fn parallel_min_avx2(arr: &[f32]) -> f32 {
 }
 
 /// SIMD-optimized prefix sum (inclusive scan)
-/// Computes cumulative sum where output[i] = sum of input[0] through input[i]
+/// Computes cumulative sum where output\[i\] = sum of input\[0\] through input\[i\]
 pub fn prefix_sum_f32_simd(input: &[f32], output: &mut [f32]) {
     assert_eq!(
         input.len(),
@@ -463,8 +463,8 @@ unsafe fn prefix_sum_avx2(input: &[f32], output: &mut [f32]) {
     }
 }
 
-/// SIMD-optimized exclusive scan (prefix sum where output[i] = sum of input[0] through input[i-1])
-/// output[0] = 0, output[i] = sum of input[0] through input[i-1] for i > 0
+/// SIMD-optimized exclusive scan (prefix sum where output\[i\] = sum of input\[0\] through input\[i-1\])
+/// output\[0\] = 0, output\[i\] = sum of input\[0\] through input\[i-1\] for i > 0
 pub fn exclusive_scan_f32_simd(input: &[f32], output: &mut [f32]) {
     assert_eq!(
         input.len(),
@@ -488,7 +488,7 @@ pub fn exclusive_scan_f32_simd(input: &[f32], output: &mut [f32]) {
 
 /// SIMD-optimized segmented reduction
 /// Performs reduction within segments defined by segment flags
-/// When segment_flags[i] is true, a new segment starts at position i
+/// When segment_flags\[i\] is true, a new segment starts at position i
 pub fn segmented_sum_f32_simd(input: &[f32], segment_flags: &[bool], output: &mut [f32]) {
     assert_eq!(
         input.len(),
@@ -518,7 +518,7 @@ pub fn segmented_sum_f32_simd(input: &[f32], segment_flags: &[bool], output: &mu
 }
 
 /// SIMD-optimized conditional reduction
-/// Performs reduction only on elements where condition[i] is true
+/// Performs reduction only on elements where condition\[i\] is true
 pub fn conditional_sum_f32_simd(input: &[f32], condition: &[bool]) -> f32 {
     assert_eq!(
         input.len(),

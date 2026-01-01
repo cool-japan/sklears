@@ -3,6 +3,7 @@
 //! This module provides the basic isotonic regression functionality including
 //! the main `IsotonicRegression` estimator, loss functions, and core algorithms.
 
+use crate::utils::safe_float_cmp;
 use scirs2_core::ndarray::Array1;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -254,7 +255,7 @@ impl IsotonicRegression<Untrained> {
 
         // Sort by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        indices.sort_by(|&i, &j| safe_float_cmp(&x[i], &x[j]));
 
         let x_sorted: Array1<Float> = indices.iter().map(|&i| x[i]).collect();
         let y_sorted: Array1<Float> = indices.iter().map(|&i| y[i]).collect();

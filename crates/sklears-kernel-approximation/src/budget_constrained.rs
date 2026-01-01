@@ -4,8 +4,8 @@
 //! specified computational budgets for time, memory, or operations.
 
 use crate::{Nystroem, RBFSampler};
-use scirs2_core::ndarray::ndarray_linalg::{Norm, SVD};
 use scirs2_core::ndarray::Array2;
+use scirs2_linalg::compat::{Norm, SVD};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Transform},
@@ -599,7 +599,7 @@ impl BudgetConstrainedNystroem {
     fn compute_nystroem_quality(&self, x_transformed: &Array2<f64>) -> Result<f64> {
         // Compute effective rank as quality measure
         let (_, s, _) = x_transformed
-            .svd(true, true)
+            .svd(true)
             .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
 
         let s_sum = s.sum();

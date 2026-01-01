@@ -5,6 +5,7 @@
 //! providing more sophisticated shrinkage than constant linear shrinkage.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -254,10 +255,8 @@ impl NonlinearShrinkage<Untrained> {
 
 /// Compute eigenvalues of a matrix
 fn compute_eigenvalues(matrix: &Array2<f64>) -> Result<Array1<f64>, SklearsError> {
-    use scirs2_core::ndarray::ndarray_linalg::Eigh;
-
     let (eigenvalues, _) = matrix
-        .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
+        .eigh(scirs2_linalg::compat::UPLO::Upper)
         .map_err(|e| {
             SklearsError::NumericalError(format!("Eigenvalue decomposition failed: {}", e))
         })?;
@@ -272,13 +271,12 @@ fn compute_eigenvalues(matrix: &Array2<f64>) -> Result<Array1<f64>, SklearsError
 
 /// Compute eigenvectors of a matrix
 fn compute_eigenvectors(matrix: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-    use scirs2_core::ndarray::ndarray_linalg::Eigh;
-
-    let (eigenvalues, eigenvectors) = matrix
-        .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
-        .map_err(|e| {
-            SklearsError::NumericalError(format!("Eigenvalue decomposition failed: {}", e))
-        })?;
+    let (eigenvalues, eigenvectors) =
+        matrix
+            .eigh(scirs2_linalg::compat::UPLO::Upper)
+            .map_err(|e| {
+                SklearsError::NumericalError(format!("Eigenvalue decomposition failed: {}", e))
+            })?;
 
     // Sort eigenvectors by descending eigenvalues
     let mut sorted_indices: Vec<usize> = (0..eigenvalues.len()).collect();
@@ -318,8 +316,6 @@ fn reconstruct_covariance(
 
 /// Compute precision matrix from covariance matrix
 fn compute_precision(covariance: &Array2<f64>) -> Result<Array2<f64>, SklearsError> {
-    use scirs2_core::ndarray::ndarray_linalg::Inverse;
-
     covariance
         .inv()
         .map_err(|e| SklearsError::NumericalError(format!("Matrix inversion failed: {}", e)))

@@ -629,7 +629,7 @@ pub mod serialization {
         /// Save model to binary format
         pub fn save_to_binary<P: AsRef<std::path::Path>>(&self, path: P) -> NeuralResult<()> {
             let binary =
-                bincode::serde::encode_to_vec(self, bincode::config::standard()).map_err(|e| {
+                oxicode::serde::encode_to_vec(self, oxicode::config::standard()).map_err(|e| {
                     sklears_core::error::SklearsError::InvalidParameter {
                         name: "serialization".to_string(),
                         reason: format!("Failed to serialize model to binary: {}", e),
@@ -655,8 +655,8 @@ pub mod serialization {
                 }
             })?;
 
-            let (model, _): (Self, _) =
-                bincode::serde::decode_from_slice(&binary, bincode::config::standard()).map_err(
+            let (model, _bytes_read): (Self, usize) =
+                oxicode::serde::decode_from_slice(&binary, oxicode::config::standard()).map_err(
                     |e| sklears_core::error::SklearsError::InvalidParameter {
                         name: "deserialization".to_string(),
                         reason: format!("Failed to deserialize binary model: {}", e),

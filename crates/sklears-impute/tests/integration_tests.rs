@@ -8,7 +8,7 @@
 
 use approx::assert_abs_diff_eq;
 use scirs2_core::ndarray::{array, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::traits::{Fit, Transform};
 use sklears_impute::{
     analyze_missing_patterns, missing_completeness_matrix, missing_correlation_matrix, KNNImputer,

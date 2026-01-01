@@ -60,7 +60,7 @@
 /// let rust_array = Array2::zeros((10, 5));
 ///
 /// // Convert to numpy-compatible format
-/// let numpy_compatible: NumpyArray<f64> = NumpyArray::from_ndarray(&rust_array)?;
+/// let numpy_compatible: NumpyArray`<f64>` = NumpyArray::from_ndarray(&rust_array)?;
 ///
 /// // Export for Python consumption
 /// let exported_data = numpy_compatible.to_bytes()?;

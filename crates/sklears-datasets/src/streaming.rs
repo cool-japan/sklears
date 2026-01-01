@@ -300,7 +300,7 @@ impl StreamingRegressionGenerator {
 
         // Generate random coefficients
         let coefficients: Array1<f64> = Array1::from_shape_fn(generator_config.n_features, |_| {
-            rng.random_range(-1.0, 1.0)
+            rng.random_range(-1.0..1.0)
         });
 
         Self {

@@ -468,7 +468,7 @@ mod tests {
             .test_convergence_multiple_runs(
                 || {
                     let mut rng = Random::default();
-                    rng.random_range(0.0, 1.0f64)
+                    rng.random_range(0.0..1.0f64)
                 }, // Random initial state
                 |s, _iter| {
                     *s *= 0.9;

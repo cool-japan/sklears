@@ -10,7 +10,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{thread_rng, Distribution, Rng};
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_clustering::{
     AgglomerativeClustering, BayesianGaussianMixture, CovarianceType, GaussianMixture, PredictProba,
 };

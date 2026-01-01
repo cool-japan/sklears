@@ -14,7 +14,7 @@ fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<
 
     for i in 0..n_samples {
         for j in 0..n_features {
-            data[[i, j]] = rng.random_range(-1.0, 1.0);
+            data[[i, j]] = rng.random_range(-1.0..1.0);
         }
         // Simple binary classification based on sum of features
         targets[i] = if data.row(i).sum() > 0.0 { 1 } else { 0 };
@@ -127,9 +127,9 @@ fn benchmark_distance_computation_comparison(c: &mut Criterion) {
     for &size in &vector_sizes {
         let mut rng = thread_rng();
         let a: Array1<f64> =
-            Array1::from_vec((0..size).map(|_| rng.random_range(-1.0, 1.0)).collect());
+            Array1::from_vec((0..size).map(|_| rng.random_range(-1.0..1.0)).collect());
         let b: Array1<f64> =
-            Array1::from_vec((0..size).map(|_| rng.random_range(-1.0, 1.0)).collect());
+            Array1::from_vec((0..size).map(|_| rng.random_range(-1.0..1.0)).collect());
 
         group.bench_with_input(BenchmarkId::new("euclidean", size), &size, |bench, _| {
             bench.iter(|| {

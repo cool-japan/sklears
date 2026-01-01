@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -38,6 +38,6 @@ let mapped = transformer.fit_transform(&features)?;
 
 ## Status
 
-- Verified by the workspace-wide 11,292 passing tests in `0.1.0-alpha.2`.
+- Verified by the workspace-wide 11,292 passing tests in `0.1.0-beta.1`.
 - Benchmarked against scikit-learn to provide 10–30× faster random feature generation.
 - Further roadmap tasks (e.g., online updates, streaming sampling) tracked in `TODO.md`.

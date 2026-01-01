@@ -4,6 +4,7 @@
 //! missing entries in covariance matrices and estimating low-rank structure.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -339,16 +340,9 @@ impl NuclearNormMinimization<Untrained> {
         &self,
         matrix: &Array2<f64>,
     ) -> SklResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        use scirs2_core::ndarray::ndarray_linalg::SVD;
-
-        let (u, singular_values, vt) = matrix.svd(true, true).map_err(|e| {
+        let (u, singular_values, vt) = matrix.svd(true).map_err(|e| {
             SklearsError::NumericalError(format!("SVD decomposition failed: {}", e))
         })?;
-
-        let u =
-            u.ok_or_else(|| SklearsError::NumericalError("U matrix not computed".to_string()))?;
-        let vt =
-            vt.ok_or_else(|| SklearsError::NumericalError("VT matrix not computed".to_string()))?;
 
         Ok((u, singular_values, vt))
     }
@@ -404,24 +398,32 @@ impl NuclearNormMinimization<Untrained> {
 
     /// Compute effective rank (number of significant singular values)
     fn compute_effective_rank(&self, matrix: &Array2<f64>) -> SklResult<usize> {
+        // If target_rank is specified, use it directly
+        if let Some(rank) = self.target_rank {
+            return Ok(rank);
+        }
+
+        // Otherwise, count singular values above threshold
         let singular_values = compute_singular_values(matrix)?;
         Ok(singular_values.iter().filter(|&&s| s > 1e-10).count())
     }
 
     /// Compute precision matrix
     fn compute_precision(&self, covariance: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
+        // Use SVD-based pseudo-inverse for numerical stability with ill-conditioned matrices
+        // This is more robust than direct inversion with regularization
+        let (u, s, vt) = covariance
+            .svd(true)
+            .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
-        // Add small regularization for numerical stability
-        let n = covariance.nrows();
-        let mut regularized_cov = covariance.clone();
-        for i in 0..n {
-            regularized_cov[[i, i]] += 1e-10;
-        }
+        // Compute reciprocals of singular values with threshold for numerical stability
+        let threshold = 1e-10 * s.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let s_inv = s.mapv(|x| if x > threshold { 1.0 / x } else { 0.0 });
 
-        regularized_cov
-            .inv()
-            .map_err(|e| SklearsError::NumericalError(format!("Matrix inversion failed: {}", e)))
+        // Reconstruct precision matrix: V * S^-1 * U^T
+        let s_inv_diag = Array2::from_diag(&s_inv);
+        let temp = vt.t().dot(&s_inv_diag);
+        Ok(temp.dot(&u.t()))
     }
 }
 
@@ -433,10 +435,8 @@ fn compute_nuclear_norm(matrix: &Array2<f64>) -> SklResult<f64> {
 
 /// Compute singular values of a matrix
 fn compute_singular_values(matrix: &Array2<f64>) -> SklResult<Array1<f64>> {
-    use scirs2_core::ndarray::ndarray_linalg::SVD;
-
     let (_, singular_values, _) = matrix
-        .svd(false, false)
+        .svd(false)
         .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {}", e)))?;
 
     Ok(singular_values)
@@ -447,6 +447,7 @@ fn compute_singular_values(matrix: &Array2<f64>) -> SklResult<Array1<f64>> {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
+    use scirs2_linalg::compat::ArrayLinalgExt;
 
     #[test]
     fn test_nuclear_norm_basic() {

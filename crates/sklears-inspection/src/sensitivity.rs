@@ -101,7 +101,11 @@ pub struct SobolResult {
     pub st_conf: Option<Array2<Float>>,
 }
 
+/// Analyze sensitivity of model predictions to input perturbations
 ///
+/// # Examples
+///
+/// ```ignore
 /// let model_fn = |x: &scirs2_core::ndarray::ArrayView2<f64>| -> Vec<f64> {
 ///     x.rows().into_iter()
 ///         .map(|row| row[0] * 2.0 + row[1] * 0.5)

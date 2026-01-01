@@ -770,10 +770,10 @@ mod tests {
                 OperationType::Skip,
             ],
             connections: vec![
-                vec![],        // node 0: no inputs
-                vec![0],       // node 1: 1 input
-                vec![0, 1],    // node 2: 2 inputs
-                vec![1, 2],    // node 3: 2 inputs
+                vec![],     // node 0: no inputs
+                vec![0],    // node 1: 1 input
+                vec![0, 1], // node 2: 2 inputs
+                vec![1, 2], // node 3: 2 inputs
             ],
             num_nodes: 4,
         };

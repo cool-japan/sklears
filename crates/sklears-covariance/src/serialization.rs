@@ -293,7 +293,7 @@ impl ModelRegistry {
                     .map_err(|e| SklearsError::InvalidInput(format!("MessagePack serialization failed: {}", e)))?
             }
             SerializationFormat::Bincode => {
-                bincode::serialize(&serializable)
+                oxicode::serde::encode_to_vec(&serializable, oxicode::config::standard())
                     .map_err(|e| SklearsError::InvalidInput(format!("Bincode serialization failed: {}", e)))?
             }
             SerializationFormat::Custom => {
@@ -331,7 +331,7 @@ impl ModelRegistry {
                     .map_err(|e| SklearsError::InvalidInput(format!("MessagePack deserialization failed: {}", e)))?
             }
             SerializationFormat::Bincode => {
-                bincode::deserialize(&decompressed_bytes)
+                oxicode::serde::decode_from_slice(&decompressed_bytes, oxicode::config::standard())
                     .map_err(|e| SklearsError::InvalidInput(format!("Bincode deserialization failed: {}", e)))?
             }
             SerializationFormat::Custom => {
@@ -496,7 +496,7 @@ impl ModelRegistry {
         bytes.push(1); // Format version
         
         // Use bincode for the actual data
-        let data = bincode::serialize(model)
+        let data = oxicode::serde::encode_to_vec(model, oxicode::config::standard())
             .map_err(|e| SklearsError::InvalidInput(format!("Custom format serialization failed: {}", e)))?;
         
         // Data length
@@ -537,7 +537,7 @@ impl ModelRegistry {
         
         // Deserialize data
         let data = &bytes[20..20 + data_length];
-        bincode::deserialize(data)
+        oxicode::serde::decode_from_slice(data, oxicode::config::standard())
             .map_err(|e| SklearsError::InvalidInput(format!("Custom format deserialization failed: {}", e)))
     }
 }

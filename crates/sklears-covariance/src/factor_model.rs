@@ -6,6 +6,7 @@
 //! factors plus idiosyncratic noise.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -226,8 +227,6 @@ impl Fit<ArrayView2<'_, Float>, ()> for FactorModelCovariance<Untrained> {
 impl FactorModelCovariance<Untrained> {
     /// Fit factor model using PCA
     fn fit_pca(&self, x: &ArrayView2<f64>) -> SklResult<(Array2<f64>, Array1<f64>, usize, f64)> {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         let (n_samples, n_features) = x.dim();
 
         // Compute sample covariance matrix
@@ -312,8 +311,6 @@ impl FactorModelCovariance<Untrained> {
         &self,
         x: &ArrayView2<f64>,
     ) -> SklResult<(Array2<f64>, Array1<f64>, usize, f64)> {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         let (n_samples, n_features) = x.dim();
 
         // Compute sample covariance matrix
@@ -563,7 +560,6 @@ impl FactorModelCovariance<Untrained> {
 
     /// Invert a matrix
     fn invert_matrix(&self, matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         matrix
             .inv()
             .map_err(|e| SklearsError::NumericalError(format!("Failed to invert matrix: {}", e)))
@@ -571,7 +567,7 @@ impl FactorModelCovariance<Untrained> {
 
     /// Compute log determinant of a matrix
     fn log_determinant(&self, matrix: &Array2<f64>) -> SklResult<f64> {
-        use scirs2_core::ndarray::ndarray_linalg::Determinant;
+        use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
         let det = matrix.det().map_err(|e| {
             SklearsError::NumericalError(format!("Failed to compute determinant: {}", e))
         })?;
@@ -709,7 +705,6 @@ impl FactorModelCovariance<FactorModelCovarianceTrained> {
     }
 
     fn invert_matrix(&self, matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
         matrix
             .inv()
             .map_err(|e| SklearsError::NumericalError(format!("Failed to invert matrix: {}", e)))

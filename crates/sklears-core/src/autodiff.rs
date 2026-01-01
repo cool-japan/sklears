@@ -39,7 +39,7 @@
 /// // Define a neural network layer with backpropagation
 /// #[autodiff(reverse)]
 /// fn neural_layer(x: &[f64], weights: &[f64], bias: f64) -> f64 {
-///     let linear = x.iter().zip(weights).map(|(xi, wi)| xi * wi).sum::<f64>() + bias;
+///     let linear = x.iter().zip(weights).map(|(xi, wi)| xi * wi).sum::`<f64>`() + bias;
 ///     1.0 / (1.0 + (-linear).exp()) // sigmoid activation
 /// }
 ///

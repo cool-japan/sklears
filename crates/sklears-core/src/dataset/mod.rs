@@ -18,8 +18,8 @@ pub mod builder;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
 /// // Create from arrays
-/// let features = Array2::<f64>::zeros((100, 4));
-/// let targets = Array1::<f64>::zeros(100);
+/// let features = Array2::`<f64>`::zeros((100, 4));
+/// let targets = Array1::`<f64>`::zeros(100);
 /// let dataset = Dataset::new(features, targets);
 ///
 /// // Or generate synthetic data
@@ -32,8 +32,8 @@ pub mod builder;
 /// use sklears_core::dataset::Dataset;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
-/// let features = Array2::<f64>::ones((50, 3));
-/// let targets = Array1::<f64>::ones(50);
+/// let features = Array2::`<f64>`::ones((50, 3));
+/// let targets = Array1::`<f64>`::ones(50);
 ///
 /// let dataset = Dataset::builder()
 ///     .data(features)

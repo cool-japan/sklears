@@ -17,8 +17,8 @@ use std::fmt::Debug;
 ///
 /// # Type Parameters
 ///
-/// - `Input`: The type of input data (e.g., String, Vec<u8>, Array2<Float>)
-/// - `Output`: The type of extracted features (typically Array2<Float>)
+/// - `Input`: The type of input data (e.g., String, Vec`<u8>`, Array2`<Float>`)
+/// - `Output`: The type of extracted features (typically Array2`<Float>`)
 ///
 /// # Examples
 ///
@@ -30,14 +30,14 @@ use std::fmt::Debug;
 ///
 /// impl FeatureExtractor for MyExtractor {
 ///     type Input = String;
-///     type Output = Array2<f64>;
+///     type Output = Array2`<f64>`;
 ///
 ///     fn extract_features(&self, input: &[Self::Input]) -> sklears_core::error::Result<Self::Output> {
 ///         // Implementation here
 ///         Ok(Array2::zeros((input.len(), 10)))
 ///     }
 ///
-///     fn feature_names(&self) -> Option<Vec<String>> {
+///     fn feature_names(&self) -> Option<`Vec<String>`> {
 ///         Some((0..10).map(|i| format!("feature_{}", i)).collect())
 ///     }
 /// }

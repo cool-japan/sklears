@@ -175,7 +175,7 @@ where
     Ok(Array1::from_vec(result))
 }
 
-/// Slice with step (like Python's array[start:end:step])
+/// Slice with step (like Python's array\[start:end:step\])
 pub fn slice_with_step<T: Clone>(
     array: &Array1<T>,
     start: Option<usize>,

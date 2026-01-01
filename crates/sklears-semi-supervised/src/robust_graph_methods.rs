@@ -932,7 +932,7 @@ impl BreakdownPointAnalysis {
                 let range = max_val - min_val;
 
                 // Generate outlier far from the data range
-                let outlier_multiplier = rng.random_range(5.0, 10.0);
+                let outlier_multiplier = rng.random_range(5.0..10.0);
                 let outlier_value = if rng.gen_bool(0.5) {
                     min_val - outlier_multiplier * range
                 } else {

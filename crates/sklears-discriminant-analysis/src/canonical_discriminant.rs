@@ -5,8 +5,8 @@
 //! variables that best separate two or more groups of observations.
 
 // ✅ Using SciRS2 dependencies following SciRS2 policy
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Inverse};
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
+use scirs2_linalg::compat::{Eig, Inverse};
 use sklears_core::{
     error::Result,
     prelude::SklearsError,

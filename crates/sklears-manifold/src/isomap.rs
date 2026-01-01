@@ -2,8 +2,8 @@
 //!
 //! This module provides Isomap for non-linear dimensionality reduction through isometric mapping.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -315,8 +315,11 @@ impl Isomap<Untrained> {
             }
         }
 
+        // Symmetrize the matrix to ensure numerical stability for eigendecomposition
+        let symmetric_matrix = (&d_squared + &d_squared.t()) / 2.0;
+
         // Eigendecomposition of the centered matrix
-        let (eigenvals, eigenvecs) = d_squared
+        let (eigenvals, eigenvecs) = symmetric_matrix
             .eigh(UPLO::Lower)
             .map_err(|e| SklearsError::InvalidInput(format!("Eigendecomposition failed: {e}")))?;
 

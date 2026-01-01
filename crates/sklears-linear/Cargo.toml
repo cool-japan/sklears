@@ -35,7 +35,7 @@ scirs2-autograd = { workspace = true }  # TRANSITIONAL: For array! macro and nda
 memmap2 = { workspace = true }
 libc = { workspace = true }
 num_cpus = { workspace = true }
-bincode = { version = "1.3", optional = true }
+oxicode = { workspace = true, optional = true }
 serde_json = { version = "1.0", optional = true }
 rmp-serde = { version = "1.3", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
@@ -47,7 +47,7 @@ winapi = { version = "0.3", features = ["sysinfoapi"] }
 criterion = { workspace = true }
 proptest = { workspace = true }
 sklears-metrics = { workspace = true }
-tempfile = "3.23"
+tempfile = { workspace = true }
 
 [features]
 default = ["std", "linear-regression", "ridge", "lasso", "coordinate-descent", "early-stopping"]
@@ -99,7 +99,7 @@ chunked-processing = ["memory-mapping"]
 sparse = ["dep:scirs2-sparse"]
 
 # Serialization and persistence
-serde = ["dep:serde", "sklears-core/serde", "bincode", "serde_json", "rmp-serde", "chrono"]
+serde = ["dep:serde", "sklears-core/serde", "oxicode", "serde_json", "rmp-serde", "chrono"]
 
 # Diagnostics and analysis
 diagnostics = []

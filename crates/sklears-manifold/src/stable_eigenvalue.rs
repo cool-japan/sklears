@@ -4,8 +4,8 @@
 //! numerical stability for manifold learning applications. Includes iterative
 //! refinement, condition number monitoring, and adaptive precision methods.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 /// Configuration for stable eigenvalue algorithms
 use sklears_core::{
     error::{Result as SklResult, SklearsError},

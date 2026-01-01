@@ -45,9 +45,11 @@ pub fn to_bytes<T: serde::Serialize>(model: &T, format: SerializationFormat) -> 
         SerializationFormat::MessagePack => rmp_serde::to_vec(model).map_err(|e| {
             SklearsError::InvalidInput(format!("Failed to serialize to MessagePack: {}", e))
         }),
-        SerializationFormat::Bincode => bincode::serialize(model).map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to serialize to Bincode: {}", e))
-        }),
+        SerializationFormat::Bincode => {
+            oxicode::serde::encode_to_vec(model, oxicode::config::standard()).map_err(|e| {
+                SklearsError::InvalidInput(format!("Failed to serialize to Bincode: {}", e))
+            })
+        }
     }
 }
 
@@ -90,9 +92,16 @@ pub fn from_bytes<T: serde::de::DeserializeOwned>(
         SerializationFormat::MessagePack => rmp_serde::from_slice(bytes).map_err(|e| {
             SklearsError::InvalidInput(format!("Failed to deserialize from MessagePack: {}", e))
         }),
-        SerializationFormat::Bincode => bincode::deserialize(bytes).map_err(|e| {
-            SklearsError::InvalidInput(format!("Failed to deserialize from Bincode: {}", e))
-        }),
+        SerializationFormat::Bincode => {
+            let (value, _bytes_read) = oxicode::serde::decode_from_slice(
+                bytes,
+                oxicode::config::standard(),
+            )
+            .map_err(|e| {
+                SklearsError::InvalidInput(format!("Failed to deserialize from Bincode: {}", e))
+            })?;
+            Ok(value)
+        }
     }
 }
 

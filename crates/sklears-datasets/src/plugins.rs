@@ -419,7 +419,7 @@ impl PluginGenerator for CustomLinearGenerator {
         let mut features = Array2::<f64>::zeros((config.n_samples, config.n_features));
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
-                *val = rng.random_range(-10.0, 10.0);
+                *val = rng.random_range(-10.0..10.0);
             }
         }
 

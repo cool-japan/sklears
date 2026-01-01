@@ -2,6 +2,8 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::needless_borrow)]
 //! Utility functions and helpers for sklears
 //!
 //! This crate provides common utilities used across the sklears ecosystem,

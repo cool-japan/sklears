@@ -280,19 +280,24 @@ impl CalibrationSerializer {
             .map_err(|e| sklears_core::error::SklearsError::SerializationError(e.to_string()))
     }
 
-    /// Serialize to binary format using bincode
+    /// Serialize to binary format using oxicode
     #[cfg(feature = "serde")]
     pub fn to_binary(model: &SerializableCalibrationModel) -> Result<Vec<u8>> {
-        bincode::serde::encode_to_vec(model, bincode::config::standard())
-            .map_err(|e| sklears_core::error::SklearsError::SerializationError(e.to_string()))
+        oxicode::serde::encode_to_vec(model, oxicode::config::standard()).map_err(
+            |e: oxicode::Error| {
+                sklears_core::error::SklearsError::SerializationError(e.to_string())
+            },
+        )
     }
 
-    /// Deserialize from binary format using bincode
+    /// Deserialize from binary format using oxicode
     #[cfg(feature = "serde")]
     pub fn from_binary(data: &[u8]) -> Result<SerializableCalibrationModel> {
-        bincode::serde::decode_from_slice(data, bincode::config::standard())
+        oxicode::serde::decode_from_slice(data, oxicode::config::standard())
             .map(|(model, _size)| model)
-            .map_err(|e| sklears_core::error::SklearsError::SerializationError(e.to_string()))
+            .map_err(|e: oxicode::Error| {
+                sklears_core::error::SklearsError::SerializationError(e.to_string())
+            })
     }
 }
 

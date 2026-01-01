@@ -3,7 +3,8 @@
 use std::marker::PhantomData;
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
@@ -215,7 +216,8 @@ impl Fit<Array2<Float>, Array1<Float>> for LassoLars<Untrained> {
                 gram_reg[[i, i]] += 1e-10;
             }
 
-            let gram_inv_ones = &solve(&gram_reg.view(), &ones.view(), None)
+            let gram_inv_ones = &gram_reg
+                .solve(&ones)
                 .map_err(|e| SklearsError::NumericalError(format!("Failed to solve: {}", e)))?;
 
             let normalization = 1.0 / ones.dot(gram_inv_ones).sqrt();

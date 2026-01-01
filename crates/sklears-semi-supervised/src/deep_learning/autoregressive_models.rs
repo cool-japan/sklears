@@ -147,7 +147,7 @@ impl AutoregressiveModel {
             for i in 0..fan_in {
                 for j in 0..fan_out {
                     // Generate uniform distributed random number in [-scale, scale]
-                    let u: f64 = rng.random_range(0.0, 1.0);
+                    let u: f64 = rng.random_range(0.0..1.0);
                     weight[(i, j)] = u * (2.0 * scale) - scale;
                 }
             }
@@ -167,7 +167,7 @@ impl AutoregressiveModel {
         for i in 0..*last_hidden_dim {
             for j in 0..self.n_classes {
                 // Generate uniform distributed random number in [-class_scale, class_scale]
-                let u: f64 = rng.random_range(0.0, 1.0);
+                let u: f64 = rng.random_range(0.0..1.0);
                 class_weights[(i, j)] = u * (2.0 * class_scale) - class_scale;
             }
         }

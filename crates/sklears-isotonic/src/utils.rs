@@ -5,6 +5,67 @@ use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
 };
+use std::cmp::Ordering;
+
+/// Safe float comparison for sorting that handles NaN values
+///
+/// NaN values are sorted to the end. For non-NaN values, uses standard float comparison.
+/// This function should be used instead of `.partial_cmp().unwrap()` to comply with
+/// the No Unwrap Policy.
+///
+/// # Arguments
+///
+/// * `a` - First float value
+/// * `b` - Second float value
+///
+/// # Returns
+///
+/// `Ordering` - The comparison result with NaN values sorted to the end
+///
+/// # Examples
+///
+/// ```
+/// use sklears_isotonic::utils::safe_float_cmp;
+/// use std::cmp::Ordering;
+///
+/// assert_eq!(safe_float_cmp(&1.0, &2.0), Ordering::Less);
+/// assert_eq!(safe_float_cmp(&2.0, &1.0), Ordering::Greater);
+/// assert_eq!(safe_float_cmp(&f64::NAN, &1.0), Ordering::Greater); // NaN sorts to end
+/// ```
+#[inline]
+pub fn safe_float_cmp(a: &Float, b: &Float) -> Ordering {
+    match a.partial_cmp(b) {
+        Some(ord) => ord,
+        None => {
+            // Handle NaN cases: NaN is greater than everything (sorts to end)
+            match (a.is_nan(), b.is_nan()) {
+                (true, true) => Ordering::Equal,
+                (true, false) => Ordering::Greater,
+                (false, true) => Ordering::Less,
+                (false, false) => Ordering::Equal, // Should not happen, but handle safely
+            }
+        }
+    }
+}
+
+/// Safe indexed float comparison for sorting vectors of indices by float values
+///
+/// This is used when sorting indices based on corresponding float values,
+/// handling NaN values properly.
+///
+/// # Arguments
+///
+/// * `values` - Array of float values to compare
+/// * `i` - First index
+/// * `j` - Second index
+///
+/// # Returns
+///
+/// `Ordering` - The comparison result based on values[i] vs values[j]
+#[inline]
+pub fn safe_indexed_float_cmp(values: &Array1<Float>, i: usize, j: usize) -> Ordering {
+    safe_float_cmp(&values[i], &values[j])
+}
 
 /// Calculate Spearman correlation coefficient between two arrays
 pub fn spearman_correlation(x: &Array1<Float>, y: &Array1<Float>) -> Result<Float> {
@@ -39,8 +100,12 @@ pub fn pearson_correlation(x: &Array1<Float>, y: &Array1<Float>) -> Result<Float
         return Ok(0.0);
     }
 
-    let mean_x = x.mean().unwrap();
-    let mean_y = y.mean().unwrap();
+    let mean_x = x.mean().ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean for x array".to_string())
+    })?;
+    let mean_y = y.mean().ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean for y array".to_string())
+    })?;
 
     let mut numerator = 0.0;
     let mut sum_sq_x = 0.0;
@@ -68,8 +133,8 @@ fn create_ranks(values: &Array1<Float>) -> Array1<Float> {
     let mut indexed_values: Vec<(Float, usize)> =
         values.iter().enumerate().map(|(i, &v)| (v, i)).collect();
 
-    // Sort by value
-    indexed_values.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    // Sort by value using safe comparison
+    indexed_values.sort_by(|a, b| safe_float_cmp(&a.0, &b.0));
 
     let mut ranks = Array1::zeros(n);
     let mut i = 0;

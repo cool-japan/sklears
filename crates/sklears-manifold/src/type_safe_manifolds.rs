@@ -82,7 +82,7 @@ pub mod dimension {
 ///
 /// * `S` - Structure type (Euclidean, Riemannian, etc.)
 /// * `P` - Properties type (HasCurvature, Orientable, etc.)
-/// * `D` - Dimension type (Dim<N> or Dynamic)
+/// * `D` - Dimension type (`Dim<N>` or Dynamic)
 ///
 /// # Examples
 ///

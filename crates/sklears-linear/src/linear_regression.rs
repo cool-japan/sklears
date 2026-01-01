@@ -3,7 +3,8 @@
 use std::marker::PhantomData;
 
 use scirs2_core::ndarray::{s, Array};
-use scirs2_linalg::solve;
+use scirs2_linalg::compat::ArrayLinalgExt;
+// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
@@ -218,7 +219,7 @@ impl Fit<Array2<Float>, Array1<Float>> for LinearRegression<Untrained> {
                     regularized[[i, i]] += alpha;
                 }
 
-                solve(&regularized.view(), &xty.view(), None).map_err(|e| {
+                regularized.solve(&xty).map_err(|e| {
                     SklearsError::NumericalError(format!("Failed to solve ridge regression: {}", e))
                 })?
             }
@@ -334,7 +335,7 @@ impl LinearRegression<Untrained> {
         let xty = x.t().dot(y);
 
         // Use scirs2's linear solver
-        solve(&xtx.view(), &xty.view(), None).map_err(|e| {
+        xtx.solve(&xty).map_err(|e| {
             SklearsError::NumericalError(format!("Failed to solve linear system: {}", e))
         })
     }

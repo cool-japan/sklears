@@ -26,13 +26,13 @@ use sklears_svm::gpu_kernels::{GpuKernel, GpuKernelBenchmark};
 /// Generate random dataset for kernel benchmarks
 fn generate_kernel_dataset(n_samples: usize, n_features: usize, seed: u64) -> Array2<f32> {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-    Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-1.0, 1.0))
+    Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-1.0..1.0))
 }
 
 /// Generate histogram data for computer vision kernels
 fn generate_histogram_data(n_samples: usize, n_bins: usize, seed: u64) -> Array2<f64> {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
-    Array2::from_shape_fn((n_samples, n_bins), |_| rng.random_range(0.0, 100.0))
+    Array2::from_shape_fn((n_samples, n_bins), |_| rng.random_range(0.0..100.0))
 }
 
 /// Benchmark basic kernel types

@@ -5,7 +5,7 @@
 
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{seeded_rng, Rng};
+use scirs2_core::random::seeded_rng;
 use sklears_core::traits::{Fit, Predict};
 use sklears_linear::LinearRegression;
 use std::time::Instant;

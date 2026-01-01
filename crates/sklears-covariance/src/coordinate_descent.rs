@@ -4,8 +4,8 @@
 //! including methods for sparse precision matrix estimation, regularized covariance,
 //! and structured covariance models.
 
-use scirs2_core::ndarray::ndarray_linalg::{Determinant, Eig, Inverse, SVD};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -735,18 +735,16 @@ impl CoordinateDescentCovariance {
         let mut convergence_history = Vec::new();
 
         // Initialize with SVD
-        if let Ok((u, s, vt)) = empirical_cov.svd(true, true) {
-            if let (Some(u), Some(vt)) = (u, vt) {
-                let rank_actual = rank.min(s.len());
-                let s_truncated = s.slice(s![..rank_actual]).to_owned();
-                let u_truncated = u.slice(s![.., ..rank_actual]).to_owned();
-                let vt_truncated = vt.slice(s![..rank_actual, ..]).to_owned();
+        if let Ok((u, s, vt)) = empirical_cov.svd(true) {
+            let rank_actual = rank.min(s.len());
+            let s_truncated = s.slice(s![..rank_actual]).to_owned();
+            let u_truncated = u.slice(s![.., ..rank_actual]).to_owned();
+            let vt_truncated = vt.slice(s![..rank_actual, ..]).to_owned();
 
-                low_rank = u_truncated
-                    .dot(&Array2::from_diag(&s_truncated))
-                    .dot(&vt_truncated);
-                sparse = empirical_cov - &low_rank;
-            }
+            low_rank = u_truncated
+                .dot(&Array2::from_diag(&s_truncated))
+                .dot(&vt_truncated);
+            sparse = empirical_cov - &low_rank;
         }
 
         for iter in 0..self.max_iter {
@@ -755,21 +753,19 @@ impl CoordinateDescentCovariance {
 
             // Update low-rank component
             let residual_for_low_rank = empirical_cov - &sparse;
-            if let Ok((u, s, vt)) = residual_for_low_rank.svd(true, true) {
-                if let (Some(u), Some(vt)) = (u, vt) {
-                    let rank_actual = rank.min(s.len());
+            if let Ok((u, s, vt)) = residual_for_low_rank.svd(true) {
+                let rank_actual = rank.min(s.len());
 
-                    // Apply nuclear norm soft thresholding
-                    let lambda = self.get_nuclear_norm_regularization();
-                    let s_thresholded = s.slice(s![..rank_actual]).mapv(|x| (x - lambda).max(0.0));
+                // Apply nuclear norm soft thresholding
+                let lambda = self.get_nuclear_norm_regularization();
+                let s_thresholded = s.slice(s![..rank_actual]).mapv(|x| (x - lambda).max(0.0));
 
-                    let u_truncated = u.slice(s![.., ..rank_actual]).to_owned();
-                    let vt_truncated = vt.slice(s![..rank_actual, ..]).to_owned();
+                let u_truncated = u.slice(s![.., ..rank_actual]).to_owned();
+                let vt_truncated = vt.slice(s![..rank_actual, ..]).to_owned();
 
-                    low_rank = u_truncated
-                        .dot(&Array2::from_diag(&s_thresholded))
-                        .dot(&vt_truncated);
-                }
+                low_rank = u_truncated
+                    .dot(&Array2::from_diag(&s_thresholded))
+                    .dot(&vt_truncated);
             }
 
             // Update sparse component
@@ -788,8 +784,11 @@ impl CoordinateDescentCovariance {
 
             // Check convergence
             if iter % self.check_convergence_freq == 0 {
-                let lr_change = (&low_rank - &prev_low_rank).mapv(|x| x * x).sum().sqrt();
-                let sp_change = (&sparse - &prev_sparse).mapv(|x| x * x).sum().sqrt();
+                let lr_change = (&low_rank - &prev_low_rank)
+                    .mapv(|x: f64| x * x)
+                    .sum()
+                    .sqrt();
+                let sp_change = (&sparse - &prev_sparse).mapv(|x: f64| x * x).sum().sqrt();
                 let convergence = lr_change + sp_change;
                 convergence_history.push(convergence);
 
@@ -1001,7 +1000,7 @@ impl CoordinateDescentCovariance {
 
     /// Compute condition number
     fn compute_condition_number(&self, matrix: &Array2<f64>) -> SklResult<f64> {
-        if let Ok((_, s, _)) = matrix.svd(false, false) {
+        if let Ok((_, s, _)) = matrix.svd(false) {
             let max_s = s.iter().fold(0.0f64, |a, &b| a.max(b));
             let min_s = s.iter().fold(f64::INFINITY, |a, &b| a.min(b));
             if min_s > 1e-15 {

@@ -3,6 +3,8 @@
 //! This module provides streaming implementations of isotonic regression algorithms
 //! that can be updated incrementally as new data arrives.
 
+use crate::core::{isotonic_regression, LossFunction, MonotonicityConstraint};
+use crate::utils::safe_float_cmp;
 use scirs2_core::ndarray::{Array1, ArrayView1};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -10,8 +12,6 @@ use sklears_core::{
     types::Float,
 };
 use std::marker::PhantomData;
-
-use crate::core::{isotonic_regression, LossFunction, MonotonicityConstraint};
 
 /// Online/Streaming isotonic regression model
 ///
@@ -242,7 +242,7 @@ impl StreamingIsotonicRegression<Trained> {
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..self.x_data_.len()).collect();
-        indices.sort_by(|&a, &b| self.x_data_[a].partial_cmp(&self.x_data_[b]).unwrap());
+        indices.sort_by(|&a, &b| self.x_data_safe_float_cmp(&x[a], &x[b]));
 
         let x_sorted: Array1<Float> = indices.iter().map(|&i| self.x_data_[i]).collect();
         let y_sorted: Array1<Float> = indices.iter().map(|&i| self.y_data_[i]).collect();
@@ -533,7 +533,7 @@ impl SlidingWindowIsotonicRegression {
 
         // Sort by x values
         let mut indices: Vec<usize> = (0..x_array.len()).collect();
-        indices.sort_by(|&a, &b| x_array[a].partial_cmp(&x_array[b]).unwrap());
+        indices.sort_by(|&a, &b| x_arraysafe_float_cmp(&x[a], &x[b]));
 
         let x_sorted: Array1<Float> = indices.iter().map(|&i| x_array[i]).collect();
         let y_sorted: Array1<Float> = indices.iter().map(|&i| y_array[i]).collect();

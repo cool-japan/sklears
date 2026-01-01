@@ -4,6 +4,8 @@
 #![recursion_limit = "1048576"]
 #![allow(deprecated)]
 #![allow(ambiguous_glob_reexports)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::needless_borrow)]
 //! Support Vector Machines for classification and regression
 //!
 //! This module provides Support Vector Machine implementations including:

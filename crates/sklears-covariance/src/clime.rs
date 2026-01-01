@@ -5,6 +5,7 @@
 //! sparse estimation even in high-dimensional settings.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Untrained},
@@ -263,15 +264,30 @@ impl CLIME<Untrained> {
 
                 // Update k-th component using soft thresholding
                 let sk = sample_cov[[k, k]];
-                if sk.abs() > 1e-12 {
+                // Use more conservative threshold to avoid division by very small numbers
+                if sk.abs() > 1e-8 {
                     let zk = -residual.dot(&sample_cov.column(k)) / sk;
-                    beta[k] = self.soft_threshold(zk, self.lambda / sk);
+                    // Clip zk to prevent extreme values
+                    let zk_clipped = zk.max(-1e10).min(1e10);
+                    let threshold = (self.lambda / sk).max(-1e10).min(1e10);
+                    beta[k] = self.soft_threshold(zk_clipped, threshold);
+
+                    // Check for non-finite values
+                    if !beta[k].is_finite() {
+                        beta[k] = 0.0;
+                    }
                 }
             }
 
             // Check convergence
             let diff = &*beta - &beta_old;
-            if diff.dot(&diff).sqrt() < self.tol {
+            let norm_diff = diff.dot(&diff).sqrt();
+            if !norm_diff.is_finite() {
+                return Err(SklearsError::NumericalError(
+                    "CLIME coordinate descent produced non-finite values".to_string(),
+                ));
+            }
+            if norm_diff < self.tol {
                 break;
             }
         }
@@ -336,18 +352,45 @@ impl CLIME<Untrained> {
 
     /// Compute covariance matrix from precision matrix
     fn compute_covariance_from_precision(&self, precision: &Array2<f64>) -> SklResult<Array2<f64>> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
+        // Check for non-finite values in precision matrix
+        for &val in precision.iter() {
+            if !val.is_finite() {
+                return Err(SklearsError::NumericalError(
+                    "Precision matrix contains non-finite values".to_string(),
+                ));
+            }
+        }
 
         // Add small regularization to ensure invertibility
         let n = precision.nrows();
         let mut regularized_precision = precision.clone();
         for i in 0..n {
-            regularized_precision[[i, i]] += 1e-10;
+            regularized_precision[[i, i]] += 1e-6;
         }
 
-        regularized_precision
-            .inv()
-            .map_err(|e| SklearsError::NumericalError(format!("Matrix inversion failed: {}", e)))
+        // Try direct inversion first for better accuracy when possible
+        if let Ok(covariance) = regularized_precision.inv() {
+            return Ok(covariance);
+        }
+
+        // Fall back to SVD-based pseudo-inverse for numerical stability
+        use scirs2_linalg::compat::svd;
+        let (u, s, vt) = svd(&regularized_precision.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!(
+                "Matrix inversion failed - both direct and SVD methods failed: {}",
+                e
+            ))
+        })?;
+
+        // Compute reciprocals of singular values with threshold
+        let threshold = 1e-10 * s.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let s_inv = s.mapv(|x| if x > threshold { 1.0 / x } else { 0.0 });
+
+        // Reconstruct covariance matrix: V * S^-1 * U^T
+        use scirs2_core::ndarray::Array2 as NdArray2;
+        let s_inv_diag = NdArray2::from_diag(&s_inv);
+        let temp = vt.t().dot(&s_inv_diag);
+        Ok(temp.dot(&u.t()))
     }
 }
 

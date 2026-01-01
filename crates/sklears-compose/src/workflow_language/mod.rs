@@ -227,8 +227,10 @@ impl WorkflowDefinition {
 
     /// Generate code for this workflow in the specified language
     pub fn generate_code(&self, language: TargetLanguage) -> Result<String, CodeGenerationError> {
-        let mut config = CodeGenerationConfig::default();
-        config.language = language;
+        let config = CodeGenerationConfig {
+            language,
+            ..Default::default()
+        };
         let mut generator = CodeGenerator::new(config);
         let generated = generator.generate_code(self)?;
         Ok(generated.source_code)
@@ -239,10 +241,7 @@ impl WorkflowDefinition {
     pub fn execute(&self, context: ExecutionContext) -> ExecutionResult {
         let mut executor = WorkflowExecutor::new();
         // TODO: Configure executor with context
-        match executor.execute_workflow(self.clone()) {
-            Ok(result) => result,
-            Err(_) => ExecutionResult::default(), // TODO: Improve error handling
-        }
+        executor.execute_workflow(self.clone()).unwrap_or_default()
     }
 }
 
@@ -377,8 +376,10 @@ impl WorkflowIntegration {
         builder: &VisualPipelineBuilder,
         language: TargetLanguage,
     ) -> Result<String, WorkflowError> {
-        let mut config = CodeGenerationConfig::default();
-        config.language = language;
+        let config = CodeGenerationConfig {
+            language,
+            ..Default::default()
+        };
         let mut generator = CodeGenerator::new(config);
         let generated = generator.generate_code(&builder.workflow)?;
         Ok(generated.source_code)
@@ -387,8 +388,10 @@ impl WorkflowIntegration {
     /// Parse DSL and generate code in one operation
     pub fn dsl_to_code(dsl_code: &str, language: TargetLanguage) -> Result<String, WorkflowError> {
         let workflow = WorkflowDefinition::from_dsl(dsl_code)?;
-        let mut config = CodeGenerationConfig::default();
-        config.language = language;
+        let config = CodeGenerationConfig {
+            language,
+            ..Default::default()
+        };
         let mut generator = CodeGenerator::new(config);
         let generated = generator.generate_code(&workflow)?;
         Ok(generated.source_code)

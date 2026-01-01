@@ -39,7 +39,7 @@ smartcore = "0.4"  # Third-party ML library for specific algorithms
 criterion = { workspace = true }
 sklears-metrics = { workspace = true }
 approx = { workspace = true }
-tempfile = "3.23"
+tempfile = { workspace = true }
 proptest = "1.7"
 
 [features]

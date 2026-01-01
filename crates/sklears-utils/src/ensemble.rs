@@ -230,7 +230,7 @@ impl BaggingPredictor {
     ///
     /// # Arguments
     /// * `probabilities` - Array of probability matrices from each estimator
-    ///   Vec<Array2> where each Array2 is (n_samples × n_classes)
+    ///   `Vec<Array2>` where each Array2 is (n_samples × n_classes)
     ///
     /// # Returns
     /// Averaged probability matrix (n_samples × n_classes)

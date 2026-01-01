@@ -499,7 +499,7 @@ impl MetricsBuilder {
             averaging_strategy: format!("{:?}", self.config.averaging),
             has_confidence_intervals: self.config.include_confidence_intervals,
             sample_size: y_true.len(),
-            timestamp: "2025-07-04T00:00:00Z".to_string(), // Would use actual timestamp
+            timestamp: "2026-01-04T00:00:00Z".to_string(), // Would use actual timestamp
             config_summary: format!(
                 "Averaging: {:?}, CI: {}",
                 self.config.averaging, self.config.include_confidence_intervals
@@ -552,7 +552,7 @@ impl MetricsBuilder {
             averaging_strategy: format!("{:?}", self.config.averaging),
             has_confidence_intervals: self.config.include_confidence_intervals,
             sample_size: y_true.len(),
-            timestamp: "2025-07-04T00:00:00Z".to_string(), // Would use actual timestamp
+            timestamp: "2026-01-04T00:00:00Z".to_string(), // Would use actual timestamp
             config_summary: format!(
                 "Regression metrics, CI: {}",
                 self.config.include_confidence_intervals

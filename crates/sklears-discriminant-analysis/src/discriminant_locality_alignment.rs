@@ -5,8 +5,8 @@
 //! while maximizing discriminative power for classification.
 
 // ✅ Using SciRS2 dependencies following SciRS2 policy
-use scirs2_core::ndarray::ndarray_linalg::{Eig, Eigh, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_linalg::compat::{Eig, Eigh, UPLO};
 use sklears_core::{
     error::{validate, Result},
     prelude::SklearsError,

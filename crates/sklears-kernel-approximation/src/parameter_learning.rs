@@ -5,11 +5,12 @@
 
 use crate::{Nystroem, RBFSampler};
 use rayon::prelude::*;
-use scirs2_core::ndarray::ndarray_linalg::SVD;
+
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::{thread_rng, SeedableRng};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Transform},
@@ -816,9 +817,9 @@ impl ParameterLearner {
     }
 
     fn compute_effective_rank(&self, x_transformed: &Array2<f64>) -> Result<f64> {
-        // Compute SVD
+        // Compute SVD - only need singular values, not full U/V matrices
         let (_, s, _) = x_transformed
-            .svd(true, true)
+            .svd(false)
             .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
 
         // Compute effective rank using entropy
@@ -1232,10 +1233,15 @@ mod tests {
     #[test]
     fn test_effective_rank_objective() {
         let x =
-            Array2::from_shape_vec((30, 5), (0..150).map(|i| i as f64 * 0.02).collect()).unwrap();
+            Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.02).collect()).unwrap();
 
         let config = ParameterLearningConfig {
-            search_strategy: SearchStrategy::RandomSearch { n_samples: 3 },
+            search_strategy: SearchStrategy::RandomSearch { n_samples: 2 },
+            parameter_bounds: ParameterBounds {
+                gamma_bounds: (0.1, 5.0),
+                n_components_bounds: (10, 20), // Further reduced to ensure fast SVD on all platforms
+                ..Default::default()
+            },
             objective_function: ObjectiveFunction::EffectiveRank,
             random_seed: Some(456),
             ..Default::default()
@@ -1245,7 +1251,7 @@ mod tests {
         let result = learner.optimize_rbf_parameters(&x, None).unwrap();
 
         assert!(result.best_score > 0.0);
-        assert_eq!(result.parameter_history.len(), 3);
+        assert_eq!(result.parameter_history.len(), 2);
     }
 
     #[test]

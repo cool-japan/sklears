@@ -80,12 +80,12 @@ fn test_simple_data_generation() {
 
     // Arguments: n_samples, n_features, n_informative, n_redundant, n_classes, random_state
     let (X, y) = make_classification(
-        10,  // n_samples
-        3,   // n_features
-        2,   // n_informative
-        0,   // n_redundant
-        2,   // n_classes
-        Some(42),  // random_state
+        10,       // n_samples
+        3,        // n_features
+        2,        // n_informative
+        0,        // n_redundant
+        2,        // n_classes
+        Some(42), // random_state
     )
     .unwrap();
 
@@ -94,12 +94,12 @@ fn test_simple_data_generation() {
 
     // Check reproducibility
     let (X2, y2) = make_classification(
-        10,  // n_samples
-        3,   // n_features
-        2,   // n_informative
-        0,   // n_redundant
-        2,   // n_classes
-        Some(42),  // random_state
+        10,       // n_samples
+        3,        // n_features
+        2,        // n_informative
+        0,        // n_redundant
+        2,        // n_classes
+        Some(42), // random_state
     )
     .unwrap();
     assert_eq!(X, X2);

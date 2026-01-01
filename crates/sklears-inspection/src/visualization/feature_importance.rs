@@ -37,7 +37,11 @@ pub enum FeatureImportanceType {
     TreeMap,
 }
 
+/// Create an interactive feature importance visualization
 ///
+/// # Examples
+///
+/// ```ignore
 /// let importance = array![0.3, 0.5, 0.2];
 /// let features = vec!["Feature1".to_string(), "Feature2".to_string(), "Feature3".to_string()];
 /// let config = PlotConfig::default();

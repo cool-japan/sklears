@@ -2,6 +2,8 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::needless_borrow)]
 //! Evaluation metrics for machine learning models
 //!
 //! This crate provides a comprehensive set of metrics for evaluating machine learning models,

@@ -121,7 +121,11 @@ pub struct LocalExplanationResult {
     pub feature_names: Option<Vec<String>>,
 }
 
+/// Explain a model's prediction locally using various methods
 ///
+/// # Examples
+///
+/// ```ignore
 /// let model_fn = |x: &scirs2_core::ndarray::ArrayView2<f64>| -> Vec<f64> {
 ///     x.rows().into_iter()
 ///         .map(|row| row[0] * 2.0 + row[1] * 0.5)
@@ -133,7 +137,7 @@ pub struct LocalExplanationResult {
 ///
 /// let config = LocalExplanationConfig {
 ///     method: LocalExplanationMethod::LocalSurrogate,
-///     n_neighbors: 3,  
+///     n_neighbors: 3,
 ///     ..Default::default()
 /// };
 ///

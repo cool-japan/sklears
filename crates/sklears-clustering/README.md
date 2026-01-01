@@ -7,7 +7,7 @@
 
 Clustering algorithms for the sklears machine learning library.
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -23,7 +23,7 @@ This crate provides implementations of clustering algorithms including:
 
 ```toml
 [dependencies]
-sklears = { version = "0.1.0-alpha.2", features = ["clustering"] }
+sklears = { version = "0.1.0-beta.1", features = ["clustering"] }
 ```
 
 ## Examples

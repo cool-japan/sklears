@@ -729,7 +729,11 @@ mod tests {
         assert!(lz > 0.0);
         // LZ complexity can exceed 1.0 with certain normalizations
         // The normalization is an approximation based on n/log2(n)
-        assert!(lz > 0.0 && lz < 100.0, "LZ complexity should be reasonable, got {}", lz);
+        assert!(
+            lz > 0.0 && lz < 100.0,
+            "LZ complexity should be reasonable, got {}",
+            lz
+        );
     }
 
     #[test]

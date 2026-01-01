@@ -17,6 +17,7 @@ description = "Cross decomposition algorithms (PLS, CCA)"
 sklears-core = { workspace = true }
 sklears-utils = { workspace = true }
 scirs2-core = { workspace = true }
+scirs2-linalg = { workspace = true }
 
 # Standard dependencies
 thiserror = { workspace = true }

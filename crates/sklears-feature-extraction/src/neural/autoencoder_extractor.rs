@@ -95,7 +95,7 @@ impl AutoencoderFeatureExtractor {
 
         for i in 0..input_dim {
             for j in 0..output_dim {
-                weights[(i, j)] = rng.random_range(0.0, 1.0) * scale - scale / 2.0;
+                weights[(i, j)] = rng.random_range(0.0..1.0) * scale - scale / 2.0;
             }
         }
 

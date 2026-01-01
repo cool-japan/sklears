@@ -1,6 +1,6 @@
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array2, Axis};
-use scirs2_core::random::{seeded_rng, Rng, SliceRandom};
+use scirs2_core::random::{seeded_rng, SliceRandom};
 use sklears_model_selection::*;
 use std::collections::HashMap;
 

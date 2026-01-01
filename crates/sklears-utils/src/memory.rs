@@ -582,7 +582,7 @@ impl<T> SafeVec<T> {
     ///
     /// # Safety
     ///
-    /// This function exposes the underlying Vec<T> directly, bypassing all
+    /// This function exposes the underlying `Vec<T>` directly, bypassing all
     /// bounds checking and overflow protection mechanisms. The caller must
     /// ensure that any modifications to the returned vector do not violate
     /// the buffer's safety guarantees and internal invariants.
@@ -871,7 +871,7 @@ impl MemoryValidator {
     ///
     /// This function performs raw pointer arithmetic and validation. The caller
     /// must ensure that the provided pointer was obtained through safe means and
-    /// that the memory range [ptr, ptr + count * size_of::<T>()) is within valid
+    /// that the memory range \[ptr, ptr + count * `size_of::<T>`()\] is within valid
     /// allocated memory boundaries. Incorrect usage can lead to undefined behavior.
     pub unsafe fn validate_range<T>(ptr: *const T, count: usize) -> UtilsResult<()> {
         if ptr.is_null() {

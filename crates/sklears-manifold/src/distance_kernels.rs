@@ -4,8 +4,8 @@
 //! designed for manifold learning applications, including commute time distance,
 //! resistance distance, manifold kernels, and graph kernels.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, SVD, UPLO};
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::hash::{Hash, Hasher};
 
@@ -116,11 +116,8 @@ pub fn procrustes_distance(x1: &Array2<f64>, x2: &Array2<f64>) -> SklResult<f64>
     // Find optimal rotation using SVD
     let h = x1_scaled.t().dot(&x2_scaled);
     let (u, _s, vt) = h
-        .svd(true, true)
-        .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?;
-
-    let u = u.unwrap();
-    let vt = vt.unwrap();
+        .svd(true)
+        .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?; // vt is directly available
 
     // Optimal rotation matrix
     let r = vt.t().dot(&u.t());
@@ -232,15 +229,13 @@ pub fn local_tangent_space_kernel(
             }
 
             // SVD to get tangent space basis
-            if let Ok((u, s, _)) = neighbor_matrix.svd(true, false) {
-                if let Some(u) = u {
-                    // Project all points onto this tangent space and compute kernel
-                    for j in 0..n_samples {
-                        let diff = &x.row(j) - &x.row(i);
-                        let projection_norm = u.t().dot(&diff).mapv(|x| x * x).sum();
-                        let tangent_dist = diff.mapv(|x| x * x).sum() - projection_norm;
-                        kernel[(i, j)] = (-gamma * tangent_dist).exp();
-                    }
+            if let Ok((u, s, _)) = neighbor_matrix.svd(true) {
+                // Project all points onto this tangent space and compute kernel
+                for j in 0..n_samples {
+                    let diff = &x.row(j) - &x.row(i);
+                    let projection_norm = u.t().dot(&diff).mapv(|x| x * x).sum();
+                    let tangent_dist = diff.mapv(|x| x * x).sum() - projection_norm;
+                    kernel[(i, j)] = (-gamma * tangent_dist).exp();
                 }
             }
         }
@@ -483,11 +478,8 @@ pub fn spectral_kernel(x: &Array2<f64>, n_components: usize, gamma: f64) -> SklR
 /// Helper function to compute Moore-Penrose pseudoinverse
 fn compute_pseudoinverse(matrix: &Array2<f64>) -> SklResult<Array2<f64>> {
     let (u, s, vt) = matrix
-        .svd(true, true)
-        .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?;
-
-    let u = u.unwrap();
-    let vt = vt.unwrap();
+        .svd(true)
+        .map_err(|e| SklearsError::NumericalError(format!("SVD failed: {:?}", e)))?; // vt is directly available
 
     // Compute reciprocal of non-zero singular values
     let tolerance = 1e-10;

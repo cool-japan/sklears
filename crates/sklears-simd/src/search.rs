@@ -305,7 +305,6 @@ impl LSHTable {
 
                 // Generate random vector
                 use scirs2_core::random::thread_rng;
-                use scirs2_core::Rng;
                 let mut rng = thread_rng();
                 for _ in 0..dimensions {
                     let val: f32 = rng.random::<f32>() - 0.5;

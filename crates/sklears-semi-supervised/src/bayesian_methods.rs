@@ -574,7 +574,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
         // Initialize means randomly
         for k in 0..self.n_components {
             for j in 0..n_features {
-                means[[k, j]] = rng.random_range(-1.0, 1.0);
+                means[[k, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -1135,7 +1135,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
             let mut means = Array2::<f64>::zeros((self.n_components, n_features));
             for i in 0..self.n_components {
                 for j in 0..n_features {
-                    means[[i, j]] = rng.random_range(-1.0, 1.0);
+                    means[[i, j]] = rng.random_range(-1.0..1.0);
                 }
             }
             level_means.push(means);

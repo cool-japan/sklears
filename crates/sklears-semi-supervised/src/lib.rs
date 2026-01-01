@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(unused_mut)]
@@ -509,7 +512,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((50, 5));
         for i in 0..50 {
             for j in 0..5 {
-                X[(i, j)] = rng.random_range(-1.0, 1.0);
+                X[(i, j)] = rng.random_range(-1.0..1.0);
             }
         }
         let y_true = array![
@@ -560,7 +563,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((30, 4));
         for i in 0..30 {
             for j in 0..4 {
-                X[(i, j)] = rng.random_range(-1.0, 1.0);
+                X[(i, j)] = rng.random_range(-1.0..1.0);
             }
         }
         let y_clean = array![
@@ -602,7 +605,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((20, 6));
         for i in 0..20 {
             for j in 0..6 {
-                X[(i, j)] = rng.random_range(-1.0, 1.0);
+                X[(i, j)] = rng.random_range(-1.0..1.0);
             }
         }
         let y_clean =
@@ -652,7 +655,7 @@ mod tests {
         let mut X = Array2::<f64>::zeros((40, 5));
         for i in 0..40 {
             for j in 0..5 {
-                X[(i, j)] = rng.random_range(-1.0, 1.0);
+                X[(i, j)] = rng.random_range(-1.0..1.0);
             }
         }
 

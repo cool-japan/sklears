@@ -244,9 +244,11 @@ impl PipelineDSL {
         // Connections
         for connection in &workflow.connections {
             dsl.push_str(&format!(
-                "    flow {} -> {}\n",
-                format!("{}.{}", connection.from_step, connection.from_output),
-                format!("{}.{}", connection.to_step, connection.to_input)
+                "    flow {}.{} -> {}.{}\n",
+                connection.from_step,
+                connection.from_output,
+                connection.to_step,
+                connection.to_input
             ));
         }
 

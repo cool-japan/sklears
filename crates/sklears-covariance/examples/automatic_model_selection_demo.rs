@@ -5,7 +5,6 @@
 //! analyzes data properties and intelligently selects from multiple candidate estimators.
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::Rng;
 use sklears_core::error::Result as SklResult;
 use sklears_covariance::{
     model_selection_presets, AutoCovarianceSelector, CovarianceDataFrame, DataFrameEstimator,

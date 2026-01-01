@@ -179,7 +179,7 @@ impl LadderNetworks<Untrained> {
             let mut w_enc = Array2::zeros((fan_in, fan_out));
             for i in 0..fan_in {
                 for j in 0..fan_out {
-                    w_enc[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * xavier_std;
+                    w_enc[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * xavier_std;
                 }
             }
             let b_enc = Array1::zeros(fan_out);
@@ -190,7 +190,7 @@ impl LadderNetworks<Untrained> {
             let mut w_dec = Array2::zeros((fan_out, fan_in));
             for i in 0..fan_out {
                 for j in 0..fan_in {
-                    w_dec[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * xavier_std;
+                    w_dec[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * xavier_std;
                 }
             }
             let b_dec = Array1::zeros(fan_in);
@@ -212,7 +212,7 @@ impl LadderNetworks<Untrained> {
         let mut noise = Array2::zeros(x.dim());
         for i in 0..x.nrows() {
             for j in 0..x.ncols() {
-                noise[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * self.noise_std;
+                noise[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * self.noise_std;
             }
         }
         x + &noise
@@ -724,7 +724,7 @@ impl LadderNetworks<LadderNetworksTrained> {
         let mut noise = Array2::zeros(x.dim());
         for i in 0..x.nrows() {
             for j in 0..x.ncols() {
-                noise[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * self.noise_std;
+                noise[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * self.noise_std;
             }
         }
         x + &noise

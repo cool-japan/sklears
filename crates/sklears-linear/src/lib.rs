@@ -2,6 +2,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::needless_borrow)]
 //! Linear models for sklears
 //!
 //! This crate provides implementations of linear models including:

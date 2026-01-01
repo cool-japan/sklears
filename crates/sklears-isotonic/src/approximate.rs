@@ -3,6 +3,7 @@
 //! This module provides approximate algorithms for isotonic regression that can
 //! handle very large datasets efficiently by trading off accuracy for speed.
 
+use crate::utils::safe_float_cmp;
 use crate::algorithms::{pool_adjacent_violators_decreasing, pool_adjacent_violators_increasing};
 use crate::core::{LossFunction, MonotonicityConstraint};
 use scirs2_core::ndarray::Array1;

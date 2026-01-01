@@ -9,7 +9,11 @@ use sklears_core::{
 
 use crate::types::{PartialDependenceKind, PartialDependenceResult};
 
+/// Compute partial dependence for specified features
 ///
+/// # Examples
+///
+/// ```ignore
 /// // Mock predictor function
 /// let predict_fn = |x: &scirs2_core::ndarray::ArrayView2<f64>| -> Vec<f64> {
 ///     x.rows().into_iter()

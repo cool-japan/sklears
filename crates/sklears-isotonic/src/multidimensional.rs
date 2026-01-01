@@ -1,5 +1,6 @@
 //! Multi-dimensional isotonic regression implementations
 
+use crate::utils::safe_float_cmp;
 use crate::core::{LossFunction, MonotonicityConstraint};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use sklears_core::{

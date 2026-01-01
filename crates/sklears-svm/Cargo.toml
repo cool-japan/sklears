@@ -37,7 +37,7 @@ serde_json = { version = "1.0", optional = true }
 criterion = { workspace = true }
 sklears-metrics = { workspace = true }
 approx = { workspace = true }
-tempfile = "3.23"
+tempfile = { workspace = true }
 proptest = "1.7"
 
 [features]

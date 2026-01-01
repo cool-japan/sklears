@@ -10,6 +10,7 @@ use scirs2_core::random::thread_rng;
 use scirs2_core::random::Distribution;
 use scirs2_core::random::Random;
 use scirs2_core::StandardNormal;
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -298,8 +299,6 @@ impl PropertyTester {
     }
 
     fn is_positive_semidefinite(&self, matrix: &Array2<f64>) -> bool {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         match matrix.eigh(UPLO::Lower) {
             Ok((eigenvals, _)) => eigenvals.iter().all(|&val| val >= -self.tolerance),
             Err(_) => false,
@@ -559,8 +558,6 @@ impl NumericalAccuracyTester {
     }
 
     fn spectral_error(&self, estimated: &Array2<f64>, true_cov: &Array2<f64>) -> f64 {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         let diff = estimated - true_cov;
         match diff.eigh(UPLO::Lower) {
             Ok((eigenvals, _)) => eigenvals.iter().map(|&x| x.abs()).fold(0.0, f64::max),
@@ -581,8 +578,6 @@ impl NumericalAccuracyTester {
     }
 
     fn condition_number(&self, matrix: &Array2<f64>) -> f64 {
-        use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
-
         match matrix.eigh(UPLO::Lower) {
             Ok((eigenvals, _)) => {
                 let max_eigenval = eigenvals.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));

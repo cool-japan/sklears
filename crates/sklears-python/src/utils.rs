@@ -259,7 +259,7 @@ pub fn benchmark_basic_operations() -> HashMap<String, f64> {
     results
 }
 
-/// Convert NumPy array to ndarray Array2<f64>
+/// Convert NumPy array to ndarray Array2`<f64>`
 pub fn numpy_to_ndarray2(py_array: &PyArray2<f64>) -> PyResult<Array2<f64>> {
     Python::with_gil(|py| {
         let ptr = py_array as *const PyArray2<f64> as *mut ffi::PyObject;
@@ -274,7 +274,7 @@ pub fn numpy_to_ndarray2(py_array: &PyArray2<f64>) -> PyResult<Array2<f64>> {
     })
 }
 
-/// Convert NumPy array to ndarray Array1<f64>
+/// Convert NumPy array to ndarray Array1`<f64>`
 pub fn numpy_to_ndarray1(py_array: &PyArray1<f64>) -> PyResult<Array1<f64>> {
     Python::with_gil(|py| {
         let ptr = py_array as *const PyArray1<f64> as *mut ffi::PyObject;
@@ -289,12 +289,12 @@ pub fn numpy_to_ndarray1(py_array: &PyArray1<f64>) -> PyResult<Array1<f64>> {
     })
 }
 
-/// Convert ndarray Array2<f64> to NumPy array
+/// Convert ndarray Array2`<f64>` to NumPy array
 pub fn ndarray_to_numpy<'py>(py: Python<'py>, array: Array2<f64>) -> Py<PyArray2<f64>> {
     core_array2_to_py(py, &array).expect("Failed to convert ndarray to NumPy array")
 }
 
-/// Convert ndarray Array1<f64> to NumPy array
+/// Convert ndarray Array1`<f64>` to NumPy array
 pub fn ndarray1_to_numpy<'py>(py: Python<'py>, array: Array1<f64>) -> Py<PyArray1<f64>> {
     core_array1_to_py(py, &array)
 }

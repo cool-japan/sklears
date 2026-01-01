@@ -61,7 +61,7 @@ pub mod generators {
         // Generate random coefficients
         let mut coef = Vec::with_capacity(n_features);
         for _ in 0..n_features {
-            coef.push(rng.random_range(-5.0, 5.0));
+            coef.push(rng.random_range(-5.0..5.0));
         }
 
         // Generate targets: y = X @ coef + noise
@@ -111,7 +111,7 @@ pub mod generators {
         // Generate random class centers
         let mut centers = Vec::with_capacity(n_classes * n_features);
         for _ in 0..n_classes * n_features {
-            centers.push(rng.random_range(-10.0, 10.0));
+            centers.push(rng.random_range(-10.0..10.0));
         }
 
         let mut x_data = Vec::with_capacity(n_samples * n_features);

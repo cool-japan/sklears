@@ -125,8 +125,8 @@ pub trait Plugin: Send + Sync + Debug {
 ///
 /// # Type Parameters
 ///
-/// * `X` - The input feature type (e.g., Array2<f64>)
-/// * `Y` - The target/label type (e.g., Array1<f64>)
+/// * `X` - The input feature type (e.g., `Array2<f64>`)
+/// * `Y` - The target/label type (e.g., `Array1<f64>`)
 /// * `Output` - The prediction output type
 ///
 /// # Examples
@@ -360,7 +360,7 @@ pub trait ClusteringPlugin<X>: Plugin + Send + Sync {
     /// The cluster labels type
     ///
     /// This type represents the cluster assignments for each data point.
-    /// Typically this would be Vec<usize> for integer cluster labels.
+    /// Typically this would be `Vec<usize>` for integer cluster labels.
     type Labels;
 
     /// Fit the clustering algorithm and return cluster assignments

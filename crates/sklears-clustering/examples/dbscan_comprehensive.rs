@@ -10,7 +10,7 @@
 
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{thread_rng, Distribution, Rng};
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_clustering::{ClusterMethod, DensityPeaks, Optics, DBSCAN, HDBSCAN, NOISE};
 use sklears_core::prelude::*;
 

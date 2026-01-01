@@ -3,6 +3,7 @@
 //! This module provides isotonic regression models specifically designed for ranking
 //! and ordinal data, including preference learning, pairwise comparisons, and tournament ranking.
 
+use crate::utils::safe_float_cmp;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -186,7 +187,7 @@ impl IsotonicRankingModel<Untrained> {
     )> {
         // Sort data by x values
         let mut sorted_indices: Vec<usize> = (0..x.len()).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| safe_float_cmp(&x[i], &x[j]));
 
         let sorted_x: Array1<Float> = sorted_indices.iter().map(|&i| x[i]).collect();
         let sorted_y: Array1<Float> = sorted_indices.iter().map(|&i| y[i]).collect();
@@ -223,7 +224,7 @@ impl IsotonicRankingModel<Untrained> {
     )> {
         // Determine unique ordinal levels
         let mut unique_levels: Vec<Float> = y.to_vec();
-        unique_levels.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_levels.sort_by(|a, b| safe_float_cmp(a, b));
         unique_levels.dedup();
 
         if unique_levels.len() < 2 {
@@ -261,7 +262,7 @@ impl IsotonicRankingModel<Untrained> {
 
                     // Apply isotonic constraint within level
                     let mut sorted_indices: Vec<usize> = (0..level_x.len()).collect();
-                    sorted_indices.sort_by(|&i, &j| level_x[i].partial_cmp(&level_x[j]).unwrap());
+                    sorted_indices.sort_by(|&i, &j| safe_float_cmp(&level_x[i], &level_x[j]));
 
                     let mut isotonic_scores: Array1<Float> =
                         sorted_indices.iter().map(|&i| level_scores[i]).collect();
@@ -370,7 +371,7 @@ impl IsotonicRankingModel<Untrained> {
 
             // Apply isotonic constraint
             let mut sorted_indices: Vec<usize> = (0..n).collect();
-            sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| safe_float_cmp(&x[i], &x[j]));
 
             let mut isotonic_scores: Array1<Float> =
                 sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -435,7 +436,7 @@ impl IsotonicRankingModel<Untrained> {
 
             // Apply isotonic constraint
             let mut sorted_indices: Vec<usize> = (0..n).collect();
-            sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| safe_float_cmp(&x[i], &x[j]));
 
             let mut isotonic_scores: Array1<Float> =
                 sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -474,25 +475,26 @@ impl IsotonicRankingModel<Untrained> {
 
         // Sort indices by target values to get ideal ranking
         let mut target_ranking: Vec<usize> = (0..n).collect();
-        target_ranking.sort_by(|&i, &j| y[j].partial_cmp(&y[i]).unwrap()); // Descending order
+        target_ranking.sort_by(|&i, &j| safe_float_cmp(&y[j], &y[i])); // Descending order
 
         for iter in 0..self.max_iter {
             let old_scores = scores.clone();
 
             // Compute current ranking based on scores
             let mut current_ranking: Vec<usize> = (0..n).collect();
-            current_ranking.sort_by(|&i, &j| scores[j].partial_cmp(&scores[i]).unwrap());
+            current_ranking.sort_by(|&i, &j| safe_float_cmp(&scores[j], &scores[i]));
 
             // Update scores to better match target ranking
             for (target_pos, &item_idx) in target_ranking.iter().enumerate() {
-                let current_pos = current_ranking.iter().position(|&x| x == item_idx).unwrap();
-                let position_diff = target_pos as Float - current_pos as Float;
-                scores[item_idx] += self.regularization * position_diff;
+                if let Some(current_pos) = current_ranking.iter().position(|&x| x == item_idx) {
+                    let position_diff = target_pos as Float - current_pos as Float;
+                    scores[item_idx] += self.regularization * position_diff;
+                }
             }
 
             // Apply isotonic constraint based on input ordering
             let mut sorted_indices: Vec<usize> = (0..n).collect();
-            sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
             let mut isotonic_scores: Array1<Float> =
                 sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -591,7 +593,7 @@ impl IsotonicRankingModel<Untrained> {
 
             // Apply isotonic constraint
             let mut sorted_indices: Vec<usize> = (0..n).collect();
-            sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| safe_float_cmp(&x[i], &x[j]));
 
             let mut isotonic_scores: Array1<Float> =
                 sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -681,7 +683,7 @@ impl IsotonicRankingModel<Untrained> {
 
         // Apply isotonic constraint
         let mut sorted_indices: Vec<usize> = (0..n).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
         let mut isotonic_scores: Array1<Float> =
             sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -731,12 +733,16 @@ impl IsotonicRankingModel<Untrained> {
                     let prob_p1_wins = 1.0 / (1.0 + (-0.1 * (y[p1] - y[p2])).exp());
                     let winner = if prob_p1_wins > 0.5 { p1 } else { p2 };
 
-                    *round_scores.get_mut(&winner).unwrap() += round;
+                    if let Some(score) = round_scores.get_mut(&winner) {
+                        *score += round;
+                    }
                     next_round.push(winner);
                 } else {
                     // Bye - advance automatically
                     let p1 = participants[i];
-                    *round_scores.get_mut(&p1).unwrap() += round * 0.5;
+                    if let Some(score) = round_scores.get_mut(&p1) {
+                        *score += round * 0.5;
+                    }
                     next_round.push(p1);
                 }
             }
@@ -752,7 +758,7 @@ impl IsotonicRankingModel<Untrained> {
 
         // Apply isotonic constraint
         let mut sorted_indices: Vec<usize> = (0..n).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
         let mut isotonic_scores: Array1<Float> =
             sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -787,7 +793,7 @@ impl IsotonicRankingModel<Untrained> {
         for round in 0..num_rounds {
             // Pair players with similar scores
             let mut players: Vec<usize> = (0..n).collect();
-            players.sort_by(|&i, &j| points[j].partial_cmp(&points[i]).unwrap());
+            players.sort_by(|&i, &j| safe_float_cmp(&points[j], &points[i]));
 
             for i in (0..players.len()).step_by(2) {
                 if i + 1 < players.len() {
@@ -812,7 +818,7 @@ impl IsotonicRankingModel<Untrained> {
 
         // Apply isotonic constraint
         let mut sorted_indices: Vec<usize> = (0..n).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
         let mut isotonic_scores: Array1<Float> =
             sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -873,7 +879,7 @@ impl IsotonicRankingModel<Untrained> {
 
         // Apply isotonic constraint
         let mut sorted_indices: Vec<usize> = (0..n).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
         let mut isotonic_scores: Array1<Float> =
             sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -950,7 +956,7 @@ impl IsotonicRankingModel<Untrained> {
 
         // Apply isotonic constraint
         let mut sorted_indices: Vec<usize> = (0..n).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
         let mut isotonic_scores: Array1<Float> =
             sorted_indices.iter().map(|&i| scores[i]).collect();
@@ -1014,7 +1020,7 @@ impl IsotonicRankingModel<Untrained> {
             .collect();
 
         // Sort by score in descending order
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| safe_float_cmp(&b.1, &a.1));
 
         let mut ranks = Array1::zeros(n);
         for (rank, &(original_index, _)) in indexed_scores.iter().enumerate() {
@@ -1068,8 +1074,12 @@ pub fn isotonic_ranking_regression(
     let model = IsotonicRankingModel::new().method(method);
     let fitted_model = model.fit(x, y)?;
 
-    let scores = fitted_model.fitted_scores.unwrap();
-    let ranks = fitted_model.fitted_ranks.unwrap();
+    let scores = fitted_model.fitted_scores.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but scores not available".to_string())
+    })?;
+    let ranks = fitted_model.fitted_ranks.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but ranks not available".to_string())
+    })?;
 
     Ok((scores, ranks))
 }
@@ -1082,9 +1092,15 @@ pub fn ordinal_regression(
     let model = IsotonicRankingModel::new().method(RankingMethod::OrdinalRegression);
     let fitted_model = model.fit(x, y)?;
 
-    let scores = fitted_model.fitted_scores.unwrap();
-    let ranks = fitted_model.fitted_ranks.unwrap();
-    let thresholds = fitted_model.ordinal_thresholds.unwrap();
+    let scores = fitted_model.fitted_scores.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but scores not available".to_string())
+    })?;
+    let ranks = fitted_model.fitted_ranks.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but ranks not available".to_string())
+    })?;
+    let thresholds = fitted_model.ordinal_thresholds.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but thresholds not available".to_string())
+    })?;
 
     Ok((scores, ranks, thresholds))
 }
@@ -1100,8 +1116,12 @@ pub fn preference_learning(
         .preference_method(method);
     let fitted_model = model.fit(x, y)?;
 
-    let scores = fitted_model.fitted_scores.unwrap();
-    let ranks = fitted_model.fitted_ranks.unwrap();
+    let scores = fitted_model.fitted_scores.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but scores not available".to_string())
+    })?;
+    let ranks = fitted_model.fitted_ranks.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but ranks not available".to_string())
+    })?;
 
     Ok((scores, ranks))
 }
@@ -1117,8 +1137,12 @@ pub fn tournament_ranking(
         .tournament_type(tournament_type);
     let fitted_model = model.fit(x, y)?;
 
-    let scores = fitted_model.fitted_scores.unwrap();
-    let ranks = fitted_model.fitted_ranks.unwrap();
+    let scores = fitted_model.fitted_scores.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but scores not available".to_string())
+    })?;
+    let ranks = fitted_model.fitted_ranks.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but ranks not available".to_string())
+    })?;
 
     Ok((scores, ranks))
 }
@@ -1131,8 +1155,12 @@ pub fn pairwise_comparison_bradley_terry(
     let model = IsotonicRankingModel::new().method(RankingMethod::BradleyTerry);
     let fitted_model = model.fit(x, y)?;
 
-    let scores = fitted_model.fitted_scores.unwrap();
-    let ranks = fitted_model.fitted_ranks.unwrap();
+    let scores = fitted_model.fitted_scores.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but scores not available".to_string())
+    })?;
+    let ranks = fitted_model.fitted_ranks.ok_or_else(|| {
+        SklearsError::InvalidState("Model fitted but ranks not available".to_string())
+    })?;
 
     Ok((scores, ranks))
 }
@@ -1175,7 +1203,7 @@ mod tests {
 
         // Check monotonicity of scores
         let mut sorted_indices: Vec<usize> = (0..x.len()).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
         for i in 0..sorted_indices.len() - 1 {
             let curr_idx = sorted_indices[i];
@@ -1198,7 +1226,7 @@ mod tests {
 
         // Check isotonic constraint
         let mut sorted_indices: Vec<usize> = (0..x.len()).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| safe_float_cmp(&x[i], &x[j]));
 
         for i in 0..sorted_indices.len() - 1 {
             let curr_idx = sorted_indices[i];
@@ -1341,7 +1369,7 @@ mod tests {
 
             // Check isotonic constraint
             let mut sorted_indices: Vec<usize> = (0..x.len()).collect();
-            sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| x[i]safe_float_cmp(&x[j]));
 
             for i in 0..sorted_indices.len() - 1 {
                 let curr_idx = sorted_indices[i];

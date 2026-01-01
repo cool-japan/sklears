@@ -6,6 +6,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit};
 use std::collections::VecDeque;
 
@@ -298,8 +299,6 @@ impl ParallelCovariance<ParallelCovarianceUntrained> {
         &self,
         covariance: &Array2<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
-        use scirs2_core::ndarray::ndarray_linalg::Inverse;
-
         covariance
             .inv()
             .map_err(|e| SklearsError::InvalidInput(format!("Matrix inversion failed: {}", e)))

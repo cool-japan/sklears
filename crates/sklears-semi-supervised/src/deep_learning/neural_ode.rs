@@ -41,7 +41,7 @@ impl NeuralODELayer {
         let mut weights = Array2::zeros((input_dim, input_dim));
         for i in 0..input_dim {
             for j in 0..input_dim {
-                weights[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * 0.1;
+                weights[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * 0.1;
             }
         }
         let biases = Array1::zeros(input_dim);
@@ -260,7 +260,7 @@ impl NeuralODE<Untrained> {
             let mut w = Array2::zeros((n_classes, input_dim));
             for i in 0..n_classes {
                 for j in 0..input_dim {
-                    w[[i, j]] = rng.random_range(-3.0, 3.0) / 3.0 * 0.1;
+                    w[[i, j]] = rng.random_range(-3.0..3.0) / 3.0 * 0.1;
                 }
             }
             w

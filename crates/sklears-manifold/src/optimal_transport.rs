@@ -3,8 +3,8 @@
 //! This module implements manifold learning algorithms based on optimal transport theory,
 //! including Wasserstein distances, Sinkhorn approximations, and Gromov-Wasserstein methods.
 
-use scirs2_core::ndarray::ndarray_linalg::{Eigh, UPLO};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -156,9 +156,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for WassersteinEmbedding<Untrained> {
 
         // Compute eigendecomposition for analysis
         let (eigenvalues, eigenvectors) = if wasserstein_distances.nrows() > 1 {
-            // Center the distance matrix
+            // Center the distance matrix and symmetrize for numerical stability
             let centered = center_distance_matrix(&wasserstein_distances);
-            let (vals, vecs) = centered.eigh(UPLO::Lower).map_err(|e| {
+            let symmetric_centered = (&centered + &centered.t()) / 2.0;
+            let (vals, vecs) = symmetric_centered.eigh(UPLO::Lower).map_err(|e| {
                 SklearsError::InvalidInput(format!("Eigendecomposition failed: {}", e))
             })?;
 
@@ -327,7 +328,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for GromovWassersteinEmbedding<Untrained> {
 
         // Compute eigenvalues for analysis
         let centered = center_distance_matrix(&gw_distances);
-        let (eigenvalues, _) = centered
+        let symmetric_centered = (&centered + &centered.t()) / 2.0;
+        let (eigenvalues, _) = symmetric_centered
             .eigh(UPLO::Lower)
             .map_err(|e| SklearsError::InvalidInput(format!("Eigendecomposition failed: {}", e)))?;
 
@@ -576,11 +578,12 @@ fn wasserstein_mds(distance_matrix: &Array2<f64>, n_components: usize) -> SklRes
         return Ok(Array2::zeros((n_samples, n_components)));
     }
 
-    // Center the distance matrix (double centering)
+    // Center the distance matrix (double centering) and symmetrize for numerical stability
     let centered = center_distance_matrix(distance_matrix);
+    let symmetric_centered = (&centered + &centered.t()) / 2.0;
 
     // Eigendecomposition
-    let (eigenvalues, eigenvectors) = centered
+    let (eigenvalues, eigenvectors) = symmetric_centered
         .eigh(UPLO::Lower)
         .map_err(|e| SklearsError::InvalidInput(format!("Eigendecomposition failed: {}", e)))?;
 

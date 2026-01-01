@@ -176,7 +176,7 @@ pub fn make_polynomial_regression(
     let mut x = Array2::zeros((n_samples, n_features));
     for i in 0..n_samples {
         for j in 0..n_features {
-            x[[i, j]] = rng.random_range(-1.0, 1.0);
+            x[[i, j]] = rng.random_range(-1.0..1.0);
         }
     }
 
@@ -184,7 +184,7 @@ pub fn make_polynomial_regression(
     let n_terms = polynomial_terms_count(n_features, degree);
     let mut coeffs = Array1::zeros(n_terms);
     for i in 0..n_terms {
-        coeffs[i] = rng.random_range(-1.0, 1.0);
+        coeffs[i] = rng.random_range(-1.0..1.0);
     }
 
     // Compute polynomial target values

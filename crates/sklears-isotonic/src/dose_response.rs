@@ -3,6 +3,7 @@
 //! This module provides specialized isotonic regression models for dose-response relationships,
 //! including toxicological modeling, pharmacokinetic applications, and efficacy modeling.
 
+use crate::utils::safe_float_cmp;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use sklears_core::{
     error::{Result, SklearsError},

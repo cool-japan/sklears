@@ -4,8 +4,8 @@
 //! coarse approximations and progressively refine them based on quality criteria.
 
 use crate::{Nystroem, RBFSampler};
-use scirs2_core::ndarray::ndarray_linalg::{Norm, SVD};
 use scirs2_core::ndarray::Array2;
+use scirs2_linalg::compat::{Norm, SVD};
 use sklears_core::traits::Fit;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -454,7 +454,7 @@ impl ProgressiveRBFSampler {
         // Compute spectral norm (largest singular value) of the error
         let diff = k_exact - &k_approx.slice(scirs2_core::ndarray::s![..n_samples, ..n_samples]);
         let (_, s, _) = diff
-            .svd(false, false)
+            .svd(false)
             .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
 
         let spectral_error = s.iter().fold(0.0f64, |acc, &x| acc.max(x));
@@ -467,7 +467,7 @@ impl ProgressiveRBFSampler {
     fn compute_effective_rank(&self, x_transformed: &Array2<f64>) -> Result<f64> {
         // Compute SVD of transformed data
         let (_, s, _) = x_transformed
-            .svd(true, true)
+            .svd(true)
             .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
 
         // Compute effective rank using entropy
@@ -774,7 +774,7 @@ impl ProgressiveNystroem {
     /// Compute effective rank (same as RBF sampler)
     fn compute_effective_rank(&self, x_transformed: &Array2<f64>) -> Result<f64> {
         let (_, s, _) = x_transformed
-            .svd(true, true)
+            .svd(true)
             .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
 
         let s_sum = s.sum();

@@ -7,7 +7,7 @@
 
 State-of-the-art multiclass classification strategies for Rust, providing 5-15x performance improvements over scikit-learn while maintaining API familiarity.
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -143,14 +143,14 @@ sklears-multiclass/
 
 ## Roadmap
 
-### v1.0 (August 2025)
+### v1.0 (August 2026)
 - [x] Core multiclass strategies
 - [x] Advanced ensemble methods
 - [x] Calibration framework
 - [ ] GPU acceleration
 - [ ] External ML framework integration
 
-### v1.1 (Q4 2025)
+### v1.1 (Q4 2026)
 - [ ] Deep learning integration
 - [ ] Meta-learning support
 - [ ] Federated learning
@@ -175,8 +175,8 @@ If you use this crate in your research, please cite:
 ```bibtex
 @software{sklears_multiclass,
   title = {sklears-multiclass: High-Performance Multiclass Classification for Rust},
-  author = {Cool Japan Team},
-  year = {2025},
+  author = {COOLJAPAN OU (Team KitaSan)},
+  year = {2026},
   url = {https://github.com/cool-japan/sklears}
 }
 ```

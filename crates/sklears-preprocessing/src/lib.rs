@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(deprecated)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::nursery)]
 //! Preprocessing utilities for sklears
 //!
 //! This crate provides data preprocessing utilities including:

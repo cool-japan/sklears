@@ -3,6 +3,7 @@
 //! This module provides implementations of efficient isotonic regression algorithms
 //! that achieve O(n log n) time complexity using advanced data structures.
 
+use crate::utils::safe_float_cmp;
 use crate::core::LossFunction;
 use scirs2_core::ndarray::Array1;
 use sklears_core::{

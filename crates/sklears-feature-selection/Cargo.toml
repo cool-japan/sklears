@@ -25,6 +25,7 @@ scirs2-optimize = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
+oxicode = { workspace = true, optional = true }
 num_cpus = { workspace = true }
 rayon = { workspace = true }
 statrs = "0.18"
@@ -37,7 +38,7 @@ criterion = { workspace = true }
 
 [features]
 default = []
-serde = ["dep:serde", "dep:serde_json", "sklears-core/serde"]
+serde = ["dep:serde", "dep:serde_json", "dep:oxicode", "sklears-core/serde"]
 
 [[bench]]
 name = "feature_selection_benchmarks"

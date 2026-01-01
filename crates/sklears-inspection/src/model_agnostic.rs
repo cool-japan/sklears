@@ -161,7 +161,11 @@ impl Default for ModelAgnosticConfig {
     }
 }
 
+/// Explain a model agnostically using multiple techniques
 ///
+/// # Examples
+///
+/// ```ignore
 /// let predict_fn = |x: &scirs2_core::ndarray::ArrayView2<f64>| -> Vec<f64> {
 ///     x.rows().into_iter()
 ///         .map(|row| row.iter().sum::<f64>() / row.len() as f64)

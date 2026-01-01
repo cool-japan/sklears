@@ -928,8 +928,11 @@ impl DistributedMetricsComputer {
         // Apply compression if enabled (simulate data transfer compression)
         let compression_stats = if self.config.compression != CompressionMethod::None {
             // Simulate compressing the accumulated data
-            let data_to_compress = bincode::serialize(&final_accumulator)
-                .map_err(|e| MetricsError::InvalidInput(format!("Serialization error: {}", e)))?;
+            let data_to_compress =
+                oxicode::serde::encode_to_vec(&final_accumulator, oxicode::config::standard())
+                    .map_err(|e| {
+                        MetricsError::InvalidInput(format!("Serialization error: {}", e))
+                    })?;
 
             let (_compressed, stats) =
                 CompressionUtilities::compress(&data_to_compress, self.config.compression)?;
@@ -1169,12 +1172,14 @@ impl DistributedMetricsComputer {
             .flat_map(|(_, chunk)| {
                 chunk
                     .iter()
-                    .filter_map(|(name, compute): &(&str, Box<dyn Fn() -> MetricsResult<f64> + Send>)| {
-                        match compute() {
-                            Ok(value) => Some((name.to_string(), value)),
-                            Err(_) => None,
-                        }
-                    })
+                    .filter_map(
+                        |(name, compute): &(&str, Box<dyn Fn() -> MetricsResult<f64> + Send>)| {
+                            match compute() {
+                                Ok(value) => Some((name.to_string(), value)),
+                                Err(_) => None,
+                            }
+                        },
+                    )
                     .collect::<Vec<_>>()
             })
             .collect();

@@ -28,7 +28,7 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.18", features = ["v4", "serde"] }
+uuid = { version = "1.19", features = ["v4", "serde"] }
 rayon = { workspace = true, optional = true }
 num_cpus = { workspace = true, optional = true }
 memmap2 = { version = "0.9", optional = true }
@@ -42,7 +42,7 @@ console_error_panic_hook = { version = "0.1", optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
-tempfile = "3.23"
+tempfile = { workspace = true }
 tokio = { version = "1.47", features = ["rt", "rt-multi-thread", "macros"] }
 
 [features]

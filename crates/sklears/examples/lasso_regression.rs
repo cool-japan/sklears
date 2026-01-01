@@ -4,7 +4,7 @@
 //! and automatic feature selection.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears::linear::LinearRegression;
 use sklears::metrics::regression::r2_score;
 use sklears::prelude::*;

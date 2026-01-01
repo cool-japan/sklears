@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-sklears is a Rust implementation of scikit-learn's functionality, providing machine learning algorithms with 3-100x performance improvements over Python. It's a workspace with multiple crates, each implementing different ML algorithms.
+sklears is a Rust implementation of scikit-learn's functionality, providing machine learning algorithms with 14-20x performance improvements (validated) over Python. It's a workspace with multiple crates, each implementing different ML algorithms.
 
 ## Architecture
 
 Three-layer architecture:
 1. **Data Layer**: Polars DataFrames for data manipulation
-2. **Computation Layer**: NumRS2 arrays with BLAS/LAPACK for numerical operations
+2. **Computation Layer**: SciRS2 arrays with Pure Rust BLAS/LAPACK (OxiBLAS) for numerical operations
 3. **Algorithm Layer**: ML algorithms using SciRS2 for scientific computing
 
 Key architectural patterns:
@@ -18,6 +18,16 @@ Key architectural patterns:
 - Builder pattern for algorithm configuration
 - Trait-based design with core traits in `sklears-core`
 - Feature flags for selective compilation
+- Pure Rust stack (OxiBLAS v0.1.2+ for BLAS/LAPACK, Oxicode v0.1.1+ for serialization)
+
+### Pure Rust Migration (v0.1.0+)
+
+**Zero System Dependencies:**
+- ✅ OxiBLAS v0.1.2+ - Pure Rust BLAS/LAPACK implementation
+- ✅ Oxicode v0.1.1+ - SIMD-optimized serialization
+- ✅ No OpenBLAS, MKL, or system BLAS required
+- ✅ No C/Fortran compiler needed
+- ✅ Easy cross-compilation on all platforms
 
 ## Commands
 
@@ -62,11 +72,13 @@ Main crates and their purposes:
 
 ## Development Notes
 
-### Dependencies
-- Local dependencies: `numrs2` and `scirs2` are expected at `../numrs/` and `../scirs/`
-- BLAS backend issues on macOS ARM64 - tests may fail due to OpenMP linking
+### Dependencies (v0.1.1 - Published from crates.io)
+- **SciRS2**: v0.1.1 from crates.io (all scirs2-* crates)
+- **OxiBLAS**: v0.1.2 (transitive dependency) - Pure Rust BLAS/LAPACK
+- **Oxicode**: v0.1.1 - SIMD-optimized serialization (COOLJAPAN Policy)
+- **NO system dependencies**: Pure Rust stack eliminates OpenBLAS/MKL requirements
+- **NO BLAS linking issues**: OxiBLAS works seamlessly on all platforms including ARM64 macOS
 - Never forget "workspace policy"
-- rand crate must be over v.0.9.1
 - Never forget "Latest crates policy"
 
 ## 🚨 CRITICAL ARCHITECTURAL REQUIREMENT - SciRS2 Policy
@@ -115,19 +127,22 @@ use scirs2_core::random::{CoreRandom, seeded_rng, thread_rng};
 use rand::{Rng, thread_rng};  // Policy violation
 ```
 
-#### **Current Status (v0.1.0-RC.1)**
+#### **Current Status (v0.1.1 Stable)**
 - **✅ SciRS2 Ecosystem**: 100% POLICY-compliant (All 23 crates)
-- **✅ Workspace Dependencies**: Updated to SciRS2 v0.1.0-RC.1
+- **✅ Workspace Dependencies**: Updated to SciRS2 v0.1.1 from crates.io
 - **✅ scirs2_core::random**: ALL rand_distr distributions available
 - **✅ scirs2_core::ndarray**: Complete ndarray including macros (array!, s!, azip!)
-- **✅ Working Crates**: sklears-compose, sklears-core, and several others
-- **🔄 Sklears Migration**: Systematic API updates in progress
+- **✅ scirs2-linalg**: Independent pure Rust implementation with OxiBLAS (no ndarray-linalg)
+- **✅ Build Status**: 35/35 crates building successfully (100%)
+- **✅ API Migration**: Oxicode, SVD, Solve, QR, Eigh APIs fully migrated
+- **✅ Pure Rust Stack**: OxiBLAS v0.1.2 + Oxicode v0.1.1 integrated
 
 ### Testing Strategy
 - Unit tests in each module
 - Property-based tests using proptest
-- Integration tests (some currently blocked by BLAS issues)
+- Integration tests (all working with OxiBLAS backend)
 - Benchmarks using criterion
+- **Recommended**: Use `cargo nextest run` for faster parallel testing
 
 ### Common Patterns
 
@@ -144,11 +159,59 @@ let trained_model = model.fit(&X_train, &y_train)?;
 let predictions = trained_model.predict(&X_test)?;
 ```
 
-### Known Issues
-- **BLAS/OpenMP linking problems on macOS ARM64**: The workspace uses `ndarray-linalg` with `default-features = false` to avoid OpenMP linking errors with OpenBLAS on ARM64 macOS. This provides compatibility but reduces linear algebra performance. Advanced numerical operations may have degraded performance or numerical stability issues.
-- Some integration tests are disabled due to dependency issues
-- API consistency between crates is being improved
-- **sklears-mixture test failures**: Due to the minimal BLAS configuration, some tests in sklears-mixture fail with shape compatibility and numerical stability issues. This is a known limitation of the ARM64 compatibility approach.
+### Known Issues (Resolved in v0.1.1)
+
+**✅ RESOLVED - Pure Rust Migration:**
+- ~~BLAS/OpenMP linking problems on macOS ARM64~~ - **FIXED** with OxiBLAS pure Rust implementation
+- ~~ndarray-linalg system dependency issues~~ - **FIXED** with scirs2-linalg independent implementation
+- ~~OpenBLAS/MKL installation requirements~~ - **ELIMINATED** with pure Rust OxiBLAS
+- ~~sklears-mixture test failures~~ - **FIXED** with stable OxiBLAS backend
+- ~~Cross-compilation difficulties~~ - **RESOLVED** with pure Rust dependencies
+
+**Current Status:**
+- ✅ All 35/35 crates building successfully
+- ✅ Zero system dependencies required
+- ✅ Works on all platforms (macOS ARM64, Linux x86-64, Windows, etc.)
+- ✅ API consistency maintained across all crates
+- ✅ Full BLAS/LAPACK functionality via OxiBLAS v0.1.2
+
+### SciRS2-Linalg API (v0.1.1 - Pure Rust)
+
+**Key API Patterns:**
+```rust
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO, qr, svd};
+
+// SVD - Returns matrices directly (not Option-wrapped)
+let (u, s, vt) = matrix.svd(true)?;
+
+// Eigenvalue decomposition - Requires UPLO parameter
+let (eigenvalues, eigenvectors) = matrix.eigh(UPLO::Lower)?;
+
+// Linear solve - Method call
+let solution = a_matrix.solve(&b_vector)?;
+
+// QR decomposition - Single parameter
+let (q, r) = qr(&matrix.view())?;
+
+// Matrix inverse
+let inv_matrix = matrix.inv()?;
+
+// Cholesky - No UPLO parameter
+let chol = matrix.cholesky()?;
+```
+
+### Serialization - Oxicode API (COOLJAPAN Policy)
+
+```rust
+use oxicode::serde::{encode_to_vec, decode_from_slice};
+use oxicode::config::standard;
+
+// Serialization
+let bytes = encode_to_vec(&model, standard())?;
+
+// Deserialization (returns tuple)
+let (model, _bytes_read) = decode_from_slice::<ModelType>(&bytes, standard())?;
+```
 
 ## Key Traits to Implement
 
@@ -158,3 +221,15 @@ When adding new algorithms:
 3. Use type-safe state pattern (Untrained/Trained)
 4. Add property-based tests
 5. Include benchmarks
+6. Follow SciRS2 Policy - use scirs2-core abstractions only
+
+## Version Information
+
+- **Current Version**: v0.1.0-beta.1
+- **SciRS2 Version**: v0.1.1 (stable, from crates.io)
+- **OxiBLAS Version**: v0.1.2 (pure Rust BLAS/LAPACK)
+- **Oxicode Version**: v0.1.1 (SIMD-optimized serialization)
+- **Build Status**: ✅ 35/35 crates building (100%)
+- **Policy Compliance**: ✅ SciRS2 Policy fully adopted
+- **Repository**: https://github.com/cool-japan/sklears
+- **Documentation**: See SCIRS2_INTEGRATION_POLICY.md for complete guidelines

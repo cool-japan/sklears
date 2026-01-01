@@ -2,7 +2,7 @@
 
 This module provides comprehensive trait exploration and analysis capabilities for the sklears-core crate. It's designed as a modular system following the 2000-line policy for maintainable code organization.
 
-> **Latest release:** `0.1.0-alpha.2` (December 22, 2025). See the [workspace release notes](../../../../docs/releases/0.1.0-alpha.2.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
 ## Module Structure
 
