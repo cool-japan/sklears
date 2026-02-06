@@ -58,7 +58,9 @@ impl MemoryBlock {
         }
 
         Ok(Self {
-            ptr: NonNull::new(ptr).unwrap(),
+            ptr: NonNull::new(ptr).ok_or_else(|| {
+                MemoryPoolError::AllocationFailed("NonNull creation failed".to_string())
+            })?,
             size,
             layout,
             allocated_at: std::time::Instant::now(),
@@ -99,6 +101,13 @@ impl Drop for MemoryBlock {
         }
     }
 }
+
+// Safety: MemoryBlock owns the memory pointed to by ptr (like Box<[u8]>).
+// The pointer represents uniquely owned memory, and all access is protected
+// by RwLock synchronization in the pool. There is no concurrent unsynchronized
+// access to the underlying memory.
+unsafe impl Send for MemoryBlock {}
+unsafe impl Sync for MemoryBlock {}
 
 /// Memory pool configuration
 #[derive(Debug, Clone)]
@@ -190,21 +199,21 @@ impl SizeBucket {
         &mut self,
         pool_id: usize,
         config: &MemoryPoolConfig,
-    ) -> MemoryPoolResult<(usize, *mut u8)> {
-        let block = if let Some(block) = self.available.pop_front() {
-            block
+    ) -> MemoryPoolResult<(usize, *mut u8, bool)> {
+        let (block, was_reused) = if let Some(block) = self.available.pop_front() {
+            (block, true)
         } else {
             // Create new block
             let block = MemoryBlock::new(self.size, config.alignment, pool_id)?;
             self.total_created += 1;
-            block
+            (block, false)
         };
 
         let ptr = block.ptr.as_ptr();
         let block_id = ptr as usize;
         self.allocated.insert(block_id, block);
 
-        Ok((block_id, ptr))
+        Ok((block_id, ptr, was_reused))
     }
 
     fn deallocate(&mut self, block_id: usize, enable_reuse: bool) -> MemoryPoolResult<()> {
@@ -261,12 +270,13 @@ pub struct MemoryPool {
 impl MemoryPool {
     /// Create a new memory pool
     pub fn new(config: MemoryPoolConfig) -> Self {
+        let max_idle_time = config.max_idle_time;
         Self {
             config,
             buckets: RwLock::new(HashMap::new()),
             stats: RwLock::new(MemoryPoolStats::default()),
             pool_id: 0, // TODO: implement proper pool ID generation
-            next_cleanup: Mutex::new(std::time::Instant::now() + config.max_idle_time),
+            next_cleanup: Mutex::new(std::time::Instant::now() + max_idle_time),
         }
     }
 
@@ -279,8 +289,11 @@ impl MemoryPool {
         // Round up to nearest power of 2 for better bucketing
         let bucket_size = size.next_power_of_two().max(64);
 
-        let (block_id, ptr) = {
-            let mut buckets = self.buckets.write().unwrap();
+        let (block_id, ptr, was_reused) = {
+            let mut buckets = self
+                .buckets
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             let bucket = buckets
                 .entry(bucket_size)
                 .or_insert_with(|| SizeBucket::new(bucket_size));
@@ -295,7 +308,10 @@ impl MemoryPool {
 
         // Update statistics
         if self.config.enable_stats {
-            let mut stats = self.stats.write().unwrap();
+            let mut stats = self
+                .stats
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             stats.total_allocations += 1;
             stats.current_allocations += 1;
             stats.peak_allocations = stats.peak_allocations.max(stats.current_allocations);
@@ -304,6 +320,12 @@ impl MemoryPool {
             stats.peak_bytes_allocated = stats
                 .peak_bytes_allocated
                 .max(stats.current_bytes_allocated);
+
+            if was_reused {
+                stats.blocks_reused += 1;
+            } else {
+                stats.blocks_created += 1;
+            }
 
             if bucket_size != size {
                 stats.pool_hits += 1;
@@ -328,7 +350,10 @@ impl MemoryPool {
         let bucket_size = size.next_power_of_two().max(64);
 
         {
-            let mut buckets = self.buckets.write().unwrap();
+            let mut buckets = self
+                .buckets
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             if let Some(bucket) = buckets.get_mut(&bucket_size) {
                 bucket.deallocate(block_id, self.config.enable_reuse)?;
             } else {
@@ -338,7 +363,10 @@ impl MemoryPool {
 
         // Update statistics
         if self.config.enable_stats {
-            let mut stats = self.stats.write().unwrap();
+            let mut stats = self
+                .stats
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             stats.total_deallocations += 1;
             stats.current_allocations = stats.current_allocations.saturating_sub(1);
             stats.current_bytes_allocated =
@@ -351,7 +379,10 @@ impl MemoryPool {
     /// Get pool statistics
     pub fn stats(&self) -> MemoryPoolStats {
         if self.config.enable_stats {
-            self.stats.read().unwrap().clone()
+            self.stats
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .clone()
         } else {
             MemoryPoolStats::default()
         }
@@ -360,14 +391,21 @@ impl MemoryPool {
     /// Force cleanup of idle blocks
     pub fn cleanup(&self) -> usize {
         let mut total_removed = 0;
-        let mut buckets = self.buckets.write().unwrap();
+        let mut buckets = self
+            .buckets
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         for bucket in buckets.values_mut() {
             total_removed += bucket.cleanup_idle(self.config.max_idle_time);
         }
 
         // Update next cleanup time
-        *self.next_cleanup.lock().unwrap() = std::time::Instant::now() + self.config.max_idle_time;
+        *self
+            .next_cleanup
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            std::time::Instant::now() + self.config.max_idle_time;
 
         total_removed
     }
@@ -376,7 +414,10 @@ impl MemoryPool {
     fn maybe_cleanup(&self) {
         let now = std::time::Instant::now();
         let should_cleanup = {
-            let next_cleanup = self.next_cleanup.lock().unwrap();
+            let next_cleanup = self
+                .next_cleanup
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             now >= *next_cleanup
         };
 
@@ -407,7 +448,10 @@ impl MemoryPool {
 
     /// Get bucket information for debugging
     pub fn bucket_info(&self) -> Vec<(usize, usize, usize)> {
-        let buckets = self.buckets.read().unwrap();
+        let buckets = self
+            .buckets
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         buckets
             .iter()
             .map(|(size, bucket)| (*size, bucket.available.len(), bucket.allocated.len()))
@@ -480,7 +524,7 @@ impl PooledArray2 {
     }
 
     /// Get mutable array view
-    pub fn view_mut(&mut self) -> MemoryPoolResult<ArrayViewMut2<f64>> {
+    pub fn view_mut(&mut self) -> MemoryPoolResult<ArrayViewMut2<'_, f64>> {
         let slice = self.block.as_f64_slice_mut()?;
         ArrayViewMut2::from_shape((self.nrows, self.ncols), slice)
             .map_err(|e| MemoryPoolError::AllocationFailed(format!("Shape error: {}", e)))
@@ -489,10 +533,12 @@ impl PooledArray2 {
     /// Convert to owned Array2
     pub fn to_array(mut self) -> MemoryPoolResult<Array2<f64>> {
         let slice = self.block.as_f64_slice_mut()?;
-        let array =
-            Array2::from_shape_vec((self.nrows, self.ncols), slice.to_vec()).map_err(|e| {
-                MemoryPoolError::AllocationFailed(format!("Array creation error: {}", e))
-            })?;
+        let total_elements = self.nrows * self.ncols;
+        // Only use the requested number of elements, not the full allocated block
+        let data = slice[..total_elements].to_vec();
+        let array = Array2::from_shape_vec((self.nrows, self.ncols), data).map_err(|e| {
+            MemoryPoolError::AllocationFailed(format!("Array creation error: {}", e))
+        })?;
         Ok(array)
     }
 }
@@ -515,7 +561,7 @@ impl PooledArray1 {
     }
 
     /// Get mutable array view
-    pub fn view_mut(&mut self) -> MemoryPoolResult<ArrayViewMut1<f64>> {
+    pub fn view_mut(&mut self) -> MemoryPoolResult<ArrayViewMut1<'_, f64>> {
         let slice = self.block.as_f64_slice_mut()?;
         ArrayViewMut1::from_shape(self.len, slice)
             .map_err(|e| MemoryPoolError::AllocationFailed(format!("Shape error: {}", e)))
@@ -524,7 +570,8 @@ impl PooledArray1 {
     /// Convert to owned Array1
     pub fn to_array(mut self) -> MemoryPoolResult<Array1<f64>> {
         let slice = self.block.as_f64_slice_mut()?;
-        let array = Array1::from_vec(slice.to_vec());
+        // Only use the requested number of elements, not the full allocated block
+        let array = Array1::from_vec(slice[..self.len].to_vec());
         Ok(array)
     }
 }
@@ -537,35 +584,30 @@ pub fn create_shared_pool(config: MemoryPoolConfig) -> SharedMemoryPool {
     Arc::new(MemoryPool::new(config))
 }
 
-/// Global memory pool instance
-// TODO: Fix thread safety issues with NonNull<u8> in MemoryBlock
-// lazy_static::lazy_static! {
-//     static ref GLOBAL_POOL: SharedMemoryPool = create_shared_pool(MemoryPoolConfig::default());
-// }
+lazy_static::lazy_static! {
+    /// Global memory pool instance
+    static ref GLOBAL_POOL: SharedMemoryPool = create_shared_pool(MemoryPoolConfig::default());
+}
 
 /// Get the global memory pool
-// TODO: Temporarily disabled due to thread safety issues
-// pub fn global_pool() -> &'static SharedMemoryPool {
-//     &GLOBAL_POOL
-// }
+pub fn global_pool() -> &'static SharedMemoryPool {
+    &GLOBAL_POOL
+}
 
 /// Convenience function to allocate from global pool
-// TODO: Temporarily disabled due to thread safety issues
-// pub fn allocate_global(size: usize) -> MemoryPoolResult<PooledBlock> {
-//     global_pool().allocate(size)
-// }
+pub fn allocate_global(size: usize) -> MemoryPoolResult<PooledBlock> {
+    global_pool().allocate(size)
+}
 
 /// Convenience function to allocate 2D array from global pool
-// TODO: Temporarily disabled due to thread safety issues
-// pub fn allocate_array2_global(nrows: usize, ncols: usize) -> MemoryPoolResult<PooledArray2> {
-//     global_pool().allocate_array2(nrows, ncols)
-// }
+pub fn allocate_array2_global(nrows: usize, ncols: usize) -> MemoryPoolResult<PooledArray2> {
+    global_pool().allocate_array2(nrows, ncols)
+}
 
 /// Convenience function to allocate 1D array from global pool
-// TODO: Temporarily disabled due to thread safety issues
-// pub fn allocate_array1_global(len: usize) -> MemoryPoolResult<PooledArray1> {
-//     global_pool().allocate_array1(len)
-// }
+pub fn allocate_array1_global(len: usize) -> MemoryPoolResult<PooledArray1> {
+    global_pool().allocate_array1(len)
+}
 
 #[allow(non_snake_case)]
 #[cfg(test)]
@@ -689,10 +731,10 @@ mod tests {
         slice[0] = 255;
         assert_eq!(slice[0], 255);
 
-        let mut array2 = allocate_array2_global(10, 20)?;
+        let array2 = allocate_array2_global(10, 20)?;
         assert_eq!(array2.dim(), (10, 20));
 
-        let mut array1 = allocate_array1_global(100)?;
+        let array1 = allocate_array1_global(100)?;
         assert_eq!(array1.len(), 100);
 
         Ok(())

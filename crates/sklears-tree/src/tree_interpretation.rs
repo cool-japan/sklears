@@ -1319,7 +1319,9 @@ impl AnchorExplainer {
             }
 
             // Sort by score and keep top beam_width candidates
-            new_candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            new_candidates.sort_by(|a, b| {
+                b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+            });
             new_candidates.truncate(self.beam_width);
 
             // Check if any candidate meets the precision threshold
@@ -1333,7 +1335,9 @@ impl AnchorExplainer {
         }
 
         // Return the best candidate found
-        beam.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        beam.sort_by(|a, b| {
+            b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(beam.into_iter().next().unwrap_or(AnchorCandidate {
             predicates: vec![],
             precision: 0.0,

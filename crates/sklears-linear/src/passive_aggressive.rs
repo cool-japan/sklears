@@ -14,6 +14,19 @@ use sklears_core::{
     types::{Float, Int},
 };
 
+// Helper function for NaN-safe float comparison
+fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b)
+        .ok_or_else(|| SklearsError::InvalidInput("NaN encountered in comparison".to_string()))
+}
+
+// Helper function for safe mean computation
+fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean().ok_or_else(|| {
+        SklearsError::InvalidInput("Mean computation failed (empty array)".to_string())
+    })
+}
+
 /// Configuration for PassiveAggressiveClassifier
 #[derive(Debug, Clone)]
 pub struct PassiveAggressiveClassifierConfig {
@@ -289,23 +302,30 @@ impl Fit<Array2<Float>, Array1<Int>> for PassiveAggressiveClassifier<Untrained> 
 
 impl Predict<Array2<Float>, Array1<Int>> for PassiveAggressiveClassifier<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Int>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state");
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .expect("intercept_ must be Some in Trained state");
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ must be Some in Trained state");
 
         let scores = x.dot(&coef.t()) + intercept;
-        let predictions = scores
-            .axis_iter(Axis(0))
-            .map(|row| {
-                let max_idx = row
-                    .iter()
-                    .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .map(|(idx, _)| idx)
-                    .unwrap();
-                classes[max_idx]
-            })
-            .collect();
+        let mut predictions = Vec::with_capacity(scores.nrows());
+        for row in scores.axis_iter(Axis(0)) {
+            let max_idx = row
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(idx, _)| idx)
+                .ok_or_else(|| SklearsError::InvalidInput("Empty row in scores".to_string()))?;
+            predictions.push(classes[max_idx]);
+        }
 
         Ok(Array1::from_vec(predictions))
     }
@@ -329,7 +349,9 @@ impl Score<Array2<Float>, Array1<Int>> for PassiveAggressiveClassifier<Trained> 
 impl PassiveAggressiveClassifier<Trained> {
     /// Get the coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state")
     }
 
     /// Get the intercept
@@ -339,12 +361,14 @@ impl PassiveAggressiveClassifier<Trained> {
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ must be Some in Trained state")
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("n_iter_ must be Some in Trained state")
     }
 }
 
@@ -596,8 +620,13 @@ impl Fit<Array2<Float>, Array1<Float>> for PassiveAggressiveRegressor<Untrained>
 
 impl Predict<Array2<Float>, Array1<Float>> for PassiveAggressiveRegressor<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ must be Some in Trained state");
 
         Ok(x.dot(coef) + intercept)
     }
@@ -609,7 +638,7 @@ impl Score<Array2<Float>, Array1<Float>> for PassiveAggressiveRegressor<Trained>
     fn score(&self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Float> {
         let predictions = self.predict(x)?;
         let ss_res = (y - &predictions).mapv(|e| e * e).sum();
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean(y)?;
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
 
         Ok(1.0 - ss_res / ss_tot)
@@ -619,17 +648,22 @@ impl Score<Array2<Float>, Array1<Float>> for PassiveAggressiveRegressor<Trained>
 impl PassiveAggressiveRegressor<Trained> {
     /// Get the coefficients
     pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> Option<Float> {
-        Some(self.intercept_.unwrap())
+        Some(
+            self.intercept_
+                .expect("intercept_ must be Some in Trained state"),
+        )
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("n_iter_ must be Some in Trained state")
     }
 }
 

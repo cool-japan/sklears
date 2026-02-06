@@ -1282,7 +1282,7 @@ mod tests {
         let x2 = vec![0.0, 1.0, 1.0, 0.0];
 
         let kernel_value = quantum.quantum_kernel(&x1, &x2).unwrap();
-        assert!(kernel_value >= 0.0 && kernel_value <= 1.0);
+        assert!((0.0..=1.0).contains(&kernel_value));
     }
 
     #[test]

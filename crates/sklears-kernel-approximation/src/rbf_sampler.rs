@@ -116,7 +116,9 @@ impl Fit<Array2<Float>, ()> for RBFSampler<Untrained> {
         };
 
         // Sample random weights from N(0, 2*gamma)
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create normal distribution".to_string())
+        })?;
         let mut random_weights = Array2::zeros((n_features, self.n_components));
         for mut col in random_weights.columns_mut() {
             for val in col.iter_mut() {
@@ -125,7 +127,9 @@ impl Fit<Array2<Float>, ()> for RBFSampler<Untrained> {
         }
 
         // Sample random offsets from Uniform(0, 2π)
-        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create uniform distribution".to_string())
+        })?;
         let mut random_offset = Array1::zeros(self.n_components);
         for val in random_offset.iter_mut() {
             *val = rng.sample(uniform);
@@ -145,8 +149,14 @@ impl Fit<Array2<Float>, ()> for RBFSampler<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for RBFSampler<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let weights = self.random_weights_.as_ref().unwrap();
-        let offset = self.random_offset_.as_ref().unwrap();
+        let weights = self
+            .random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
+        let offset = self
+            .random_offset_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
 
         if n_features != weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -169,13 +179,17 @@ impl Transform<Array2<Float>, Array2<Float>> for RBFSampler<Trained> {
 
 impl RBFSampler<Trained> {
     /// Get the random weights
-    pub fn random_weights(&self) -> &Array2<Float> {
-        self.random_weights_.as_ref().unwrap()
+    pub fn random_weights(&self) -> Result<&Array2<Float>> {
+        self.random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 
     /// Get the random offset
-    pub fn random_offset(&self) -> &Array1<Float> {
-        self.random_offset_.as_ref().unwrap()
+    pub fn random_offset(&self) -> Result<&Array1<Float>> {
+        self.random_offset_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 }
 
@@ -282,7 +296,9 @@ impl Fit<Array2<Float>, ()> for LaplacianSampler<Untrained> {
         };
 
         // Sample random weights from Cauchy distribution (location=0, scale=gamma)
-        let cauchy = Cauchy::new(0.0, self.gamma).unwrap();
+        let cauchy = Cauchy::new(0.0, self.gamma).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create Cauchy distribution".to_string())
+        })?;
         let mut random_weights = Array2::zeros((n_features, self.n_components));
         for mut col in random_weights.columns_mut() {
             for val in col.iter_mut() {
@@ -291,7 +307,9 @@ impl Fit<Array2<Float>, ()> for LaplacianSampler<Untrained> {
         }
 
         // Sample random offsets from Uniform(0, 2π)
-        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create uniform distribution".to_string())
+        })?;
         let mut random_offset = Array1::zeros(self.n_components);
         for val in random_offset.iter_mut() {
             *val = rng.sample(uniform);
@@ -311,8 +329,14 @@ impl Fit<Array2<Float>, ()> for LaplacianSampler<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for LaplacianSampler<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let weights = self.random_weights_.as_ref().unwrap();
-        let offset = self.random_offset_.as_ref().unwrap();
+        let weights = self
+            .random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
+        let offset = self
+            .random_offset_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
 
         if n_features != weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -335,13 +359,17 @@ impl Transform<Array2<Float>, Array2<Float>> for LaplacianSampler<Trained> {
 
 impl LaplacianSampler<Trained> {
     /// Get the random weights
-    pub fn random_weights(&self) -> &Array2<Float> {
-        self.random_weights_.as_ref().unwrap()
+    pub fn random_weights(&self) -> Result<&Array2<Float>> {
+        self.random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 
     /// Get the random offset
-    pub fn random_offset(&self) -> &Array1<Float> {
-        self.random_offset_.as_ref().unwrap()
+    pub fn random_offset(&self) -> Result<&Array1<Float>> {
+        self.random_offset_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 }
 
@@ -475,7 +503,9 @@ impl Fit<Array2<Float>, ()> for PolynomialSampler<Untrained> {
 
         // For polynomial kernels, we use a different approach:
         // Sample random projections from uniform sphere and scaling factors
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create normal distribution".to_string())
+        })?;
         let mut random_weights = Array2::zeros((n_features, self.n_components));
 
         for mut col in random_weights.columns_mut() {
@@ -493,7 +523,9 @@ impl Fit<Array2<Float>, ()> for PolynomialSampler<Untrained> {
         }
 
         // Sample random offsets from Uniform(0, 2π)
-        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create uniform distribution".to_string())
+        })?;
         let mut random_offset = Array1::zeros(self.n_components);
         for val in random_offset.iter_mut() {
             *val = rng.sample(uniform);
@@ -515,8 +547,14 @@ impl Fit<Array2<Float>, ()> for PolynomialSampler<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for PolynomialSampler<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let weights = self.random_weights_.as_ref().unwrap();
-        let offset = self.random_offset_.as_ref().unwrap();
+        let weights = self
+            .random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
+        let offset = self
+            .random_offset_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
 
         if n_features != weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -543,13 +581,17 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialSampler<Trained> {
 
 impl PolynomialSampler<Trained> {
     /// Get the random weights
-    pub fn random_weights(&self) -> &Array2<Float> {
-        self.random_weights_.as_ref().unwrap()
+    pub fn random_weights(&self) -> Result<&Array2<Float>> {
+        self.random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 
     /// Get the random offset
-    pub fn random_offset(&self) -> &Array1<Float> {
-        self.random_offset_.as_ref().unwrap()
+    pub fn random_offset(&self) -> Result<&Array1<Float>> {
+        self.random_offset_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 
     /// Get the gamma parameter
@@ -671,7 +713,9 @@ impl Fit<Array2<Float>, ()> for ArcCosineSampler<Untrained> {
         };
 
         // Sample random weights from standard normal distribution
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).map_err(|_| {
+            SklearsError::InvalidInput("Failed to create normal distribution".to_string())
+        })?;
         let mut random_weights = Array2::zeros((n_features, self.n_components));
 
         for mut col in random_weights.columns_mut() {
@@ -693,7 +737,10 @@ impl Fit<Array2<Float>, ()> for ArcCosineSampler<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for ArcCosineSampler<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let weights = self.random_weights_.as_ref().unwrap();
+        let weights = self
+            .random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))?;
 
         if n_features != weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -730,8 +777,10 @@ impl Transform<Array2<Float>, Array2<Float>> for ArcCosineSampler<Trained> {
 
 impl ArcCosineSampler<Trained> {
     /// Get the random weights
-    pub fn random_weights(&self) -> &Array2<Float> {
-        self.random_weights_.as_ref().unwrap()
+    pub fn random_weights(&self) -> Result<&Array2<Float>> {
+        self.random_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::InvalidInput("Model not fitted".to_string()))
     }
 
     /// Get the degree parameter

@@ -94,7 +94,7 @@ impl<F: NdFloat + FromPrimitive> Default for BayesianCovarianceConfig<F> {
             method: BayesianMethod::InverseWishart,
             prior: BayesianPrior {
                 scale_matrix: Array2::eye(1),
-                degrees_of_freedom: F::from(2.0).unwrap(),
+                degrees_of_freedom: F::from(2.0).unwrap_or_else(|| F::one() + F::one()),
                 prior_mean: None,
                 hyperparameters: vec![],
             },
@@ -102,16 +102,30 @@ impl<F: NdFloat + FromPrimitive> Default for BayesianCovarianceConfig<F> {
                 n_samples: 1000,
                 burn_in: 200,
                 thin: 1,
-                proposal_scale: F::from(0.1).unwrap(),
+                proposal_scale: F::from(0.1).unwrap_or_else(|| {
+                    F::one()
+                        / (F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one()
+                            + F::one())
+                }),
                 random_state: None,
             }),
             variational_config: Some(VariationalConfig {
                 max_iter: 100,
-                tol: F::from(1e-6).unwrap(),
-                learning_rate: F::from(0.01).unwrap(),
+                tol: F::from(1e-6).unwrap_or_else(|| F::epsilon()),
+                learning_rate: F::from(0.01).unwrap_or_else(|| {
+                    F::one() / (F::one() + F::one() + F::one() + F::one() + F::one())
+                }),
                 structured_meanfield: false,
             }),
-            regularization: F::from(1e-8).unwrap(),
+            regularization: F::from(1e-8).unwrap_or_else(|| F::epsilon()),
             random_state: None,
         }
     }
@@ -220,15 +234,29 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceFitted<F> {
             for i in 0..n_features {
                 for j in 0..n_features {
                     let mut values: Vec<F> = samples.iter().map(|sample| sample[[i, j]]).collect();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-                    let lower_idx = (lower_percentile * F::from(n_samples).unwrap())
-                        .to_usize()
-                        .unwrap();
-                    let upper_idx = (upper_percentile * F::from(n_samples).unwrap())
-                        .to_usize()
-                        .unwrap()
-                        .min(n_samples - 1);
+                    let lower_idx = (lower_percentile
+                        * F::from(n_samples).ok_or_else(|| {
+                            SklearsError::NumericalError(
+                                "Failed to convert sample count".to_string(),
+                            )
+                        })?)
+                    .to_usize()
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("Failed to convert to usize".to_string())
+                    })?;
+                    let upper_idx = (upper_percentile
+                        * F::from(n_samples).ok_or_else(|| {
+                            SklearsError::NumericalError(
+                                "Failed to convert sample count".to_string(),
+                            )
+                        })?)
+                    .to_usize()
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("Failed to convert to usize".to_string())
+                    })?
+                    .min(n_samples - 1);
 
                     lower_bounds[[i, j]] = values[lower_idx];
                     upper_bounds[[i, j]] = values[upper_idx];
@@ -278,7 +306,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceFitted<F> {
 
     fn compute_sample_covariance(&self, x: &Array2<F>) -> Result<Array2<F>> {
         let (n_samples, n_features) = x.dim();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))?;
 
         let mut cov = Array2::zeros((n_features, n_features));
         for i in 0..n_samples {
@@ -352,7 +382,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         let (n_samples, n_features) = x.dim();
 
         // Compute sample covariance
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))?;
         let mut sample_cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
@@ -501,7 +533,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         let (n_samples, n_features) = x.dim();
 
         // Initialize with sample covariance
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))?;
         let mut sample_cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
@@ -580,7 +614,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         let (n_samples, n_features) = x.dim();
 
         // Compute posterior parameters
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))?;
         let mut sample_cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
@@ -714,7 +750,7 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         // Log likelihood
         let cov_f64 = cov.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_cov_f64 = matrix_determinant(&cov_f64);
-        let det_cov = F::from(det_cov_f64).unwrap_or(F::zero());
+        let det_cov = F::from(det_cov_f64).unwrap_or_else(|| F::zero());
 
         if det_cov <= F::zero() {
             return Ok(F::neg_infinity());
@@ -763,11 +799,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
 
         let cov_f64 = cov.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_cov_f64 = matrix_determinant(&cov_f64);
-        let det_cov = F::from(det_cov_f64).unwrap_or(F::zero());
+        let det_cov = F::from(det_cov_f64).unwrap_or_else(|| F::zero());
 
         let scale_f64 = scale.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_scale_f64 = matrix_determinant(&scale_f64);
-        let det_scale = F::from(det_scale_f64).unwrap_or(F::zero());
+        let det_scale = F::from(det_scale_f64).unwrap_or_else(|| F::zero());
 
         if det_cov <= F::zero() || det_scale <= F::zero() {
             return Ok(F::neg_infinity());
@@ -801,11 +837,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
 
         let prior_scale_f64 = prior_scale.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_prior_f64 = matrix_determinant(&prior_scale_f64);
-        let det_prior = F::from(det_prior_f64).unwrap_or(F::zero());
+        let det_prior = F::from(det_prior_f64).unwrap_or_else(|| F::zero());
 
         let posterior_scale_f64 = posterior_scale.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_posterior_f64 = matrix_determinant(&posterior_scale_f64);
-        let det_posterior = F::from(det_posterior_f64).unwrap_or(F::zero());
+        let det_posterior = F::from(det_posterior_f64).unwrap_or_else(|| F::zero());
 
         if det_prior <= F::zero() || det_posterior <= F::zero() {
             return Ok(F::neg_infinity());
@@ -835,23 +871,26 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
 
         let var_scale_f64 = var_scale.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_var_scale_f64 = matrix_determinant(&var_scale_f64);
-        let det_var_scale = F::from(det_var_scale_f64).unwrap_or(F::zero());
+        let det_var_scale = F::from(det_var_scale_f64).unwrap_or_else(|| F::zero());
 
         let prior_scale_f64 = prior_scale.mapv(|x| x.to_f64().unwrap_or(0.0));
         let det_prior_scale_f64 = matrix_determinant(&prior_scale_f64);
-        let det_prior_scale = F::from(det_prior_scale_f64).unwrap_or(F::zero());
+        let det_prior_scale = F::from(det_prior_scale_f64).unwrap_or_else(|| F::zero());
 
         if det_var_scale <= F::zero() || det_prior_scale <= F::zero() {
             return Ok(F::neg_infinity());
         }
 
         // Expected log likelihood
-        let e_log_det = F::from(n_features).unwrap() * F::from(2.0).unwrap().ln()
+        let e_log_det = F::from(n_features).unwrap_or_else(|| F::zero())
+            * F::from(2.0).unwrap_or_else(|| F::one() + F::one()).ln()
             + det_var_scale.ln()
             - var_df * det_var_scale.ln();
 
         let var_scale_f64 = var_scale.mapv(|x| x.to_f64().unwrap_or(0.0));
-        let inv_var_scale_f64 = matrix_inverse(&var_scale_f64).unwrap();
+        let inv_var_scale_f64 = matrix_inverse(&var_scale_f64).map_err(|_| {
+            SklearsError::NumericalError("Failed to invert variational scale matrix".to_string())
+        })?;
         let inv_var_scale = inv_var_scale_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
         let trace_term = (sample_cov.dot(&inv_var_scale)).diag().sum();
         let expected_log_likelihood = F::from(n_samples).unwrap()

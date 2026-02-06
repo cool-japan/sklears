@@ -5,9 +5,8 @@
 //! the input variables and response variables to a new space that maximizes the
 //! covariance between the projected variables.
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_linalg::compat::ArrayLinalgExt;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -554,16 +553,9 @@ impl MatrixInversion for Array2<f64> {
             ));
         }
 
-        let data: Vec<f64> = self.iter().cloned().collect();
-        let na_matrix = DMatrix::from_row_slice(self.nrows(), self.ncols(), &data);
-
-        let inv_na = na_matrix
-            .try_inverse()
-            .ok_or_else(|| SklearsError::NumericalError("Matrix inversion failed".to_string()))?;
-
-        let inv_data: Vec<f64> = inv_na.iter().cloned().collect();
-        Array2::from_shape_vec((self.nrows(), self.ncols()), inv_data).map_err(|_| {
-            SklearsError::NumericalError("Failed to create inverted matrix".to_string())
+        // Use scirs2-linalg's inv() method
+        self.inv().map_err(|e| {
+            SklearsError::NumericalError(format!("Matrix inversion failed: {}", e))
         })
     }
 }

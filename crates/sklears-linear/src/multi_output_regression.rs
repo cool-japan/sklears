@@ -10,8 +10,8 @@
 //! potentially leveraging correlations between targets for improved performance.
 
 use crate::errors::{LinearModelError, OptimizationError, OptimizationErrorKind};
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector, SVD};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_linalg::compat::ArrayLinalgExt;
 use std::ops::AddAssign;
 
 /// Helper function to create OptimizationError instances
@@ -89,13 +89,13 @@ impl Default for MultiOutputConfig {
 #[derive(Debug, Clone)]
 pub struct MultiOutputResult {
     /// Coefficient matrix (features x targets)
-    pub coefficients: DMatrix<f64>,
+    pub coefficients: Array2<f64>,
     /// Intercept vector (if fitted)
-    pub intercept: Option<DVector<f64>>,
+    pub intercept: Option<Array1<f64>>,
     /// Target correlation matrix (if modeled)
-    pub target_correlations: Option<DMatrix<f64>>,
+    pub target_correlations: Option<Array2<f64>>,
     /// Reduced rank factors (if using reduced rank)
-    pub rank_factors: Option<(DMatrix<f64>, DMatrix<f64>)>,
+    pub rank_factors: Option<(Array2<f64>, Array2<f64>)>,
     /// Chain order used (if chain strategy)
     pub chain_order: Option<Vec<usize>>,
     /// Final training loss
@@ -181,7 +181,7 @@ impl MultiOutputRegression {
     }
 
     /// Fit the model to training data
-    pub fn fit(&mut self, X: &DMatrix<f64>, Y: &DMatrix<f64>) -> Result<(), LinearModelError> {
+    pub fn fit(&mut self, X: &Array2<f64>, Y: &Array2<f64>) -> Result<(), LinearModelError> {
         let n_samples = X.nrows();
         let n_features = X.ncols();
         let n_targets = Y.ncols();
@@ -248,7 +248,7 @@ impl MultiOutputRegression {
     }
 
     /// Predict using the fitted model
-    pub fn predict(&self, X: &DMatrix<f64>) -> Result<DMatrix<f64>, LinearModelError> {
+    pub fn predict(&self, X: &Array2<f64>) -> Result<Array2<f64>, LinearModelError> {
         let result = self.result.as_ref().ok_or_else(|| {
             optimization_error(
                 OptimizationErrorKind::ModelNotFitted,
@@ -287,17 +287,17 @@ impl MultiOutputRegression {
     }
 
     /// Get the model coefficients
-    pub fn coefficients(&self) -> Option<&DMatrix<f64>> {
+    pub fn coefficients(&self) -> Option<&Array2<f64>> {
         self.result.as_ref().map(|r| &r.coefficients)
     }
 
     /// Get the model intercept
-    pub fn intercept(&self) -> Option<&DVector<f64>> {
+    pub fn intercept(&self) -> Option<&Array1<f64>> {
         self.result.as_ref().and_then(|r| r.intercept.as_ref())
     }
 
     /// Get target correlations (if modeled)
-    pub fn target_correlations(&self) -> Option<&DMatrix<f64>> {
+    pub fn target_correlations(&self) -> Option<&Array2<f64>> {
         self.result
             .as_ref()
             .and_then(|r| r.target_correlations.as_ref())
@@ -306,8 +306,8 @@ impl MultiOutputRegression {
     /// Fit independent models for each target
     fn fit_independent(
         &self,
-        X: &DMatrix<f64>,
-        Y: &DMatrix<f64>,
+        X: &Array2<f64>,
+        Y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
         let n_features = X.ncols();
         let n_targets = Y.ncols();
@@ -340,8 +340,8 @@ impl MultiOutputRegression {
     /// Fit joint model with shared regularization
     fn fit_joint(
         &self,
-        X: &DMatrix<f64>,
-        Y: &DMatrix<f64>,
+        X: &Array2<f64>,
+        Y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
         let n_features = X.ncols();
         let n_targets = Y.ncols();
@@ -440,8 +440,8 @@ impl MultiOutputRegression {
     /// Fit chain rule model
     fn fit_chain(
         &self,
-        X: &DMatrix<f64>,
-        Y: &DMatrix<f64>,
+        X: &Array2<f64>,
+        Y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
         let n_targets = Y.ncols();
 
@@ -511,8 +511,8 @@ impl MultiOutputRegression {
     /// Fit reduced rank model
     fn fit_reduced_rank(
         &self,
-        X: &DMatrix<f64>,
-        Y: &DMatrix<f64>,
+        X: &Array2<f64>,
+        Y: &Array2<f64>,
     ) -> Result<MultiOutputResult, LinearModelError> {
         let n_features = X.ncols();
         let n_targets = Y.ncols();
@@ -570,9 +570,9 @@ impl MultiOutputRegression {
     /// Fit a single target variable
     fn fit_single_target(
         &self,
-        X: &DMatrix<f64>,
-        y: &DVector<f64>,
-    ) -> Result<(DVector<f64>, f64, usize, bool), LinearModelError> {
+        X: &Array2<f64>,
+        y: &Array1<f64>,
+    ) -> Result<(Array1<f64>, f64, usize, bool), LinearModelError> {
         let n_features = X.ncols();
         let mut coef = DVector::zeros(n_features);
         let mut converged = false;
@@ -643,8 +643,8 @@ impl MultiOutputRegression {
     /// Compute target correlations
     fn compute_target_correlations(
         &self,
-        Y: &DMatrix<f64>,
-    ) -> Result<DMatrix<f64>, LinearModelError> {
+        Y: &Array2<f64>,
+    ) -> Result<Array2<f64>, LinearModelError> {
         let n_targets = Y.ncols();
         let mut correlations = DMatrix::zeros(n_targets, n_targets);
 
@@ -683,7 +683,7 @@ impl MultiOutputRegression {
     }
 
     /// Auto-determine chain order based on target correlations
-    fn auto_determine_chain_order(&self, Y: &DMatrix<f64>) -> Result<Vec<usize>, LinearModelError> {
+    fn auto_determine_chain_order(&self, Y: &Array2<f64>) -> Result<Vec<usize>, LinearModelError> {
         let correlations = self.compute_target_correlations(Y)?;
         let n_targets = Y.ncols();
 
@@ -836,7 +836,7 @@ mod tests {
     use super::*;
     use nalgebra::{DMatrix, DVector};
 
-    fn create_test_data() -> (DMatrix<f64>, DMatrix<f64>) {
+    fn create_test_data() -> (Array2<f64>, Array2<f64>) {
         let X = DMatrix::from_row_slice(
             5,
             3,

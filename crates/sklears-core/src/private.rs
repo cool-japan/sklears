@@ -335,14 +335,14 @@ pub(crate) mod testing {
 
         fn can_transition_to(&self, new_state: algorithm_internals::InternalState) -> bool {
             use algorithm_internals::InternalState::*;
-            match (self.state, new_state) {
-                (Uninitialized, Configured) => true,
-                (Configured, Fitting) => true,
-                (Fitting, Fitted) => true,
-                (Fitting, Error) => true,
-                (_, Error) => true,
-                _ => false,
-            }
+            matches!(
+                (self.state, new_state),
+                (Uninitialized, Configured)
+                    | (Configured, Fitting)
+                    | (Fitting, Fitted)
+                    | (Fitting, Error)
+                    | (_, Error)
+            )
         }
     }
 }

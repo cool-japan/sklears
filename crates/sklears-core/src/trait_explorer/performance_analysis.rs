@@ -1793,7 +1793,7 @@ mod tests {
         let analyzer = TraitPerformanceAnalyzer::new(config);
 
         // Analyzer should be created successfully
-        assert!(matches!(analyzer.config.advanced_analysis, true));
+        assert!(analyzer.config.advanced_analysis);
     }
 
     #[test]

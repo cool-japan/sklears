@@ -3,11 +3,10 @@
 //! Kernel PCA is a non-linear dimensionality reduction technique that uses
 //! kernel methods to perform PCA in a higher-dimensional feature space.
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::{Rng, thread_rng, Random};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Trained, Transform, Untrained},
@@ -370,30 +369,21 @@ impl KernelPCA<Untrained> {
         let n = k.nrows();
         let n_comp = n_components.min(n);
 
-        // Convert ndarray to nalgebra matrix for eigendecomposition
-        let mut k_nalgebra = nalgebra::DMatrix::zeros(n, n);
-        for i in 0..n {
-            for j in 0..n {
-                k_nalgebra[(i, j)] = k[[i, j]];
-            }
-        }
+        // Perform symmetric eigendecomposition using scirs2-linalg
+        // Kernel matrices should be positive semi-definite
+        let (eigenvalues, eigenvectors) = k.eigh(UPLO::Lower).map_err(|e| {
+            SklearsError::NumericalError(format!("Eigendecomposition failed: {}", e))
+        })?;
 
-        // Perform symmetric eigendecomposition
-        // Since kernel matrices should be positive semi-definite, we use symmetric solver
-        let eigendecomp = k_nalgebra.symmetric_eigen();
+        // eigh returns eigenvalues in ascending order, so we need to reverse
+        // Collect eigenvalue-eigenvector pairs for sorting
+        let mut eigen_pairs: Vec<(Float, usize)> = eigenvalues
+            .iter()
+            .enumerate()
+            .map(|(i, &val)| (val, i))
+            .collect();
 
-        let eigenvalues = eigendecomp.eigenvalues;
-        let eigenvectors = eigendecomp.eigenvectors;
-
-        // Collect eigenvalue-eigenvector pairs
-        let mut eigen_pairs: Vec<(Float, Vec<Float>)> = Vec::new();
-        for i in 0..n {
-            let eigenval = eigenvalues[i];
-            let eigenvec: Vec<Float> = (0..n).map(|j| eigenvectors[(j, i)]).collect();
-            eigen_pairs.push((eigenval, eigenvec));
-        }
-
-        // Sort eigenvalue-eigenvector pairs by eigenvalue in descending order
+        // Sort by eigenvalue in descending order
         eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Extract the top n_comp eigenvalues and eigenvectors
@@ -402,13 +392,14 @@ impl KernelPCA<Untrained> {
 
         for comp in 0..n_comp {
             if comp < eigen_pairs.len() {
-                // Extract eigenvalue (ensure non-negative for numerical stability)
-                lambdas[comp] = eigen_pairs[comp].0.max(0.0);
+                let (eigenval, idx) = eigen_pairs[comp];
 
-                // Extract eigenvector
-                let eigenvec = &eigen_pairs[comp].1;
+                // Extract eigenvalue (ensure non-negative for numerical stability)
+                lambdas[comp] = eigenval.max(0.0);
+
+                // Extract eigenvector column from eigenvectors matrix
                 for i in 0..n {
-                    alphas[[i, comp]] = eigenvec[i];
+                    alphas[[i, comp]] = eigenvectors[[i, idx]];
                 }
 
                 // Normalize the eigenvector (should already be normalized, but ensure it)

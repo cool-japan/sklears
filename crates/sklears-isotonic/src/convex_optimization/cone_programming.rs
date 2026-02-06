@@ -16,6 +16,7 @@ use sklears_core::{prelude::SklearsError, types::Float};
 /// # Examples
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use sklears_isotonic::convex_optimization::{ConeProgrammingIsotonicRegression, ConeType};
 /// use scirs2_core::ndarray::array;
 ///
@@ -27,8 +28,10 @@ use sklears_core::{prelude::SklearsError, types::Float};
 /// let x = array![1.0, 2.0, 3.0, 4.0];
 /// let y = array![1.5, 1.0, 2.5, 3.0]; // Non-monotonic
 ///
-/// model.fit(&x, &y).unwrap();
-/// let predictions = model.predict(&x).unwrap();
+/// model.fit(&x, &y)?;
+/// let predictions = model.predict(&x)?;
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 /// ConeProgrammingIsotonicRegression
@@ -128,7 +131,7 @@ impl ConeProgrammingIsotonicRegression {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -394,7 +397,12 @@ pub fn cone_programming_isotonic_regression(
         .regularization(regularization);
 
     model.fit(x, y)?;
-    Ok(model.fitted_values().unwrap().clone())
+    model
+        .fitted_values()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "cone_programming_isotonic_regression".to_string(),
+        })
+        .map(|v| v.clone())
 }
 
 #[allow(non_snake_case)]

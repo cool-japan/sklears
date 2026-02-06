@@ -6,7 +6,45 @@
 use crate::{UtilsError, UtilsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::numeric::Float;
+use std::cmp::Ordering;
 use std::collections::HashMap;
+
+/// Helper function to safely compare floats, treating NaN as greater than all other values
+#[inline]
+fn compare_floats<T: Float>(a: &T, b: &T) -> Ordering {
+    match a.partial_cmp(b) {
+        Some(ord) => ord,
+        None => {
+            // Handle NaN cases: NaN is treated as greater than any number
+            if a.is_nan() && b.is_nan() {
+                Ordering::Equal
+            } else if a.is_nan() {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        }
+    }
+}
+
+/// Helper function to safely convert usize to Float type
+#[inline]
+fn usize_to_float<T: Float>(value: usize) -> UtilsResult<T> {
+    T::from(value).ok_or_else(|| {
+        UtilsError::InvalidParameter(format!("Failed to convert usize {} to float type", value))
+    })
+}
+
+/// Helper function to safely convert constant to Float type
+#[inline]
+fn const_to_float<T: Float>(value: f64) -> UtilsResult<T> {
+    T::from(value).ok_or_else(|| {
+        UtilsError::InvalidParameter(format!(
+            "Failed to convert constant {} to float type",
+            value
+        ))
+    })
+}
 
 /// Data cleaning utilities
 pub struct DataCleaner;
@@ -55,8 +93,8 @@ impl DataCleaner {
             let valid_values: Vec<T> = col.iter().cloned().filter(|x| !x.is_nan()).collect();
 
             if !valid_values.is_empty() {
-                let mean =
-                    valid_values.iter().cloned().sum::<T>() / T::from(valid_values.len()).unwrap();
+                let mean = valid_values.iter().cloned().sum::<T>()
+                    / usize_to_float::<T>(valid_values.len())?;
 
                 for row_idx in 0..data.nrows() {
                     if data[[row_idx, col_idx]].is_nan() {
@@ -78,10 +116,10 @@ impl DataCleaner {
             let mut valid_values: Vec<T> = col.iter().cloned().filter(|x| !x.is_nan()).collect();
 
             if !valid_values.is_empty() {
-                valid_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                valid_values.sort_by(compare_floats);
                 let median = if valid_values.len() % 2 == 0 {
                     let mid = valid_values.len() / 2;
-                    (valid_values[mid - 1] + valid_values[mid]) / T::from(2).unwrap()
+                    (valid_values[mid - 1] + valid_values[mid]) / const_to_float::<T>(2.0)?
                 } else {
                     valid_values[valid_values.len() / 2]
                 };
@@ -102,13 +140,19 @@ pub struct OutlierDetector;
 
 impl OutlierDetector {
     /// Detect outliers using Z-score method
+    ///
+    /// Returns an empty vector if conversion fails or if standard deviation is zero.
     pub fn zscore_outliers<T>(data: &ArrayView1<T>, threshold: T) -> Vec<usize>
     where
         T: Float + Clone + std::iter::Sum,
     {
-        let mean = data.iter().cloned().sum::<T>() / T::from(data.len()).unwrap();
-        let variance =
-            data.iter().map(|&x| (x - mean).powi(2)).sum::<T>() / T::from(data.len()).unwrap();
+        // Safe conversion - return empty on failure
+        let Ok(len_float) = usize_to_float::<T>(data.len()) else {
+            return Vec::new();
+        };
+
+        let mean = data.iter().cloned().sum::<T>() / len_float;
+        let variance = data.iter().map(|&x| (x - mean).powi(2)).sum::<T>() / len_float;
         let std_dev = variance.sqrt();
 
         if std_dev == T::zero() {
@@ -134,7 +178,7 @@ impl OutlierDetector {
         T: Float + Clone + PartialOrd,
     {
         let mut sorted_data: Vec<T> = data.iter().cloned().collect();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(compare_floats);
 
         let n = sorted_data.len();
         if n < 4 {
@@ -163,31 +207,38 @@ impl OutlierDetector {
     }
 
     /// Detect outliers using modified Z-score method (using median)
+    ///
+    /// Returns an empty vector if conversion fails or if MAD is zero.
     pub fn modified_zscore_outliers<T>(data: &ArrayView1<T>, threshold: T) -> Vec<usize>
     where
         T: Float + Clone + PartialOrd,
     {
         let mut sorted_data: Vec<T> = data.iter().cloned().collect();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(compare_floats);
 
         let n = sorted_data.len();
         if n == 0 {
             return Vec::new();
         }
 
+        // Safe conversion - return empty on failure
+        let Ok(two) = const_to_float::<T>(2.0) else {
+            return Vec::new();
+        };
+
         let median = if n % 2 == 0 {
-            (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / T::from(2).unwrap()
+            (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / two
         } else {
             sorted_data[n / 2]
         };
 
         // Calculate MAD (Median Absolute Deviation)
         let mut deviations: Vec<T> = data.iter().map(|&x| (x - median).abs()).collect();
-        deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        deviations.sort_by(compare_floats);
 
         let mad = if deviations.len() % 2 == 0 {
             let mid = deviations.len() / 2;
-            (deviations[mid - 1] + deviations[mid]) / T::from(2).unwrap()
+            (deviations[mid - 1] + deviations[mid]) / two
         } else {
             deviations[deviations.len() / 2]
         };
@@ -196,12 +247,20 @@ impl OutlierDetector {
             return Vec::new();
         }
 
-        let mad_scaled = mad * T::from(1.4826).unwrap(); // Scale factor for normal distribution
+        // Safe conversion for scale factors
+        let Ok(scale_factor) = const_to_float::<T>(1.4826) else {
+            return Vec::new();
+        };
+        let Ok(modified_z_factor) = const_to_float::<T>(0.6745) else {
+            return Vec::new();
+        };
+
+        let mad_scaled = mad * scale_factor;
 
         data.iter()
             .enumerate()
             .filter_map(|(idx, &value)| {
-                let modified_z = T::from(0.6745).unwrap() * (value - median).abs() / mad_scaled;
+                let modified_z = modified_z_factor * (value - median).abs() / mad_scaled;
                 if modified_z > threshold {
                     Some(idx)
                 } else {
@@ -227,9 +286,9 @@ impl FeatureScaler {
 
         for col_idx in 0..data.ncols() {
             let col = data.column(col_idx);
-            let mean = col.iter().cloned().sum::<T>() / T::from(col.len()).unwrap();
-            let variance =
-                col.iter().map(|&x| (x - mean).powi(2)).sum::<T>() / T::from(col.len()).unwrap();
+            let col_len = usize_to_float::<T>(col.len())?;
+            let mean = col.iter().cloned().sum::<T>() / col_len;
+            let variance = col.iter().map(|&x| (x - mean).powi(2)).sum::<T>() / col_len;
             let std_dev = variance.sqrt();
 
             means[col_idx] = mean;
@@ -291,11 +350,11 @@ impl FeatureScaler {
         for col_idx in 0..data.ncols() {
             let col = data.column(col_idx);
             let mut sorted_col: Vec<T> = col.iter().cloned().collect();
-            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_col.sort_by(compare_floats);
 
             let n = sorted_col.len();
             let median = if n % 2 == 0 {
-                (sorted_col[n / 2 - 1] + sorted_col[n / 2]) / T::from(2).unwrap()
+                (sorted_col[n / 2 - 1] + sorted_col[n / 2]) / const_to_float::<T>(2.0)?
             } else {
                 sorted_col[n / 2]
             };
@@ -412,15 +471,19 @@ impl DataQualityAssessor {
             let valid_values: Vec<T> = col.iter().cloned().filter(|x| !x.is_nan()).collect();
 
             if valid_values.len() > 1 {
-                let mean =
-                    valid_values.iter().cloned().sum::<T>() / T::from(valid_values.len()).unwrap();
-                let variance = valid_values.iter().map(|&x| (x - mean).powi(2)).sum::<T>()
-                    / T::from(valid_values.len()).unwrap();
-                let std_dev = variance.sqrt();
+                // Safe conversion - skip column if conversion fails
+                if let Ok(valid_len) = usize_to_float::<T>(valid_values.len()) {
+                    let mean = valid_values.iter().cloned().sum::<T>() / valid_len;
+                    let variance =
+                        valid_values.iter().map(|&x| (x - mean).powi(2)).sum::<T>() / valid_len;
+                    let std_dev = variance.sqrt();
 
-                if mean != T::zero() {
-                    let cv = (std_dev / mean.abs()).to_f64().unwrap();
-                    cv_values.push(cv);
+                    if mean != T::zero() {
+                        // Safe conversion to f64 - skip if fails
+                        if let Some(cv_f64) = (std_dev / mean.abs()).to_f64() {
+                            cv_values.push(cv_f64);
+                        }
+                    }
                 }
             }
         }
@@ -450,7 +513,8 @@ mod tests {
             [f64::NAN, 11.0, 12.0]
         ];
 
-        let cleaned = DataCleaner::drop_missing_rows(&data).unwrap();
+        let cleaned = DataCleaner::drop_missing_rows(&data)
+            .expect("drop_missing_rows should succeed with valid data");
         assert_eq!(cleaned.nrows(), 2);
         assert_eq!(cleaned.row(0), array![1.0, 2.0, 3.0]);
         assert_eq!(cleaned.row(1), array![7.0, 8.0, 9.0]);
@@ -469,7 +533,8 @@ mod tests {
     fn test_fill_with_mean() {
         let mut data = array![[1.0, 2.0], [f64::NAN, 4.0], [5.0, f64::NAN]];
 
-        DataCleaner::fill_with_mean(&mut data).unwrap();
+        DataCleaner::fill_with_mean(&mut data)
+            .expect("fill_with_mean should succeed with valid data");
 
         // Mean of first column (1, 5) = 3, mean of second column (2, 4) = 3
         assert_abs_diff_eq!(data[[1, 0]], 3.0, epsilon = 1e-10);
@@ -494,7 +559,8 @@ mod tests {
     fn test_standard_scaling() {
         let data = array![[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]];
 
-        let (scaled, _means, _stds) = FeatureScaler::standard_scale(&data).unwrap();
+        let (scaled, _means, _stds) = FeatureScaler::standard_scale(&data)
+            .expect("standard_scale should succeed with valid data");
 
         // Check that scaled data has mean ~0 and std ~1
         for col_idx in 0..scaled.ncols() {
@@ -508,7 +574,8 @@ mod tests {
     fn test_minmax_scaling() {
         let data = array![[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]];
 
-        let (scaled, _mins, _maxs) = FeatureScaler::minmax_scale(&data).unwrap();
+        let (scaled, _mins, _maxs) = FeatureScaler::minmax_scale(&data)
+            .expect("minmax_scale should succeed with valid data");
 
         // Check that scaled data is in [0, 1] range
         for col_idx in 0..scaled.ncols() {

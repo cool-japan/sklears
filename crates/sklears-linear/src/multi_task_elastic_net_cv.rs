@@ -17,6 +17,13 @@ use crate::lasso_cv::KFold;
 
 use crate::multi_task_elastic_net::MultiTaskElasticNet;
 
+// Helper function for safe mean computation
+fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean().ok_or_else(|| {
+        SklearsError::InvalidInput("Mean computation failed (empty array)".to_string())
+    })
+}
+
 /// Configuration for MultiTaskElasticNetCV
 #[derive(Debug, Clone)]
 pub struct MultiTaskElasticNetCVConfig {
@@ -316,9 +323,8 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskElasticNetCV {
                         let y_pred_task = y_pred.column(task);
 
                         // Calculate R² score
-                        let ss_tot = y_true_task
-                            .mapv(|v| (v - y_true_task.mean().unwrap()).powi(2))
-                            .sum();
+                        let y_true_mean = safe_mean(&y_true_task.to_owned())?;
+                        let ss_tot = y_true_task.mapv(|v| (v - y_true_mean).powi(2)).sum();
                         let ss_res = (&y_true_task - &y_pred_task).mapv(|v| v.powi(2)).sum();
                         let r2 = if ss_tot == 0.0 {
                             0.0
@@ -369,8 +375,8 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskElasticNetCV {
         let trained_model = best_model.fit(x, y)?;
 
         // Extract coefficients and intercept
-        let coef_ = trained_model.coef().clone();
-        let intercept_ = trained_model.intercept().clone();
+        let coef_ = trained_model.coef()?.clone();
+        let intercept_ = trained_model.intercept()?.clone();
 
         Ok(MultiTaskElasticNetCV {
             config: self.config,
@@ -393,17 +399,25 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskElasticNetCV<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
+        let expected_features = self
+            .n_features_
+            .expect("n_features_ must be Some in Trained state");
 
-        if n_features != self.n_features_.unwrap() {
+        if n_features != expected_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
-                self.n_features_.unwrap(),
-                n_features
+                expected_features, n_features
             )));
         }
 
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state");
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .expect("intercept_ must be Some in Trained state");
 
         // Compute predictions: Y = X @ W.T + intercept
         let mut predictions = x.dot(&coef.t());
@@ -421,42 +435,54 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskElasticNetCV<Trained> {
 impl MultiTaskElasticNetCV<Trained> {
     /// Get the best alpha value found
     pub fn best_alpha(&self) -> Float {
-        self.alpha_.unwrap()
+        self.alpha_.expect("alpha_ must be Some in Trained state")
     }
 
     /// Get the best l1_ratio value found
     pub fn best_l1_ratio(&self) -> Float {
-        self.l1_ratio_.unwrap()
+        self.l1_ratio_
+            .expect("l1_ratio_ must be Some in Trained state")
     }
 
     /// Get the coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> &Array1<Float> {
-        self.intercept_.as_ref().unwrap()
+        self.intercept_
+            .as_ref()
+            .expect("intercept_ must be Some in Trained state")
     }
 
     /// Get all cross-validation scores
     pub fn cv_scores(&self) -> &HashMap<String, Vec<Float>> {
-        self.cv_scores_.as_ref().unwrap()
+        self.cv_scores_
+            .as_ref()
+            .expect("cv_scores_ must be Some in Trained state")
     }
 
     /// Get the best cross-validation score
     pub fn best_score(&self) -> Float {
-        self.best_score_.unwrap()
+        self.best_score_
+            .expect("best_score_ must be Some in Trained state")
     }
 
     /// Get the alpha values that were tried
     pub fn alphas(&self) -> &Vec<Float> {
-        self.cv_alphas_.as_ref().unwrap()
+        self.cv_alphas_
+            .as_ref()
+            .expect("cv_alphas_ must be Some in Trained state")
     }
 
     /// Get the l1_ratio values that were tried
     pub fn l1_ratios(&self) -> &Vec<Float> {
-        self.cv_l1_ratios_.as_ref().unwrap()
+        self.cv_l1_ratios_
+            .as_ref()
+            .expect("cv_l1_ratios_ must be Some in Trained state")
     }
 }
 

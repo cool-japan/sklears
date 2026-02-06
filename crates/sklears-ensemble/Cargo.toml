@@ -32,7 +32,7 @@ serde = { workspace = true, optional = true }
 # ❌ rand - use scirs2_core::random instead
 # ❌ rand_distr - use scirs2_core::random instead
 # ❌ rand_chacha - use scirs2_core::random instead
-half = "2.4"
+half = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

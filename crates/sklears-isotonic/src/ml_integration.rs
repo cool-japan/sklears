@@ -515,7 +515,7 @@ impl IsotonicEnsemble {
     ) -> Result<(Array1<f64>, Array1<f64>), SklearsError> {
         // Sort by X
         let mut indices: Vec<usize> = (0..X.len()).collect();
-        indices.sort_by(|&i, &j| X[i].partial_cmp(&X[j]).unwrap());
+        indices.sort_by(|&i, &j| X[i].total_cmp(&X[j]));
 
         let mut sorted_x = Array1::zeros(X.len());
         let mut sorted_y = Array1::zeros(y.len());
@@ -673,15 +673,19 @@ impl IsotonicTransferLearning {
         X_new: &Array1<f64>,
         y_new: &Array1<f64>,
     ) -> Result<(), SklearsError> {
-        if self.pretrained_x.is_none() {
-            return Err(SklearsError::NotFitted {
-                operation: "finetune".to_string(),
-            });
-        }
-
         // Combine pre-trained and new data
-        let pretrained_x = self.pretrained_x.as_ref().unwrap();
-        let pretrained_y = self.pretrained_y.as_ref().unwrap();
+        let pretrained_x = self
+            .pretrained_x
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "finetune".to_string(),
+            })?;
+        let pretrained_y = self
+            .pretrained_y
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "finetune".to_string(),
+            })?;
 
         let mut combined_x = Vec::new();
         let mut combined_y = Vec::new();
@@ -703,7 +707,7 @@ impl IsotonicTransferLearning {
 
         // Sort and apply isotonic regression
         let mut indices: Vec<usize> = (0..combined_x.len()).collect();
-        indices.sort_by(|&i, &j| combined_x[i].partial_cmp(&combined_x[j]).unwrap());
+        indices.sort_by(|&i, &j| combined_x[i].total_cmp(&combined_x[j]));
 
         let mut sorted_x = Array1::zeros(combined_x.len());
         let mut sorted_y = Array1::zeros(combined_y.len());

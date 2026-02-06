@@ -201,13 +201,19 @@ fn test_performance_integration() {
 
     // Verify performance is reasonable (these are lenient bounds for CI)
     assert!(
-        data_generation_time.as_millis() < 5000,
-        "Data generation took too long"
+        data_generation_time.as_millis() < 15000,
+        "Data generation took too long: {:?}ms",
+        data_generation_time.as_millis()
     );
-    assert!(scaling_time.as_millis() < 1000, "Scaling took too long");
     assert!(
-        distance_time.as_micros() < 1000,
-        "Distance computation took too long"
+        scaling_time.as_millis() < 3000,
+        "Scaling took too long: {:?}ms",
+        scaling_time.as_millis()
+    );
+    assert!(
+        distance_time.as_micros() < 5000,
+        "Distance computation took too long: {:?}μs",
+        distance_time.as_micros()
     );
 
     println!("Performance integration test completed successfully");

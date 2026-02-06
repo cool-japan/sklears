@@ -3,26 +3,27 @@
 //! This module provides SIMD-optimized implementations for outlier detection
 //! operations with CPU fallbacks for stable compilation.
 
+/// Helper function to compare floats safely
+fn compare_floats(a: &f64, b: &f64) -> std::cmp::Ordering {
+    a.partial_cmp(b).unwrap_or_else(|| {
+        // Handle NaN cases: NaN is considered less than any number
+        match (a.is_nan(), b.is_nan()) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        }
+    })
+}
+
 /// SIMD-accelerated Z-score calculation
 /// Achieves 7.1x-10.5x speedup over scalar Z-score computation
 pub fn simd_zscore(data: &[f64], mean: f64, std: f64) -> Vec<f64> {
-    // FIXME: SIMD implementation disabled for stable compilation
-    /*
-    const LANES: usize = 8;
-    let mut result = vec![0.0; data.len()];
-    let mean_vec = f64x8::splat(mean);
-    let inv_std_vec = f64x8::splat(1.0 / std);
-
-    let mut i = 0;
-
-    // Process chunks of 8 elements using SIMD
-    while i + LANES <= data.len() {
-        let data_chunk = f64x8::from_slice(&data[i..i + LANES]);
-        let zscore_chunk = (data_chunk - mean_vec) * inv_std_vec;
-        zscore_chunk.copy_to_slice(&mut result[i..i + LANES]);
-        i += LANES;
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_zscore_avx(data, mean, std) };
+        }
     }
-    */
 
     // CPU fallback implementation
     let mut result = vec![0.0; data.len()];
@@ -34,10 +35,46 @@ pub fn simd_zscore(data: &[f64], mean: f64, std: f64) -> Vec<f64> {
     result
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_zscore_avx(data: &[f64], mean: f64, std: f64) -> Vec<f64> {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4; // AVX processes 4 f64 at a time
+    let mut result = vec![0.0; data.len()];
+    let inv_std = 1.0 / std;
+    let mean_vec = _mm256_set1_pd(mean);
+    let inv_std_vec = _mm256_set1_pd(inv_std);
+
+    let mut i = 0;
+
+    // Process chunks of 4 elements using SIMD
+    while i + LANES <= data.len() {
+        let data_chunk = _mm256_loadu_pd(data.as_ptr().add(i));
+        let centered = _mm256_sub_pd(data_chunk, mean_vec);
+        let zscore_chunk = _mm256_mul_pd(centered, inv_std_vec);
+        _mm256_storeu_pd(result.as_mut_ptr().add(i), zscore_chunk);
+        i += LANES;
+    }
+
+    // Handle remaining elements
+    for j in i..data.len() {
+        result[j] = (data[j] - mean) * inv_std;
+    }
+
+    result
+}
+
 /// SIMD-accelerated modified Z-score calculation using median and MAD
 /// Provides 6.8x-9.4x speedup for robust outlier detection
 pub fn simd_modified_zscore(data: &[f64], median: f64, mad: f64) -> Vec<f64> {
-    // FIXME: SIMD implementation disabled for stable compilation
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_modified_zscore_avx(data, median, mad) };
+        }
+    }
+
     // CPU fallback implementation
     let mut result = vec![0.0; data.len()];
     let mad_scale = 0.6745; // 0.6745 is the 75th percentile of standard normal distribution
@@ -45,6 +82,35 @@ pub fn simd_modified_zscore(data: &[f64], median: f64, mad: f64) -> Vec<f64> {
 
     for (i, &val) in data.iter().enumerate() {
         result[i] = (val - median) * inv_mad;
+    }
+
+    result
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_modified_zscore_avx(data: &[f64], median: f64, mad: f64) -> Vec<f64> {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let mut result = vec![0.0; data.len()];
+    let mad_scale = 0.6745;
+    let inv_mad = mad_scale / mad.max(1e-10);
+    let median_vec = _mm256_set1_pd(median);
+    let inv_mad_vec = _mm256_set1_pd(inv_mad);
+
+    let mut i = 0;
+
+    while i + LANES <= data.len() {
+        let data_chunk = _mm256_loadu_pd(data.as_ptr().add(i));
+        let centered = _mm256_sub_pd(data_chunk, median_vec);
+        let zscore_chunk = _mm256_mul_pd(centered, inv_mad_vec);
+        _mm256_storeu_pd(result.as_mut_ptr().add(i), zscore_chunk);
+        i += LANES;
+    }
+
+    for j in i..data.len() {
+        result[j] = (data[j] - median) * inv_mad;
     }
 
     result
@@ -96,7 +162,7 @@ pub fn simd_percentile_outliers(
 ) -> (Vec<bool>, f64, f64) {
     // First sort the data to find percentiles
     let mut sorted_data = data.to_vec();
-    sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_data.sort_by(compare_floats);
 
     let n = sorted_data.len();
     let lower_idx = ((lower_percentile / 100.0) * (n - 1) as f64) as usize;
@@ -120,7 +186,7 @@ pub fn simd_percentile_outliers(
 pub fn simd_iqr_outliers(data: &[f64], iqr_multiplier: f64) -> (Vec<bool>, f64, f64, f64, f64) {
     // Calculate quartiles
     let mut sorted_data = data.to_vec();
-    sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_data.sort_by(compare_floats);
 
     let n = sorted_data.len();
     let q1_idx = (0.25 * (n - 1) as f64) as usize;
@@ -176,20 +242,95 @@ pub fn simd_ensemble_scoring(scores: &[Vec<f64>], weights: Option<&[f64]>) -> Ve
 
 /// SIMD-accelerated mean calculation
 pub fn simd_mean(data: &[f64]) -> f64 {
-    // CPU fallback implementation
     if data.is_empty() {
         return 0.0;
     }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_mean_avx(data) };
+        }
+    }
+
+    // CPU fallback implementation
     data.iter().sum::<f64>() / data.len() as f64
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_mean_avx(data: &[f64]) -> f64 {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let mut sum_vec = _mm256_setzero_pd();
+    let mut i = 0;
+
+    while i + LANES <= data.len() {
+        let data_chunk = _mm256_loadu_pd(data.as_ptr().add(i));
+        sum_vec = _mm256_add_pd(sum_vec, data_chunk);
+        i += LANES;
+    }
+
+    // Horizontal sum
+    let mut sum_array = [0.0; 4];
+    _mm256_storeu_pd(sum_array.as_mut_ptr(), sum_vec);
+    let mut sum = sum_array.iter().sum::<f64>();
+
+    // Add remaining elements
+    for j in i..data.len() {
+        sum += data[j];
+    }
+
+    sum / data.len() as f64
 }
 
 /// SIMD-accelerated variance calculation
 pub fn simd_variance(data: &[f64], mean: f64) -> f64 {
-    // CPU fallback implementation
     if data.len() <= 1 {
         return 0.0;
     }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_variance_avx(data, mean) };
+        }
+    }
+
+    // CPU fallback implementation
     let sum_sq_diff: f64 = data.iter().map(|x| (x - mean).powi(2)).sum();
+    sum_sq_diff / (data.len() - 1) as f64
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_variance_avx(data: &[f64], mean: f64) -> f64 {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let mean_vec = _mm256_set1_pd(mean);
+    let mut sum_sq_vec = _mm256_setzero_pd();
+    let mut i = 0;
+
+    while i + LANES <= data.len() {
+        let data_chunk = _mm256_loadu_pd(data.as_ptr().add(i));
+        let diff = _mm256_sub_pd(data_chunk, mean_vec);
+        let sq_diff = _mm256_mul_pd(diff, diff);
+        sum_sq_vec = _mm256_add_pd(sum_sq_vec, sq_diff);
+        i += LANES;
+    }
+
+    // Horizontal sum
+    let mut sum_array = [0.0; 4];
+    _mm256_storeu_pd(sum_array.as_mut_ptr(), sum_sq_vec);
+    let mut sum_sq_diff = sum_array.iter().sum::<f64>();
+
+    // Add remaining elements
+    for j in i..data.len() {
+        sum_sq_diff += (data[j] - mean).powi(2);
+    }
+
     sum_sq_diff / (data.len() - 1) as f64
 }
 
@@ -214,14 +355,88 @@ pub fn simd_matvec_multiply(matrix: &[Vec<f64>], vector: &[f64]) -> Vec<f64> {
 
 /// SIMD-accelerated dot product
 pub fn simd_dot_product(a: &[f64], b: &[f64]) -> f64 {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_dot_product_avx(a, b) };
+        }
+    }
+
     // CPU fallback implementation
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_dot_product_avx(a: &[f64], b: &[f64]) -> f64 {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let mut dot_vec = _mm256_setzero_pd();
+    let len = a.len().min(b.len());
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_chunk = _mm256_loadu_pd(a.as_ptr().add(i));
+        let b_chunk = _mm256_loadu_pd(b.as_ptr().add(i));
+        let prod = _mm256_mul_pd(a_chunk, b_chunk);
+        dot_vec = _mm256_add_pd(dot_vec, prod);
+        i += LANES;
+    }
+
+    // Horizontal sum
+    let mut sum_array = [0.0; 4];
+    _mm256_storeu_pd(sum_array.as_mut_ptr(), dot_vec);
+    let mut dot = sum_array.iter().sum::<f64>();
+
+    // Add remaining elements
+    for j in i..len {
+        dot += a[j] * b[j];
+    }
+
+    dot
+}
+
 /// SIMD-accelerated Euclidean distance calculation
 pub fn simd_euclidean_distance(diff: &[f64]) -> f64 {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    {
+        if std::arch::is_x86_feature_detected!("avx") {
+            return unsafe { simd_euclidean_distance_avx(diff) };
+        }
+    }
+
     // CPU fallback implementation
     diff.iter().map(|x| x * x).sum::<f64>().sqrt()
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_euclidean_distance_avx(diff: &[f64]) -> f64 {
+    use std::arch::x86_64::*;
+
+    const LANES: usize = 4;
+    let mut sum_sq_vec = _mm256_setzero_pd();
+    let mut i = 0;
+
+    while i + LANES <= diff.len() {
+        let diff_chunk = _mm256_loadu_pd(diff.as_ptr().add(i));
+        let sq = _mm256_mul_pd(diff_chunk, diff_chunk);
+        sum_sq_vec = _mm256_add_pd(sum_sq_vec, sq);
+        i += LANES;
+    }
+
+    // Horizontal sum
+    let mut sum_array = [0.0; 4];
+    _mm256_storeu_pd(sum_array.as_mut_ptr(), sum_sq_vec);
+    let mut sum_sq = sum_array.iter().sum::<f64>();
+
+    // Add remaining elements
+    for j in i..diff.len() {
+        sum_sq += diff[j] * diff[j];
+    }
+
+    sum_sq.sqrt()
 }
 
 #[allow(non_snake_case)]

@@ -1084,7 +1084,7 @@ mod tests {
         model.partition_data(features, targets).unwrap();
 
         assert_eq!(model.workers.len(), 2);
-        assert!(model.workers[0].data_partition.features.len() > 0);
+        assert!(!model.workers[0].data_partition.features.is_empty());
     }
 
     #[test]
@@ -1168,8 +1168,10 @@ mod tests {
 
     #[test]
     fn test_federated_client_selection() {
-        let mut config = FederatedConfig::default();
-        config.client_fraction = 0.5;
+        let config = FederatedConfig {
+            client_fraction: 0.5,
+            ..Default::default()
+        };
         let mut fed_learning = FederatedLearning::new(config, 5);
 
         for i in 0..10 {

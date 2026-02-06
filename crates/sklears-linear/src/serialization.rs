@@ -6,11 +6,11 @@
 
 #[cfg(feature = "serde")]
 pub mod serde_support {
-    use nalgebra::{DMatrix, DVector};
+    use scirs2_core::ndarray::{Array1, Array2};
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::fs::File;
-    use std::io::{BufReader, BufWriter};
+    use std::io::{BufReader, BufWriter, Read, Write};
     use std::path::Path;
 
     /// Serializable wrapper for DMatrix
@@ -21,8 +21,8 @@ pub mod serde_support {
         pub data: Vec<f64>,
     }
 
-    impl From<&DMatrix<f64>> for SerializableMatrix {
-        fn from(matrix: &DMatrix<f64>) -> Self {
+    impl From<&Array2<f64>> for SerializableMatrix {
+        fn from(matrix: &Array2<f64>) -> Self {
             Self {
                 nrows: matrix.nrows(),
                 ncols: matrix.ncols(),
@@ -31,9 +31,13 @@ pub mod serde_support {
         }
     }
 
-    impl From<SerializableMatrix> for DMatrix<f64> {
+    impl From<SerializableMatrix> for Array2<f64> {
         fn from(ser_matrix: SerializableMatrix) -> Self {
-            DMatrix::from_vec(ser_matrix.nrows, ser_matrix.ncols, ser_matrix.data)
+            Array2::from_shape_vec(
+                (ser_matrix.nrows, ser_matrix.ncols),
+                ser_matrix.data,
+            )
+            .expect("Failed to create Array2 from SerializableMatrix")
         }
     }
 
@@ -43,17 +47,17 @@ pub mod serde_support {
         pub data: Vec<f64>,
     }
 
-    impl From<&DVector<f64>> for SerializableVector {
-        fn from(vector: &DVector<f64>) -> Self {
+    impl From<&Array1<f64>> for SerializableVector {
+        fn from(vector: &Array1<f64>) -> Self {
             Self {
                 data: vector.iter().cloned().collect(),
             }
         }
     }
 
-    impl From<SerializableVector> for DVector<f64> {
+    impl From<SerializableVector> for Array1<f64> {
         fn from(ser_vector: SerializableVector) -> Self {
-            DVector::from_vec(ser_vector.data)
+            Array1::from_vec(ser_vector.data)
         }
     }
 
@@ -275,7 +279,8 @@ pub mod serde_support {
 
         /// Deserialize a model from binary format using bincode
         pub fn from_binary<T: for<'de> Deserialize<'de>>(data: &[u8]) -> Result<T, oxicode::Error> {
-            oxicode::serde::decode_from_slice(data, oxicode::config::standard())
+            let (model, _) = oxicode::serde::decode_from_slice(data, oxicode::config::standard())?;
+            Ok(model)
         }
 
         /// Save a model to file
@@ -293,6 +298,7 @@ pub mod serde_support {
                 }
                 SerializationFormat::Bincode => {
                     let bytes = oxicode::serde::encode_to_vec(model, oxicode::config::standard())?;
+                    use std::io::Write;
                     writer.write_all(&bytes)?;
                 }
                 SerializationFormat::MessagePack => {
@@ -316,8 +322,10 @@ pub mod serde_support {
                 SerializationFormat::Bincode => {
                     let mut bytes = Vec::new();
                     let mut reader_mut = reader;
+                    use std::io::Read;
                     reader_mut.read_to_end(&mut bytes)?;
-                    oxicode::serde::decode_from_slice(&bytes, oxicode::config::standard())?
+                    let (model, _) = oxicode::serde::decode_from_slice(&bytes, oxicode::config::standard())?;
+                    model
                 }
                 SerializationFormat::MessagePack => rmp_serde::decode::from_read(reader)?,
             };
@@ -413,7 +421,8 @@ pub mod serde_support {
         where
             Self: Sized,
         {
-            ModelSerializer::from_binary(data)
+            let (model, _) = oxicode::serde::decode_from_slice(data, oxicode::config::standard())?;
+            Ok(model)
         }
     }
 
@@ -521,26 +530,38 @@ pub mod serde_support {
 mod tests {
     use super::serde_support::*;
     use super::*;
-    use nalgebra::{DMatrix, DVector};
+    use scirs2_core::ndarray::{Array1, Array2};
     use std::fs;
     use tempfile::tempdir;
 
     #[test]
     fn test_serializable_matrix_conversion() {
-        let original = DMatrix::from_row_slice(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let original = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("Failed to create Array2");
         let serializable = SerializableMatrix::from(&original);
-        let converted: DMatrix<f64> = serializable.into();
+        let converted: Array2<f64> = serializable.into();
 
-        assert_eq!(original, converted);
+        // Compare element-wise since Array2 doesn't implement Eq
+        assert_eq!(original.nrows(), converted.nrows());
+        assert_eq!(original.ncols(), converted.ncols());
+        for i in 0..original.nrows() {
+            for j in 0..original.ncols() {
+                assert_eq!(original[[i, j]], converted[[i, j]]);
+            }
+        }
     }
 
     #[test]
     fn test_serializable_vector_conversion() {
-        let original = DVector::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        let original = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let serializable = SerializableVector::from(&original);
-        let converted: DVector<f64> = serializable.into();
+        let converted: Array1<f64> = serializable.into();
 
-        assert_eq!(original, converted);
+        // Compare element-wise since Array1 doesn't implement Eq
+        assert_eq!(original.len(), converted.len());
+        for i in 0..original.len() {
+            assert_eq!(original[i], converted[i]);
+        }
     }
 
     #[test]

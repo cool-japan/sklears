@@ -523,6 +523,8 @@ pub enum MetricsError {
     InvalidLabels(String),
     #[error("Invalid input: {0}")]
     InvalidInput(String),
+    #[error("Computation error: {0}")]
+    ComputationError(String),
 }
 
 impl From<MetricsError> for sklears_core::error::SklearsError {

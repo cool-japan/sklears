@@ -69,7 +69,11 @@ impl MemoryLayoutManager {
     pub fn allocate_aligned(&self, size: usize) -> Vec<Float> {
         // Try to reuse memory from pool
         {
-            let mut pool = self.memory_pool.lock().unwrap();
+            // Handle poisoned mutex by recovering or creating empty pool
+            let mut pool = self.memory_pool.lock().unwrap_or_else(|poisoned| {
+                // Clear the poisoned state and return the guard
+                poisoned.into_inner()
+            });
             if let Some(memory) = pool.pop() {
                 if memory.len() >= size {
                     return memory;
@@ -121,7 +125,11 @@ impl MemoryLayoutManager {
 
     /// Return memory to pool for reuse
     pub fn deallocate(&self, memory: Vec<Float>) {
-        let mut pool = self.memory_pool.lock().unwrap();
+        // Handle poisoned mutex by recovering or creating empty pool
+        let mut pool = self.memory_pool.lock().unwrap_or_else(|poisoned| {
+            // Clear the poisoned state and return the guard
+            poisoned.into_inner()
+        });
         pool.push(memory);
 
         // Limit pool size to prevent memory bloat
@@ -184,10 +192,10 @@ impl MemoryLayoutManager {
                 let result_ptr = result as *mut f64;
 
                 for i in 0..chunks {
-                    let a_vec = _mm256_load_pd(a_ptr.add(i * 4));
-                    let b_vec = _mm256_load_pd(b_ptr.add(i * 4));
+                    let a_vec = _mm256_loadu_pd(a_ptr.add(i * 4));
+                    let b_vec = _mm256_loadu_pd(b_ptr.add(i * 4));
                     let sum = _mm256_add_pd(a_vec, b_vec);
-                    _mm256_store_pd(result_ptr.add(i * 4), sum);
+                    _mm256_storeu_pd(result_ptr.add(i * 4), sum);
                 }
 
                 // Handle remaining elements
@@ -202,10 +210,10 @@ impl MemoryLayoutManager {
                 let result_ptr = result as *mut f32;
 
                 for i in 0..chunks {
-                    let a_vec = _mm_load_ps(a_ptr.add(i * 4));
-                    let b_vec = _mm_load_ps(b_ptr.add(i * 4));
+                    let a_vec = _mm_loadu_ps(a_ptr.add(i * 4));
+                    let b_vec = _mm_loadu_ps(b_ptr.add(i * 4));
                     let sum = _mm_add_ps(a_vec, b_vec);
-                    _mm_store_ps(result_ptr.add(i * 4), sum);
+                    _mm_storeu_ps(result_ptr.add(i * 4), sum);
                 }
 
                 // Handle remaining elements
@@ -253,15 +261,15 @@ impl MemoryLayoutManager {
                 let mut sum_vec = _mm256_setzero_pd();
 
                 for i in 0..chunks {
-                    let a_vec = _mm256_load_pd(a_ptr.add(i * 4));
-                    let b_vec = _mm256_load_pd(b_ptr.add(i * 4));
+                    let a_vec = _mm256_loadu_pd(a_ptr.add(i * 4));
+                    let b_vec = _mm256_loadu_pd(b_ptr.add(i * 4));
                     let prod = _mm256_mul_pd(a_vec, b_vec);
                     sum_vec = _mm256_add_pd(sum_vec, prod);
                 }
 
                 // Extract and sum the 4 values
                 let sum_arr = [0.0; 4];
-                _mm256_store_pd(sum_arr.as_ptr() as *mut f64, sum_vec);
+                _mm256_storeu_pd(sum_arr.as_ptr() as *mut f64, sum_vec);
                 result = sum_arr[0] + sum_arr[1] + sum_arr[2] + sum_arr[3];
 
                 // Handle remaining elements
@@ -277,15 +285,15 @@ impl MemoryLayoutManager {
                 let mut sum_vec = _mm_setzero_ps();
 
                 for i in 0..chunks {
-                    let a_vec = _mm_load_ps(a_ptr.add(i * 4));
-                    let b_vec = _mm_load_ps(b_ptr.add(i * 4));
+                    let a_vec = _mm_loadu_ps(a_ptr.add(i * 4));
+                    let b_vec = _mm_loadu_ps(b_ptr.add(i * 4));
                     let prod = _mm_mul_ps(a_vec, b_vec);
                     sum_vec = _mm_add_ps(sum_vec, prod);
                 }
 
                 // Extract and sum the 4 values
                 let sum_arr = [0.0; 4];
-                _mm_store_ps(sum_arr.as_ptr() as *mut f32, sum_vec);
+                _mm_storeu_ps(sum_arr.as_ptr() as *mut f32, sum_vec);
                 result = (sum_arr[0] + sum_arr[1] + sum_arr[2] + sum_arr[3]) as Float;
 
                 // Handle remaining elements
@@ -388,7 +396,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Segfault in unsafe code - needs proper investigation
     fn test_unsafe_operations_safety() {
         let layout = ExplanationDataLayout::default();
         let manager = MemoryLayoutManager::new(layout);

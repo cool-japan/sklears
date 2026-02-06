@@ -1,6 +1,5 @@
 //! Polynomial kernel approximation via Tensor Sketch
-use rustfft::num_complex::Complex;
-use rustfft::FftPlanner;
+use oxifft::{Complex, Direction, Flags, Plan};
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
@@ -139,7 +138,11 @@ impl Fit<Array2<Float>, ()> for PolynomialCountSketch<Untrained> {
         let mut index_hash = Array3::zeros((self.degree as usize, n_features, 1));
         let mut bit_hash = Array3::zeros((self.degree as usize, n_features, 1));
 
-        let index_uniform = RandUniform::new(0, self.n_components).unwrap();
+        let index_uniform = RandUniform::new(0, self.n_components).map_err(|_| {
+            SklearsError::InvalidInput(
+                "Invalid range for uniform distribution in Count Sketch".to_string(),
+            )
+        })?;
 
         for d in 0..self.degree as usize {
             for j in 0..n_features {
@@ -167,8 +170,12 @@ impl Fit<Array2<Float>, ()> for PolynomialCountSketch<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for PolynomialCountSketch<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
-        let index_hash = self.index_hash_.as_ref().unwrap();
-        let bit_hash = self.bit_hash_.as_ref().unwrap();
+        let index_hash = self.index_hash_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: index_hash_ is None".to_string())
+        })?;
+        let bit_hash = self.bit_hash_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: bit_hash_ is None".to_string())
+        })?;
 
         if n_features != index_hash.shape()[1] {
             return Err(SklearsError::InvalidInput(format!(
@@ -180,10 +187,15 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialCountSketch<Trained> 
 
         let mut result = Array2::zeros((n_samples, self.n_components));
 
-        // FFT planner
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(self.n_components);
-        let ifft = planner.plan_fft_inverse(self.n_components);
+        // Create OxiFFT plans for forward and inverse transforms
+        let fft_plan = Plan::dft_1d(self.n_components, Direction::Forward, Flags::ESTIMATE)
+            .ok_or_else(|| {
+                SklearsError::InvalidInput("Failed to create forward FFT plan".to_string())
+            })?;
+        let ifft_plan = Plan::dft_1d(self.n_components, Direction::Backward, Flags::ESTIMATE)
+            .ok_or_else(|| {
+                SklearsError::InvalidInput("Failed to create inverse FFT plan".to_string())
+            })?;
 
         for i in 0..n_samples {
             let sample = x.row(i);
@@ -233,9 +245,10 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialCountSketch<Trained> 
 
             // Compute FFT of each sketch
             let mut fft_sketches = Vec::new();
-            for mut sketch in sketches {
-                fft.process(&mut sketch);
-                fft_sketches.push(sketch);
+            for sketch in sketches {
+                let mut output = vec![Complex::new(0.0, 0.0); self.n_components];
+                fft_plan.execute(&sketch, &mut output);
+                fft_sketches.push(output);
             }
 
             // Compute element-wise product of FFTs (convolution in time domain)
@@ -247,10 +260,11 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialCountSketch<Trained> 
             }
 
             // Compute inverse FFT
-            ifft.process(&mut product);
+            let mut ifft_output = vec![Complex::new(0.0, 0.0); self.n_components];
+            ifft_plan.execute(&product, &mut ifft_output);
 
             // Extract real part and normalize
-            for (k, val) in product.into_iter().enumerate() {
+            for (k, val) in ifft_output.into_iter().enumerate() {
                 result[[i, k]] = val.re / self.n_components as Float;
             }
         }
@@ -261,13 +275,17 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialCountSketch<Trained> 
 
 impl PolynomialCountSketch<Trained> {
     /// Get the index hash table
-    pub fn index_hash(&self) -> &Array3<usize> {
-        self.index_hash_.as_ref().unwrap()
+    pub fn index_hash(&self) -> Result<&Array3<usize>> {
+        self.index_hash_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: index_hash_ is None".to_string())
+        })
     }
 
     /// Get the bit hash table
-    pub fn bit_hash(&self) -> &Array3<Float> {
-        self.bit_hash_.as_ref().unwrap()
+    pub fn bit_hash(&self) -> Result<&Array3<Float>> {
+        self.bit_hash_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: bit_hash_ is None".to_string())
+        })
     }
 }
 

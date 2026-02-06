@@ -485,7 +485,7 @@ mod tests {
         let context = create_execution_context();
         let cache = create_dsl_cache(1024);
 
-        assert!(registry.list_macros().len() > 0);
+        assert!(!registry.list_macros().is_empty());
         assert!(!context.is_timed_out());
         assert_eq!(cache.stats().hits, 0);
     }
@@ -493,7 +493,7 @@ mod tests {
     #[test]
     fn test_visual_builder_integration() {
         let builder = VisualPipelineBuilder::new();
-        assert!(builder.component_library.templates.len() > 0);
+        assert!(!builder.component_library.templates.is_empty());
     }
 
     #[test]

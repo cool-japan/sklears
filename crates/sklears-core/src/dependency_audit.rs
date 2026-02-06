@@ -1723,9 +1723,9 @@ mod tests {
     #[test]
     fn test_dependency_updater_creation() {
         let updater = DependencyUpdater::new();
-        assert_eq!(updater.config.allow_minor_updates, true);
-        assert_eq!(updater.config.allow_major_updates, false);
-        assert_eq!(updater.config.allow_patch_updates, true);
+        assert!(updater.config.allow_minor_updates);
+        assert!(!updater.config.allow_major_updates);
+        assert!(updater.config.allow_patch_updates);
     }
 
     #[test]

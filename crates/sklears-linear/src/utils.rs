@@ -10,6 +10,21 @@ use sklears_core::{
     types::Float,
 };
 
+/// Helper function to safely compute mean
+#[inline]
+fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
+}
+
+/// Helper function to safely compute mean along axis
+#[inline]
+fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
 /// Type alias for rank-revealing QR decomposition result
 pub type RankRevealingQrResult = (Array2<Float>, Array2<Float>, Vec<usize>, usize);
 
@@ -229,8 +244,8 @@ pub fn ridge_regression(
 
     // Center data if fitting intercept
     let (x_centered, y_centered, x_mean, y_mean) = if fit_intercept {
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean().unwrap();
+        let x_mean = safe_mean_axis(x, Axis(0))?;
+        let y_mean = safe_mean(y)?;
         let x_centered = x - &x_mean;
         let y_centered = y - y_mean;
         (x_centered, y_centered, x_mean, y_mean)
@@ -579,8 +594,8 @@ pub fn enhanced_ridge_regression(
 
     // Center data if fitting intercept
     let (x_centered, y_centered, x_mean, y_mean) = if fit_intercept {
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean().unwrap();
+        let x_mean = safe_mean_axis(x, Axis(0))?;
+        let y_mean = safe_mean(y)?;
         let x_centered = x - &x_mean;
         let y_centered = y - y_mean;
         (x_centered, y_centered, x_mean, y_mean)

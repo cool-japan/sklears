@@ -131,7 +131,7 @@ impl ProximalGradientIsotonicRegression {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -445,7 +445,12 @@ pub fn proximal_gradient_isotonic_regression(
     }
 
     model.fit(x, y)?;
-    Ok(model.fitted_values().unwrap().clone())
+    model
+        .fitted_values()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "proximal_gradient_isotonic_regression".to_string(),
+        })
+        .map(|v| v.clone())
 }
 
 #[allow(non_snake_case)]

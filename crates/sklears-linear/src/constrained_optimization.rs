@@ -7,8 +7,8 @@
 //! efficient constrained optimization.
 
 use crate::errors::{LinearModelError, OptimizationError, OptimizationErrorKind};
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector, Matrix, Vector};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_linalg::compat::ArrayLinalgExt;
 
 /// Helper function to create OptimizationError instances
 fn optimization_error(
@@ -32,23 +32,23 @@ pub enum ConstraintType {
     /// Linear inequality constraint: A*x <= b
     Inequality {
         /// Constraint matrix A
-        matrix: DMatrix<f64>,
+        matrix: Array2<f64>,
         /// Right-hand side vector b
-        rhs: DVector<f64>,
+        rhs: Array1<f64>,
     },
     /// Linear equality constraint: A*x = b
     Equality {
         /// Constraint matrix A
-        matrix: DMatrix<f64>,
+        matrix: Array2<f64>,
         /// Right-hand side vector b
-        rhs: DVector<f64>,
+        rhs: Array1<f64>,
     },
     /// Box constraints: lower <= x <= upper
     Box {
         /// Lower bounds (None for -infinity)
-        lower: Option<DVector<f64>>,
+        lower: Option<Array1<f64>>,
         /// Upper bounds (None for +infinity)
-        upper: Option<DVector<f64>>,
+        upper: Option<Array1<f64>>,
     },
 }
 
@@ -86,9 +86,9 @@ impl Default for ConstrainedOptimizationConfig {
 #[derive(Debug, Clone)]
 pub struct ConstrainedOptimizationProblem {
     /// Quadratic term (Hessian matrix)
-    pub hessian: DMatrix<f64>,
+    pub hessian: Array2<f64>,
     /// Linear term
-    pub linear_coeff: DVector<f64>,
+    pub linear_coeff: Array1<f64>,
     /// Constant term
     pub constant: f64,
     /// Constraints
@@ -99,7 +99,7 @@ pub struct ConstrainedOptimizationProblem {
 #[derive(Debug, Clone)]
 pub struct ConstrainedOptimizationResult {
     /// Optimal solution
-    pub solution: DVector<f64>,
+    pub solution: Array1<f64>,
     /// Optimal objective value
     pub objective_value: f64,
     /// Number of iterations taken
@@ -175,7 +175,7 @@ impl InteriorPointSolver {
             x += step_size * delta_x;
 
             // Check convergence
-            gradient_norm = grad.norm();
+            gradient_norm = grad.mapv(|x| x * x).sum().sqrt();
             if gradient_norm < self.config.tolerance {
                 converged = true;
             }
@@ -204,7 +204,7 @@ impl InteriorPointSolver {
     /// Check if a point is feasible
     fn is_feasible(
         &self,
-        x: &DVector<f64>,
+        x: &Array1<f64>,
         constraints: &[ConstraintType],
     ) -> Result<bool, LinearModelError> {
         for constraint in constraints {
@@ -251,9 +251,9 @@ impl InteriorPointSolver {
         &self,
         constraints: &[ConstraintType],
         n: usize,
-    ) -> Result<DVector<f64>, LinearModelError> {
+    ) -> Result<Array1<f64>, LinearModelError> {
         // Simple approach: start from origin and project onto feasible region
-        let mut x: DVector<f64> = DVector::zeros(n);
+        let mut x: Array1<f64> = Array1::zeros(n);
 
         // Handle box constraints first
         for constraint in constraints {
@@ -296,10 +296,10 @@ impl InteriorPointSolver {
     /// Compute barrier function derivatives
     fn compute_barrier_derivatives(
         &self,
-        x: &DVector<f64>,
+        x: &Array1<f64>,
         problem: &ConstrainedOptimizationProblem,
         mu: f64,
-    ) -> Result<(DVector<f64>, DMatrix<f64>), LinearModelError> {
+    ) -> Result<(Array1<f64>, Array2<f64>), LinearModelError> {
         let n = x.len();
 
         // Original objective gradient and Hessian
@@ -374,12 +374,12 @@ impl InteriorPointSolver {
     /// Solve Newton system
     fn solve_newton_system(
         &self,
-        hess: &DMatrix<f64>,
-        grad: &DVector<f64>,
-    ) -> Result<DVector<f64>, LinearModelError> {
-        match hess.clone().lu().solve(grad) {
-            Some(solution) => Ok(-solution),
-            None => Err(optimization_error(
+        hess: &Array2<f64>,
+        grad: &Array1<f64>,
+    ) -> Result<Array1<f64>, LinearModelError> {
+        match hess.solve(grad) {
+            Ok(solution) => Ok(-&solution),
+            Err(_) => Err(optimization_error(
                 OptimizationErrorKind::HessianFailed,
                 "InteriorPointSolver",
                 "Hessian matrix is singular",
@@ -390,8 +390,8 @@ impl InteriorPointSolver {
     /// Perform line search
     fn line_search(
         &self,
-        x: &DVector<f64>,
-        direction: &DVector<f64>,
+        x: &Array1<f64>,
+        direction: &Array1<f64>,
         problem: &ConstrainedOptimizationProblem,
         mu: f64,
     ) -> Result<f64, LinearModelError> {
@@ -423,8 +423,8 @@ impl InteriorPointSolver {
     /// Compute maximum step size to boundary
     fn compute_max_step_size(
         &self,
-        x: &DVector<f64>,
-        direction: &DVector<f64>,
+        x: &Array1<f64>,
+        direction: &Array1<f64>,
         constraints: &[ConstraintType],
     ) -> Result<f64, LinearModelError> {
         let mut max_step = f64::INFINITY;
@@ -471,7 +471,7 @@ impl InteriorPointSolver {
     /// Check if a point is strictly feasible (required for interior point methods)
     fn is_strictly_feasible(
         &self,
-        x: &DVector<f64>,
+        x: &Array1<f64>,
         constraints: &[ConstraintType],
     ) -> Result<bool, LinearModelError> {
         for constraint in constraints {
@@ -516,7 +516,7 @@ impl InteriorPointSolver {
     /// Evaluate objective function
     fn evaluate_objective(
         &self,
-        x: &DVector<f64>,
+        x: &Array1<f64>,
         problem: &ConstrainedOptimizationProblem,
     ) -> f64 {
         0.5 * x.dot(&(&problem.hessian * x)) + problem.linear_coeff.dot(x) + problem.constant
@@ -525,7 +525,7 @@ impl InteriorPointSolver {
     /// Find active constraints
     fn find_active_constraints(
         &self,
-        x: &DVector<f64>,
+        x: &Array1<f64>,
         constraints: &[ConstraintType],
     ) -> Result<Vec<usize>, LinearModelError> {
         let mut active = Vec::new();
@@ -651,13 +651,14 @@ impl ConstrainedLinearRegression {
     }
 
     /// Fit the model to data
-    pub fn fit(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<(), LinearModelError> {
+    pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<(), LinearModelError> {
         let n = x.ncols();
 
         // Construct the quadratic programming problem
         // min 0.5 * ||X*w - y||^2 = 0.5 * w^T * (X^T * X) * w - (X^T * y)^T * w + const
-        let hessian = x.transpose() * x;
-        let linear_coeff = -(x.transpose() * y);
+        let x_t = x.t();
+        let hessian = x_t.dot(x);
+        let linear_coeff = -x_t.dot(y);
         let constant = 0.5 * y.dot(y);
 
         let problem = ConstrainedOptimizationProblem {
@@ -674,7 +675,7 @@ impl ConstrainedLinearRegression {
     }
 
     /// Predict using the fitted model
-    pub fn predict(&self, x: &DMatrix<f64>) -> Result<DVector<f64>, LinearModelError> {
+    pub fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>, LinearModelError> {
         match &self.solution {
             Some(result) => Ok(x * &result.solution),
             None => Err(optimization_error(
@@ -686,7 +687,7 @@ impl ConstrainedLinearRegression {
     }
 
     /// Get the fitted coefficients
-    pub fn coefficients(&self) -> Result<&DVector<f64>, LinearModelError> {
+    pub fn coefficients(&self) -> Result<&Array1<f64>, LinearModelError> {
         match &self.solution {
             Some(result) => Ok(&result.solution),
             None => Err(optimization_error(
@@ -712,8 +713,8 @@ mod tests {
     #[test]
     fn test_unconstrained_optimization() {
         // Test simple quadratic optimization: min 0.5 * x^2
-        let hessian = DMatrix::from_element(1, 1, 1.0);
-        let linear_coeff = DVector::from_element(1, 0.0);
+        let hessian = Array2::from_elem((1, 1), 1.0);
+        let linear_coeff = Array1::from_elem(1, 0.0);
         let constant = 0.0;
 
         let problem = ConstrainedOptimizationProblem {
@@ -733,13 +734,13 @@ mod tests {
     #[test]
     fn test_box_constraints() {
         // Test optimization with box constraints: min 0.5 * (x - 2)^2 s.t. 0 <= x <= 1
-        let hessian = DMatrix::from_element(1, 1, 1.0);
-        let linear_coeff = DVector::from_element(1, -2.0);
+        let hessian = Array2::from_elem((1, 1), 1.0);
+        let linear_coeff = Array1::from_elem(1, -2.0);
         let constant = 2.0;
 
         let constraints = vec![ConstraintType::Box {
-            lower: Some(DVector::from_element(1, 0.0)),
-            upper: Some(DVector::from_element(1, 1.0)),
+            lower: Some(Array1::from_elem(1, 0.0)),
+            upper: Some(Array1::from_elem(1, 1.0)),
         }];
 
         let problem = ConstrainedOptimizationProblem {
@@ -767,20 +768,19 @@ mod tests {
     fn test_constrained_linear_regression() {
         // Test constrained linear regression with non-negative constraints
         // Use a simpler, well-conditioned problem
-        let x = DMatrix::from_vec(
-            4,
-            2,
+        let x = Array2::from_shape_vec(
+            (4, 2),
             vec![
                 1.0, 2.0, // [1, 2]
                 2.0, 1.0, // [2, 1]
                 3.0, 3.0, // [3, 3]
                 4.0, 2.0, // [4, 2]
             ],
-        );
-        let y = DVector::from_vec(vec![5.0, 3.0, 9.0, 8.0]); // y ≈ x1 + x2
+        ).expect("Failed to create Array2");
+        let y = Array1::from_vec(vec![5.0, 3.0, 9.0, 8.0]); // y ≈ x1 + x2
 
         let constraints = vec![ConstraintType::Box {
-            lower: Some(DVector::from_element(2, 0.0)),
+            lower: Some(Array1::from_elem(2, 0.0)),
             upper: None,
         }];
 

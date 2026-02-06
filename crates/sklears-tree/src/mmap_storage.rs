@@ -261,7 +261,9 @@ impl MMapTree {
 
         self.n_nodes += 1;
 
-        Ok(offset.try_into().unwrap())
+        offset.try_into().map_err(|_| {
+            SklearsError::InvalidState("File offset exceeds i64 maximum".to_string())
+        })
     }
 
     /// Read a node from the file at the given offset
@@ -475,7 +477,9 @@ impl MMapEnsemble {
         let tree = MMapTree::create(tree_path, tree_metadata)?;
         self.trees.push(tree);
 
-        Ok(self.trees.last_mut().unwrap())
+        self.trees.last_mut().ok_or_else(|| {
+            SklearsError::InvalidState("Failed to access newly created tree".to_string())
+        })
     }
 
     /// Load existing ensemble from directory

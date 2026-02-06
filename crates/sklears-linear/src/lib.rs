@@ -116,9 +116,8 @@ pub mod ridge_cv;
 //pub mod serialization;
 #[cfg(feature = "sgd")]
 pub mod sgd;
-// #[cfg(feature = "simd")]
-// TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//pub mod simd_optimizations;
+#[cfg(feature = "simd")]
+pub mod simd_optimizations;
 pub mod solver;
 #[cfg(feature = "sparse")]
 pub mod sparse;

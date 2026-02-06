@@ -848,7 +848,7 @@ mod tests {
 
     #[test]
     fn test_algorithm_properties() {
-        let props = vec![
+        let props = [
             AlgorithmProperty::Deterministic,
             AlgorithmProperty::Convergent,
             AlgorithmProperty::MonotonicDecrease,

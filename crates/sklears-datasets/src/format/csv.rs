@@ -1,15 +1,8 @@
-//! CSV format support for dataset import/export
-//!
-//! This module provides functions to export and import datasets in CSV format,
-//! with support for custom delimiters, headers, and field quoting.
-
-use super::types::{CsvConfig, FormatError, FormatResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
-/// Export classification dataset to CSV
 pub fn export_classification_csv<P: AsRef<Path>>(
     path: P,
     features: &Array2<f64>,
@@ -303,7 +296,77 @@ pub fn import_regression_csv<P: AsRef<Path>>(
     Ok((features, targets, feature_names))
 }
 
-// Helper functions
+/// Export classification dataset to JSON
+#[cfg(feature = "serde")]
+pub fn export_classification_json<P: AsRef<Path>>(
+    path: P,
+    features: &Array2<f64>,
+    targets: &Array1<i32>,
+    feature_names: Option<&[String]>,
+    metadata: Option<serde_json::Value>,
+) -> FormatResult<()> {
+    let (n_samples, n_features) = features.dim();
+
+    let feature_data: Vec<Vec<f64>> = (0..n_samples)
+        .map(|i| (0..n_features).map(|j| features[[i, j]]).collect())
+        .collect();
+
+    let target_data: Vec<serde_json::Value> = targets
+        .iter()
+        .map(|&t| serde_json::Value::Number(serde_json::Number::from(t)))
+        .collect();
+
+    let dataset = SerializableDataset {
+        features: feature_data,
+        targets: target_data,
+        feature_names: feature_names.map(|names| names.to_vec()),
+        target_names: None,
+        metadata,
+    };
+
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+    serde_json::to_writer_pretty(writer, &dataset)?;
+    Ok(())
+}
+
+/// Export regression dataset to JSON
+#[cfg(feature = "serde")]
+pub fn export_regression_json<P: AsRef<Path>>(
+    path: P,
+    features: &Array2<f64>,
+    targets: &Array1<f64>,
+    feature_names: Option<&[String]>,
+    metadata: Option<serde_json::Value>,
+) -> FormatResult<()> {
+    let (n_samples, n_features) = features.dim();
+
+    let feature_data: Vec<Vec<f64>> = (0..n_samples)
+        .map(|i| (0..n_features).map(|j| features[[i, j]]).collect())
+        .collect();
+
+    let target_data: Vec<serde_json::Value> = targets
+        .iter()
+        .map(|&t| {
+            serde_json::Value::Number(
+                serde_json::Number::from_f64(t).unwrap_or(serde_json::Number::from(0)),
+            )
+        })
+        .collect();
+
+    let dataset = SerializableDataset {
+        features: feature_data,
+        targets: target_data,
+        feature_names: feature_names.map(|names| names.to_vec()),
+        target_names: None,
+        metadata,
+    };
+
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+    serde_json::to_writer_pretty(writer, &dataset)?;
+    Ok(())
+}
 
 /// Helper function to write a CSV field with proper quoting
 fn write_csv_field<W: Write>(writer: &mut W, field: &str, config: &CsvConfig) -> FormatResult<()> {
@@ -336,3 +399,4 @@ fn split_csv_line<'a>(line: &'a str, config: &CsvConfig) -> Vec<&'a str> {
     // Simplified CSV parsing - in production, use a proper CSV library
     line.split(config.delimiter).map(|s| s.trim()).collect()
 }
+

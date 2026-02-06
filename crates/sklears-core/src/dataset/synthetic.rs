@@ -282,6 +282,14 @@ pub fn make_classification(
 
 #[allow(non_snake_case)]
 #[cfg(test)]
+fn variance(data: &scirs2_core::ndarray::Array1<f64>) -> f64 {
+    let mean = data.mean().unwrap();
+    let sum_sq_diff: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum();
+    sum_sq_diff / (data.len() as f64 - 1.0)
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -358,12 +366,4 @@ mod tests {
         assert!(zero_noise.description.contains("regression"));
         assert!(some_noise.description.contains("regression"));
     }
-}
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-fn variance(data: &scirs2_core::ndarray::Array1<f64>) -> f64 {
-    let mean = data.mean().unwrap();
-    let sum_sq_diff: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum();
-    sum_sq_diff / (data.len() as f64 - 1.0)
 }

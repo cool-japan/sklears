@@ -539,7 +539,7 @@ mod tests {
 
         // Should detect a regression
         let regressions = runner.get_regressions();
-        assert!(regressions.len() > 0);
+        assert!(!regressions.is_empty());
     }
 
     #[test]

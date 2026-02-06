@@ -9,6 +9,7 @@
 
 // Core modules that work
 pub mod generators;
+pub mod memory_pool;
 pub mod parallel_rng;
 pub mod simd_gen;
 pub mod traits;

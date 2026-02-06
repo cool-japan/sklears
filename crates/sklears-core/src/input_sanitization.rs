@@ -643,8 +643,10 @@ mod tests {
 
     #[test]
     fn test_sanitization_config() {
-        let mut config = SanitizationConfig::default();
-        config.max_string_length = Some(10);
+        let config = SanitizationConfig {
+            max_string_length: Some(10),
+            ..Default::default()
+        };
 
         let sanitizer = InputSanitizer::with_config(config);
         let long_string = "This is a very long string that exceeds the limit".to_string();

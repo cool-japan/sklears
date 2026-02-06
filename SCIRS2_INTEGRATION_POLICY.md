@@ -813,13 +813,14 @@ oxicode = { version = "0.1.1" }
 
 ## Migration Status & Current State
 
-### Sklears Migration Status (v0.1.1)
+### Sklears Migration Status (v0.1.0-rc.1)
 - **✅ SciRS2 Ecosystem**: 100% POLICY-compliant (All 23 crates)
-- **✅ Workspace Dependencies**: Updated to SciRS2 v0.1.1 from crates.io
+- **✅ Workspace Dependencies**: Updated to SciRS2 v0.1.3 from crates.io
 - **✅ scirs2_core::random**: ALL rand_distr distributions available
 - **✅ scirs2_core::ndarray**: Complete ndarray including macros (array!, s!, azip!)
-- **✅ Working Crates**: sklears-core, sklears-compose, sklears-linear, sklears-neural, sklears-svm, sklears-decomposition, sklears-kernel-approximation, sklears-manifold, sklears-covariance, and 26 more
-- **✅ Build Status**: 35/35 crates building successfully (100%)
+- **✅ Working Crates**: All 36 crates including sklears-core, sklears-compose, sklears-linear, sklears-neural, sklears-svm, sklears-decomposition, sklears-kernel-approximation, sklears-manifold, sklears-covariance, and 27 more
+- **✅ Build Status**: 36/36 crates building successfully (100%)
+- **✅ Test Status**: 4,409/4,410 tests passing (99.98%)
 
 ### API Migration Complete (v0.1.1)
 - ✅ Oxicode API: 11 files migrated from bincode
@@ -829,6 +830,18 @@ oxicode = { version = "0.1.1" }
 - ✅ Eigh API: 50+ locations updated with UPLO parameter
 - ✅ All trait import conflicts resolved
 - ✅ Pure Rust dependencies only (OxiBLAS v0.1.2, no system BLAS required)
+
+### Nalgebra → scirs2-linalg Migrations (v0.1.0-rc.1)
+Complete migration to Pure Rust stack:
+- **✅ sklears-decomposition**: 100% complete (6 files, 255 tests passing)
+  - incremental_pca.rs, kernel_pca.rs, manifold.rs, tensor_decomposition.rs, matrix_completion.rs, pls.rs
+- **✅ sklears-linear**: 100% complete (5 files, 137 tests passing)
+  - glm.rs, serialization.rs, quantile.rs, constrained_optimization.rs, simd_optimizations.rs
+- **✅ sklears-svm**: 100% complete (7 files, 256 tests passing)
+  - grid_search.rs, bayesian_optimization.rs, random_search.rs, evolutionary_optimization.rs
+  - advanced_optimization.rs, semi_supervised.rs, property_tests.rs
+
+**Total**: 18 files migrated, 648 tests passing, zero system dependencies
 
 ### SciRS2 Policy Compliance Status
 As of SciRS2 v0.1.1 (Stable Release), **ALL 23 SciRS2 crates are POLICY-compliant (100%)**:
@@ -934,14 +947,15 @@ By following the official SciRS2 Ecosystem Policy v3.0.0, we achieve:
 
 ---
 
-**Document Version**: 3.0.0 - Aligned with Official SciRS2 Ecosystem Policy v3.0.0
-**Last Updated**: 2026-01-01 (Updated for SciRS2 v0.1.1 Stable + Sklears v0.1.0-beta.1)
+**Document Version**: 3.0.1 - Aligned with Official SciRS2 Ecosystem Policy v3.0.0
+**Last Updated**: 2026-02-05 (Updated for SciRS2 v0.1.3 Stable + Sklears v0.1.0-rc.1)
 **Based on**:
-- SciRS2 Ecosystem Policy v3.0.0 (v0.1.1 Stable - 100% Complete)
-- SciRS2 CLAUDE.md (v0.1.1 Stable)
+- SciRS2 Ecosystem Policy v3.0.0 (v0.1.3 Stable - 100% Complete)
+- SciRS2 CLAUDE.md (v0.1.3 Stable)
 - SciRS2 Core Module Usage Guidelines
 - Sklears successful migration to published crates.io versions
+- Complete nalgebra → scirs2-linalg migrations (18 files, 3 crates)
 - COOLJAPAN Policy: OxiBLAS v0.1.2+ and Oxicode v0.1.1+
 **Next Review**: Q2 2026
 **Owner**: Sklears Architecture Team
-**Status**: ✅ ACTIVE - All 35 Sklears crates using SciRS2 v0.1.1 from crates.io
+**Status**: ✅ ACTIVE - All 36 Sklears crates using SciRS2 v0.1.3 from crates.io

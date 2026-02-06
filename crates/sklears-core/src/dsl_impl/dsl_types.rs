@@ -411,7 +411,7 @@ mod tests {
     fn test_default_performance_config() {
         let config = PerformanceConfig::default();
         assert_eq!(config.max_threads, None);
-        assert_eq!(config.gpu_acceleration, false);
+        assert!(!config.gpu_acceleration);
     }
 
     #[test]
@@ -419,6 +419,6 @@ mod tests {
         let config = OptimizationConfig::default();
         assert_eq!(config.strategy, OptimizationStrategy::RandomSearch);
         assert_eq!(config.max_iterations, 100);
-        assert_eq!(config.parallel, false);
+        assert!(!config.parallel);
     }
 }

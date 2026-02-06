@@ -578,7 +578,18 @@ impl NumericallyStableIsotonicRegression {
 
         // Count effective degrees of freedom based on data distribution
         let mut sorted_x = x.to_vec();
-        sorted_x.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_x.sort_by(|a, b| {
+            a.partial_cmp(b).unwrap_or_else(|| {
+                // Handle NaN cases: NaN values are considered greater than any finite value
+                if a.is_nan() && b.is_nan() {
+                    std::cmp::Ordering::Equal
+                } else if a.is_nan() {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Less
+                }
+            })
+        });
 
         let mut rank = 1;
         for i in 1..n {
@@ -1190,8 +1201,18 @@ pub fn numerically_stable_isotonic_regression(
 
     model.fit(x, y)?;
 
-    let fitted_values = model.fitted_values().unwrap().clone();
-    let stability_analysis = model.stability_analysis().unwrap().clone();
+    let fitted_values = model
+        .fitted_values()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "numerically_stable_isotonic_regression".to_string(),
+        })?
+        .clone();
+    let stability_analysis = model
+        .stability_analysis()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "numerically_stable_isotonic_regression".to_string(),
+        })?
+        .clone();
 
     Ok((fitted_values, stability_analysis))
 }
@@ -1253,7 +1274,12 @@ pub fn isotonic_regression_with_error_analysis(
 
     regressor.fit(x, y)?;
     let result = regressor.predict(x)?;
-    let analysis = regressor.stability_analysis().unwrap().clone();
+    let analysis = regressor
+        .stability_analysis()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "isotonic_regression_with_error_analysis".to_string(),
+        })?
+        .clone();
 
     Ok((result, analysis))
 }
@@ -1267,7 +1293,12 @@ pub fn analyze_numerical_stability(
     let mut regressor = NumericallyStableIsotonicRegression::new().config(config);
 
     regressor.fit(x, y)?;
-    Ok(regressor.stability_analysis().unwrap().clone())
+    regressor
+        .stability_analysis()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "analyze_numerical_stability".to_string(),
+        })
+        .map(|analysis| analysis.clone())
 }
 
 #[allow(non_snake_case)]

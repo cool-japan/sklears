@@ -219,14 +219,18 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskElasticNet<Untrained> {
         // Initialize coefficients
         let mut coef: Array2<Float> = Array2::zeros((n_features, n_tasks));
         let intercept = if self.config.fit_intercept {
-            y.mean_axis(Axis(0)).unwrap()
+            y.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError("Failed to compute mean of Y".to_string())
+            })?
         } else {
             Array1::zeros(n_tasks)
         };
 
         // Center data if fitting intercept
         let (x_centered, y_centered) = if self.config.fit_intercept {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
+            let x_mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError("Failed to compute mean of X".to_string())
+            })?;
             let x_c = x - &x_mean.insert_axis(Axis(0));
             let y_c = y - &intercept.clone().insert_axis(Axis(0));
             (x_c, y_c)
@@ -318,7 +322,9 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskElasticNet<Trained> {
             ));
         }
 
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "access model parameters".to_string(),
+        })?;
         if x.ncols() != n_features {
             return Err(SklearsError::FeatureMismatch {
                 expected: n_features,
@@ -326,8 +332,15 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskElasticNet<Trained> {
             });
         }
 
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "access model parameters".to_string(),
+        })?;
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "access model parameters".to_string(),
+            })?;
 
         // Compute predictions: Y = X @ W + intercept
         let mut predictions = x.dot(coef);
@@ -344,28 +357,40 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskElasticNet<Trained> {
 
 impl MultiTaskElasticNet<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array2<Float>> {
+        self.coef_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "access model parameters".to_string(),
+        })
     }
 
     /// Get the intercept
-    pub fn intercept(&self) -> &Array1<Float> {
-        self.intercept_.as_ref().unwrap()
+    pub fn intercept(&self) -> Result<&Array1<Float>> {
+        self.intercept_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "access model parameters".to_string(),
+            })
     }
 
     /// Get the number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "access model parameters".to_string(),
+        })
     }
 
     /// Get the number of features
-    pub fn n_features(&self) -> usize {
-        self.n_features_.unwrap()
+    pub fn n_features(&self) -> Result<usize> {
+        self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "access model parameters".to_string(),
+        })
     }
 
     /// Get the number of tasks
-    pub fn n_tasks(&self) -> usize {
-        self.n_tasks_.unwrap()
+    pub fn n_tasks(&self) -> Result<usize> {
+        self.n_tasks_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "access model parameters".to_string(),
+        })
     }
 }
 
@@ -404,7 +429,7 @@ mod tests {
             .fit_intercept(false);
 
         let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef();
+        let coef = fitted.coef().unwrap();
 
         // First feature should have coefficients close to [1.0, 2.0]
         assert_abs_diff_eq!(coef[[0, 0]], 1.0, epsilon = 0.1);
@@ -427,7 +452,7 @@ mod tests {
             .fit_intercept(false);
 
         let fitted_ridge = model_ridge.fit(&x, &y).unwrap();
-        let coef_ridge = fitted_ridge.coef();
+        let coef_ridge = fitted_ridge.coef().unwrap();
 
         // Test with l1_ratio = 1 (pure Lasso)
         let model_lasso = MultiTaskElasticNet::new()
@@ -436,7 +461,7 @@ mod tests {
             .fit_intercept(false);
 
         let fitted_lasso = model_lasso.fit(&x, &y).unwrap();
-        let coef_lasso = fitted_lasso.coef();
+        let coef_lasso = fitted_lasso.coef().unwrap();
 
         // Ridge and Lasso should produce different coefficients
         // With the same alpha, pure Lasso (l1_ratio=1) should produce sparser solutions
@@ -466,7 +491,7 @@ mod tests {
         assert_eq!(predictions.shape(), &[5, 2]);
 
         // Check intercepts
-        let intercept = fitted.intercept();
+        let intercept = fitted.intercept().unwrap();
         assert_eq!(intercept.len(), 2);
 
         // Intercepts should be positive for this data
@@ -507,7 +532,7 @@ mod tests {
             .fit_intercept(false);
 
         let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef();
+        let coef = fitted.coef().unwrap();
 
         // Count non-zero features
         let mut non_zero_features = 0;

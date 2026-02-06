@@ -273,7 +273,12 @@ impl CategoricalEncoder {
             });
         }
 
-        let encoding_result = self.encoding_result.as_ref().unwrap();
+        let encoding_result =
+            self.encoding_result
+                .as_ref()
+                .ok_or_else(|| SklearsError::NotFitted {
+                    operation: "transform - encoding_result not available".to_string(),
+                })?;
 
         if data.is_empty() {
             return Ok(Vec::new());
@@ -304,7 +309,12 @@ impl CategoricalEncoder {
                         .feature_info
                         .iter()
                         .find(|info| info.column_index == col_idx)
-                        .unwrap();
+                        .ok_or_else(|| {
+                            SklearsError::InvalidInput(format!(
+                                "Feature info not found for column {}",
+                                col_idx
+                            ))
+                        })?;
 
                     let encoded_values = self.encode_value(value, feature_info)?;
 
@@ -478,7 +488,9 @@ impl CategoricalEncoder {
             } => {
                 if *sort_by_frequency {
                     categories.sort_by(|a, b| {
-                        frequencies.get(b).unwrap().cmp(frequencies.get(a).unwrap())
+                        let freq_a = frequencies.get(a).copied().unwrap_or(0);
+                        let freq_b = frequencies.get(b).copied().unwrap_or(0);
+                        freq_b.cmp(&freq_a)
                     });
                 } else {
                     categories.sort();
@@ -498,7 +510,7 @@ impl CategoricalEncoder {
         {
             // Filter by minimum frequency
             if let Some(min_freq) = min_frequency {
-                categories.retain(|cat| frequencies.get(cat).unwrap() >= min_freq);
+                categories.retain(|cat| frequencies.get(cat).copied().unwrap_or(0) >= *min_freq);
             }
 
             // Limit maximum categories
@@ -579,7 +591,12 @@ impl CategoricalEncoder {
 
                             // Add noise for regularization
                             let mut rng = thread_rng();
-                            let uniform = Uniform::new(0.0, 1.0).unwrap();
+                            let uniform = Uniform::new(0.0, 1.0).map_err(|e| {
+                                SklearsError::InvalidInput(format!(
+                                    "Failed to create Uniform distribution: {}",
+                                    e
+                                ))
+                            })?;
                             let noisy_mean =
                                 smoothed_mean + noise_level * (uniform.sample(&mut rng) - 0.5);
                             encoding_map.insert(category.clone(), vec![noisy_mean]);
@@ -618,7 +635,7 @@ impl CategoricalEncoder {
 
             CategoricalEncodingStrategy::FrequencyEncoding => {
                 for category in categories {
-                    let frequency = *frequencies.get(category).unwrap() as f64;
+                    let frequency = frequencies.get(category).copied().unwrap_or(0) as f64;
                     encoding_map.insert(category.clone(), vec![frequency]);
                 }
             }
@@ -626,7 +643,12 @@ impl CategoricalEncoder {
             CategoricalEncodingStrategy::EmbeddingEncoding { embedding_dim, .. } => {
                 // Initialize random embeddings
                 let mut rng = thread_rng();
-                let uniform = Uniform::new(0.0, 1.0).unwrap();
+                let uniform = Uniform::new(0.0, 1.0).map_err(|e| {
+                    SklearsError::InvalidInput(format!(
+                        "Failed to create Uniform distribution: {}",
+                        e
+                    ))
+                })?;
                 for category in categories {
                     let embedding: Vec<f64> = (0..*embedding_dim)
                         .map(|_| uniform.sample(&mut rng) - 0.5)
@@ -724,12 +746,19 @@ impl CategoricalEncoder {
                                 .iter()
                                 .max_by_key(|(_, &count)| count)
                                 .map(|(cat, _)| cat)
-                                .unwrap();
-                            Ok(feature_info
-                                .encoding_map
-                                .get(most_frequent)
-                                .unwrap()
-                                .clone())
+                                .ok_or_else(|| {
+                                    SklearsError::InvalidInput(format!(
+                                        "No most frequent category found for column {}",
+                                        feature_info.column_index
+                                    ))
+                                })?;
+                            let encoding = feature_info.encoding_map.get(most_frequent).ok_or_else(|| {
+                                SklearsError::InvalidInput(format!(
+                                    "Encoding not found for most frequent category '{}' in column {}",
+                                    most_frequent, feature_info.column_index
+                                ))
+                            })?;
+                            Ok(encoding.clone())
                         }
                         UnknownHandling::Ignore => Ok(vec![0.0]),
                     }

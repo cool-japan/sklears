@@ -147,7 +147,7 @@ impl Fit<Array1<Float>, Array1<Float>> for ApproximateIsotonicRegression<Untrain
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        indices.sort_by(|&i, &j| x[i].total_cmp(&x[j]));
 
         let x_sorted: Array1<Float> = indices.iter().map(|&i| x[i]).collect();
         let y_sorted: Array1<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -245,7 +245,7 @@ impl ApproximateIsotonicRegression<Untrained> {
         y: &Array1<Float>,
     ) -> Result<(Array1<Float>, Array1<Float>, Array1<Float>)> {
         let mut x_sorted = x.to_vec();
-        x_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        x_sorted.sort_by(|a, b| a.total_cmp(b));
 
         let mut bin_edges = Array1::zeros(self.n_bins + 1);
         bin_edges[0] = x_sorted[0];
@@ -324,7 +324,7 @@ impl ApproximateIsotonicRegression<Untrained> {
 
         // Create bin edges from sampled data
         let mut x_sorted = x_sampled.to_vec();
-        x_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        x_sorted.sort_by(|a, b| a.total_cmp(b));
         let mut bin_edges = Array1::zeros(self.n_bins + 1);
 
         for i in 0..=self.n_bins {
@@ -395,8 +395,12 @@ impl ApproximateIsotonicRegression<Untrained> {
             let y_chunk = y.slice(s![chunk_start..chunk_end]).to_owned();
 
             // Compute chunk average
-            let x_mean = x_chunk.mean().unwrap();
-            let y_mean = y_chunk.mean().unwrap();
+            let x_mean = x_chunk.mean().ok_or_else(|| {
+                SklearsError::InvalidInput("Empty chunk encountered in streaming approximation".to_string())
+            })?;
+            let y_mean = y_chunk.mean().ok_or_else(|| {
+                SklearsError::InvalidInput("Empty chunk encountered in streaming approximation".to_string())
+            })?;
 
             x_bins.push(x_mean);
             y_bins.push(y_mean);
@@ -531,8 +535,16 @@ pub fn approximate_isotonic_regression(
 
     let fitted_model = model.fit(x, y)?;
 
-    let x_bins = fitted_model.x_bins_.unwrap();
-    let y_fitted = fitted_model.y_fitted_.unwrap();
+    let x_bins = fitted_model.x_bins_.ok_or_else(|| {
+        SklearsError::NotFitted {
+            operation: "approximate_isotonic_regression".to_string(),
+        }
+    })?;
+    let y_fitted = fitted_model.y_fitted_.ok_or_else(|| {
+        SklearsError::NotFitted {
+            operation: "approximate_isotonic_regression".to_string(),
+        }
+    })?;
 
     Ok((x_bins, y_fitted))
 }

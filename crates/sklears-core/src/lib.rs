@@ -178,8 +178,7 @@ pub mod benchmarking;
 pub mod compatibility;
 pub mod compile_time_macros;
 pub mod compile_time_validation;
-// TODO: Temporarily disabled until ndarray 0.17 migration is complete
-// Contract testing framework needs trait bounds updated for new ArrayBase<S, D, T> signature
+// TODO: Complex generic testing - needs blanket trait implementations
 // pub mod contract_testing;
 pub mod contribution;
 pub mod dependent_types;
@@ -240,12 +239,12 @@ pub mod code_coverage;
 // Input sanitization for untrusted data
 pub mod input_sanitization;
 
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// TODO: HRTB issues - needs trait bound simplification
 // #[allow(non_snake_case)]
 // #[cfg(test)]
 // pub mod property_tests;
 
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// TODO: HRTB issues - needs trait bound simplification
 // #[allow(non_snake_case)]
 // #[cfg(test)]
 // pub mod test_utilities;

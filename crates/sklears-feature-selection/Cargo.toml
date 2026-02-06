@@ -28,7 +28,7 @@ serde_json = { workspace = true, optional = true }
 oxicode = { workspace = true, optional = true }
 num_cpus = { workspace = true }
 rayon = { workspace = true }
-statrs = "0.18"
+statrs = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }

@@ -261,7 +261,10 @@ impl PyARDRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        Ok(core_array1_to_py(py, fitted.coef()))
+        let coef = fitted
+            .coef()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get coefficients: {:?}", e)))?;
+        Ok(core_array1_to_py(py, coef))
     }
 
     /// Get model intercept
@@ -283,7 +286,10 @@ impl PyARDRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        Ok(core_array1_to_py(py, fitted.alpha()))
+        let alpha = fitted
+            .alpha()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get alpha: {:?}", e)))?;
+        Ok(core_array1_to_py(py, alpha))
     }
 
     /// Get estimated precision of noise (lambda)
@@ -294,7 +300,9 @@ impl PyARDRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        Ok(fitted.lambda())
+        fitted
+            .lambda()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get lambda: {:?}", e)))
     }
 
     /// Calculate R² score
@@ -325,7 +333,10 @@ impl PyARDRegression {
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
         // Infer number of features from coefficient array length
-        Ok(fitted.coef().len())
+        let coef = fitted
+            .coef()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get coefficients: {:?}", e)))?;
+        Ok(coef.len())
     }
 
     /// Return parameters for this estimator (sklearn compatibility)

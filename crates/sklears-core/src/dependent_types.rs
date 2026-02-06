@@ -858,7 +858,7 @@ mod tests {
         let v2 = LVec::<i32, N3>::new(vec![4, 5, 6]).unwrap();
 
         let dot = dot_product(&v1, &v2);
-        assert_eq!(dot, 1 * 4 + 2 * 5 + 3 * 6);
+        assert_eq!(dot, 4 + 2 * 5 + 3 * 6);
         assert_eq!(dot, 32);
     }
 

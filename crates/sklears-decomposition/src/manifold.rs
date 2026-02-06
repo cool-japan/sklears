@@ -7,11 +7,10 @@
 //! - t-Distributed Stochastic Neighbor Embedding (t-SNE)
 //! - Uniform Manifold Approximation and Projection (UMAP)
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::{Rng, thread_rng, Random};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -478,21 +477,12 @@ impl ManifoldLearning<Untrained> {
 
     /// Solve linear system Ax = b
     fn solve_linear_system(&self, a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>> {
-        let n = a.nrows();
-        let a_matrix = DMatrix::from_row_slice(n, n, a.as_slice().unwrap());
-        let b_vector = nalgebra::DVector::from_row_slice(b.as_slice().unwrap());
-
-        let decomp = a_matrix.lu();
-        let solution = decomp.solve(&b_vector).ok_or_else(|| {
-            SklearsError::NumericalError("Failed to solve linear system".to_string())
+        // Use scirs2-linalg solve method
+        let solution = a.solve(b).map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to solve linear system: {}", e))
         })?;
 
-        let mut result = Array1::zeros(n);
-        for i in 0..n {
-            result[i] = solution[i];
-        }
-
-        Ok(result)
+        Ok(solution)
     }
 
     /// Compute LLE embedding using eigendecomposition
@@ -1000,20 +990,22 @@ impl ManifoldLearning<Untrained> {
     /// Compute smallest eigenvectors (for LLE and Laplacian Eigenmaps)
     fn compute_smallest_eigenvectors(&self, matrix: &Array2<f64>) -> Result<Array2<f64>> {
         let n = matrix.nrows();
-        let matrix_na = DMatrix::from_row_slice(n, n, matrix.as_slice().unwrap());
 
-        let eigen = matrix_na.symmetric_eigen();
-        let eigenvalues = eigen.eigenvalues;
-        let eigenvectors = eigen.eigenvectors;
+        // Use scirs2-linalg for eigendecomposition
+        let (eigenvalues, eigenvectors) = matrix.eigh(UPLO::Lower).map_err(|e| {
+            SklearsError::NumericalError(format!("Eigendecomposition failed: {}", e))
+        })?;
 
-        // Sort eigenvalues and take smallest ones (skip the first if it's near zero)
+        // eigh returns eigenvalues in ascending order
+        // Collect eigenvalue-eigenvector pairs
         let mut eigen_pairs: Vec<(f64, usize)> = eigenvalues
             .iter()
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        // Sort by eigenvalue (already ascending from eigh, but sort for clarity)
+        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Skip the first eigenvalue if it's close to zero (for Laplacian)
         let start_idx = if eigen_pairs[0].0.abs() < 1e-10 { 1 } else { 0 };
@@ -1024,7 +1016,7 @@ impl ManifoldLearning<Untrained> {
             if result_col < self.n_components {
                 let eigen_idx = eigen_pairs[i].1;
                 for row in 0..n {
-                    result[[row, result_col]] = eigenvectors[(row, eigen_idx)];
+                    result[[row, result_col]] = eigenvectors[[row, eigen_idx]];
                 }
             }
         }
@@ -1035,20 +1027,21 @@ impl ManifoldLearning<Untrained> {
     /// Compute largest eigenvectors (for MDS)
     fn compute_largest_eigenvectors(&self, matrix: &Array2<f64>) -> Result<Array2<f64>> {
         let n = matrix.nrows();
-        let matrix_na = DMatrix::from_row_slice(n, n, matrix.as_slice().unwrap());
 
-        let eigen = matrix_na.symmetric_eigen();
-        let eigenvalues = eigen.eigenvalues;
-        let eigenvectors = eigen.eigenvectors;
+        // Use scirs2-linalg for eigendecomposition
+        let (eigenvalues, eigenvectors) = matrix.eigh(UPLO::Lower).map_err(|e| {
+            SklearsError::NumericalError(format!("Eigendecomposition failed: {}", e))
+        })?;
 
-        // Sort eigenvalues in descending order and take largest ones
+        // eigh returns eigenvalues in ascending order, we need descending
         let mut eigen_pairs: Vec<(f64, usize)> = eigenvalues
             .iter()
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        // Sort in descending order for largest eigenvalues
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut result = Array2::zeros((n, self.n_components));
         for (result_col, i) in (0..self.n_components).enumerate() {
@@ -1057,7 +1050,7 @@ impl ManifoldLearning<Untrained> {
                 let sqrt_eigenval = eigen_pairs[i].0.sqrt();
 
                 for row in 0..n {
-                    result[[row, result_col]] = eigenvectors[(row, eigen_idx)] * sqrt_eigenval;
+                    result[[row, result_col]] = eigenvectors[[row, eigen_idx]] * sqrt_eigenval;
                 }
             }
         }

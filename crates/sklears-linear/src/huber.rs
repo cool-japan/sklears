@@ -12,6 +12,29 @@ use sklears_core::{
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},
 };
 
+/// Helper function to safely compute mean along an axis
+#[inline]
+fn safe_mean_axis(arr: &Array2<f64>, axis: Axis) -> Result<Array1<f64>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
+/// Helper function to safely compute mean of 1D array
+#[inline]
+fn safe_mean(arr: &Array1<f64>) -> Result<f64> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
+}
+
+/// Helper function to safely compare floats
+#[inline]
+fn compare_floats(a: &f64, b: &f64) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
+
 /// Configuration for HuberRegressor
 #[derive(Debug, Clone)]
 pub struct HuberRegressorConfig {
@@ -153,8 +176,8 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
 
         // Center X and y if fitting intercept
         let (x_centered, y_centered, x_mean, y_mean) = if self.config.fit_intercept {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
-            let y_mean = y.mean().unwrap();
+            let x_mean = safe_mean_axis(x, Axis(0))?;
+            let y_mean = safe_mean(y)?;
             let x_centered = x - &x_mean;
             let y_centered = y - y_mean;
             (x_centered, y_centered, Some(x_mean), Some(y_mean))
@@ -186,7 +209,7 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
 
             // Estimate scale using MAD (Median Absolute Deviation)
             let mut abs_residuals: Vec<f64> = residuals.iter().map(|&r| r.abs()).collect();
-            abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            abs_residuals.sort_by(|a, b| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal));
             let n = abs_residuals.len();
             let mad = if n % 2 == 0 {
                 (abs_residuals[n / 2 - 1] + abs_residuals[n / 2]) / 2.0
@@ -228,7 +251,17 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
 
         // Compute intercept if needed
         let intercept = if self.config.fit_intercept {
-            y_mean.unwrap() - x_mean.unwrap().dot(&coef)
+            let y_m = y_mean.ok_or_else(|| {
+                SklearsError::InvalidState(
+                    "y_mean should be Some when fit_intercept=true".to_string(),
+                )
+            })?;
+            let x_m = x_mean.ok_or_else(|| {
+                SklearsError::InvalidState(
+                    "x_mean should be Some when fit_intercept=true".to_string(),
+                )
+            })?;
+            y_m - x_m.dot(&coef)
         } else {
             0.0
         };
@@ -246,8 +279,12 @@ impl Fit<Array2<f64>, Array1<f64>> for HuberRegressor<Untrained> {
 
 impl Predict<Array2<f64>, Array1<f64>> for HuberRegressor<Trained> {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })?;
+        let intercept = self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })?;
 
         Ok(x.dot(coef) + intercept)
     }
@@ -259,7 +296,7 @@ impl Score<Array2<f64>, Array1<f64>> for HuberRegressor<Trained> {
     fn score(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         let predictions = self.predict(x)?;
         let ss_res = (y - &predictions).mapv(|e| e * e).sum();
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean(y)?;
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
 
         Ok(1.0 - ss_res / ss_tot)
@@ -268,23 +305,31 @@ impl Score<Array2<f64>, Array1<f64>> for HuberRegressor<Trained> {
 
 impl HuberRegressor<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array1<f64> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array1<f64>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the intercept
-    pub fn intercept(&self) -> Option<f64> {
-        Some(self.intercept_.unwrap())
+    pub fn intercept(&self) -> Result<f64> {
+        self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the scale parameter
-    pub fn scale(&self) -> f64 {
-        self.scale_.unwrap()
+    pub fn scale(&self) -> Result<f64> {
+        self.scale_.ok_or_else(|| {
+            SklearsError::InvalidState("scale_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| {
+            SklearsError::InvalidState("n_iter_ should be Some in Trained state".to_string())
+        })
     }
 }
 
@@ -303,7 +348,7 @@ mod tests {
 
         let model = HuberRegressor::new().fit(&x, &y).unwrap();
 
-        assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 1e-3);
+        assert_abs_diff_eq!(model.coef().unwrap()[0], 2.0, epsilon = 1e-3);
         assert_abs_diff_eq!(model.intercept().unwrap(), 0.0, epsilon = 1e-3);
     }
 
@@ -335,13 +380,13 @@ mod tests {
         // The coefficient should be somewhat robust to the outlier
         println!(
             "Coefficient: {}, Intercept: {}",
-            model.coef()[0],
+            model.coef().unwrap()[0],
             model.intercept().unwrap()
         );
         assert!(
-            model.coef()[0] > 1.8 && model.coef()[0] < 3.0,
+            model.coef().unwrap()[0] > 1.8 && model.coef().unwrap()[0] < 3.0,
             "Coefficient: {}",
-            model.coef()[0]
+            model.coef().unwrap()[0]
         );
 
         // Test that predictions are reasonable
@@ -363,7 +408,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 1e-3);
+        assert_abs_diff_eq!(model.coef().unwrap()[0], 2.0, epsilon = 1e-3);
         assert_abs_diff_eq!(model.intercept().unwrap(), 0.0, epsilon = 1e-3);
     }
 
@@ -375,7 +420,7 @@ mod tests {
         let model = HuberRegressor::new().alpha(0.1).fit(&x, &y).unwrap();
 
         // With regularization, coefficient should be slightly shrunk
-        assert!(model.coef()[0] < 2.0);
+        assert!(model.coef().unwrap()[0] < 2.0);
     }
 
     #[test]
@@ -386,7 +431,7 @@ mod tests {
         let model = HuberRegressor::new().max_iter(200).fit(&x, &y).unwrap();
 
         // With limited data points and regularization, exact fit is difficult
-        assert_abs_diff_eq!(model.coef()[0], 1.0, epsilon = 0.6);
-        assert_abs_diff_eq!(model.coef()[1], 2.0, epsilon = 0.6);
+        assert_abs_diff_eq!(model.coef().unwrap()[0], 1.0, epsilon = 0.6);
+        assert_abs_diff_eq!(model.coef().unwrap()[1], 2.0, epsilon = 0.6);
     }
 }

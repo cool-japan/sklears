@@ -231,7 +231,10 @@ impl Fit<Array1<Float>, Array1<Float>> for StructuredSparseIsotonicRegression<Un
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| {
+            // Use total_cmp for safe float comparison that handles NaN
+            x[a].total_cmp(&x[b])
+        });
 
         let sorted_x: Vec<Float> = indices.iter().map(|&i| x[i]).collect();
         let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -687,18 +690,38 @@ fn apply_monotonicity_constraint(
         MonotonicityConstraint::Global { increasing: true } => {
             let y_array = Array1::from(fitted_y.to_vec());
             let constrained = crate::algorithms::pool_adjacent_violators_increasing(&y_array);
-            fitted_y.copy_from_slice(constrained.as_slice().unwrap());
+            copy_array_to_slice(&constrained, fitted_y)?;
         }
         MonotonicityConstraint::Global { increasing: false } => {
             let y_array = Array1::from(fitted_y.to_vec());
             let constrained = crate::algorithms::pool_adjacent_violators_decreasing(&y_array);
-            fitted_y.copy_from_slice(constrained.as_slice().unwrap());
+            copy_array_to_slice(&constrained, fitted_y)?;
         }
         _ => {
             // For complex constraints, use simple increasing for now
             let y_array = Array1::from(fitted_y.to_vec());
             let constrained = crate::algorithms::pool_adjacent_violators_increasing(&y_array);
-            fitted_y.copy_from_slice(constrained.as_slice().unwrap());
+            copy_array_to_slice(&constrained, fitted_y)?;
+        }
+    }
+    Ok(())
+}
+
+/// Helper function to safely copy Array1 to slice
+fn copy_array_to_slice(array: &Array1<Float>, slice: &mut [Float]) -> Result<()> {
+    if array.len() != slice.len() {
+        return Err(SklearsError::InvalidInput(
+            format!("Array length {} does not match slice length {}", array.len(), slice.len()),
+        ));
+    }
+
+    // Try to use as_slice for efficiency if array is contiguous
+    if let Some(arr_slice) = array.as_slice() {
+        slice.copy_from_slice(arr_slice);
+    } else {
+        // Fall back to element-by-element copy if not contiguous
+        for (i, &val) in array.iter().enumerate() {
+            slice[i] = val;
         }
     }
     Ok(())

@@ -240,7 +240,11 @@ impl ConstraintBuilder {
         }
 
         // For now, take the last constraint (could be extended to combine constraints)
-        match self.constraints.last().unwrap() {
+        let last_constraint = self.constraints.last().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("No constraints specified".to_string())
+        })?;
+
+        match last_constraint {
             ConstraintSpec::Monotonic { increasing } => Ok(MonotonicityConstraint::Global {
                 increasing: *increasing,
             }),

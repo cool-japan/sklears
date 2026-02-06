@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     print_coefficients(
         "Linear Regression",
-        linear_model.coefficients(),
+        linear_model.coefficients().unwrap(),
         &true_coeffs,
     );
 
@@ -75,14 +75,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "   Non-zero coefficients: {}/{}",
-        lasso_model.n_nonzero_coefficients(),
-        lasso_model.n_features()
+        lasso_model.n_nonzero_coefficients().unwrap(),
+        lasso_model.n_features().unwrap()
     );
     println!(
         "   Coefficient sparsity: {:.1}%",
-        lasso_model.coefficient_sparsity() * 100.0
+        lasso_model.coefficient_sparsity().unwrap() * 100.0
     );
-    print_coefficients("Lasso", lasso_model.coefficients(), &true_coeffs);
+    print_coefficients("Lasso", lasso_model.coefficients().unwrap(), &true_coeffs);
 
     // 5. Sparse ElasticNet Regression
     println!("\n5. Training Sparse ElasticNet Regression...");
@@ -93,14 +93,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "   Non-zero coefficients: {}/{}",
-        elastic_model.n_nonzero_coefficients(),
-        elastic_model.n_features()
+        elastic_model.n_nonzero_coefficients().unwrap(),
+        elastic_model.n_features().unwrap()
     );
     println!(
         "   Coefficient sparsity: {:.1}%",
-        elastic_model.coefficient_sparsity() * 100.0
+        elastic_model.coefficient_sparsity().unwrap() * 100.0
     );
-    print_coefficients("ElasticNet", elastic_model.coefficients(), &true_coeffs);
+    print_coefficients(
+        "ElasticNet",
+        elastic_model.coefficients().unwrap(),
+        &true_coeffs,
+    );
 
     // 6. Performance comparison
     println!("\n6. Performance Comparison");

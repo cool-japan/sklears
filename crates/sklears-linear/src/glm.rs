@@ -5,10 +5,8 @@
 
 use std::marker::PhantomData;
 
-use ndarray_linalg::Solve;
 use scirs2_core::ndarray::{stack, Array, Axis};
 use scirs2_linalg::compat::ArrayLinalgExt;
-// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use sklears_core::{
     error::{validate, Result, SklearsError},
     traits::{Estimator, Fit, Predict, Score, Trained, Untrained},

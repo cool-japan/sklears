@@ -620,8 +620,10 @@ mod tests {
 
     #[test]
     fn test_platform_specific_optimization() {
-        let mut config = OptimizerConfig::default();
-        config.target_platform = ExecutionPlatform::GPU;
+        let config = OptimizerConfig {
+            target_platform: ExecutionPlatform::GPU,
+            ..Default::default()
+        };
 
         let mut optimizer = AdvancedPipelineOptimizer::with_config(config);
         let result = optimizer.optimize_pipeline("gpu pipeline").unwrap();
@@ -635,8 +637,10 @@ mod tests {
 
     #[test]
     fn test_memory_budget_optimization() {
-        let mut config = OptimizerConfig::default();
-        config.memory_budget = Some(512 * 1024 * 1024); // 512MB
+        let config = OptimizerConfig {
+            memory_budget: Some(512 * 1024 * 1024), // 512MB
+            ..Default::default()
+        };
 
         let optimizer = AdvancedPipelineOptimizer::with_config(config);
         assert_eq!(optimizer.config.memory_budget, Some(512 * 1024 * 1024));
