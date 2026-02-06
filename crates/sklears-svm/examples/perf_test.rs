@@ -64,7 +64,7 @@ fn test_dataset_size(n_samples: usize, n_features: usize, n_runs: usize) -> (f64
 fn main() {
     println!("=== SVM Performance Benchmark ===\n");
     println!("Testing SVM training performance with various dataset sizes");
-    println!("Expected improvements: 15-30x faster than pre-optimization\n");
+    println!("Note: Performance optimization ongoing, see benchmarks for current status\n");
 
     let test_configs = vec![
         (6, 2, 10, "Tiny (6 samples)"),
@@ -86,8 +86,8 @@ fn main() {
     }
 
     println!("\n=== Performance Targets ===");
-    println!("6-20 samples:   < 0.5s (optimized)");
-    println!("50-100 samples: < 2s (optimized)");
-    println!("200 samples:    < 5s (optimized)");
-    println!("\nNote: Pre-optimization would take 10-30x longer");
+    println!("6-20 samples:   < 0.5s (target)");
+    println!("50-100 samples: < 2s (target)");
+    println!("200 samples:    < 5s (target)");
+    println!("\nNote: Performance optimization is ongoing");
 }

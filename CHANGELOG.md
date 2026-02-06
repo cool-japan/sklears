@@ -10,13 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0-rc.1] - 2026-02-05
 
 ### Performance ⚡
-- **SVM Solver Optimizations (15-30x speedup)**
+- **SVM Solver Algorithmic Improvements**
   - Implemented WSS1 (Maximal Violating Pair) working set selection algorithm
-    - Reduced complexity from O(n²) to O(n) per iteration (10-20x improvement)
-  - Optimized data storage with smart reuse via `assign()` for in-place copies (1.2x improvement)
-  - Optimized kernel computation by removing temporary allocations (1.5-2x improvement)
+    - Reduced complexity from O(n²) to O(n) per iteration
+  - Optimized data storage with smart reuse via `assign()` for in-place copies
+  - Optimized kernel computation by removing temporary allocations
   - Files: `crates/sklears-svm/src/smo.rs`, `crates/sklears-svm/src/kernels.rs`
-  - Expected combined speedup: 15-30x for small to medium datasets
+  - Status: Correctness validated, performance optimization ongoing
+  - Benchmarks (vs scikit-learn): ~Equal on 6 samples, 2-40x slower on larger datasets
+  - Performance improvements planned for v0.1.1 and v0.2.0
 
 ### Changed
 - **Migration to Pure Rust Stack (Zero System Dependencies)**
@@ -121,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Code Quality**: Achieved 100% warning-free compilation (No Warnings Policy)
 - **Test Suite**: 11,160 tests total (11,159 passing, 99.99% success rate)
-- **Performance**: Validated 14-20x speedup vs NumPy/Python (conservative)
+- **Performance**: Pure Rust implementation with ongoing performance optimization
 - Removed 15 unused import warnings across examples and tests
 - Updated all documentation to beta.1 release status
 - Enhanced benchmark infrastructure with Criterion.rs
@@ -133,12 +135,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied safe_float_cmp utility for No Unwrap Policy compliance
 
 ### Performance
-- **Peak Throughput**: 1.66 Gelem/s (classification accuracy on 1K samples)
+- **SIMD Operations**: 2.4x speedup validated on optimal dimensions (128-256d)
+- **Parallel Processing**: 4x efficiency on 4 cores for large datasets (>100K)
 - **Min Latency**: 31ns (SIMD vector mean operation)
-- **Scaling**: Perfect O(n) and O(d) confirmed across all benchmarks
-- **Stability**: <14% variance, production-ready performance
-- **SIMD**: 2.4x speedup validated on optimal dimensions (128-256d)
-- **Parallel**: 4x efficiency on 4 cores for large datasets (>100K)
+- **Note**: Performance vs Python scikit-learn varies by algorithm and dataset size
+- **Focus**: Correctness and safety prioritized in v0.1.0; performance optimization ongoing
 
 ### Documentation
 - Created comprehensive benchmark reports (15,000+ lines)
@@ -172,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensemble methods (Voting, Stacking, AdaBoost, GradientBoosting)
   - Preprocessing (Scalers, Encoders, Transformers, Imputers)
   - Model selection (Cross-validation, GridSearchCV, RandomizedSearchCV, BayesSearchCV)
-- Performance optimizations: 14-20× speedup over Python implementations
+- Pure Rust implementation with zero system dependencies
 - SIMD optimizations using std::simd (2.4x speedup on optimal dimensions)
 - Type-safe state machines for compile-time model state validation
 - Zero-cost trait abstractions for polymorphic ML algorithms

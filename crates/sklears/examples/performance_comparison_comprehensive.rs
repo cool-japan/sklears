@@ -434,11 +434,13 @@ fn main() {
     // Print comparison insights
     println!("\n=== Performance Insights ===");
     println!("1. sklears Performance Advantages:");
-    println!("   • 14-20x faster (validated) execution due to native Rust optimizations");
+    println!("   • Pure Rust implementation with ongoing performance optimization");
     println!("   • 2-5x lower memory usage with efficient data structures");
     println!("   • Zero Python interpreter overhead");
     println!("   • SIMD optimizations for numerical computations");
     println!("   • Efficient memory layout and cache utilization");
+    println!();
+    println!("   Note: Performance optimization ongoing, see benchmarks for current status");
     println!();
     println!("2. Algorithm-Specific Improvements:");
     println!("   • Linear Models: Optimized BLAS/LAPACK integration");

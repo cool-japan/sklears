@@ -546,10 +546,12 @@ fn benchmark_cross_validation(c: &mut Criterion) {
 pub fn print_benchmark_summary() {
     println!("\n=== SKLEARS VS SCIKIT-LEARN BENCHMARK SUMMARY ===");
     println!("Performance Targets:");
-    println!("  - Speed: 14-20x faster than scikit-learn (validated)");
+    println!("  - Speed: Pure Rust implementation with ongoing performance optimization");
     println!("  - Accuracy: Within 1e-6 of scikit-learn results");
     println!("  - Memory: Linear scaling with problem size");
     println!("  - Convergence: Fewer iterations than reference");
+    println!();
+    println!("  Note: Performance optimization ongoing, see benchmarks for current status");
     println!("\nTo run comprehensive benchmarks:");
     println!("  cargo bench --bench scikit_learn_comparison");
     println!("\nTo profile memory usage:");

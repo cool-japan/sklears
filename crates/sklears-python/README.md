@@ -12,7 +12,7 @@ Python bindings for the sklears machine learning library, providing a high-perfo
 ## Features
 
 - **Drop-in replacement** for scikit-learn's most common algorithms
-- **14-20x performance improvements (validated)** over scikit-learn
+- **Pure Rust implementation** with ongoing performance optimization
 - **Full NumPy array compatibility** with zero-copy operations where possible
 - **Comprehensive error handling** with Python exceptions
 - **Memory-safe operations** with automatic reference counting

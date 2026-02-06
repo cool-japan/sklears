@@ -1,8 +1,8 @@
 /// Benchmarking utilities for comparing sklears performance against scikit-learn
 ///
-/// This module provides comprehensive benchmarking infrastructure to validate that
-/// sklears implementations achieve the target 14-20x performance (validated) improvements over
-/// scikit-learn while maintaining equivalent accuracy.
+/// This module provides comprehensive benchmarking infrastructure to measure performance
+/// of sklears implementations with ongoing optimization efforts to achieve
+/// performance improvements over scikit-learn while maintaining equivalent accuracy.
 ///
 /// # Key Features
 ///

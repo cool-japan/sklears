@@ -23,7 +23,7 @@ The foundational crate for sklears, providing core traits, types, and utilities 
 
 - **Implementation**: 0.1.0-beta.1 ships with >99% of the planned v0.1 APIs implemented.
 - **Validation**: Covered by the 11,292 passing workspace tests (69 skipped) executed on January 1, 2026.
-- **Performance**: Achieves 14-20x improvements (validated) as designed via SIMD, threading, and cache-friendly layouts.
+- **Performance**: Pure Rust implementation with ongoing performance optimization via SIMD, threading, and cache-friendly layouts.
 - **API Stability**: Breaking changes still possible before beta; stabilization roadmap tracked in the root `TODO.md`.
 
 ## Core Trait System

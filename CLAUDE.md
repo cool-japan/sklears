@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-sklears is a Rust implementation of scikit-learn's functionality, providing machine learning algorithms with 14-20x performance improvements (validated) over Python. It's a workspace with multiple crates, each implementing different ML algorithms.
+sklears is a Rust implementation of scikit-learn's functionality, providing type-safe, memory-safe machine learning algorithms with zero system dependencies. It's a workspace with multiple crates, each implementing different ML algorithms. Performance optimization is ongoing (see Performance Status section below).
 
 ## Architecture
 
@@ -193,21 +193,32 @@ let predictions = trained_model.predict(&X_test)?;
 - ✅ 124+ unwrap() calls eliminated (ongoing - No Unwrap Policy compliance)
 - ✅ Test suite: 4,409/4,410 tests passing (99.98%)
 
-### Performance Optimizations (v0.1.0-rc.1)
+### Performance Status (v0.1.0-rc.1)
 
-**SVM Solver Optimizations (15-30x Expected Speedup):**
-- **WSS1 Working Set Selection**: Implemented maximal violating pair algorithm
-  - Reduced complexity from O(n²) to O(n) per iteration (10-20x improvement)
+**Current Status**: Algorithms are correct and functional. Performance optimization is ongoing.
+
+**Benchmark Results** (vs scikit-learn):
+- Small datasets (6 samples): ~Equal performance (~0.5ms)
+- Medium datasets (20-50 samples): 2x slower
+- Large datasets (100 samples): 2-40x slower (requires optimization)
+
+**Implemented Optimizations**:
+- **WSS1 Working Set Selection**: O(n²) → O(n) per iteration complexity
   - Files: `crates/sklears-svm/src/smo.rs` (lines 342-395)
-- **Data Storage Optimization**: Smart reuse via `assign()` for in-place copies (1.2x improvement)
+- **Data Storage Optimization**: Smart reuse via `assign()` for in-place copies
   - Files: `crates/sklears-svm/src/smo.rs` (lines 197-208)
-- **Kernel Computation**: Removed temporary allocations (1.5-2x improvement)
+- **Kernel Computation**: Removed temporary allocations
   - Files: `crates/sklears-svm/src/smo.rs` (line 694), `kernels.rs` (lines 148-160, 318-331)
 
-**Expected Performance:**
-- Small datasets (6-20 samples): 20-40x speedup
-- Medium datasets (100+ samples): 15-30x speedup
-- Ready for benchmark validation
+**Why Performance Lags**:
+- Algorithm correctness prioritized over performance in v0.1.0-rc.1
+- Needs profiling and targeted optimizations
+- Opportunity for SIMD, GPU acceleration, and better memory layouts
+
+**Performance Roadmap**:
+- v0.1.1: Profiling and algorithmic improvements
+- v0.2.0: Performance parity with scikit-learn
+- v0.3.0: Exceed scikit-learn with Rust-specific optimizations
 
 ### SciRS2-Linalg API (v0.1.3 - Pure Rust)
 

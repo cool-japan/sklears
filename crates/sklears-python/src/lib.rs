@@ -14,7 +14,7 @@
 //! # Features
 //!
 //! - Drop-in replacement for scikit-learn's most common algorithms
-//! - 14-20x performance improvements over scikit-learn (validated)
+//! - Pure Rust implementation with ongoing performance optimization
 //! - Full NumPy array compatibility
 //! - Comprehensive error handling with Python exceptions
 //! - Memory-safe operations with automatic reference counting

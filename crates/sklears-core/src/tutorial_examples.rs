@@ -100,7 +100,7 @@ fn create_getting_started_tutorial() -> Tutorial {
 
 sklears is a high-performance machine learning library for Rust, offering:
 
-- **14-20x performance (validated)** improvements over Python
+- **Pure Rust implementation** with ongoing performance optimization
 - **Type safety** at compile time
 - **Zero-cost abstractions** for ML algorithms
 - **scikit-learn compatible** API

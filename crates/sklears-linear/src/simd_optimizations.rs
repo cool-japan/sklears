@@ -51,11 +51,6 @@ impl SimdOps {
         Self { config }
     }
 
-    /// Create with default configuration
-    pub fn default() -> Self {
-        Self::new(SimdConfig::default())
-    }
-
     /// Compute dot product of two vectors using SIMD
     pub fn dot_product(&self, a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f64 {
         assert_eq!(a.len(), b.len());
@@ -676,6 +671,12 @@ impl SimdOps {
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             fma: false,
         }
+    }
+}
+
+impl Default for SimdOps {
+    fn default() -> Self {
+        Self::new(SimdConfig::default())
     }
 }
 

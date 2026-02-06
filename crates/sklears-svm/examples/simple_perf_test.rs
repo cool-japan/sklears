@@ -100,6 +100,6 @@ fn main() {
     }
 
     println!("\n=== Summary ===");
-    println!("These times reflect the optimized SVM implementation.");
-    println!("Pre-optimization would be 15-30x slower.");
+    println!("These times reflect the current SVM implementation.");
+    println!("Performance optimization is ongoing.");
 }

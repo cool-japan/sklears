@@ -676,7 +676,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select MostFrequent for heavily imbalanced data
-        assert_eq!(fitted.selected_strategy(), &Strategy::MostFrequent);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::MostFrequent);
 
         let predictions = fitted.predict(&x).unwrap();
         // All predictions should be class 0 (most frequent)
@@ -694,7 +694,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select Stratified for balanced binary data
-        assert_eq!(fitted.selected_strategy(), &Strategy::Stratified);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Stratified);
     }
 
     #[test]
@@ -706,7 +706,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select Prior for relatively balanced multiclass data
-        assert_eq!(fitted.selected_strategy(), &Strategy::Prior);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Prior);
     }
 
     #[test]
@@ -718,7 +718,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select MostFrequent for imbalanced data
-        assert_eq!(fitted.selected_strategy(), &Strategy::MostFrequent);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::MostFrequent);
 
         let predictions = fitted.predict(&x).unwrap();
         // All predictions should be class 0 (most frequent)
@@ -736,7 +736,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select Stratified for balanced binary data
-        assert_eq!(fitted.selected_strategy(), &Strategy::Stratified);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Stratified);
 
         let predictions = fitted.predict(&x).unwrap();
         // Check that predictions are within the valid class range
@@ -757,8 +757,8 @@ mod tests {
         // Should handle small datasets appropriately
         let selected_strategy = fitted.selected_strategy();
         assert!(matches!(
-            selected_strategy,
-            Strategy::MostFrequent | Strategy::Stratified
+            selected_strategy.unwrap(),
+            &Strategy::MostFrequent | &Strategy::Stratified
         ));
 
         let predictions = fitted.predict(&x).unwrap();

@@ -686,7 +686,14 @@ impl<K: Kernel> SmoSolver<K> {
             let alpha_i = self.alpha[i];
             if alpha_i > 1e-10 && alpha_i < self.config.c - 1e-10 {
                 // Free support vector: 0 < alpha < C
-                bias_sum += self.y[i] - self.f[i];
+                // For margin support vectors: y[i] * (sum(alpha[j] * y[j] * K(x[i], x[j])) + b) = 1
+                // Since f[i] = sum(alpha[j] * y[j] * K(x[i], x[j])) - y[i], we have:
+                // sum(alpha[j] * y[j] * K(x[i], x[j])) = f[i] + y[i]
+                // Therefore: y[i] * (f[i] + y[i] + b) = 1
+                //           y[i] * f[i] + 1 + y[i] * b = 1  (since y[i]^2 = 1)
+                //           y[i] * (f[i] + b) = 0
+                //           b = -f[i]
+                bias_sum += -self.f[i];
                 n_free += 1;
             }
         }
@@ -697,7 +704,7 @@ impl<K: Kernel> SmoSolver<K> {
             // Use all support vectors
             bias_sum = 0.0;
             for &i in support_indices {
-                bias_sum += self.y[i] - self.f[i];
+                bias_sum += -self.f[i];
             }
             self.b = bias_sum / support_indices.len() as Float;
         }

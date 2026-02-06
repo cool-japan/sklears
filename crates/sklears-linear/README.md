@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-High-performance linear models for Rust with 14-20x speedup (validated) over scikit-learn, featuring advanced solvers, numerical stability, and GPU acceleration.
+High-performance linear models for Rust with pure Rust implementation and ongoing performance optimization, featuring advanced solvers, numerical stability, and GPU acceleration.
 
 > **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
