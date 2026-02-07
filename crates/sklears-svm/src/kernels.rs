@@ -668,7 +668,7 @@ impl Kernel for KernelType {
     }
 }
 
-/// Implement Kernel trait for Box<dyn Kernel> to enable polymorphic usage
+/// Implement Kernel trait for `Box<dyn Kernel>` to enable polymorphic usage
 impl Kernel for Box<dyn Kernel> {
     fn compute(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         self.as_ref().compute(x, y)

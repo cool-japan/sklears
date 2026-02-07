@@ -21,7 +21,9 @@ use sklears_core::{
 use crate::kernels::Kernel;
 use crate::utils;
 
+/// # Examples
 ///
+/// ```ignore
 /// let X = array![[1.0], [2.0], [3.0], [4.0]];
 /// let y = array![0, 0, 1, 1];
 ///

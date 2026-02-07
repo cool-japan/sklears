@@ -126,7 +126,7 @@ impl SingleCellMultiModal {
         fitted_cca: &CCA<Trained>,
     ) -> Result<Array1<Float>, GenomicsError> {
         // Get canonical correlations from CCA
-        let correlations = fitted_cca.canonical_correlations();
+        let correlations = fitted_cca.canonical_correlations()?;
         Ok(correlations.clone())
     }
 }

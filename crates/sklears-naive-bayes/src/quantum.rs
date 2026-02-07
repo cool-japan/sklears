@@ -225,34 +225,24 @@ pub struct BasisEncoding<T: Float> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GateType {
     /// Hadamard
-
     Hadamard,
     /// PauliX
-
     PauliX,
     /// PauliY
-
     PauliY,
     /// PauliZ
-
     PauliZ,
     /// RotationX
-
     RotationX,
     /// RotationY
-
     RotationY,
     /// RotationZ
-
     RotationZ,
     /// CNOT
-
     CNOT,
     /// CZ
-
     CZ,
     /// Toffoli
-
     Toffoli,
     Swap,
     ControlledRotation,
@@ -261,76 +251,56 @@ pub enum GateType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MeasurementBasis {
     /// Computational
-
     Computational,
     /// Pauli
-
     Pauli,
     /// Bell
-
     Bell,
     /// Custom
-
     Custom,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EntanglementPattern {
     /// Linear
-
     Linear,
     /// Circular
-
     Circular,
     /// AllToAll
-
     AllToAll,
     /// Tree
-
     Tree,
     /// Grid
-
     Grid,
     /// Custom
-
     Custom,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorCorrectionCode {
     /// SurfaceCode
-
     SurfaceCode,
     /// SteaneCode
-
     SteaneCode,
     /// ShorCode
-
     ShorCode,
     /// RepetitionCode
-
     RepetitionCode,
     /// CSS
-
     CSS,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RotationAxis {
     /// X
-
     X,
     /// Y
-
     Y,
     /// Z
-
     Z,
 }
 
 impl<
-        /// T
-
         T: Float
             + Default
             + Display

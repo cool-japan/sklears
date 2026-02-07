@@ -9,7 +9,9 @@ use sklears_core::{
 
 use crate::gpr::{GaussianProcessRegressor, GprTrained};
 
+/// # Examples
 ///
+/// ```ignore
 /// let kernel = RBF::new(1.0);
 /// let gpr = GaussianProcessRegressor::new().kernel(Box::new(kernel));
 /// let optimizer = BayesianOptimizer::new(gpr)

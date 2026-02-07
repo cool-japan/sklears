@@ -210,8 +210,13 @@ impl Fit<Array2<f64>, Array2<f64>> for MLPRegressor<sklears_core::traits::Untrai
         let mut biases = Vec::new();
 
         for i in 0..layer_sizes.len() - 1 {
-            let w = initialize_weights(layer_sizes[i], layer_sizes[i + 1], &self.weight_init);
-            let b = initialize_biases(layer_sizes[i + 1], &self.weight_init);
+            let w = initialize_weights(
+                layer_sizes[i],
+                layer_sizes[i + 1],
+                &self.weight_init,
+                &mut rng,
+            );
+            let b = initialize_biases(layer_sizes[i + 1], &self.weight_init, &mut rng);
             weights.push(w);
             biases.push(b);
         }
@@ -291,7 +296,7 @@ impl Fit<Array2<f64>, Array2<f64>> for MLPRegressor<sklears_core::traits::Untrai
         };
 
         for epoch in 0..self.max_iter {
-            let batches = create_batches_regression(x, y, batch_size, self.shuffle);
+            let batches = create_batches_regression(x, y, batch_size, self.shuffle, &mut rng);
 
             let mut total_loss = 0.0;
             let mut total_samples = 0;
@@ -657,5 +662,72 @@ mod tests {
 
         // Should have some learning (error should be less than the range of y values)
         assert!(mean_absolute_error < 5.0);
+    }
+
+    #[test]
+    fn test_mlp_regressor_reproducibility() {
+        // Test that random_state ensures reproducible results
+        let x = array![
+            [1.0, 2.0],
+            [2.0, 3.0],
+            [3.0, 4.0],
+            [4.0, 5.0],
+            [5.0, 6.0],
+            [6.0, 7.0],
+        ];
+        let y = array![[3.0], [5.0], [7.0], [9.0], [11.0], [13.0]];
+
+        // Train first model
+        let mlp1 = MLPRegressor::new()
+            .hidden_layer_sizes(&[10, 5])
+            .max_iter(50)
+            .random_state(42)
+            .verbose(false);
+        let trained1 = mlp1.fit(&x, &y).unwrap();
+        let pred1 = trained1.predict(&x).unwrap();
+
+        // Train second model with same random_state
+        let mlp2 = MLPRegressor::new()
+            .hidden_layer_sizes(&[10, 5])
+            .max_iter(50)
+            .random_state(42)
+            .verbose(false);
+        let trained2 = mlp2.fit(&x, &y).unwrap();
+        let pred2 = trained2.predict(&x).unwrap();
+
+        // Predictions should be identical
+        assert_eq!(pred1.dim(), pred2.dim());
+        for i in 0..pred1.len() {
+            assert_abs_diff_eq!(
+                pred1[[i / pred1.ncols(), i % pred1.ncols()]],
+                pred2[[i / pred2.ncols(), i % pred2.ncols()]],
+                epsilon = 1e-10
+            );
+        }
+
+        // Train third model with different random_state
+        let mlp3 = MLPRegressor::new()
+            .hidden_layer_sizes(&[10, 5])
+            .max_iter(50)
+            .random_state(123)
+            .verbose(false);
+        let trained3 = mlp3.fit(&x, &y).unwrap();
+        let pred3 = trained3.predict(&x).unwrap();
+
+        // Predictions should be different from the first two
+        let mut differences = 0;
+        for i in 0..pred1.len() {
+            if (pred1[[i / pred1.ncols(), i % pred1.ncols()]]
+                - pred3[[i / pred3.ncols(), i % pred3.ncols()]])
+            .abs()
+                > 1e-10
+            {
+                differences += 1;
+            }
+        }
+        assert!(
+            differences > 0,
+            "Different random seeds should produce different results"
+        );
     }
 }

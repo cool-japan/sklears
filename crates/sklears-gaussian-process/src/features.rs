@@ -18,7 +18,9 @@ use sklears_core::{
 
 use crate::{classification::GpcConfig, utils};
 
+/// # Examples
 ///
+/// ```ignore
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 /// let mut rff = RandomFourierFeatures::new(100, 1.0, Some(42));
 /// rff.fit(&X.view()).unwrap();

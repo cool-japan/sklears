@@ -24,7 +24,7 @@ use scirs2_core::numeric::Float;
 mod adaptive_smoothing;
 mod api_builder;
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//mod attention_naive_bayes;
+mod attention_naive_bayes;
 mod bayesian_network;
 mod benchmarks;
 mod bernoulli;
@@ -35,14 +35,14 @@ mod causal_inference;
 mod complement;
 mod computer_vision;
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//mod continual_learning;
+mod continual_learning;
 mod deep_generative;
 mod dirichlet_process;
 mod ensemble;
 mod exponential_family;
 mod feature_engineering;
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//mod federated;
+mod federated;
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
 //mod finance;
 mod flexible;
@@ -64,7 +64,7 @@ mod performance;
 mod plugin_architecture;
 mod poisson;
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-//mod quantum;
+mod quantum;
 mod semi_naive;
 mod smoothing;
 mod temporal;
@@ -89,10 +89,10 @@ pub use api_builder::{
     NaiveBayesBuilder, NaiveBayesPreset, SerializableNBParams,
 };
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use attention_naive_bayes::{
-//     AttentionNBBuilder, AttentionNBConfig, AttentionNBError, AttentionNaiveBayes, AttentionType,
-//     ImportanceScoring,
-// };
+pub use attention_naive_bayes::{
+    AttentionNBBuilder, AttentionNBConfig, AttentionNBError, AttentionNaiveBayes, AttentionType,
+    ImportanceScoring,
+};
 pub use bayesian_network::{
     BANConfig, BANError, BayesianNetwork, BayesianNetworkAugmentedNB, NetworkEdge,
     StructureLearningMethod,
@@ -118,11 +118,11 @@ pub use computer_vision::{
     ImageNaiveBayes, NeighborhoodStats, SpatialModel, SpatialNBConfig, SpatialNaiveBayes,
 };
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use continual_learning::{
-//     ContinualLearningConfig, ContinualLearningError, ContinualLearningNB,
-//     ContinualLearningNBBuilder, ContinualLearningStrategy, DriftDetectionMethod, MemoryStrategy,
-//     TaskMetadata,
-// };
+pub use continual_learning::{
+    ContinualLearningConfig, ContinualLearningError, ContinualLearningNB,
+    ContinualLearningNBBuilder, ContinualLearningStrategy, DriftDetectionMethod, MemoryStrategy,
+    TaskMetadata,
+};
 pub use deep_generative::{
     DeepGenerativeConfig, DeepGenerativeError, DeepGenerativeNaiveBayes, FlowConfig, NPEConfig,
     NeuralPosteriorEstimator, NormalizingFlow, VAEConfig, VariationalAutoencoder,
@@ -147,11 +147,11 @@ pub use feature_engineering::{
     OutlierDetectionMethod, StatisticalTest, TransformMethod,
 };
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use federated::{
-//     AggregationMethod, AggregationStrategy, BudgetAllocationStrategy, ClientId, ClientModel,
-//     CommunicationParams, CompressionStrategy, FederatedError, FederatedNaiveBayes,
-//     FederationParams, FederationStatistics, GlobalModel, LocalUpdate, PrivacyParams, PrivateUpdate,
-// };
+pub use federated::{
+    AggregationMethod, AggregationStrategy, BudgetAllocationStrategy, ClientId, ClientModel,
+    CommunicationParams, CompressionStrategy, FederatedError, FederatedNaiveBayes,
+    FederationParams, FederationStatistics, GlobalModel, LocalUpdate, PrivacyParams, PrivateUpdate,
+};
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
 // pub use finance::{
 //     CreditData, CreditRisk, CreditScoringNB, FinanceError, FinancialFeatures,
@@ -227,11 +227,11 @@ pub use plugin_architecture::{
 };
 pub use poisson::PoissonNB;
 // TODO: Migrate to scirs2-linalg (uses nalgebra types)
-// pub use quantum::{
-//     EntanglementPattern, GateType, HybridQuantumClassicalNB, QuantumAdvantageMetrics,
-//     QuantumCircuitParams, QuantumError, QuantumFeatureMap, QuantumNaiveBayes, QuantumState,
-//     RotationAxis,
-// };
+pub use quantum::{
+    EntanglementPattern, GateType, HybridQuantumClassicalNB, QuantumAdvantageMetrics,
+    QuantumCircuitParams, QuantumError, QuantumFeatureMap, QuantumNaiveBayes, QuantumState,
+    RotationAxis,
+};
 pub use semi_naive::{
     DependencySelectionMethod, FeatureDependency, SemiNaiveBayes, SemiNaiveBayesConfig,
 };

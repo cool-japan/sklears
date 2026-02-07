@@ -320,7 +320,7 @@ impl MEMDResult {
     ///
     /// # Returns
     ///
-    /// * `Result<Array2`<Float>`>` - IMFs for the specified channel [n_imfs, n_samples]
+    /// * `Result<Array2<Float>>` - IMFs for the specified channel [n_imfs, n_samples]
     ///
     /// # Errors
     ///
@@ -350,7 +350,7 @@ impl MEMDResult {
     ///
     /// # Returns
     ///
-    /// * `Result<Array1`<Float>`>` - Reconstructed signal
+    /// * `Result<Array1<Float>>` - Reconstructed signal
     ///
     /// # Mathematical Formula
     ///
@@ -387,7 +387,7 @@ impl MEMDResult {
     ///
     /// # Returns
     ///
-    /// * `Result<Array2`<Float>`>` - Correlation matrix [n_channels, n_channels]
+    /// * `Result<Array2<Float>>` - Correlation matrix [n_channels, n_channels]
     ///
     /// # Mathematical Formula
     ///
@@ -429,7 +429,7 @@ impl MEMDResult {
     ///
     /// # Returns
     ///
-    /// * `Array2`<Float>`` - Energy matrix [n_channels, n_imfs_per_channel]
+    /// * `Array2<Float>` - Energy matrix [n_channels, n_imfs_per_channel]
     pub fn imf_energy_distribution(&self) -> Array2<Float> {
         let mut energies = Array2::zeros((self.n_channels, self.n_imfs_per_channel));
 

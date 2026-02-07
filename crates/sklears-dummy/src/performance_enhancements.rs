@@ -418,7 +418,7 @@ pub mod dummy_optimization {
             self.data.len()
         }
 
-        /// Get compression ratio compared to Vec<bool>
+        /// Get compression ratio compared to `Vec<bool>`
         pub fn compression_ratio(&self) -> f64 {
             if self.length == 0 {
                 return 0.0;

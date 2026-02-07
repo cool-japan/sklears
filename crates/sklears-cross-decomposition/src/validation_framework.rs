@@ -752,7 +752,12 @@ impl ValidationFramework {
             .fit(&dataset.x_data, &dataset.y_data)
             .map_err(|e| ValidationError::AlgorithmError(format!("CCA fitting failed: {:?}", e)))?;
 
-        let correlations = fitted_cca.canonical_correlations();
+        let correlations = fitted_cca.canonical_correlations().map_err(|e| {
+            ValidationError::AlgorithmError(format!(
+                "Failed to get canonical correlations: {:?}",
+                e
+            ))
+        })?;
         let duration = start_time.elapsed();
 
         // Compute correlation accuracy if ground truth available
@@ -900,11 +905,12 @@ impl ValidationFramework {
             // CCA
             let cca = CCA::new(2);
             if let Ok(fitted_cca) = cca.fit(&x_train, &y_train) {
-                let correlations = fitted_cca.canonical_correlations();
-                fold_metrics.insert(
-                    "CCA_mean_correlation".to_string(),
-                    correlations.mean().unwrap_or(0.0),
-                );
+                if let Ok(correlations) = fitted_cca.canonical_correlations() {
+                    fold_metrics.insert(
+                        "CCA_mean_correlation".to_string(),
+                        correlations.mean().unwrap_or(0.0),
+                    );
+                }
             }
 
             // PLS
@@ -993,9 +999,10 @@ impl ValidationFramework {
             let cca = CCA::new(2);
 
             if let Ok(fitted_cca) = cca.fit(&noisy_data, &dataset.y_data) {
-                let correlations = fitted_cca.canonical_correlations();
-                let performance = correlations.mean().unwrap_or(0.0);
-                noise_robustness.insert(format!("{:.3}", noise_level), performance);
+                if let Ok(correlations) = fitted_cca.canonical_correlations() {
+                    let performance = correlations.mean().unwrap_or(0.0);
+                    noise_robustness.insert(format!("{:.3}", noise_level), performance);
+                }
             }
         }
 

@@ -282,7 +282,7 @@ impl IncrementalNeighborIndex {
     /// * `points` - New data points to add
     ///
     /// # Returns
-    /// * `NeighborsResult<`Vec<usize>`>` - Indices of the added points
+    /// * `NeighborsResult<Vec<usize>>` - Indices of the added points
     pub fn add_points(&mut self, points: &Features) -> NeighborsResult<Vec<usize>> {
         let mut indices = Vec::with_capacity(points.shape()[0]);
 
@@ -343,7 +343,7 @@ impl IncrementalNeighborIndex {
     /// * `k` - Number of neighbors to find
     ///
     /// # Returns
-    /// * `NeighborsResult<(`Vec<usize>`, Vec`<Float>`)>` - Neighbor indices and distances
+    /// * `NeighborsResult<(Vec<usize>, Vec<Float>)>` - Neighbor indices and distances
     pub fn query_knn(
         &self,
         query_point: ArrayView1<Float>,

@@ -12,8 +12,8 @@ use scirs2_core::ndarray::{Array1, Array2};
 type DMatrix<T> = Array2<T>;
 type DVector<T> = Array1<T>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::ChaCha20Rng;
-use scirs2_core::random::{SeedableRng};
+use scirs2_core::random::essentials::Normal;
+use scirs2_core::random::{ChaCha20Rng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::traits::Fit;
 use std::collections::HashMap;
@@ -375,276 +375,205 @@ pub struct PerturbationStrategy<T: Float> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BudgetAllocationStrategy {
     /// Uniform
-
     Uniform,
     /// DataProportional
-
     DataProportional,
     /// QualityWeighted
-
     QualityWeighted,
     /// Adaptive
-
     Adaptive,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompressionStrategy {
-
     None,
     /// Gzip
-
     Gzip,
     /// Quantization
-
     Quantization,
     /// Sparsification
-
     Sparsification,
     /// TopK
-
     TopK,
     /// Random
-
     Random,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkTopology {
     /// Star
-
     Star,
     /// Ring
-
     Ring,
     /// FullyConnected
-
     FullyConnected,
     /// Hierarchical
-
     Hierarchical,
     /// P2P
-
     P2P,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AggregationMethod {
     /// FedAvg
-
     FedAvg,
     /// FedProx
-
     FedProx,
     /// FedNova
-
     FedNova,
     /// Scaffold
-
     Scaffold,
     /// WeightedAverage
-
     WeightedAverage,
     /// RobustAverage
-
     RobustAverage,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NoiseMechanism {
     /// Gaussian
-
     Gaussian,
     /// Laplacian
-
     Laplacian,
     /// Exponential
-
     Exponential,
     /// Discrete
-
     Discrete,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SecretSharingScheme {
     /// Shamir
-
     Shamir,
     /// Additive
-
     Additive,
     /// Multiplicative
-
     Multiplicative,
     /// SPDZ
-
     SPDZ,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MPCProtocolType {
     /// BGW
-
     BGW,
     /// GMW
-
     GMW,
     /// SPDZ
-
     SPDZ,
     /// ABY
-
     ABY,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HomomorphicScheme {
     /// Paillier
-
     Paillier,
     /// BGV
-
     BGV,
     /// BFV
-
     BFV,
     /// CKKS
-
     CKKS,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SecurityLevel {
     /// Low
-
     Low,
     /// Medium
-
     Medium,
     /// High
-
     High,
     /// Military
-
     Military,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RandomizationMechanism {
     /// Laplace
-
     Laplace,
     /// Gaussian
-
     Gaussian,
     /// Exponential
-
     Exponential,
     /// RandomizedResponse
-
     RandomizedResponse,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum QuantizationMethod {
     /// Uniform
-
     Uniform,
     /// Lloyd
-
     Lloyd,
     /// Adaptive
-
     Adaptive,
     /// Stochastic
-
     Stochastic,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WeightMethod {
     /// DataSize
-
     DataSize,
     /// QualityScore
-
     QualityScore,
     /// LossContribution
-
     LossContribution,
     /// Adaptive
-
     Adaptive,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RobustEstimator {
     /// TrimmedMean
-
     TrimmedMean,
     /// Median
-
     Median,
     /// HuberEstimator
-
     HuberEstimator,
     /// Krum
-
     Krum,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ByzantineDetectionMethod {
     /// Statistical
-
     Statistical,
     /// Consensus
-
     Consensus,
     /// Reputation
-
     Reputation,
     /// Anomaly
-
     Anomaly,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecoveryStrategy {
     /// Exclude
-
     Exclude,
     /// Downweight
-
     Downweight,
     /// Correct
-
     Correct,
     /// Isolate
-
     Isolate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PerturbationDistribution {
     /// Gaussian
-
     Gaussian,
     /// Laplacian
-
     Laplacian,
     /// Uniform
-
     Uniform,
     /// Exponential
-
     Exponential,
 }
 
 impl<
-        /// T
-
         T: Float
             + Default
             + Display

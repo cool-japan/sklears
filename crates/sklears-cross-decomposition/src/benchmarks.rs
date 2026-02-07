@@ -296,9 +296,9 @@ impl BenchmarkSuite {
         let fitted = cca.fit(x, y)?;
 
         // Extract results
-        let x_weights = fitted.x_weights().clone();
-        let y_weights = fitted.y_weights().clone();
-        let canonical_correlations = fitted.canonical_correlations().clone();
+        let x_weights = fitted.x_weights()?.clone();
+        let y_weights = fitted.y_weights()?.clone();
+        let canonical_correlations = fitted.canonical_correlations()?.clone();
 
         Ok(DecompositionResult {
             x_weights: x_weights.clone(),
