@@ -3,7 +3,7 @@
 //! This module defines the fundamental Kernel trait that all kernel implementations must follow.
 //! All implementations comply with SciRS2 Policy (never use rand/ndarray directly).
 
-use scirs2_core::ndarray::{Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use sklears_core::error::Result as SklResult;
 
 /// Kernel trait for Gaussian Process models
@@ -29,6 +29,16 @@ pub trait Kernel: std::fmt::Debug + Send + Sync {
 
     /// Clone the kernel
     fn clone_box(&self) -> Box<dyn Kernel>;
+
+    /// Compute the diagonal of the kernel matrix K(X, X).
+    /// Returns k(x_i, x_i) for each row. Default calls the scalar kernel;
+    /// kernels where the diagonal is trivial (e.g. RBF → 1.0) should override.
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        use scirs2_core::ndarray::Axis;
+        Ok(X.axis_iter(Axis(0))
+            .map(|x| self.kernel(&x, &x))
+            .collect())
+    }
 
     /// Compute the gradient of the kernel matrix with respect to hyperparameters
     /// Returns a vector of gradient matrices, one for each hyperparameter
