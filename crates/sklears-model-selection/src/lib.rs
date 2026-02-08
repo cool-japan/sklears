@@ -12,8 +12,7 @@ mod adversarial_validation;
 mod automl_algorithm_selection;
 mod automl_feature_engineering;
 mod automl_pipeline;
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// mod bandit_optimization;
+mod bandit_optimization;
 mod bayes_search;
 mod bayesian_model_averaging;
 mod bayesian_model_selection;
@@ -28,8 +27,7 @@ mod early_stopping;
 mod ensemble_evaluation;
 mod ensemble_selection;
 mod epistemic_uncertainty;
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// mod evolutionary;
+mod evolutionary;
 mod grid_search;
 mod halving_grid_search;
 mod hierarchical_validation;
@@ -51,8 +49,7 @@ mod ood_validation;
 mod optimizer_plugins;
 mod parallel_optimization;
 mod parameter_space;
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// mod population_based_training;
+mod population_based_training;
 mod scoring;
 mod spatial_validation;
 mod temporal_validation;
@@ -84,10 +81,9 @@ pub use automl_pipeline::{
     automl, automl_with_budget, AutoMLPipeline, AutoMLPipelineConfig, AutoMLPipelineResult,
     AutoMLProgressCallback, AutoMLStage, ConsoleProgressCallback, OptimizationLevel,
 };
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub use bandit_optimization::{
-//     BanditConfig, BanditOptimization, BanditOptimizationResult, BanditSearchCV, BanditStrategy,
-// };
+pub use bandit_optimization::{
+    BanditConfig, BanditOptimization, BanditOptimizationResult, BanditSearchCV, BanditStrategy,
+};
 pub use bayes_search::{
     AcquisitionFunction as BayesAcquisitionFunction, BayesSearchCV, BayesSearchConfig,
     ParamDistribution as BayesParamDistribution, TPEConfig, TPEOptimizer,
@@ -153,12 +149,11 @@ pub use epistemic_uncertainty::{
     UncertaintyDecompositionMethod, UncertaintyQuantificationConfig,
     UncertaintyQuantificationResult, UncertaintyQuantifier,
 };
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub use evolutionary::{
-//     EvolutionarySearchCV, EvolutionarySearchResult, GeneticAlgorithmCV, GeneticAlgorithmConfig,
-//     GeneticAlgorithmResult, Individual, MultiObjectiveGA, MultiObjectiveResult, ParameterDef,
-//     ParameterSpace as EvolutionaryParameterSpace,
-// };
+pub use evolutionary::{
+    EvolutionarySearchCV, EvolutionarySearchResult, GeneticAlgorithmCV, GeneticAlgorithmConfig,
+    GeneticAlgorithmResult, Individual, MultiObjectiveGA, MultiObjectiveResult, ParameterDef,
+    ParameterSpace as EvolutionaryParameterSpace,
+};
 pub use grid_search::{
     GridSearchCV, GridSearchResults, ParameterDistribution, ParameterDistributions, ParameterGrid,
     ParameterSet, ParameterValue as GridParameterValue, RandomizedSearchCV,
@@ -265,11 +260,10 @@ pub use parameter_space::{
     CategoricalParameter, ConditionalParameter, ParameterConstraint, ParameterImportanceAnalyzer,
     ParameterSpace,
 };
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub use population_based_training::{
-//     PBTConfig, PBTConfigFn, PBTParameterSpace, PBTParameters, PBTResult, PBTStatistics, PBTWorker,
-//     PopulationBasedTraining, PopulationBasedTrainingCV,
-// };
+pub use population_based_training::{
+    PBTConfig, PBTConfigFn, PBTParameterSpace, PBTParameters, PBTResult, PBTStatistics, PBTWorker,
+    PopulationBasedTraining, PopulationBasedTrainingCV,
+};
 pub use scoring::{
     paired_ttest, ClosureScorer, CustomScorer, EnhancedScorer, ScorerRegistry, ScoringConfig,
     ScoringResult, SignificanceTestResult, TaskType,

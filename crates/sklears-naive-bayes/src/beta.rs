@@ -33,7 +33,7 @@ impl Default for BetaNBConfig {
 /// Beta Naive Bayes classifier
 ///
 /// For each class, the likelihood of the features is assumed to follow a Beta distribution.
-/// This is particularly suitable for proportion data, probabilities, and values in [0,1].
+/// This is particularly suitable for proportion data, probabilities, and values in \[0,1\].
 #[derive(Debug, Clone)]
 pub struct BetaNB<State = Untrained> {
     config: BetaNBConfig,

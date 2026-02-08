@@ -487,7 +487,7 @@ where
             let scores_vec = query_matrix.dot(sample);
 
             // Apply softmax to get attention weights
-            let mut weights = DVector::zeros(self.n_features);
+            let mut weights = DVector::zeros(scores_vec.len());
             let max_score = scores_vec.fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
             for i in 0..scores_vec.len() {
                 let score_f64: f64 = NumCast::from(scores_vec[i] - max_score).unwrap_or(0.0);
@@ -527,7 +527,7 @@ where
             let scores_vec = query_matrix.dot(sample);
 
             // Apply softmax
-            let mut weights = DVector::zeros(self.n_features);
+            let mut weights = DVector::zeros(scores_vec.len());
             let max_score = scores_vec.fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
             for i in 0..scores_vec.len() {
                 let score_f64: f64 =

@@ -322,7 +322,7 @@ impl SeparableMultiDimensionalIsotonicRegression<Trained> {
 #[derive(Debug, Clone)]
 /// NonSeparableMultiDimensionalIsotonicRegression
 pub struct NonSeparableMultiDimensionalIsotonicRegression<State = Untrained> {
-    /// Partial order constraints (i, j) means x[i] <= x[j] implies y[i] <= y[j]
+    /// Partial order constraints (i, j) means x\[i\] <= x\[j\] implies y\[i\] <= y\[j\]
     pub partial_order: Vec<(usize, usize)>,
     /// Loss function
     pub loss: LossFunction,

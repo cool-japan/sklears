@@ -32,11 +32,6 @@ use super::core_types::*;
 /// * `task_regularization` - Cross-task regularization strategy
 /// * `solver` - Method for solving the linear system
 /// * `random_state` - Random seed for reproducibility
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// use sklears_kernel_approximation::kernel_ridge_regression::{
 #[derive(Debug, Clone)]
 pub struct MultiTaskKernelRidgeRegression<State = Untrained> {
     pub approximation_method: ApproximationMethod,

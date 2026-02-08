@@ -12,7 +12,9 @@ use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::f64::consts::PI;
 
+/// # Examples
 ///
+/// ```ignore
 /// let X = array![[1.0], [2.0], [3.0], [4.0]];
 /// let y = array![1.0, 4.0, 9.0, 16.0];
 ///

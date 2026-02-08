@@ -3,22 +3,22 @@
 //! This module provides Python bindings for sklears model selection,
 //! offering scikit-learn compatible cross-validation and data splitting utilities.
 
-use scirs2_core::ndarray::{Array1, Array2};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Split arrays into random train and test subsets
 #[pyfunction]
 #[pyo3(signature = (x, y=None, test_size=None, train_size=None, random_state=None, shuffle=true, stratify=None))]
 pub fn train_test_split(
-    _x: PyReadonlyArray2<f64>,
-    _y: Option<PyReadonlyArray1<f64>>,
-    _test_size: Option<f64>,
-    _train_size: Option<f64>,
-    _random_state: Option<u64>,
-    _shuffle: bool,
-    _stratify: Option<PyReadonlyArray1<f64>>,
+    x: PyReadonlyArray2<f64>,
+    y: Option<PyReadonlyArray1<f64>>,
+    test_size: Option<f64>,
+    train_size: Option<f64>,
+    random_state: Option<u64>,
+    shuffle: bool,
+    stratify: Option<PyReadonlyArray1<f64>>,
 ) -> PyResult<(
     Py<PyArray2<f64>>,
     Py<PyArray2<f64>>,
@@ -33,10 +33,10 @@ pub fn train_test_split(
         let y_test = Array1::<f64>::zeros(1);
 
         Ok((
-            PyArray2::from_array(py, &x_train).to_owned(),
-            PyArray2::from_array(py, &x_test).to_owned(),
-            PyArray1::from_array(py, &y_train).to_owned(),
-            PyArray1::from_array(py, &y_test).to_owned(),
+            PyArray2::from_array(py, &x_train).unbind(),
+            PyArray2::from_array(py, &x_test).unbind(),
+            PyArray1::from_array(py, &y_train).unbind(),
+            PyArray1::from_array(py, &y_test).unbind(),
         ))
     })
 }

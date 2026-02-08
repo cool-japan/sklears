@@ -53,7 +53,7 @@ impl GraphOrderIsotonicRegression<Untrained> {
         }
     }
 
-    /// Set graph edges (i, j) meaning y[i] <= y[j]
+    /// Set graph edges (i, j) meaning y\[i\] <= y\[j\]
     pub fn graph_edges(mut self, edges: Vec<(usize, usize)>) -> Self {
         self.graph_edges = edges;
         self

@@ -891,10 +891,10 @@ pub fn mean_reciprocal_rank(y_true: &Array2<i32>, y_score: &Array2<f64>) -> Metr
 /// Cost matrix for cost-sensitive classification
 ///
 /// Represents the cost of misclassifying class i as class j.
-/// cost_matrix[i][j] is the cost of predicting class j when true class is i.
+/// cost_matrix\[i\]\[j\] is the cost of predicting class j when true class is i.
 #[derive(Debug, Clone)]
 pub struct CostMatrix {
-    /// Cost matrix where element [i,j] is cost of predicting j when true class is i
+    /// Cost matrix where element \[i,j\] is cost of predicting j when true class is i
     pub costs: Array2<f64>,
     /// Class labels corresponding to matrix indices
     pub classes: Vec<i32>,

@@ -5,21 +5,22 @@
 
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
 use numpy::{IntoPyArray, PyArray1, PyArray2};
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use sklears_core::error::{Result as SklearsResult, SklearsError};
-use sklears_core::traits::{Fit, Predict};
+use sklears_core::traits::{Fit, Predict, Trained};
+use sklears_tree::random_forest::{RandomForestConfig, RandomForestRegressor};
 use sklears_tree::{
-    DecisionTreeClassifier, DecisionTreeRegressor, ExtraTreesClassifier, ExtraTreesConfig,
-    ExtraTreesRegressor, MaxFeatures, RandomForestClassifier, RandomForestConfig,
-    RandomForestRegressor, SamplingStrategy, SplitCriterion,
+    DecisionTreeClassifier, DecisionTreeRegressor, MaxFeatures, RandomForestClassifier,
+    SplitCriterion,
 };
 
 /// Python wrapper for Decision Tree Classifier
 #[pyclass(name = "DecisionTreeClassifier")]
 pub struct PyDecisionTreeClassifier {
     inner: Option<DecisionTreeClassifier>,
-    trained: Option<sklears_tree::TrainedDecisionTreeClassifier>,
+    trained: Option<DecisionTreeClassifier<Trained>>,
 }
 
 #[pymethods]
@@ -77,18 +78,21 @@ impl PyDecisionTreeClassifier {
             }
         };
 
-        // Create the decision tree with configuration
-        let mut tree = DecisionTreeClassifier::new();
-        tree.criterion = split_criterion;
-        tree.max_depth = max_depth;
-        tree.min_samples_split = min_samples_split;
-        tree.min_samples_leaf = min_samples_leaf;
-        tree.min_impurity_decrease = min_impurity_decrease;
-        tree.random_state = random_state;
+        // Create the decision tree with configuration using builder pattern
+        let mut tree = DecisionTreeClassifier::new()
+            .criterion(split_criterion)
+            .min_samples_split(min_samples_split)
+            .min_samples_leaf(min_samples_leaf);
 
-        if let Some(max_features) = max_features_strategy {
-            tree.max_features = Some(max_features);
+        if let Some(depth) = max_depth {
+            tree = tree.max_depth(depth);
         }
+
+        if let Some(seed) = random_state {
+            tree = tree.random_state(seed);
+        }
+
+        // Note: max_features not currently supported by DecisionTree API
 
         Ok(Self {
             inner: Some(tree),
@@ -97,12 +101,16 @@ impl PyDecisionTreeClassifier {
     }
 
     /// Fit the decision tree classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit<'py>(
+        &mut self,
+        x: &Bound<'py, PyArray2<f64>>,
+        y: &Bound<'py, PyArray1<f64>>,
+    ) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
-        // Convert y to integer vector for classification
-        let y_int: Vec<usize> = y_array.iter().map(|&val| val as usize).collect();
+        // Convert y to integer array for classification
+        let y_int: scirs2_core::ndarray::Array1<i32> = y_array.mapv(|val| val as i32);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -121,7 +129,11 @@ impl PyDecisionTreeClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -131,20 +143,20 @@ impl PyDecisionTreeClassifier {
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
                 let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                Ok(PyArray1::from_vec(py, predictions_f64).into_bound(py))
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
     }
 
     /// Get feature importances
-    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
+    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before accessing feature importances")
         })?;
 
         match trained_model.feature_importances() {
-            Ok(importances) => Ok(importances.into_pyarray(py)),
+            Ok(importances) => Ok(importances.into_pyarray(py).into_bound(py)),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Failed to compute feature importances: {}",
                 e
@@ -165,7 +177,7 @@ impl PyDecisionTreeClassifier {
 #[pyclass(name = "DecisionTreeRegressor")]
 pub struct PyDecisionTreeRegressor {
     inner: Option<DecisionTreeRegressor>,
-    trained: Option<sklears_tree::TrainedDecisionTreeRegressor>,
+    trained: Option<DecisionTreeRegressor<Trained>>,
 }
 
 #[pymethods]
@@ -198,9 +210,8 @@ impl PyDecisionTreeRegressor {
         ccp_alpha: f64,
     ) -> PyResult<Self> {
         let split_criterion = match criterion {
-            "squared_error" | "mse" => SplitCriterion::SquaredError,
+            "squared_error" | "mse" => SplitCriterion::MSE,
             "mae" | "absolute_error" => SplitCriterion::MAE,
-            "poisson" => SplitCriterion::Poisson,
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "Unknown criterion: {}",
@@ -221,18 +232,21 @@ impl PyDecisionTreeRegressor {
             }
         };
 
-        // Create the decision tree with configuration
-        let mut tree = DecisionTreeRegressor::new();
-        tree.criterion = split_criterion;
-        tree.max_depth = max_depth;
-        tree.min_samples_split = min_samples_split;
-        tree.min_samples_leaf = min_samples_leaf;
-        tree.min_impurity_decrease = min_impurity_decrease;
-        tree.random_state = random_state;
+        // Create the decision tree with configuration using builder pattern
+        let mut tree = DecisionTreeRegressor::new()
+            .criterion(split_criterion)
+            .min_samples_split(min_samples_split)
+            .min_samples_leaf(min_samples_leaf);
 
-        if let Some(max_features) = max_features_strategy {
-            tree.max_features = Some(max_features);
+        if let Some(depth) = max_depth {
+            tree = tree.max_depth(depth);
         }
+
+        if let Some(seed) = random_state {
+            tree = tree.random_state(seed);
+        }
+
+        // Note: max_features not currently supported by DecisionTree API
 
         Ok(Self {
             inner: Some(tree),
@@ -241,7 +255,7 @@ impl PyDecisionTreeRegressor {
     }
 
     /// Fit the decision tree regressor
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -262,7 +276,11 @@ impl PyDecisionTreeRegressor {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -276,13 +294,13 @@ impl PyDecisionTreeRegressor {
     }
 
     /// Get feature importances
-    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
+    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before accessing feature importances")
         })?;
 
         match trained_model.feature_importances() {
-            Ok(importances) => Ok(importances.into_pyarray(py)),
+            Ok(importances) => Ok(importances.into_pyarray(py).into_bound(py)),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Failed to compute feature importances: {}",
                 e
@@ -303,7 +321,7 @@ impl PyDecisionTreeRegressor {
 #[pyclass(name = "RandomForestClassifier")]
 pub struct PyRandomForestClassifier {
     inner: Option<RandomForestClassifier>,
-    trained: Option<sklears_tree::TrainedRandomForestClassifier>,
+    trained: Option<RandomForestClassifier<Trained>>,
 }
 
 #[pymethods]
@@ -372,32 +390,40 @@ impl PyRandomForestClassifier {
             }
         };
 
-        let config = RandomForestConfig {
-            n_estimators,
-            criterion: split_criterion,
-            max_depth,
-            min_samples_split,
-            min_samples_leaf,
-            max_features: max_features_strategy,
-            bootstrap,
-            random_state,
-            n_jobs: n_jobs.map(|j| j as usize),
-            ..Default::default()
-        };
+        // Create RandomForest using builder pattern
+        let mut forest = RandomForestClassifier::new()
+            .n_estimators(n_estimators)
+            .criterion(split_criterion)
+            .min_samples_split(min_samples_split)
+            .min_samples_leaf(min_samples_leaf)
+            .max_features(max_features_strategy)
+            .bootstrap(bootstrap);
+
+        if let Some(depth) = max_depth {
+            forest = forest.max_depth(depth);
+        }
+
+        if let Some(seed) = random_state {
+            forest = forest.random_state(seed);
+        }
+
+        if let Some(jobs) = n_jobs {
+            forest = forest.n_jobs(jobs);
+        }
 
         Ok(Self {
-            inner: Some(RandomForestClassifier::new(config)),
+            inner: Some(forest),
             trained: None,
         })
     }
 
     /// Fit the random forest classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
-        // Convert y to integer vector for classification
-        let y_int: Vec<usize> = y_array.iter().map(|&val| val as usize).collect();
+        // Convert y to integer array for classification
+        let y_int: scirs2_core::ndarray::Array1<i32> = y_array.mapv(|val| val as i32);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -416,7 +442,11 @@ impl PyRandomForestClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -426,20 +456,20 @@ impl PyRandomForestClassifier {
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
                 let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                Ok(PyArray1::from_vec(py, predictions_f64).into_bound(py))
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
     }
 
     /// Get feature importances
-    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
+    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before accessing feature importances")
         })?;
 
         match trained_model.feature_importances() {
-            Ok(importances) => Ok(importances.into_pyarray(py)),
+            Ok(importances) => Ok(importances.into_pyarray(py).into_bound(py)),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Failed to compute feature importances: {}",
                 e
@@ -460,7 +490,7 @@ impl PyRandomForestClassifier {
 #[pyclass(name = "RandomForestRegressor")]
 pub struct PyRandomForestRegressor {
     inner: Option<RandomForestRegressor>,
-    trained: Option<sklears_tree::TrainedRandomForestRegressor>,
+    trained: Option<RandomForestRegressor<Trained>>,
 }
 
 #[pymethods]
@@ -505,9 +535,8 @@ impl PyRandomForestRegressor {
         max_samples: Option<f64>,
     ) -> PyResult<Self> {
         let split_criterion = match criterion {
-            "squared_error" | "mse" => SplitCriterion::SquaredError,
+            "squared_error" | "mse" => SplitCriterion::MSE,
             "mae" | "absolute_error" => SplitCriterion::MAE,
-            "poisson" => SplitCriterion::Poisson,
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "Unknown criterion: {}",
@@ -522,27 +551,35 @@ impl PyRandomForestRegressor {
             MaxFeatures::Fraction(max_features)
         };
 
-        let config = RandomForestConfig {
-            n_estimators,
-            criterion: split_criterion,
-            max_depth,
-            min_samples_split,
-            min_samples_leaf,
-            max_features: max_features_strategy,
-            bootstrap,
-            random_state,
-            n_jobs: n_jobs.map(|j| j as usize),
-            ..Default::default()
-        };
+        // Create RandomForestRegressor using builder pattern
+        let mut forest = RandomForestRegressor::new()
+            .n_estimators(n_estimators)
+            .criterion(split_criterion)
+            .min_samples_split(min_samples_split)
+            .min_samples_leaf(min_samples_leaf)
+            .max_features(max_features_strategy)
+            .bootstrap(bootstrap);
+
+        if let Some(depth) = max_depth {
+            forest = forest.max_depth(depth);
+        }
+
+        if let Some(seed) = random_state {
+            forest = forest.random_state(seed);
+        }
+
+        if let Some(jobs) = n_jobs {
+            forest = forest.n_jobs(jobs);
+        }
 
         Ok(Self {
-            inner: Some(RandomForestRegressor::new(config)),
+            inner: Some(forest),
             trained: None,
         })
     }
 
     /// Fit the random forest regressor
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -563,7 +600,11 @@ impl PyRandomForestRegressor {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -577,13 +618,13 @@ impl PyRandomForestRegressor {
     }
 
     /// Get feature importances
-    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
+    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before accessing feature importances")
         })?;
 
         match trained_model.feature_importances() {
-            Ok(importances) => Ok(importances.into_pyarray(py)),
+            Ok(importances) => Ok(importances.into_pyarray(py).into_bound(py)),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Failed to compute feature importances: {}",
                 e

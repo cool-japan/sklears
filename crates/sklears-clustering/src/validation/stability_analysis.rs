@@ -267,7 +267,7 @@ impl StabilityAnalyzer {
     ///
     /// # Mathematical Details
     /// For each pair of subsamples i and j with overlap O:
-    /// - Compute ARI(labels_i[O], labels_j[O]) for overlapping samples
+    /// - Compute ARI(labels_i\[O\], labels_j\[O\]) for overlapping samples
     /// - Aggregate ARI scores to compute mean and variance
     pub fn subsample_stability<F>(
         &self,

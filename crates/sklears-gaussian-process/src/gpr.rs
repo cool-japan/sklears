@@ -40,7 +40,9 @@ impl Default for GaussianProcessRegressorConfig {
     }
 }
 
+/// # Examples
 ///
+/// ```ignore
 /// let X = array![[1.0], [2.0], [3.0], [4.0]];
 /// let y = array![1.0, 4.0, 9.0, 16.0];
 ///

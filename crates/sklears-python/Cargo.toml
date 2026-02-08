@@ -23,20 +23,20 @@ sklears-linear = { workspace = true, features = ["bayesian", "elastic-net", "log
 sklears-metrics = { workspace = true }
 # TODO: Enable other crates as they get SciRS2 compatibility
 # sklears = { workspace = true, features = ["all-algorithms"] }
-# sklears-clustering = { workspace = true }
-# sklears-ensemble = { workspace = true }
-# sklears-tree = { workspace = true }
-# sklears-neural = { workspace = true }
+sklears-clustering = { workspace = true }
+sklears-ensemble = { workspace = true }
+sklears-tree = { workspace = true }
+sklears-neural = { workspace = true }
 # sklears-neighbors = { workspace = true }
-# sklears-naive-bayes = { workspace = true }
+sklears-naive-bayes = { workspace = true }
 # sklears-svm = { workspace = true }
 # sklears-decomposition = { workspace = true }
-# sklears-datasets = { workspace = true }
+sklears-datasets = { workspace = true }
 # sklears-feature-selection = { workspace = true }
 # sklears-gaussian-process = { workspace = true }
 # sklears-discriminant-analysis = { workspace = true }
 # sklears-manifold = { workspace = true }
-# sklears-model-selection = { workspace = true }
+sklears-model-selection = { workspace = true }
 # sklears-utils = { workspace = true }
 
 # Python bindings

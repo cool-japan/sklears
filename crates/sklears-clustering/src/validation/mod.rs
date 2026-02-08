@@ -24,7 +24,7 @@
 //! - [`automated_validation`]: Comprehensive automated validation with recommendations
 //!
 //! ## Testing
-//! - [`validation_tests`]: Comprehensive test suite for all validation components
+//! - `validation_tests`: Comprehensive test suite for all validation components
 //!
 //! # Quick Start
 //!

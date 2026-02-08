@@ -74,7 +74,7 @@ pub enum VariationalLikelihood {
     Bernoulli,
     /// Poisson likelihood for count data
     Poisson,
-    /// Beta likelihood for data in [0,1]
+    /// Beta likelihood for data in \[0,1\]
     Beta { alpha: f64, beta: f64 },
     /// Student-t likelihood for robust regression
     StudentT { degrees_of_freedom: f64, scale: f64 },

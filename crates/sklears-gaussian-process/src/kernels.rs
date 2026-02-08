@@ -78,7 +78,7 @@ impl Kernel for RBF {
 /// the prediction task.
 ///
 /// The kernel is defined as:
-/// k(x, x') = exp(-0.5 * sum((x_i - x'_i)^2 / length_scales[i]^2))
+/// k(x, x') = exp(-0.5 * sum((x_i - x'_i)^2 / length_scales\[i\]^2))
 ///
 /// # Examples
 ///

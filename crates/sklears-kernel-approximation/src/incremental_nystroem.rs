@@ -43,11 +43,6 @@ pub enum UpdateStrategy {
 /// * `update_strategy` - Strategy for incorporating new data
 /// * `min_update_size` - Minimum number of new samples before updating
 /// * `sampling_strategy` - Strategy for selecting new landmarks
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// use sklears_kernel_approximation::incremental_nystroem::{
 #[derive(Debug, Clone)]
 pub struct IncrementalNystroem<State = Untrained> {
     pub kernel: Kernel,

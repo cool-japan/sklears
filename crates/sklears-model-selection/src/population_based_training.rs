@@ -9,7 +9,7 @@
 //! with perturbed hyperparameters to continue exploration.
 
 use crate::{CrossValidator, KFold, Scoring};
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Dim, OwnedRepr};
 use scirs2_core::numeric::ToPrimitive;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
@@ -469,8 +469,24 @@ where
 
 impl<E> PopulationBasedTrainingCV<E, Array2<f64>, Array1<f64>>
 where
-    E: Clone + Debug + Fit<Array2<f64>, Array1<f64>> + Score<Array2<f64>, Array1<f64>>,
-    E::Fitted: Clone + Debug + Predict<Array2<f64>, Array1<f64>> + Score<Array2<f64>, Array1<f64>>,
+    E: Clone
+        + Debug
+        + Fit<
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>,
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>,
+        > + Score<
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>,
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>,
+        >,
+    E::Fitted: Clone
+        + Debug
+        + Predict<
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>,
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>,
+        > + Score<
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>, f64>,
+            ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>, f64>,
+        >,
 {
     /// Fit the PBT optimizer with cross-validation
     pub fn fit(self, x: &Array2<f64>, y: &Array1<f64>) -> Result<PBTResult<E::Fitted>> {
@@ -498,10 +514,21 @@ where
                 let mut cv_scores = Vec::new();
 
                 for (train_idx, test_idx) in cv_splits {
-                    let x_train = x.select(scirs2_core::ndarray::Axis(0), &train_idx);
-                    let y_train = y.select(scirs2_core::ndarray::Axis(0), &train_idx);
-                    let x_test = x.select(scirs2_core::ndarray::Axis(0), &test_idx);
-                    let y_test = y.select(scirs2_core::ndarray::Axis(0), &test_idx);
+                    let x_train_view = x.select(scirs2_core::ndarray::Axis(0), &train_idx);
+                    let y_train_view = y.select(scirs2_core::ndarray::Axis(0), &train_idx);
+                    let x_test_view = x.select(scirs2_core::ndarray::Axis(0), &test_idx);
+                    let y_test_view = y.select(scirs2_core::ndarray::Axis(0), &test_idx);
+
+                    let x_train = Array2::from_shape_vec(
+                        (x_train_view.nrows(), x_train_view.ncols()),
+                        x_train_view.iter().copied().collect(),
+                    )?;
+                    let y_train = Array1::from_vec(y_train_view.iter().copied().collect());
+                    let x_test = Array2::from_shape_vec(
+                        (x_test_view.nrows(), x_test_view.ncols()),
+                        x_test_view.iter().copied().collect(),
+                    )?;
+                    let y_test = Array1::from_vec(y_test_view.iter().copied().collect());
 
                     let fitted_estimator = configured_estimator.clone().fit(&x_train, &y_train)?;
                     let score = fitted_estimator.score(&x_test, &y_test)?;
@@ -510,7 +537,8 @@ where
 
                 let mean_score = cv_scores
                     .iter()
-                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .copied()
+                    .map(|x| x.to_f64().unwrap_or(0.0))
                     .sum::<f64>()
                     / cv_scores.len() as f64;
                 pbt.update_worker_score(worker_id, mean_score)?;

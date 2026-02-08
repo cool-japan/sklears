@@ -17,9 +17,9 @@
 //! # Mathematical Background
 //!
 //! String kernel between sequences s and t:
-//! K(s, t) = Σ φ(s)[u] * φ(t)[u]
+//! K(s, t) = Σ φ(s)\[u\] * φ(t)\[u\]
 //!
-//! Where φ(s)[u] is the feature map that counts occurrences of substring u.
+//! Where φ(s)\[u\] is the feature map that counts occurrences of substring u.
 //!
 //! # References
 //!

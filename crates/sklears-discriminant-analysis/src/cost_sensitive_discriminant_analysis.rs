@@ -20,7 +20,7 @@ pub enum CostMatrix {
     Uniform { cost: Float },
     /// Class-specific costs (cost of misclassifying each class)
     ClassSpecific { costs: Vec<Float> },
-    /// Full cost matrix (cost[i][j] = cost of predicting j when true class is i)
+    /// Full cost matrix (cost\[i\]\[j\] = cost of predicting j when true class is i)
     Full { matrix: Array2<Float> },
     /// Inverse class frequency weighting
     Balanced,

@@ -359,7 +359,7 @@ impl VisualPipelineBuilder {
     /// Validate the current workflow and update the validation state.
     ///
     /// This method performs a comprehensive validation pass, updating
-    /// [`self.validation_state`] with the latest errors and warnings. It does
+    /// `self.validation_state` with the latest errors and warnings. It does
     /// **not** short-circuit the caller when issues are detected; instead,
     /// callers are expected to inspect the returned [`ValidationState`] and
     /// decide whether to proceed.

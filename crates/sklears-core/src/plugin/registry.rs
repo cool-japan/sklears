@@ -45,7 +45,7 @@ use std::sync::{Arc, RwLock};
 /// println!("Algorithm plugins: {:?}", algorithms);
 ///
 /// // Find plugins compatible with a specific type
-/// let compatible = registry.get_compatible_plugins(TypeId::of::`<f64>`())?;
+/// let compatible = registry.get_compatible_plugins(TypeId::of::<f64>())?;
 /// println!("f64-compatible plugins: {:?}", compatible);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -296,7 +296,7 @@ impl PluginRegistry {
     /// use std::any::TypeId;
     ///
     /// let registry = PluginRegistry::new();
-    /// let compatible = registry.get_compatible_plugins(TypeId::of::`<f64>`()).unwrap();
+    /// let compatible = registry.get_compatible_plugins(TypeId::of::<f64>()).unwrap();
     /// assert!(compatible.is_empty()); // No plugins registered yet
     /// ```
     pub fn get_compatible_plugins(&self, type_id: TypeId) -> Result<Vec<String>> {

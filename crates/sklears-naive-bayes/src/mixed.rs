@@ -27,7 +27,7 @@ pub enum FeatureDistribution {
     Poisson,
     /// Gamma distribution for positive continuous data
     Gamma,
-    /// Beta distribution for proportion data [0,1]
+    /// Beta distribution for proportion data \[0,1\]
     Beta,
 }
 

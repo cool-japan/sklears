@@ -31,11 +31,6 @@ use super::core_types::*;
 /// * `max_iter` - Maximum number of iterations for robust optimization
 /// * `tolerance` - Convergence tolerance
 /// * `random_state` - Random seed for reproducibility
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// use sklears_kernel_approximation::kernel_ridge_regression::{
 #[derive(Debug, Clone)]
 pub struct RobustKernelRidgeRegression<State = Untrained> {
     pub approximation_method: ApproximationMethod,

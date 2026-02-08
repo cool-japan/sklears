@@ -74,10 +74,10 @@ pub enum PhysicalSystem {
 ///
 /// # Mathematical Background
 ///
-/// For a PDE: N[u](x,t) = 0 (e.g., heat equation, wave equation)
+/// For a PDE: N\[u\](x,t) = 0 (e.g., heat equation, wave equation)
 /// The kernel incorporates both data fitting and PDE residual minimization:
 ///
-/// Loss = λ_data * ||u - u_data||² + λ_physics * ||N[u]||²
+/// Loss = λ_data * ||u - u_data||² + λ_physics * ||N\[u\]||²
 ///
 /// # Examples
 ///

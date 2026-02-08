@@ -5,13 +5,24 @@
 
 use crate::utils::{ndarray_to_numpy, numpy_to_ndarray2};
 use numpy::{IntoPyArray, PyArray1, PyArray2};
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::{PyAny, PyDict, PyTuple, PyTupleMethods};
 use sklears_core::error::{Result as SklearsResult, SklearsError};
 use sklears_datasets::{
-    load_breast_cancer, load_diabetes, load_digits, load_iris, load_wine, make_blobs, make_circles,
-    make_classification, make_moons, make_regression, Dataset,
+    // TODO: Loader functions not yet implemented in sklears-datasets
+    // load_breast_cancer, load_diabetes, load_digits, load_iris, load_wine,
+    make_blobs,
+    make_circles,
+    make_classification,
+    make_moons,
+    make_regression,
+    // Dataset,
 };
+
+/*
+TODO: Dataset loader functions not yet implemented in sklears-datasets
+Re-enable when load_iris, load_breast_cancer, load_diabetes, load_wine, load_digits are available
 
 /// Load the Iris dataset
 #[pyfunction]
@@ -136,6 +147,7 @@ fn load_digits_py(
         Ok(dict.to_object(py))
     }
 }
+*/
 
 /// Generate isotropic Gaussian blobs for clustering
 #[pyfunction]
@@ -149,8 +161,8 @@ fn load_digits_py(
     random_state=None,
     return_centers=false
 ))]
-fn make_blobs_py(
-    py: Python,
+fn make_blobs_py<'py>(
+    py: Python<'py>,
     n_samples: usize,
     n_features: usize,
     centers: Option<usize>,
@@ -159,22 +171,17 @@ fn make_blobs_py(
     shuffle: bool,
     random_state: Option<u64>,
     return_centers: bool,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let n_centers = centers.unwrap_or(3);
 
-    let (data, labels, centers) =
-        make_blobs(n_samples, n_features, n_centers, cluster_std, random_state)
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to generate blobs: {}", e)))?;
+    let (data, labels) = make_blobs(n_samples, n_features, n_centers, cluster_std, random_state)
+        .map_err(|e| PyRuntimeError::new_err(format!("Failed to generate blobs: {}", e)))?;
 
-    let data_py = data.into_pyarray(py);
-    let labels_py = labels.into_pyarray(py);
+    let data_py = data.into_pyarray(py).into_any();
+    let labels_py = labels.into_pyarray(py).into_any();
 
-    if return_centers {
-        let centers_py = centers.into_pyarray(py);
-        Ok((data_py, labels_py, centers_py).to_object(py))
-    } else {
-        Ok((data_py, labels_py).to_object(py))
-    }
+    // Note: return_centers parameter is currently unused as make_blobs doesn't return centers
+    Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
 
 /// Generate a random classification problem
@@ -196,8 +203,8 @@ fn make_blobs_py(
     shuffle=true,
     random_state=None
 ))]
-fn make_classification_py(
-    py: Python,
+fn make_classification_py<'py>(
+    py: Python<'py>,
     n_samples: usize,
     n_features: usize,
     n_informative: Option<usize>,
@@ -213,7 +220,7 @@ fn make_classification_py(
     scale: f64,
     shuffle: bool,
     random_state: Option<u64>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let informative = n_informative.unwrap_or(n_features);
     let redundant = n_redundant.unwrap_or(0);
 
@@ -229,10 +236,10 @@ fn make_classification_py(
         PyRuntimeError::new_err(format!("Failed to generate classification dataset: {}", e))
     })?;
 
-    let data_py = data.into_pyarray(py);
-    let labels_py = labels.into_pyarray(py);
+    let data_py = data.into_pyarray(py).into_any();
+    let labels_py = labels.into_pyarray(py).into_any();
 
-    Ok((data_py, labels_py).to_object(py))
+    Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
 
 /// Generate a random regression problem
@@ -250,8 +257,8 @@ fn make_classification_py(
     coef=false,
     random_state=None
 ))]
-fn make_regression_py(
-    py: Python,
+fn make_regression_py<'py>(
+    py: Python<'py>,
     n_samples: usize,
     n_features: usize,
     n_informative: usize,
@@ -263,75 +270,67 @@ fn make_regression_py(
     shuffle: bool,
     coef: bool,
     random_state: Option<u64>,
-) -> PyResult<PyObject> {
-    let (data, target, coefficients) =
-        make_regression(n_samples, n_features, n_informative, noise, random_state).map_err(
-            |e| PyRuntimeError::new_err(format!("Failed to generate regression dataset: {}", e)),
-        )?;
+) -> PyResult<Py<PyAny>> {
+    let (data, target) = make_regression(n_samples, n_features, n_informative, noise, random_state)
+        .map_err(|e| {
+            PyRuntimeError::new_err(format!("Failed to generate regression dataset: {}", e))
+        })?;
 
-    let data_py = data.into_pyarray(py);
-    let target_py = target.into_pyarray(py);
+    let data_py = data.into_pyarray(py).into_any();
+    let target_py = target.into_pyarray(py).into_any();
 
-    if coef {
-        let coef_py = coefficients.into_pyarray(py);
-        Ok((data_py, target_py, coef_py).to_object(py))
-    } else {
-        Ok((data_py, target_py).to_object(py))
-    }
+    // Note: coef parameter is currently unused as make_regression doesn't return coefficients
+    Ok(PyTuple::new(py, &[data_py, target_py])?.into_any().unbind())
 }
 
 /// Generate 2d classification dataset with two moon shapes
 #[pyfunction]
 #[pyo3(signature = (n_samples=100, shuffle=true, noise=None, random_state=None))]
-fn make_moons_py(
-    py: Python,
+fn make_moons_py<'py>(
+    py: Python<'py>,
     n_samples: usize,
     shuffle: bool,
     noise: Option<f64>,
     random_state: Option<u64>,
-) -> PyResult<PyObject> {
-    let noise_val = noise.unwrap_or(0.0);
-
-    let (data, labels) = make_moons(n_samples, noise_val, random_state)
+) -> PyResult<Py<PyAny>> {
+    let (data, labels) = make_moons(n_samples, noise, random_state)
         .map_err(|e| PyRuntimeError::new_err(format!("Failed to generate moons dataset: {}", e)))?;
 
-    let data_py = data.into_pyarray(py);
-    let labels_py = labels.into_pyarray(py);
+    let data_py = data.into_pyarray(py).into_any();
+    let labels_py = labels.into_pyarray(py).into_any();
 
-    Ok((data_py, labels_py).to_object(py))
+    Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
 
 /// Generate 2d classification dataset with two circles
 #[pyfunction]
 #[pyo3(signature = (n_samples=100, shuffle=true, noise=None, random_state=None, factor=0.8))]
-fn make_circles_py(
-    py: Python,
+fn make_circles_py<'py>(
+    py: Python<'py>,
     n_samples: usize,
     shuffle: bool,
     noise: Option<f64>,
     random_state: Option<u64>,
     factor: f64,
-) -> PyResult<PyObject> {
-    let noise_val = noise.unwrap_or(0.0);
-
-    let (data, labels) = make_circles(n_samples, noise_val, factor, random_state).map_err(|e| {
+) -> PyResult<Py<PyAny>> {
+    let (data, labels) = make_circles(n_samples, noise, factor, random_state).map_err(|e| {
         PyRuntimeError::new_err(format!("Failed to generate circles dataset: {}", e))
     })?;
 
-    let data_py = data.into_pyarray(py);
-    let labels_py = labels.into_pyarray(py);
+    let data_py = data.into_pyarray(py).into_any();
+    let labels_py = labels.into_pyarray(py).into_any();
 
-    Ok((data_py, labels_py).to_object(py))
+    Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
 
 /// Unified function to register all dataset functions
-pub(crate) fn register_dataset_functions(py: Python, m: &PyModule) -> PyResult<()> {
-    // Dataset loaders
-    m.add_function(wrap_pyfunction!(load_iris_py, m)?)?;
-    m.add_function(wrap_pyfunction!(load_breast_cancer_py, m)?)?;
-    m.add_function(wrap_pyfunction!(load_diabetes_py, m)?)?;
-    m.add_function(wrap_pyfunction!(load_wine_py, m)?)?;
-    m.add_function(wrap_pyfunction!(load_digits_py, m)?)?;
+pub(crate) fn register_dataset_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Dataset loaders - commented out until load functions are implemented
+    // m.add_function(wrap_pyfunction!(load_iris_py, m)?)?;
+    // m.add_function(wrap_pyfunction!(load_breast_cancer_py, m)?)?;
+    // m.add_function(wrap_pyfunction!(load_diabetes_py, m)?)?;
+    // m.add_function(wrap_pyfunction!(load_wine_py, m)?)?;
+    // m.add_function(wrap_pyfunction!(load_digits_py, m)?)?;
 
     // Data generators
     m.add_function(wrap_pyfunction!(make_blobs_py, m)?)?;

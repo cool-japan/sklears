@@ -39,7 +39,7 @@ use std::time::{Duration, Instant, SystemTime};
 /// mock.metadata.capabilities.push(PluginCapability::Parallel);
 ///
 /// // Add supported types
-/// mock.add_supported_type(TypeId::of::`<f64>`());
+/// mock.add_supported_type(TypeId::of::<f64>());
 ///
 /// // Configure error behavior
 /// mock.set_initialization_error(Some("Test error"));

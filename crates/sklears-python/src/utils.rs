@@ -260,33 +260,23 @@ pub fn benchmark_basic_operations() -> HashMap<String, f64> {
 }
 
 /// Convert NumPy array to ndarray Array2`<f64>`
-pub fn numpy_to_ndarray2(py_array: &PyArray2<f64>) -> PyResult<Array2<f64>> {
-    Python::with_gil(|py| {
-        let ptr = py_array as *const PyArray2<f64> as *mut ffi::PyObject;
-        let bound_any = unsafe { Bound::<PyAny>::from_borrowed_ptr(py, ptr) };
-        let bound_array = bound_any.downcast::<PyArray2<f64>>()?;
-        let readonly = bound_array.try_readonly().map_err(|err| {
-            PyValueError::new_err(format!(
-                "Failed to borrow NumPy array as read-only view: {err}"
-            ))
-        })?;
-        pyarray_to_core_array2(readonly)
-    })
+pub fn numpy_to_ndarray2(py_array: &Bound<'_, PyArray2<f64>>) -> PyResult<Array2<f64>> {
+    let readonly = py_array.try_readonly().map_err(|err| {
+        PyValueError::new_err(format!(
+            "Failed to borrow NumPy array as read-only view: {err}"
+        ))
+    })?;
+    pyarray_to_core_array2(readonly)
 }
 
 /// Convert NumPy array to ndarray Array1`<f64>`
-pub fn numpy_to_ndarray1(py_array: &PyArray1<f64>) -> PyResult<Array1<f64>> {
-    Python::with_gil(|py| {
-        let ptr = py_array as *const PyArray1<f64> as *mut ffi::PyObject;
-        let bound_any = unsafe { Bound::<PyAny>::from_borrowed_ptr(py, ptr) };
-        let bound_array = bound_any.downcast::<PyArray1<f64>>()?;
-        let readonly = bound_array.try_readonly().map_err(|err| {
-            PyValueError::new_err(format!(
-                "Failed to borrow NumPy array as read-only view: {err}"
-            ))
-        })?;
-        pyarray_to_core_array1(readonly)
-    })
+pub fn numpy_to_ndarray1(py_array: &Bound<'_, PyArray1<f64>>) -> PyResult<Array1<f64>> {
+    let readonly = py_array.try_readonly().map_err(|err| {
+        PyValueError::new_err(format!(
+            "Failed to borrow NumPy array as read-only view: {err}"
+        ))
+    })?;
+    pyarray_to_core_array1(readonly)
 }
 
 /// Convert ndarray Array2`<f64>` to NumPy array

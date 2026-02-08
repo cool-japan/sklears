@@ -13,7 +13,9 @@ use sklears_core::{
 use crate::kernels::Kernel;
 use crate::utils::{robust_cholesky, triangular_solve};
 
+/// # Examples
 ///
+/// ```ignore
 /// let X = array![[0.0], [1.0], [2.0], [3.0], [4.0], [5.0]];
 /// let y = array![0.0, 1.0, 4.0, 9.0, 16.0, 25.0];
 ///

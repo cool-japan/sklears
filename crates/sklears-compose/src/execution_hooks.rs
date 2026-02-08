@@ -859,7 +859,7 @@ pub trait DependentExecutionHook: ExecutionHook {
 }
 
 /// Async execution hook trait for non-blocking operations
-/// Note: Would use #[`async_trait::async_trait`] in real implementation
+/// Note: Would use `#[async_trait::async_trait]` in real implementation
 pub trait AsyncExecutionHook: Send + Sync + Debug {
     fn execute_async(
         &mut self,

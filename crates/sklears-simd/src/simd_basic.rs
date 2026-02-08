@@ -126,8 +126,8 @@ pub fn scale(vector: &mut [f32], scalar: f32) {
 
 /// SIMD-optimized fused multiply-add operation
 ///
-/// Computes a[i] = a[i] * b[i] + c[i] for all elements.
-/// This is equivalent to a[i] * b[i] + c[i] but may be more efficient
+/// Computes a\[i\] = a\[i\] * b\[i\] + c\[i\] for all elements.
+/// This is equivalent to a\[i\] * b\[i\] + c\[i\] but may be more efficient
 /// on platforms with dedicated FMA instructions.
 ///
 /// # Arguments
@@ -220,7 +220,7 @@ pub fn add_vectors(a: &[f32], b: &[f32]) -> Vec<f32> {
 
 /// Fused multiply-add returning a new vector
 ///
-/// Computes a[i] * b[i] + c[i] for all elements, returning a new vector.
+/// Computes a\[i\] * b\[i\] + c\[i\] for all elements, returning a new vector.
 ///
 /// # Arguments
 /// * `a` - First input vector
@@ -247,7 +247,7 @@ pub fn fused_multiply_add(a: &[f32], b: &[f32], c: &[f32]) -> Vec<f32> {
 /// * `b` - Second input vector
 ///
 /// # Returns
-/// New vector containing a[i] - b[i]
+/// New vector containing a\[i\] - b\[i\]
 pub fn subtract_vectors(a: &[f32], b: &[f32]) -> Vec<f32> {
     assert_eq!(a.len(), b.len(), "Vectors must have the same length");
 
@@ -287,7 +287,7 @@ pub fn subtract_vectors(a: &[f32], b: &[f32]) -> Vec<f32> {
 /// * `b` - Second input vector
 ///
 /// # Returns
-/// New vector containing a[i] * b[i]
+/// New vector containing a\[i\] * b\[i\]
 pub fn multiply_vectors(a: &[f32], b: &[f32]) -> Vec<f32> {
     assert_eq!(a.len(), b.len(), "Vectors must have the same length");
 

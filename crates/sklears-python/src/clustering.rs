@@ -3,10 +3,10 @@
 //! This module provides Python bindings for sklears clustering algorithms,
 //! offering scikit-learn compatible interfaces with performance improvements.
 
-use scirs2_core::ndarray::{Array1, Array2};
 use numpy::{PyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Stub KMeans implementation for testing refactored structure
 #[pyclass(name = "KMeans")]
@@ -30,7 +30,7 @@ impl PyKMeans {
         // Stub implementation
         Python::with_gil(|py| {
             let labels = Array1::<i32>::zeros(1);
-            Ok(PyArray1::from_array(py, &labels).to_owned())
+            Ok(PyArray1::from_array(py, &labels).unbind())
         })
     }
 }
@@ -57,7 +57,7 @@ impl PyDBSCAN {
         // Stub implementation
         Python::with_gil(|py| {
             let labels = Array1::<i32>::zeros(1);
-            Ok(PyArray1::from_array(py, &labels).to_owned())
+            Ok(PyArray1::from_array(py, &labels).unbind())
         })
     }
 }

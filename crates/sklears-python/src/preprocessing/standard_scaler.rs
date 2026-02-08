@@ -201,7 +201,7 @@ impl PyStandardScaler {
     /// -------
     /// X_tr : {ndarray, sparse matrix} of shape (n_samples, n_features)
     ///     Transformed array.
-    fn transform(&self, py: Python<'_>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+    fn transform<'py>(&self, py: Python<'py>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -249,9 +249,9 @@ impl PyStandardScaler {
     /// -------
     /// X_new : ndarray array of shape (n_samples, n_features_new)
     ///     Transformed array.
-    fn fit_transform(
+    fn fit_transform<'py>(
         &mut self,
-        py: Python<'_>,
+        py: Python<'py>,
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<Py<PyArray2<f64>>> {
         // Create copy of x for transform since fit consumes x
@@ -301,9 +301,9 @@ impl PyStandardScaler {
     /// -------
     /// X_tr : {ndarray, sparse matrix} of shape (n_samples, n_features)
     ///     Transformed array.
-    fn inverse_transform(
+    fn inverse_transform<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
@@ -339,7 +339,7 @@ impl PyStandardScaler {
 
     /// The mean value for each feature in the training set.
     #[getter]
-    fn mean_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn mean_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -350,7 +350,7 @@ impl PyStandardScaler {
 
     /// Per feature relative scaling of the data.
     #[getter]
-    fn scale_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn scale_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -361,7 +361,7 @@ impl PyStandardScaler {
 
     /// The variance for each feature in the training set.
     #[getter]
-    fn var_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn var_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
