@@ -4,7 +4,7 @@
 //! Gaussian Process models. All implementations comply with SciRS2 Policy.
 
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and array operations
-use scirs2_core::ndarray::{Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 // SciRS2 Policy - Use scirs2-core for random operations
 use sklears_core::error::{Result as SklResult, SklearsError};
 
@@ -32,13 +32,20 @@ impl Kernel for RBF {
         let X2 = X2.unwrap_or(X1);
         let n1 = X1.nrows();
         let n2 = X2.nrows();
-        let mut K = Array2::<f64>::zeros((n1, n2));
 
+        // Vectorized: ||x1-x2||² = ||x1||² + ||x2||² - 2·x1·x2ᵀ
+        // Compute row-wise squared norms
+        let x1_sq: Array1<f64> = X1.map_axis(Axis(1), |row| row.dot(&row));
+        let x2_sq: Array1<f64> = X2.map_axis(Axis(1), |row| row.dot(&row));
+
+        // Cross term via matmul (leverages ndarray BLAS when available)
+        let cross = X1.dot(&X2.t());
+
+        let scale = -0.5 / (self.length_scale * self.length_scale);
+        let mut K = Array2::<f64>::zeros((n1, n2));
         for i in 0..n1 {
             for j in 0..n2 {
-                let x1 = X1.row(i);
-                let x2 = X2.row(j);
-                K[[i, j]] = self.kernel(&x1, &x2);
+                K[[i, j]] = ((x1_sq[i] + x2_sq[j] - 2.0 * cross[[i, j]]) * scale).exp();
             }
         }
         Ok(K)
@@ -50,6 +57,11 @@ impl Kernel for RBF {
             sq_dist += (a - b).powi(2);
         }
         (-sq_dist / (2.0 * self.length_scale.powi(2))).exp()
+    }
+
+    fn diagonal(&self, _X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // RBF self-kernel is always 1.0: exp(-0 / 2l²) = 1
+        Ok(Array1::ones(_X.nrows()))
     }
 
     fn get_params(&self) -> Vec<f64> {
@@ -190,6 +202,11 @@ impl Kernel for ARDRBF {
         Ok(())
     }
 
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // ARD RBF self-kernel is always 1.0
+        Ok(Array1::ones(X.nrows()))
+    }
+
     fn clone_box(&self) -> Box<dyn Kernel> {
         Box::new(self.clone())
     }
@@ -257,6 +274,11 @@ impl Kernel for Matern {
         self.length_scale = params[0];
         self.nu = params[1];
         Ok(())
+    }
+
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // Matern self-kernel is always 1.0
+        Ok(Array1::ones(X.nrows()))
     }
 
     fn clone_box(&self) -> Box<dyn Kernel> {
@@ -384,6 +406,11 @@ impl Kernel for Polynomial {
         self.coef0 = params[1];
         self.degree = params[2];
         Ok(())
+    }
+
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // RationalQuadratic self-kernel is (1+0)^(-alpha) = 1.0
+        Ok(Array1::ones(X.nrows()))
     }
 
     fn clone_box(&self) -> Box<dyn Kernel> {
@@ -519,6 +546,11 @@ impl Kernel for ExpSineSquared {
         Ok(())
     }
 
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // ExpSineSquared self-kernel: sin(0) = 0, so exp(0) = 1.0
+        Ok(Array1::ones(X.nrows()))
+    }
+
     fn clone_box(&self) -> Box<dyn Kernel> {
         Box::new(self.clone())
     }
@@ -579,6 +611,11 @@ impl Kernel for WhiteKernel {
         Ok(())
     }
 
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // WhiteKernel diagonal is noise_level (self-kernel of identical points)
+        Ok(Array1::from_elem(X.nrows(), self.noise_level))
+    }
+
     fn clone_box(&self) -> Box<dyn Kernel> {
         Box::new(self.clone())
     }
@@ -625,6 +662,11 @@ impl Kernel for ConstantKernel {
         Ok(())
     }
 
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        // ConstantKernel diagonal is just constant_value for all points
+        Ok(Array1::from_elem(X.nrows(), self.constant_value))
+    }
+
     fn clone_box(&self) -> Box<dyn Kernel> {
         Box::new(self.clone())
     }
@@ -657,13 +699,22 @@ impl Kernel for SumKernel {
         let mut result = self.kernels[0].compute_kernel_matrix(X1, X2)?;
         for kernel in &self.kernels[1..] {
             let k_matrix = kernel.compute_kernel_matrix(X1, X2)?;
-            result = result + k_matrix;
+            result += &k_matrix;
         }
         Ok(result)
     }
 
     fn kernel(&self, x1: &ArrayView1<f64>, x2: &ArrayView1<f64>) -> f64 {
         self.kernels.iter().map(|k| k.kernel(x1, x2)).sum()
+    }
+
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        let mut result = self.kernels[0].diagonal(X)?;
+        for kernel in &self.kernels[1..] {
+            let diag = kernel.diagonal(X)?;
+            result += &diag;
+        }
+        Ok(result)
     }
 
     fn get_params(&self) -> Vec<f64> {
@@ -719,13 +770,22 @@ impl Kernel for ProductKernel {
         let mut result = self.kernels[0].compute_kernel_matrix(X1, X2)?;
         for kernel in &self.kernels[1..] {
             let k_matrix = kernel.compute_kernel_matrix(X1, X2)?;
-            result = result * k_matrix;
+            result *= &k_matrix;
         }
         Ok(result)
     }
 
     fn kernel(&self, x1: &ArrayView1<f64>, x2: &ArrayView1<f64>) -> f64 {
         self.kernels.iter().map(|k| k.kernel(x1, x2)).product()
+    }
+
+    fn diagonal(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
+        let mut result = self.kernels[0].diagonal(X)?;
+        for kernel in &self.kernels[1..] {
+            let diag = kernel.diagonal(X)?;
+            result *= &diag;
+        }
+        Ok(result)
     }
 
     fn get_params(&self) -> Vec<f64> {

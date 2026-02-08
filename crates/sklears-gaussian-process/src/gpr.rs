@@ -222,9 +222,25 @@ impl Fit<Array2<f64>, Array1<f64>> for GaussianProcessRegressor<Untrained> {
 }
 
 impl Predict<Array2<f64>, Array1<f64>> for GaussianProcessRegressor<GprTrained> {
+    #[allow(non_snake_case)]
     fn predict(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
-        let (mean, _) = self.predict_with_std(X)?;
-        Ok(mean)
+        let X_train = self
+            .state
+            .X_train
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
+
+        // Compute cross-kernel and mean directly — no variance computation needed
+        let K_star = self.state.kernel.compute_kernel_matrix(X_train, Some(X))?;
+        let mean_normalized = K_star.t().dot(&self.state.alpha);
+
+        if self.config.normalize_y {
+            Ok(mean_normalized * self.state.y_std + self.state.y_mean)
+        } else {
+            Ok(mean_normalized)
+        }
     }
 }
 
@@ -254,17 +270,10 @@ impl GaussianProcessRegressor<GprTrained> {
         };
 
         // Compute predictive variance
-        // Solve L * v = K_star for each test point
-        let mut v = Array2::<f64>::zeros((self.state.L.nrows(), X.nrows()));
-        for i in 0..X.nrows() {
-            let k_star_i = K_star.column(i);
-            let v_i = crate::utils::triangular_solve(&self.state.L, &k_star_i.to_owned())?;
-            v.column_mut(i).assign(&v_i);
-        }
-        let K_star_star_diag = X
-            .axis_iter(Axis(0))
-            .map(|x| self.state.kernel.kernel(&x, &x))
-            .collect::<Array1<f64>>();
+        // Solve L * v = K_star as a single batch operation
+        let v = crate::utils::forward_solve_matrix(&self.state.L, &K_star)?;
+
+        let K_star_star_diag = self.state.kernel.diagonal(X)?;
 
         let var_normalized = K_star_star_diag - v.map_axis(Axis(0), |col| col.dot(&col));
 
