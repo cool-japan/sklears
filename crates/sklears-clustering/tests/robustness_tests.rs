@@ -110,7 +110,7 @@ mod noise_robustness {
 
             // Evaluate clustering quality
             let validator = sklears_clustering::ClusteringValidator::euclidean();
-            let labels_i32: Vec<i32> = labels.iter().map(|&x| x).collect();
+            let labels_i32: Vec<i32> = labels.to_vec();
             if let Ok(silhouette_result) = validator.silhouette_analysis(&data, &labels_i32) {
                 // With increasing noise, silhouette score should generally decrease
                 if noise_level <= 1.0 {
@@ -262,7 +262,7 @@ mod outlier_robustness {
             let original_labels = &labels[..base_data.nrows()];
 
             let validator = sklears_clustering::ClusteringValidator::euclidean();
-            let original_labels_i32: Vec<i32> = original_labels.iter().map(|&x| x).collect();
+            let original_labels_i32: Vec<i32> = original_labels.to_vec();
             if let Ok(silhouette_result) =
                 validator.silhouette_analysis(&original_data.to_owned(), &original_labels_i32)
             {

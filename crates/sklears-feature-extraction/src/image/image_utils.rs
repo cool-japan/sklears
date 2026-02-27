@@ -394,7 +394,7 @@ pub mod simd_image {
     /// Response = sum(right_half) - sum(left_half)
     ///
     /// Using integral image for O(1) rectangular sum:
-    /// sum(rect) = I[br] - I[tr] - I[bl] + I[tl]
+    /// sum(rect) = I\[br\] - I\[tr\] - I\[bl\] + I\[tl\]
     /// where br=bottom_right, tr=top_right, bl=bottom_left, tl=top_left
     pub fn simd_haar_x_response(
         integral: &ArrayView2<Float>,
@@ -462,7 +462,7 @@ pub mod simd_image {
     /// Response = sum(bottom_half) - sum(top_half)
     ///
     /// Using integral image for O(1) rectangular sum:
-    /// sum(rect) = I[br] - I[tr] - I[bl] + I[tl]
+    /// sum(rect) = I\[br\] - I\[tr\] - I\[bl\] + I\[tl\]
     /// where br=bottom_right, tr=top_right, bl=bottom_left, tl=top_left
     pub fn simd_haar_y_response(
         integral: &ArrayView2<Float>,

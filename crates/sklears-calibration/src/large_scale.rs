@@ -685,7 +685,7 @@ mod tests {
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
             .unwrap();
         assert_eq!(predictions.len(), 10);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         let stats = streaming_cal.get_statistics();
         assert!(stats.contains_key("n_samples"));
@@ -709,7 +709,7 @@ mod tests {
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
             .unwrap();
         assert_eq!(predictions.len(), 10);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -728,7 +728,7 @@ mod tests {
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
             .unwrap();
         assert_eq!(predictions.len(), 10);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         let stats = memory_cal.memory_stats();
         assert!(stats.contains_key("reservoir_size"));
@@ -766,7 +766,7 @@ mod tests {
             .predict_distributed(&probabilities.slice(s![0..10]).to_owned())
             .unwrap();
         assert_eq!(predictions.len(), 10);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         let stats = dist_cal.get_distributed_stats();
         assert_eq!(stats["n_nodes"], 2.0);
@@ -788,7 +788,7 @@ mod tests {
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
             .unwrap();
         assert_eq!(predictions.len(), 10);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         let stats = minibatch_cal.get_minibatch_stats();
         assert!(stats["n_batches"] > 0);
@@ -819,7 +819,7 @@ mod tests {
                 .predict_proba(&probabilities.slice(s![0..5]).to_owned())
                 .unwrap();
             assert_eq!(predictions.len(), 5);
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 }

@@ -1098,7 +1098,7 @@ mod tests {
         let predictions = multi_modal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len() / 2);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1113,7 +1113,7 @@ mod tests {
         let predictions = cross_modal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1129,7 +1129,7 @@ mod tests {
         let predictions = ensemble.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1144,7 +1144,7 @@ mod tests {
         let predictions = domain_adapt.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1158,7 +1158,7 @@ mod tests {
         let predictions = transfer.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1181,7 +1181,7 @@ mod tests {
             let predictions = multi_modal.predict_proba(&probabilities).unwrap();
 
             assert_eq!(predictions.len(), probabilities.len() / 2);
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 
@@ -1205,7 +1205,7 @@ mod tests {
             let predictions = ensemble.predict_proba(&probabilities).unwrap();
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 }

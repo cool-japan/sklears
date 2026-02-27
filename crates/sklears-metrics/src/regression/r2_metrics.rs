@@ -293,7 +293,7 @@ mod tests {
         let y_true = array![3.0, -0.5, 2.0, 7.0];
         let y_pred = array![2.5, 0.0, 2.0, 8.0];
         let evs = explained_variance_score(&y_true, &y_pred).unwrap();
-        assert!(evs >= 0.0 && evs <= 1.0);
+        assert!((0.0..=1.0).contains(&evs));
     }
 
     #[test]

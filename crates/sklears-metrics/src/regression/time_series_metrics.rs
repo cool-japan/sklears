@@ -171,7 +171,7 @@ mod tests {
         let y_pred = array![1.0, 2.1, 2.9, 2.1]; // Up, down, up
 
         let mda = mean_directional_accuracy(&y_true, &y_pred).unwrap();
-        assert!(mda >= 0.0 && mda <= 1.0);
+        assert!((0.0..=1.0).contains(&mda));
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod tests {
         let y_pred = array![1.1, 2.1, 2.9];
 
         let smape = symmetric_mean_absolute_percentage_error(&y_true, &y_pred).unwrap();
-        assert!(smape >= 0.0 && smape <= 200.0);
+        assert!((0.0..=200.0).contains(&smape));
     }
 
     #[test]

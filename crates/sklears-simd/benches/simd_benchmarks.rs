@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::random::thread_rng;
 use sklears_core::prelude::Array2;
 use sklears_simd::activation::{relu, sigmoid, softmax};
@@ -7,6 +7,7 @@ use sklears_simd::matrix::{elementwise_add_simd, matrix_multiply_f32_simd, trans
 use sklears_simd::memory::{bandwidth, cache_aware, AlignedAlloc};
 use sklears_simd::sorting::{median_f32_simd, quicksort_f32_simd};
 use sklears_simd::vector::{dot_product, mean, norm, scale};
+use std::hint::black_box;
 
 fn generate_random_vector(size: usize) -> Vec<f32> {
     let mut rng = thread_rng();

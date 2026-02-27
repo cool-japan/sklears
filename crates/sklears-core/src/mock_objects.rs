@@ -19,9 +19,10 @@
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// use sklears_core::mock_objects::{MockEstimator, MockBehavior, MockConfig};
 /// use sklears_core::traits::{Predict, Fit};
+/// use scirs2_core::ndarray::{Array1, Array2};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create a mock classifier that always predicts class 1
@@ -31,8 +32,8 @@
 ///     .build();
 ///
 /// // Use it like any other estimator
-/// let features = ndarray::Array2::zeros((100, 10));
-/// let targets = ndarray::Array1::zeros(100);
+/// let features = Array2::zeros((100, 10));
+/// let targets = Array1::zeros(100);
 ///
 /// let trained = mock.fit(&features.view(), &targets.view())?;
 /// let predictions = trained.predict(&features.view())?;
@@ -157,7 +158,7 @@ impl MockEstimator {
 
     /// Get mock state information for testing
     pub fn mock_state(&self) -> MockStateSnapshot {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         MockStateSnapshot {
             fit_count: state.fit_count,
             predict_count: state.predict_count,
@@ -170,7 +171,7 @@ impl MockEstimator {
 
     /// Reset the mock state (useful for test setup)
     pub fn reset_state(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         *state = MockState::default();
     }
 
@@ -308,7 +309,7 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockEstimator {
     type Fitted = TrainedMockEstimator;
 
     fn fit(self, x: &ArrayView2<'a, f64>, y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         // Track fit call
         state.fit_count += 1;
@@ -367,7 +368,11 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockEstimator {
 
 impl<'a> Predict<ArrayView2<'a, f64>, Array1<f64>> for TrainedMockEstimator {
     fn predict(&self, x: &ArrayView2<'a, f64>) -> Result<Array1<f64>> {
-        let mut state = self.estimator.state.lock().unwrap();
+        let mut state = self
+            .estimator
+            .state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         // Track predict call
         state.predict_count += 1;
@@ -732,8 +737,13 @@ mod tests {
         let features = Array2::zeros((10, 3));
         let targets = Array1::zeros(10);
 
-        let trained = mock.clone().fit(&features.view(), &targets.view()).unwrap();
-        let predictions = trained.predict(&features.view()).unwrap();
+        let trained = mock
+            .clone()
+            .fit(&features.view(), &targets.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&features.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| p == 5.0));
@@ -752,13 +762,18 @@ mod tests {
         assert!(!state.fitted);
 
         // After fitting
-        let trained = mock.clone().fit(&features.view(), &targets.view()).unwrap();
+        let trained = mock
+            .clone()
+            .fit(&features.view(), &targets.view())
+            .expect("model fitting should succeed");
         let state = mock.mock_state();
         assert_eq!(state.fit_count, 1);
         assert!(state.fitted);
 
         // After predicting
-        let _ = trained.predict(&features.view()).unwrap();
+        let _ = trained
+            .predict(&features.view())
+            .expect("prediction should succeed");
         let state = mock.mock_state();
         assert_eq!(state.predict_count, 1);
     }
@@ -769,11 +784,17 @@ mod tests {
             .with_behavior(MockBehavior::FeatureSum)
             .build();
 
-        let features = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let features = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
         let targets = Array1::zeros(2);
 
-        let trained = mock.clone().fit(&features.view(), &targets.view()).unwrap();
-        let predictions = trained.predict(&features.view()).unwrap();
+        let trained = mock
+            .clone()
+            .fit(&features.view(), &targets.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&features.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions[0], 6.0); // 1 + 2 + 3
         assert_eq!(predictions[1], 15.0); // 4 + 5 + 6
@@ -788,11 +809,16 @@ mod tests {
             .with_behavior(MockBehavior::LinearModel { weights, bias })
             .build();
 
-        let features = Array2::from_shape_vec((1, 3), vec![1.0, 1.0, 1.0]).unwrap();
+        let features =
+            Array2::from_shape_vec((1, 3), vec![1.0, 1.0, 1.0]).expect("valid array shape");
         let targets = Array1::zeros(1);
 
-        let trained = mock.fit(&features.view(), &targets.view()).unwrap();
-        let predictions = trained.predict(&features.view()).unwrap();
+        let trained = mock
+            .fit(&features.view(), &targets.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&features.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions[0], 7.0); // 1*1 + 2*1 + 3*1 + 1
     }
@@ -800,14 +826,17 @@ mod tests {
     #[test]
     fn test_mock_transformer_identity() {
         let transformer = MockTransformer::new(MockTransformType::Identity);
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
         let targets = Array1::zeros(2);
 
         let fitted = transformer
             .clone()
             .fit(&data.view(), &targets.view())
-            .unwrap();
-        let transformed = fitted.transform(&data.view()).unwrap();
+            .expect("expected valid value");
+        let transformed = fitted
+            .transform(&data.view())
+            .expect("transform should succeed");
 
         assert_eq!(transformed, data);
     }
@@ -815,16 +844,20 @@ mod tests {
     #[test]
     fn test_mock_transformer_scale() {
         let transformer = MockTransformer::new(MockTransformType::Scale(2.0));
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
         let targets = Array1::zeros(2);
 
         let fitted = transformer
             .clone()
             .fit(&data.view(), &targets.view())
-            .unwrap();
-        let transformed = fitted.transform(&data.view()).unwrap();
+            .expect("expected valid value");
+        let transformed = fitted
+            .transform(&data.view())
+            .expect("transform should succeed");
 
-        let expected = Array2::from_shape_vec((2, 2), vec![2.0, 4.0, 6.0, 8.0]).unwrap();
+        let expected =
+            Array2::from_shape_vec((2, 2), vec![2.0, 4.0, 6.0, 8.0]).expect("valid array shape");
         assert_eq!(transformed, expected);
     }
 
@@ -865,8 +898,13 @@ mod tests {
         let features = Array2::zeros((3, 2));
         let targets = Array1::zeros(3);
 
-        let trained = mock.clone().fit(&features.view(), &targets.view()).unwrap();
-        let probabilities = trained.predict_proba(&features.view()).unwrap();
+        let trained = mock
+            .clone()
+            .fit(&features.view(), &targets.view())
+            .expect("model fitting should succeed");
+        let probabilities = trained
+            .predict_proba(&features.view())
+            .expect("expected valid value");
 
         assert_eq!(probabilities.shape(), &[3, 2]);
         // All predictions should have probabilities that sum to 1

@@ -195,33 +195,21 @@ impl IncrementalPCA<Untrained> {
             .unwrap_or_else(|| x.dim().1.min(self.n_samples_seen_));
 
         // Perform SVD on centered data
-        let (n_samples, n_features) = x_centered.dim();
+        let (_n_samples, n_features) = x_centered.dim();
 
-        // Convert to nalgebra for SVD
-        let matrix =
-            nalgebra::DMatrix::from_iterator(n_samples, n_features, x_centered.iter().cloned());
-
-        let svd = matrix.svd(true);
-
-        // Extract components and singular values
-        let vt = svd.v_t.ok_or_else(|| {
-            SklearsError::InvalidInput("SVD failed to compute V^T matrix".to_string())
+        // Use scirs2-linalg for SVD
+        let (u, s, vt) = svd(&x_centered.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
         })?;
-        let singular_values = svd.singular_values;
 
         // Take first n_components
-        let n_comp = n_components.min(singular_values.len());
+        let n_comp = n_components.min(s.len());
 
-        // Components are rows of V^T
-        let mut components = Array2::<Float>::zeros((n_comp, n_features));
-        for i in 0..n_comp {
-            for j in 0..n_features {
-                components[[i, j]] = vt[(i, j)];
-            }
-        }
+        // Components are rows of V^T (first n_comp rows)
+        let components = vt.slice(scirs2_core::ndarray::s![..n_comp, ..]).to_owned();
 
-        // Singular values
-        let sing_vals = Array1::from_iter(singular_values.iter().take(n_comp).cloned());
+        // Singular values (first n_comp values)
+        let sing_vals = s.slice(scirs2_core::ndarray::s![..n_comp]).to_owned();
 
         // Calculate explained variance
         let n_samples_f = self.n_samples_seen_ as Float;

@@ -47,6 +47,7 @@ pub mod streaming;
 pub mod type_safe;
 // TODO: ndarray 0.17 HRTB trait bound issues
 // pub mod validation;
+// TODO: ndarray 0.17 HRTB trait bound issues - closures in generic methods
 // pub mod wrapper;
 
 pub use automl::{
@@ -72,7 +73,7 @@ pub use crate::filter::{
     SureIndependenceScreening, VarianceThreshold,
 };
 
-// TODO: ndarray 0.17 HRTB trait bound issues
+// TODO: ndarray 0.17 HRTB trait bound issues - closures in generic methods
 // pub use crate::wrapper::{
 //     FeatureImportance, HasCoefficients, IndexableTarget, RFECVResults, SelectFromModel,
 //     SequentialFeatureSelector, RFE, RFECV,

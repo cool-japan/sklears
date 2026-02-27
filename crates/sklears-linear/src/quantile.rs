@@ -4,10 +4,8 @@
 //! instead of the conditional mean. This is useful for obtaining a more complete picture of
 //! the conditional distribution of the response variable.
 
-use ndarray_linalg::Solve;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_linalg::compat::ArrayLinalgExt;
-// Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use std::marker::PhantomData;
 
 use sklears_core::{
@@ -17,6 +15,30 @@ use sklears_core::{
 };
 
 use crate::solver::Solver;
+
+/// Helper function to safely compute mean along an axis
+#[inline]
+fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
+/// Helper function to safely compute mean of 1D array
+#[inline]
+fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean().ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean".to_string())
+    })
+}
+
+/// Helper function to safely compare floats
+#[inline]
+fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
 
 /// Configuration for QuantileRegressor
 #[derive(Debug, Clone)]
@@ -186,8 +208,8 @@ fn solve_coordinate_descent(
 
     // Center X and y if fitting intercept
     let (x_centered, y_centered, x_mean, y_mean) = if fit_intercept {
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean().unwrap();
+        let x_mean = safe_mean_axis(x, Axis(0))?;
+        let y_mean = safe_mean(y)?;
         let x_centered = x - &x_mean;
         let y_centered = y - y_mean;
         (x_centered, y_centered, Some(x_mean), Some(y_mean))
@@ -248,8 +270,12 @@ fn solve_coordinate_descent(
 
     // Compute intercept if needed
     if fit_intercept {
-        let x_mean = x_mean.unwrap();
-        let y_mean = y_mean.unwrap();
+        let x_mean = x_mean.ok_or_else(|| {
+            SklearsError::InvalidState("x_mean should be Some when fit_intercept=true".to_string())
+        })?;
+        let y_mean = y_mean.ok_or_else(|| {
+            SklearsError::InvalidState("y_mean should be Some when fit_intercept=true".to_string())
+        })?;
         intercept = y_mean - x_mean.dot(&coef);
     }
 
@@ -433,14 +459,22 @@ impl Fit<Array2<Float>, Array1<Float>> for QuantileRegressor<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for QuantileRegressor<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })?;
+        let intercept = self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })?;
 
-        if x.ncols() != self.n_features_in_.unwrap() {
+        let n_features_in = self.n_features_in_.ok_or_else(|| {
+            SklearsError::InvalidState("n_features_in_ should be Some in Trained state".to_string())
+        })?;
+
+        if x.ncols() != n_features_in {
             return Err(SklearsError::InvalidInput(format!(
                 "X has {} features, but QuantileRegressor is expecting {} features",
                 x.ncols(),
-                self.n_features_in_.unwrap()
+                n_features_in
             )));
         }
 
@@ -469,23 +503,31 @@ impl Score<Array2<Float>, Array1<Float>> for QuantileRegressor<Trained> {
 
 impl QuantileRegressor<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array1<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the intercept
-    pub fn intercept(&self) -> Option<Float> {
-        Some(self.intercept_.unwrap())
+    pub fn intercept(&self) -> Result<Float> {
+        self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the number of features seen during fit
-    pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+    pub fn n_features_in(&self) -> Result<usize> {
+        self.n_features_in_.ok_or_else(|| {
+            SklearsError::InvalidState("n_features_in_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| {
+            SklearsError::InvalidState("n_iter_ should be Some in Trained state".to_string())
+        })
     }
 }
 
@@ -522,7 +564,7 @@ mod tests {
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
         let r2 = 1.0 - ss_res / ss_tot;
 
-        assert!(r2 > 0.8, "R² = {}, coef = {}", r2, model.coef()[0]);
+        assert!(r2 > 0.8, "R² = {}, coef = {}", r2, model.coef().unwrap()[0]);
     }
 
     #[test]
@@ -568,7 +610,7 @@ mod tests {
 
         // The predictions should be above most data points
         // Just check that the model runs and produces reasonable output
-        assert!(model.coef()[0] > 1.5 && model.coef()[0] < 2.5);
+        assert!(model.coef().unwrap()[0] > 1.5 && model.coef().unwrap()[0] < 2.5);
     }
 
     #[test]
@@ -583,7 +625,7 @@ mod tests {
             .unwrap();
 
         // With L1 regularization, the second coefficient (always 0) should be 0
-        assert!(model.coef()[1].abs() < 0.1);
+        assert!(model.coef().unwrap()[1].abs() < 0.1);
     }
 
     #[test]

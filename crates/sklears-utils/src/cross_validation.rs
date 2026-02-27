@@ -437,7 +437,7 @@ mod tests {
 
         // Check expanding window property
         for (i, split) in splits.iter().enumerate() {
-            assert!(split.train.len() > 0);
+            assert!(!split.train.is_empty());
             assert_eq!(split.test.len(), 2);
             if i > 0 {
                 assert!(split.train.len() > splits[i - 1].train.len());

@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-tree.svg)](https://crates.io/crates/sklears-tree)
 [![Documentation](https://docs.rs/sklears-tree/badge.svg)](https://docs.rs/sklears-tree)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 State-of-the-art tree-based algorithms for Rust with 5-20x performance improvements over scikit-learn. Features advanced algorithms like BART, soft trees, and LightGBM-style optimizations.
@@ -256,9 +256,7 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Licensed under either of:
-- Apache License, Version 2.0
-- MIT license
+Licensed under the Apache License, Version 2.0.
 
 ## Citation
 

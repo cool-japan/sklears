@@ -551,11 +551,21 @@ mod tests {
     fn test_rating_plugin() {
         let mut marketplace = ConcretePluginMarketplace::new();
 
-        marketplace.rate_plugin("test_plugin", 5, None).unwrap();
-        marketplace.rate_plugin("test_plugin", 4, None).unwrap();
-        marketplace.rate_plugin("test_plugin", 5, None).unwrap();
+        marketplace
+            .rate_plugin("test_plugin", 5, None)
+            .expect("rate_plugin should succeed");
+        marketplace
+            .rate_plugin("test_plugin", 4, None)
+            .expect("rate_plugin should succeed");
+        marketplace
+            .rate_plugin("test_plugin", 5, None)
+            .expect("rate_plugin should succeed");
 
-        let rating = marketplace.ratings.ratings.get("test_plugin").unwrap();
+        let rating = marketplace
+            .ratings
+            .ratings
+            .get("test_plugin")
+            .expect("key should exist");
         assert_eq!(rating.total_ratings, 3);
         assert!((rating.average_rating - 4.67).abs() < 0.01);
     }
@@ -588,7 +598,7 @@ mod tests {
 
         marketplace
             .rate_plugin("test_plugin", 5, Some(review))
-            .unwrap();
+            .expect("expected valid value");
 
         let reviews = marketplace.get_reviews("test_plugin");
         assert_eq!(reviews.len(), 1);
@@ -620,12 +630,24 @@ mod tests {
     fn test_rating_distribution() {
         let mut marketplace = ConcretePluginMarketplace::new();
 
-        marketplace.rate_plugin("test", 5, None).unwrap();
-        marketplace.rate_plugin("test", 5, None).unwrap();
-        marketplace.rate_plugin("test", 4, None).unwrap();
-        marketplace.rate_plugin("test", 3, None).unwrap();
+        marketplace
+            .rate_plugin("test", 5, None)
+            .expect("rate_plugin should succeed");
+        marketplace
+            .rate_plugin("test", 5, None)
+            .expect("rate_plugin should succeed");
+        marketplace
+            .rate_plugin("test", 4, None)
+            .expect("rate_plugin should succeed");
+        marketplace
+            .rate_plugin("test", 3, None)
+            .expect("rate_plugin should succeed");
 
-        let rating = marketplace.ratings.ratings.get("test").unwrap();
+        let rating = marketplace
+            .ratings
+            .ratings
+            .get("test")
+            .expect("key should exist");
         assert_eq!(rating.rating_distribution[4], 2); // Two 5-star ratings
         assert_eq!(rating.rating_distribution[3], 1); // One 4-star rating
         assert_eq!(rating.rating_distribution[2], 1); // One 3-star rating

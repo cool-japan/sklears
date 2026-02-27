@@ -143,7 +143,7 @@ impl DisciplinedConvexIsotonicRegression {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -260,7 +260,7 @@ impl DisciplinedConvexIsotonicRegression {
             ConvexObjective::Quantile { tau } => {
                 // Quantile loss minimization (simplified)
                 let mut values: Vec<Float> = y.to_vec();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.total_cmp(b));
                 let quantile_idx = (tau * values.len() as Float) as usize;
                 let quantile_value = values[quantile_idx.min(values.len() - 1)];
                 Ok(Array1::from_elem(y.len(), quantile_value))
@@ -481,7 +481,12 @@ pub fn disciplined_convex_isotonic_regression(
     }
 
     model.fit(x, y)?;
-    Ok(model.fitted_values().unwrap().clone())
+    model
+        .fitted_values()
+        .ok_or_else(|| SklearsError::NotFitted {
+            operation: "disciplined_convex_isotonic_regression".to_string(),
+        })
+        .map(|v| v.clone())
 }
 
 #[allow(non_snake_case)]

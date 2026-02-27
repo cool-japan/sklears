@@ -627,8 +627,8 @@ mod tests {
         let config = PipelineConfig {
             name: "test".to_string(),
             stages: vec![],
-            input_type: syn::parse_str("i32").unwrap(),
-            output_type: syn::parse_str("i32").unwrap(),
+            input_type: syn::parse_str("i32").expect("expected valid value"),
+            output_type: syn::parse_str("i32").expect("expected valid value"),
             parallel: false,
             validate_input: false,
             cache_transforms: false,
@@ -643,7 +643,7 @@ mod tests {
     #[test]
     fn test_generate_feature_engineering_empty() {
         let config = FeatureEngineeringConfig {
-            dataset: syn::parse_str("dataset").unwrap(),
+            dataset: syn::parse_str("dataset").expect("expected valid value"),
             features: vec![],
             selection: vec![],
             validation: vec![],

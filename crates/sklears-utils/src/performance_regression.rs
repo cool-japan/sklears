@@ -400,7 +400,7 @@ mod tests {
         let result = tester
             .benchmark_function("test_computation", 5, || {
                 // Simulate some work
-                (0..1000).fold(0, |acc, x| acc + x)
+                (0..1000).sum::<i32>()
             })
             .unwrap();
 

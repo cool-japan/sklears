@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-clustering.svg)](https://crates.io/crates/sklears-clustering)
 [![Documentation](https://docs.rs/sklears-clustering/badge.svg)](https://docs.rs/sklears-clustering)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 Clustering algorithms for the sklears machine learning library.
@@ -84,4 +84,4 @@ The crate includes clustering metrics:
 
 ## License
 
-Licensed under either of Apache License, Version 2.0 or MIT license at your option.
+Licensed under the Apache License, Version 2.0.

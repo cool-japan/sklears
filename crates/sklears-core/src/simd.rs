@@ -626,10 +626,12 @@ mod tests {
     #[test]
     #[cfg(feature = "simd")]
     fn test_simd_matrix_multiply() {
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
+        let b = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+            .expect("valid array shape");
 
-        let result = SimdOps::matrix_multiply_simd(&a, &b).unwrap();
+        let result = SimdOps::matrix_multiply_simd(&a, &b).expect("expected valid value");
         let expected = a.dot(&b);
 
         assert_eq!(result.shape(), expected.shape());
@@ -643,12 +645,12 @@ mod tests {
     fn test_simd_euclidean_distances() {
         let x =
             Array2::from_shape_vec((2, 3), vec![1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32])
-                .unwrap();
+                .expect("expected valid value");
         let y =
             Array2::from_shape_vec((2, 3), vec![1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32])
-                .unwrap();
+                .expect("expected valid value");
 
-        let distances = SimdOps::euclidean_distances_simd(&x, &y).unwrap();
+        let distances = SimdOps::euclidean_distances_simd(&x, &y).expect("expected valid value");
 
         assert_eq!(distances.shape(), &[2, 2]);
 

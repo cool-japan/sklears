@@ -90,7 +90,7 @@ impl IsotonicSurvivalRegression {
             .collect();
 
         // Sort by time
-        time_event_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        time_event_pairs.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         // Compute Kaplan-Meier estimates
         let (times, survival_probs, at_risk_counts, event_counts) =
@@ -212,7 +212,7 @@ impl IsotonicSurvivalRegression {
                 (time, events, total)
             })
             .collect();
-        sorted_times.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        sorted_times.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         let mut current_survival = 1.0;
         let mut n_at_risk = time_event_pairs.len() as Float;
@@ -650,7 +650,7 @@ impl RecurrentEventIsotonicRegression {
             return Err(SklearsError::InvalidInput("No events found".to_string()));
         }
 
-        all_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        all_times.sort_by(|a, b| a.total_cmp(b));
 
         // Compute empirical intensity
         let (times, intensities, cumulative_intensities) =
@@ -769,7 +769,7 @@ impl RecurrentEventIsotonicRegression {
                 (time, count)
             })
             .collect();
-        sorted_times.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        sorted_times.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         let mut cumulative = 0.0;
 

@@ -415,7 +415,7 @@ mod tests {
 
         // Check that calibrated probabilities are valid
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -440,7 +440,7 @@ mod tests {
 
         // Check that calibrated probabilities are valid
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

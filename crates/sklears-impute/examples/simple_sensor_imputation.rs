@@ -211,7 +211,7 @@ fn compare_imputation_results(
         "Position", "Mean", "Forward Fill"
     );
 
-    for (_i, &(row, col)) in missing_positions.iter().take(5).enumerate() {
+    for &(row, col) in missing_positions.iter().take(5) {
         let mean_val = mean_imputed[[row, col]];
         let ff_val = forward_fill_imputed[[row, col]];
 

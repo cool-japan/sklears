@@ -108,13 +108,13 @@ impl BenchmarkHistory {
         let std_dev = variance.sqrt();
 
         let mut sorted = durations.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         Some(HistoricalSummary {
             mean_duration: Duration::from_secs_f64(mean),
             std_deviation: std_dev,
             min_duration: Duration::from_secs_f64(sorted[0]),
-            max_duration: Duration::from_secs_f64(*sorted.last().unwrap()),
+            max_duration: Duration::from_secs_f64(*sorted.last().expect("last should succeed")),
             median_duration: Duration::from_secs_f64(sorted[sorted.len() / 2]),
             sample_count: durations.len(),
         })
@@ -350,7 +350,7 @@ impl AdvancedBenchmarkRunner {
 
         // Calculate IQR (Interquartile Range) method
         let mut sorted_values = values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let q1_idx = sorted_values.len() / 4;
         let q3_idx = (sorted_values.len() * 3) / 4;
@@ -503,7 +503,7 @@ mod tests {
                 // Simulate work
                 let _sum: u64 = (0..1000).sum();
             })
-            .unwrap();
+            .expect("expected valid value");
 
         assert_eq!(result.name, "test_benchmark");
         assert!(result.median_duration > Duration::from_nanos(0));
@@ -518,7 +518,11 @@ mod tests {
 
         assert!(runner.baselines.contains_key("test"));
         assert_eq!(
-            runner.baselines.get("test").unwrap().baseline_duration,
+            runner
+                .baselines
+                .get("test")
+                .expect("key should exist")
+                .baseline_duration,
             Duration::from_millis(10)
         );
     }
@@ -535,11 +539,11 @@ mod tests {
             .run_benchmark("test", || {
                 std::thread::sleep(Duration::from_micros(200));
             })
-            .unwrap();
+            .expect("expected valid value");
 
         // Should detect a regression
         let regressions = runner.get_regressions();
-        assert!(regressions.len() > 0);
+        assert!(!regressions.is_empty());
     }
 
     #[test]
@@ -550,15 +554,18 @@ mod tests {
             .run_benchmark("test", || {
                 let _x = 1 + 1;
             })
-            .unwrap();
+            .expect("expected valid value");
 
         runner
             .run_benchmark("test", || {
                 let _x = 1 + 1;
             })
-            .unwrap();
+            .expect("expected valid value");
 
-        let history = runner.history.get_history("test").unwrap();
+        let history = runner
+            .history
+            .get_history("test")
+            .expect("get_history should succeed");
         assert_eq!(history.len(), 2);
     }
 
@@ -577,10 +584,13 @@ mod tests {
                     }
                     std::hint::black_box(sum);
                 })
-                .unwrap();
+                .expect("expected valid value");
         }
 
-        let summary = runner.history.get_summary("test").unwrap();
+        let summary = runner
+            .history
+            .get_summary("test")
+            .expect("get_summary should succeed");
         assert_eq!(summary.sample_count, 5);
         assert!(summary.mean_duration > Duration::from_nanos(0));
     }
@@ -594,14 +604,14 @@ mod tests {
                 let x = std::hint::black_box(1 + 1);
                 std::hint::black_box(x);
             })
-            .unwrap();
+            .expect("expected valid value");
 
         runner
             .run_benchmark("bench2", || {
                 let y = std::hint::black_box(2 + 2);
                 std::hint::black_box(y);
             })
-            .unwrap();
+            .expect("expected valid value");
 
         let report = runner.generate_report();
         assert_eq!(report.total_benchmarks, 2);

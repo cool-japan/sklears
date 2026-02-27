@@ -273,7 +273,7 @@ impl<T: FloatBounds> LearningRate<T> {
     /// Create a common learning rate value
     pub fn default_value() -> Self {
         // Safe because 0.01 is positive and finite
-        unsafe { LearningRate::new_unchecked(T::from(0.01).unwrap()) }
+        unsafe { LearningRate::new_unchecked(T::from(0.01).expect("expected valid value")) }
     }
 
     /// Create without validation (unsafe)
@@ -310,14 +310,16 @@ impl<T: FloatBounds> LearningRate<T> {
 
     /// Step-based learning rate schedule
     pub fn step_schedule(initial: Self, step: usize, step_size: usize, gamma: T) -> Self {
-        let decay_factor = gamma.powf(T::from((step / step_size) as f64).unwrap());
+        let decay_factor =
+            gamma.powf(T::from((step / step_size) as f64).expect("expected valid value"));
         // Safe because decay factor applied to positive rate remains positive
         unsafe { LearningRate::new_unchecked(initial.0 * decay_factor) }
     }
 
     /// Exponential learning rate schedule
     pub fn exponential_schedule(initial: Self, step: usize, decay_rate: T) -> Self {
-        let decay_factor = (-decay_rate * T::from(step as f64).unwrap()).exp();
+        let decay_factor =
+            (-decay_rate * T::from(step as f64).expect("expected valid value")).exp();
         // Safe because exponential decay of positive rate remains positive
         unsafe { LearningRate::new_unchecked(initial.0 * decay_factor) }
     }
@@ -368,15 +370,15 @@ impl<T: FloatBounds + std::iter::Sum> RegularizationStrength<T> {
 
     /// Create common regularization values
     pub fn weak() -> Self {
-        RegularizationStrength(T::from(0.001).unwrap())
+        RegularizationStrength(T::from(0.001).expect("expected valid value"))
     }
 
     pub fn moderate() -> Self {
-        RegularizationStrength(T::from(0.01).unwrap())
+        RegularizationStrength(T::from(0.01).expect("expected valid value"))
     }
 
     pub fn strong() -> Self {
-        RegularizationStrength(T::from(0.1).unwrap())
+        RegularizationStrength(T::from(0.1).expect("expected valid value"))
     }
 
     /// Grid search values for hyperparameter optimization
@@ -384,7 +386,7 @@ impl<T: FloatBounds + std::iter::Sum> RegularizationStrength<T> {
         let values = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0];
         values
             .iter()
-            .map(|&v| RegularizationStrength(T::from(v).unwrap()))
+            .map(|&v| RegularizationStrength(T::from(v).expect("map should succeed")))
             .collect()
     }
 
@@ -435,17 +437,17 @@ impl<T: FloatBounds> Tolerance<T> {
 
     /// Default tolerance based on machine epsilon
     pub fn default_for_type() -> Self {
-        Tolerance(T::EPSILON * T::from(1000.0).unwrap())
+        Tolerance(T::EPSILON * T::from(1000.0).expect("expected valid value"))
     }
 
     /// Strict tolerance for high precision
     pub fn strict() -> Self {
-        Tolerance(T::EPSILON * T::from(10.0).unwrap())
+        Tolerance(T::EPSILON * T::from(10.0).expect("expected valid value"))
     }
 
     /// Relaxed tolerance for fast convergence
     pub fn relaxed() -> Self {
-        Tolerance(T::from(1e-3).unwrap())
+        Tolerance(T::from(1e-3).expect("expected valid value"))
     }
 
     /// Check if two values are within this tolerance
@@ -504,8 +506,8 @@ mod tests {
     #[test]
     fn test_probability() {
         // Valid probabilities
-        let p1 = Probability::new(0.5).unwrap();
-        let p2 = Probability::new(0.3).unwrap();
+        let p1 = Probability::new(0.5).expect("expected valid value");
+        let p2 = Probability::new(0.3).expect("expected valid value");
 
         assert_eq!(p1.value(), 0.5);
         assert!(!p1.is_zero());
@@ -529,7 +531,7 @@ mod tests {
 
     #[test]
     fn test_feature_count() {
-        let fc = FeatureCount::new(10).unwrap();
+        let fc = FeatureCount::new(10).expect("expected valid value");
         assert_eq!(fc.get(), 10);
         assert_eq!(fc.as_f64(), 10.0);
 
@@ -538,32 +540,34 @@ mod tests {
 
         let fc3 = fc - 3;
         assert!(fc3.is_ok());
-        assert_eq!(fc3.unwrap().get(), 7);
+        assert_eq!(fc3.expect("expected valid value").get(), 7);
 
         // Invalid operations
         assert!(FeatureCount::new(0).is_err());
         assert!((fc - 20).is_err());
 
         // Power of 2 operations
-        let fc_pow2 = FeatureCount::new(8).unwrap();
+        let fc_pow2 = FeatureCount::new(8).expect("expected valid value");
         assert!(fc_pow2.is_power_of_two());
 
-        let fc_not_pow2 = FeatureCount::new(10).unwrap();
+        let fc_not_pow2 = FeatureCount::new(10).expect("expected valid value");
         assert!(!fc_not_pow2.is_power_of_two());
         assert_eq!(fc_not_pow2.next_power_of_two().get(), 16);
     }
 
     #[test]
     fn test_sample_count() {
-        let sc1 = SampleCount::new(100).unwrap();
-        let sc2 = SampleCount::new(25).unwrap();
+        let sc1 = SampleCount::new(100).expect("expected valid value");
+        let sc2 = SampleCount::new(25).expect("expected valid value");
 
         assert_eq!(sc1.get(), 100);
 
         let total = sc1 + sc2;
         assert_eq!(total.get(), 125);
 
-        let percentage = sc2.percentage_of(sc1).unwrap();
+        let percentage = sc2
+            .percentage_of(sc1)
+            .expect("percentage_of should succeed");
         assert_abs_diff_eq!(percentage, 25.0);
 
         assert!(sc1.is_valid_split_with(sc2, 10));
@@ -576,10 +580,10 @@ mod tests {
 
     #[test]
     fn test_learning_rate() {
-        let lr = LearningRate::new(0.01).unwrap();
+        let lr = LearningRate::new(0.01).expect("expected valid value");
         assert_eq!(lr.get(), 0.01);
 
-        let decayed = lr.decay(0.9).unwrap();
+        let decayed = lr.decay(0.9).expect("decay should succeed");
         assert_abs_diff_eq!(decayed.get(), 0.009);
 
         // Invalid learning rates
@@ -588,7 +592,7 @@ mod tests {
         assert!(LearningRate::new(f64::INFINITY).is_err());
 
         // Schedules
-        let initial = LearningRate::new(0.1).unwrap();
+        let initial = LearningRate::new(0.1).expect("expected valid value");
         let step_lr = LearningRate::step_schedule(initial, 100, 50, 0.1);
         assert!(step_lr.get() < initial.get());
 
@@ -598,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_regularization_strength() {
-        let reg = RegularizationStrength::new(0.01).unwrap();
+        let reg = RegularizationStrength::new(0.01).expect("expected valid value");
         assert_eq!(reg.get(), 0.01);
         assert!(!reg.is_disabled());
 
@@ -624,7 +628,7 @@ mod tests {
 
     #[test]
     fn test_tolerance() {
-        let tol = Tolerance::new(1e-6).unwrap();
+        let tol = Tolerance::new(1e-6).expect("expected valid value");
         assert_eq!(tol.get(), 1e-6);
 
         assert!(tol.are_close(1.0, 1.0 + 1e-7));

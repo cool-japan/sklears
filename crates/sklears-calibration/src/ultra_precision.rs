@@ -1004,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_ultra_precision_float_creation() {
-        let num = UltraPrecisionFloat::from_float(3.14159, 10);
+        let num = UltraPrecisionFloat::from_float(3.14158, 10);
         assert!(!num.is_zero());
         assert!(!num.is_negative);
         assert_eq!(num.precision, 10);
@@ -1127,7 +1127,7 @@ mod tests {
                     assert_eq!(calibrated.len(), 4);
                     for &prob in calibrated.iter() {
                         assert!(
-                            prob >= 0.0 && prob <= 1.0,
+                            (0.0..=1.0).contains(&prob),
                             "Probability out of range: {}",
                             prob
                         );
@@ -1153,7 +1153,10 @@ mod tests {
             !display_str.is_empty(),
             "Display should produce non-empty string"
         );
-        assert!(display_str.len() > 0, "Display string should have content");
+        assert!(
+            !display_str.is_empty(),
+            "Display string should have content"
+        );
 
         let zero = UltraPrecisionFloat::zero(5);
         let zero_str = format!("{}", zero);
@@ -1166,7 +1169,7 @@ mod tests {
 
     #[test]
     fn test_ultra_precision_comparison() {
-        let a = UltraPrecisionFloat::from_float(3.14, 10);
+        let a = UltraPrecisionFloat::from_float(3.15, 10);
         let b = UltraPrecisionFloat::from_float(2.71, 10);
 
         assert!(a.compare_abs(&b) > 0);
@@ -1213,7 +1216,7 @@ mod tests {
                 sigmoid_val
             );
             assert!(
-                sigmoid_val >= 0.0 && sigmoid_val <= 1.0 || sigmoid_val > 1.0,
+                (0.0..=1.0).contains(&sigmoid_val) || sigmoid_val > 1.0,
                 "sigmoid result should be in valid range or indicate implementation issue: {}",
                 sigmoid_val
             );

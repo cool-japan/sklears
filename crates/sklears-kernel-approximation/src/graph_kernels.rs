@@ -16,9 +16,9 @@
 //! # Mathematical Background
 //!
 //! Graph kernel between graphs G₁ and G₂:
-//! K(G₁, G₂) = Σ φ(G₁)[f] * φ(G₂)[f]
+//! K(G₁, G₂) = Σ φ(G₁)\[f\] * φ(G₂)\[f\]
 //!
-//! Where φ(G)[f] is the feature map counting occurrences of feature f in graph G.
+//! Where φ(G)\[f\] is the feature map counting occurrences of feature f in graph G.
 //!
 //! # References
 //!

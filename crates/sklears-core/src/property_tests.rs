@@ -132,7 +132,7 @@ proptest! {
         }
 
         // Test basic statistics are well-behaved
-        let mean = x.mean().unwrap();
+        let mean = x.mean().unwrap_or_default();
         let max_val = x.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
         let min_val = x.iter().fold(f64::INFINITY, |a, &b| a.min(b));
 
@@ -423,14 +423,14 @@ pub mod strategies {
     pub fn small_matrix_strategy() -> impl Strategy<Value = Array2<f64>> {
         (2..10usize, 2..10usize).prop_flat_map(|(nrows, ncols)| {
             vec(-10.0..10.0_f64, nrows * ncols)
-                .prop_map(move |values| Array2::from_shape_vec((nrows, ncols), values).unwrap())
+                .prop_map(move |values| Array2::from_shape_vec((nrows, ncols), values).expect("valid array shape"))
         })
     }
 
     /// Generate positive definite matrices
     pub fn positive_definite_matrix_strategy(size: usize) -> impl Strategy<Value = Array2<f64>> {
         vec(-5.0..5.0_f64, size * size).prop_map(move |values| {
-            let mut matrix = Array2::from_shape_vec((size, size), values).unwrap();
+            let mut matrix = Array2::from_shape_vec((size, size), values).expect("valid array shape");
 
             // Make it positive definite by A = A^T A + I
             let at = matrix.t().to_owned();
@@ -471,7 +471,7 @@ pub mod strategies {
             ],
             nrows * ncols,
         )
-        .prop_map(move |values| Array2::from_shape_vec((nrows, ncols), values).unwrap())
+        .prop_map(move |values| Array2::from_shape_vec((nrows, ncols), values).expect("valid array shape"))
     }
 }
 

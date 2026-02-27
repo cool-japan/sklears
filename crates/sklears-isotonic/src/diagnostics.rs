@@ -124,14 +124,36 @@ impl BreakdownPointAnalysis {
         for i in 0..k_outliers.min(n_samples) {
             if increasing {
                 // Add decreasing outliers to break monotonicity
-                x[i] = x.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() + 1.0;
-                y[i] =
-                    y.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() - outlier_magnitude;
+                x[i] = x
+                    .iter()
+                    .max_by(|a, b| a.total_cmp(b))
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput("Empty array for max calculation".to_string())
+                    })?
+                    + 1.0;
+                y[i] = y
+                    .iter()
+                    .min_by(|a, b| a.total_cmp(b))
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput("Empty array for min calculation".to_string())
+                    })?
+                    - outlier_magnitude;
             } else {
                 // Add increasing outliers to break monotonicity
-                x[i] = x.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() + 1.0;
-                y[i] =
-                    y.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() + outlier_magnitude;
+                x[i] = x
+                    .iter()
+                    .max_by(|a, b| a.total_cmp(b))
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput("Empty array for max calculation".to_string())
+                    })?
+                    + 1.0;
+                y[i] = y
+                    .iter()
+                    .max_by(|a, b| a.total_cmp(b))
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput("Empty array for max calculation".to_string())
+                    })?
+                    + outlier_magnitude;
             }
         }
 

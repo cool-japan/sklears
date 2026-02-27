@@ -209,7 +209,7 @@ fn main() {
     }
 
     println!("\nFeature matrix:");
-    println!("{:<30} | {}", "Document", "Features (first 6)");
+    println!("{:<30} | Features (first 6)", "Document");
     println!("{}", "-".repeat(90));
 
     for (i, doc) in documents.iter().enumerate() {

@@ -29,15 +29,15 @@ scirs2-optimize = { workspace = true }  # For optimization algorithms
 thiserror = { workspace = true }
 rayon = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
-memmap2 = "0.9"
+memmap2 = { workspace = true }
 # candle-core updated to 0.9 per Latest crates policy, no cuda features to avoid macOS build issues
-candle-core = { version = "0.9", optional = true, default-features = false }
-half = { version = "2.4", optional = true }
-hdf5 = { version = "0.8", optional = true }
+candle-core = { workspace = true, optional = true }
+half = { workspace = true, optional = true }
+hdf5 = { workspace = true, optional = true }
 
 # CUDA support only available on Linux/Windows (macOS doesn't support CUDA)
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-cudarc = { version = "0.18", optional = true, default-features = false, features = ["cuda-version-from-build-system", "dynamic-linking", "driver"] }
+cudarc = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

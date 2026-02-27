@@ -934,7 +934,7 @@ mod tests {
 
         // Check that probabilities are in [0, 1]
         for &p in proba.iter() {
-            assert!(p >= 0.0 && p <= 1.0);
+            assert!((0.0..=1.0).contains(&p));
         }
     }
 

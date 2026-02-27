@@ -486,7 +486,7 @@ mod tests {
         assert_eq!(kpca.n_components, 3);
         assert_eq!(kpca.tol, 1e-12);
         assert_eq!(kpca.max_iter, 500);
-        assert_eq!(kpca.fit_inverse_transform, true);
+        assert!(kpca.fit_inverse_transform);
     }
 
     #[test]

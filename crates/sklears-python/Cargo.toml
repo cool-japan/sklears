@@ -7,6 +7,7 @@ edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
+readme = "README.md"
 description = "Python bindings for sklears machine learning library using PyO3"
 keywords = ["machine-learning", "python", "pyo3", "scikit-learn", "bindings"]
 categories = ["api-bindings", "science", "mathematics"]
@@ -22,27 +23,27 @@ sklears-linear = { workspace = true, features = ["bayesian", "elastic-net", "log
 sklears-metrics = { workspace = true }
 # TODO: Enable other crates as they get SciRS2 compatibility
 # sklears = { workspace = true, features = ["all-algorithms"] }
-# sklears-clustering = { workspace = true }
-# sklears-ensemble = { workspace = true }
-# sklears-tree = { workspace = true }
-# sklears-neural = { workspace = true }
+sklears-clustering = { workspace = true }
+sklears-ensemble = { workspace = true }
+sklears-tree = { workspace = true }
+sklears-neural = { workspace = true }
 # sklears-neighbors = { workspace = true }
-# sklears-naive-bayes = { workspace = true }
+sklears-naive-bayes = { workspace = true }
 # sklears-svm = { workspace = true }
 # sklears-decomposition = { workspace = true }
-# sklears-datasets = { workspace = true }
+sklears-datasets = { workspace = true }
 # sklears-feature-selection = { workspace = true }
 # sklears-gaussian-process = { workspace = true }
 # sklears-discriminant-analysis = { workspace = true }
 # sklears-manifold = { workspace = true }
-# sklears-model-selection = { workspace = true }
+sklears-model-selection = { workspace = true }
 # sklears-utils = { workspace = true }
 
 # Python bindings
-pyo3 = { version = "0.25", features = ["extension-module", "chrono", "indexmap"] }
+pyo3 = { workspace = true }
 
 # Array and data handling
-numpy = "0.25"
+numpy = { workspace = true }
 # SciRS2-Core integration for high-performance array operations
 scirs2-autograd = { workspace = true }  # Primary source for ndarray types
 scirs2-core = { workspace = true }  # Core SciRS2 functionality

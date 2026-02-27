@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-cross-decomposition.svg)](https://crates.io/crates/sklears-cross-decomposition)
 [![Documentation](https://docs.rs/sklears-cross-decomposition/badge.svg)](https://docs.rs/sklears-cross-decomposition)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 > **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.

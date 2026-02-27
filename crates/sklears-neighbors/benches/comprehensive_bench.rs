@@ -1,10 +1,13 @@
 //! Comprehensive benchmarks comparing algorithms, distance metrics, and advanced features
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+#![allow(non_snake_case)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::traits::{Fit, Predict, Transform};
 use sklears_neighbors::{Distance, KNeighborsClassifier, OnlineMetricLearning};
+use std::hint::black_box;
 
 /// Generate synthetic classification data
 fn generate_data(
@@ -21,7 +24,7 @@ fn generate_data(
 
         for j in 0..n_features {
             let base = class as f64 * 3.0 + j as f64 * 0.2;
-            let noise = thread_rng().gen_range(-0.5..0.5);
+            let noise = thread_rng().random_range(-0.5..0.5);
             data.push(base + noise);
         }
     }
@@ -183,7 +186,8 @@ fn bench_online_metric_learning(c: &mut Criterion) {
                 b.iter(|| {
                     let online = OnlineMetricLearning::new(3).with_learning_rate(0.01);
                     let mut fitted = online.fit(X, y).unwrap();
-                    black_box(fitted.partial_fit(&X.view(), &y.view()).unwrap())
+                    fitted.partial_fit(&X.view(), &y.view()).unwrap();
+                    black_box(())
                 })
             },
         );
@@ -208,7 +212,7 @@ fn bench_k_value_scaling(c: &mut Criterion) {
 
     let (X, y) = generate_data(1000, 10, 3);
 
-    for k in vec![1, 5, 10, 20, 50] {
+    for k in [1, 5, 10, 20, 50] {
         group.bench_with_input(
             BenchmarkId::new("fit_predict", k),
             &(&X, &y, k),

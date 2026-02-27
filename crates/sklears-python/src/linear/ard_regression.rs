@@ -116,7 +116,7 @@ impl From<PyARDRegressionConfig> for ARDRegressionConfig {
 ///
 /// intercept_ : float
 ///     Independent term in decision function. Set to 0.0 if
-///     ``fit_intercept = False``.
+///     `fit_intercept = False`.
 ///
 /// n_features_in_ : int
 ///     Number of features seen during fit.
@@ -125,6 +125,7 @@ impl From<PyARDRegressionConfig> for ARDRegressionConfig {
 /// --------
 /// >>> from sklears_python import ARDRegression
 /// >>> import numpy as np
+/// ```text
 /// >>> X = np.array([[1], [2], [3], [4], [5]])
 /// >>> y = np.array([1, 2, 3, 4, 5])
 /// >>> reg = ARDRegression()
@@ -132,6 +133,7 @@ impl From<PyARDRegressionConfig> for ARDRegressionConfig {
 /// ARDRegression()
 /// >>> reg.predict([[3]])
 /// array([3.])
+/// ```
 ///
 /// Notes
 /// -----
@@ -148,9 +150,9 @@ impl From<PyARDRegressionConfig> for ARDRegressionConfig {
 /// competition, ASHRAE Transactions, 1994.
 ///
 /// R. Salakhutdinov, Lecture notes on Statistical Machine Learning,
-/// http://www.cs.toronto.edu/~rsalakhu/sta4273/notes/Lecture2.pdf
-/// Their beta is our ``lambda_``, and their alpha is our ``alpha_``
-/// ARD is a little different: only ``lambda_`` is inferred; ``alpha_``
+/// <http://www.cs.toronto.edu/~rsalakhu/sta4273/notes/Lecture2.pdf>
+/// Their beta is our `lambda_`, and their alpha is our `alpha_`.
+/// ARD is a little different: only `lambda_` is inferred; `alpha_`
 /// is fixed by the user.
 #[pyclass(name = "ARDRegression")]
 pub struct PyARDRegression {
@@ -261,7 +263,10 @@ impl PyARDRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        Ok(core_array1_to_py(py, fitted.coef()))
+        let coef = fitted
+            .coef()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get coefficients: {:?}", e)))?;
+        Ok(core_array1_to_py(py, coef))
     }
 
     /// Get model intercept
@@ -283,7 +288,10 @@ impl PyARDRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        Ok(core_array1_to_py(py, fitted.alpha()))
+        let alpha = fitted
+            .alpha()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get alpha: {:?}", e)))?;
+        Ok(core_array1_to_py(py, alpha))
     }
 
     /// Get estimated precision of noise (lambda)
@@ -294,7 +302,9 @@ impl PyARDRegression {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
-        Ok(fitted.lambda())
+        fitted
+            .lambda()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get lambda: {:?}", e)))
     }
 
     /// Calculate R² score
@@ -325,7 +335,10 @@ impl PyARDRegression {
             .ok_or_else(|| PyValueError::new_err("Model not fitted. Call fit() first."))?;
 
         // Infer number of features from coefficient array length
-        Ok(fitted.coef().len())
+        let coef = fitted
+            .coef()
+            .map_err(|e| PyValueError::new_err(format!("Failed to get coefficients: {:?}", e)))?;
+        Ok(coef.len())
     }
 
     /// Return parameters for this estimator (sklearn compatibility)

@@ -57,25 +57,25 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 
 ### After (Sklears)
 ```python
-import sklears_python as skl
+import sklears as skl
 
 # All algorithms available in single namespace
 model = skl.LinearRegression()
 kmeans = skl.KMeans()
-scaler = skl.StandardScaler()
+# NOTE: StandardScaler, MinMaxScaler - Coming Soon (not yet exposed)
 X_train, X_test, y_train, y_test = skl.train_test_split(X, y)
-accuracy = skl.accuracy_score(y_true, y_pred)
+# NOTE: accuracy_score, mean_squared_error - Coming Soon (not yet available)
 ```
 
 ### Alternative Import Style
 ```python
 # If you prefer to keep similar import structure
-from sklears_python import (
+from sklears import (
     LinearRegression, Ridge, Lasso,
     KMeans, DBSCAN,
-    StandardScaler, MinMaxScaler,
+    # NOTE: StandardScaler, MinMaxScaler - Coming Soon
     train_test_split, KFold,
-    accuracy_score, mean_squared_error
+    # NOTE: accuracy_score, mean_squared_error - Coming Soon
 )
 ```
 
@@ -99,13 +99,14 @@ r2 = r2_score(y_test, predictions)
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 model = skl.LinearRegression(fit_intercept=True)
 model.fit(X_train, y_train)
 predictions = model.predict(X_test)
-mse = skl.mean_squared_error(y_test, predictions)
-r2 = skl.r2_score(y_test, predictions)
+# NOTE: mean_squared_error, r2_score - Coming Soon (not yet available)
+# Use numpy directly in the meantime:
+# mse = ((y_test - predictions) ** 2).mean()
 ```
 
 **Migration Notes:**
@@ -125,7 +126,7 @@ model.fit(X_train, y_train)
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 model = skl.Ridge(alpha=1.0, fit_intercept=True)
 model.fit(X_train, y_train)
@@ -144,7 +145,7 @@ probabilities = model.predict_proba(X_test)
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 model = skl.LogisticRegression(c=1.0, max_iter=1000)  # Note: 'c' not 'C'
 model.fit(X_train, y_train)
@@ -177,7 +178,7 @@ inertia = kmeans.inertia_
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 kmeans = skl.KMeans(
     n_clusters=8,
@@ -208,7 +209,7 @@ labels = dbscan.fit_predict(X)
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 dbscan = skl.DBSCAN(eps=0.5, min_samples=5)
 labels = dbscan.fit_predict(X)
@@ -218,7 +219,10 @@ labels = dbscan.fit_predict(X)
 
 #### Standard Scaler
 
-**Before:**
+> **Coming Soon**: `StandardScaler` and `MinMaxScaler` are not yet exposed in the current release.
+> Use numpy directly for preprocessing in the meantime.
+
+**Before (sklearn):**
 ```python
 from sklearn.preprocessing import StandardScaler
 
@@ -230,22 +234,23 @@ X_test_scaled = scaler.transform(X_test)
 X_original = scaler.inverse_transform(X_scaled)
 ```
 
-**After:**
+**Workaround with numpy (until StandardScaler is available):**
 ```python
-import sklears_python as skl
+import numpy as np
 
-scaler = skl.StandardScaler(with_mean=True, with_std=True)
-X_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+# Manual standardization
+X_mean = X_train.mean(axis=0)
+X_std = X_train.std(axis=0)
+X_scaled = (X_train - X_mean) / X_std
+X_test_scaled = (X_test - X_mean) / X_std
 
 # Inverse transform
-X_original = scaler.inverse_transform(X_scaled)
+X_original = X_scaled * X_std + X_mean
 ```
 
 **Migration Notes:**
-- Identical API and behavior
-- Performance improvement: 10-100x faster
-- Memory efficient with optional in-place operations
+- `StandardScaler`, `MinMaxScaler`, `LabelEncoder` are planned for a future release
+- Use numpy manually until these classes become available
 
 ### Model Selection
 
@@ -262,7 +267,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 X_train, X_test, y_train, y_test = skl.train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
@@ -271,7 +276,10 @@ X_train, X_test, y_train, y_test = skl.train_test_split(
 
 #### Cross-Validation
 
-**Before:**
+> **Note**: `cross_val_score` and `StratifiedKFold` are not available in the current release.
+> Use `KFold` with a manual loop instead.
+
+**Before (sklearn):**
 ```python
 from sklearn.model_selection import KFold, cross_val_score
 from sklearn.linear_model import LinearRegression
@@ -283,17 +291,17 @@ scores = cross_val_score(model, X, y, cv=kfold, scoring='r2')
 
 **After:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 kfold = skl.KFold(n_splits=5, shuffle=True, random_state=42)
 model = skl.LinearRegression()
 
-# Manual cross-validation (cross_val_score may not be available)
+# Manual cross-validation (cross_val_score is not yet available)
 scores = []
 for train_idx, test_idx in kfold.split(X, y):
     X_train, X_test = X[train_idx], X[test_idx]
     y_train, y_test = y[train_idx], y[test_idx]
-    
+
     model.fit(X_train, y_train)
     score = model.score(X_test, y_test)
     scores.append(score)
@@ -344,28 +352,29 @@ print(f"RMSE: {np.sqrt(mean_squared_error(y_test, predictions)):.2f}")
 ```python
 import numpy as np
 import pandas as pd
-import sklears_python as skl
+import sklears as skl
 
 # Load data
 df = pd.read_csv('house_prices.csv')
 X = df.drop('price', axis=1).values
 y = df['price'].values
 
-# Manual pipeline (Sklears doesn't have Pipeline yet)
-def create_model(alpha):
-    return {
-        'scaler': skl.StandardScaler(),
-        'model': skl.Ridge(alpha=alpha)
-    }
+# NOTE: StandardScaler - Coming Soon (not yet exposed)
+# NOTE: Pipeline class - Coming Soon (not yet available)
+# NOTE: r2_score, mean_squared_error metrics - Coming Soon (not yet available)
+# Use numpy directly for manual standardization and metrics
 
-def fit_pipeline(pipeline, X, y):
-    X_scaled = pipeline['scaler'].fit_transform(X)
-    pipeline['model'].fit(X_scaled, y)
-    return pipeline
+def manual_standardize(X_train, X_val):
+    """Standardize manually until StandardScaler is available"""
+    X_mean = X_train.mean(axis=0)
+    X_std = X_train.std(axis=0) + 1e-8  # avoid division by zero
+    return (X_train - X_mean) / X_std, (X_val - X_mean) / X_std
 
-def predict_pipeline(pipeline, X):
-    X_scaled = pipeline['scaler'].transform(X)
-    return pipeline['model'].predict(X_scaled)
+def r2_score_np(y_true, y_pred):
+    """Manual R² until metrics are available"""
+    ss_res = ((y_true - y_pred) ** 2).sum()
+    ss_tot = ((y_true - y_true.mean()) ** 2).sum()
+    return 1 - ss_res / ss_tot
 
 # Hyperparameter tuning (manual)
 alphas = [0.1, 1.0, 10.0, 100.0]
@@ -373,38 +382,41 @@ X_train, X_test, y_train, y_test = skl.train_test_split(X, y, test_size=0.2, ran
 
 best_score = -np.inf
 best_alpha = None
-best_pipeline = None
 
 # Cross-validation
 kfold = skl.KFold(n_splits=5, shuffle=True, random_state=42)
 
 for alpha in alphas:
     scores = []
-    
+
     for train_idx, val_idx in kfold.split(X_train, y_train):
         X_tr, X_val = X_train[train_idx], X_train[val_idx]
         y_tr, y_val = y_train[train_idx], y_train[val_idx]
-        
-        pipeline = create_model(alpha)
-        fit_pipeline(pipeline, X_tr, y_tr)
-        
-        val_predictions = predict_pipeline(pipeline, X_val)
-        score = skl.r2_score(y_val, val_predictions)
+
+        X_tr_scaled, X_val_scaled = manual_standardize(X_tr, X_val)
+
+        model = skl.Ridge(alpha=alpha)
+        model.fit(X_tr_scaled, y_tr)
+
+        val_predictions = model.predict(X_val_scaled)
+        score = r2_score_np(y_val, val_predictions)
         scores.append(score)
-    
+
     mean_score = np.mean(scores)
     if mean_score > best_score:
         best_score = mean_score
         best_alpha = alpha
-        best_pipeline = create_model(alpha)
 
 # Train final model
-fit_pipeline(best_pipeline, X_train, y_train)
-predictions = predict_pipeline(best_pipeline, X_test)
+X_train_scaled, X_test_scaled = manual_standardize(X_train, X_test)
+final_model = skl.Ridge(alpha=best_alpha)
+final_model.fit(X_train_scaled, y_train)
+predictions = final_model.predict(X_test_scaled)
 
 print(f"Best alpha: {best_alpha}")
-print(f"R² score: {skl.r2_score(y_test, predictions):.4f}")
-print(f"RMSE: {np.sqrt(skl.mean_squared_error(y_test, predictions)):.2f}")
+print(f"R² score: {r2_score_np(y_test, predictions):.4f}")
+mse = ((y_test - predictions) ** 2).mean()
+print(f"RMSE: {np.sqrt(mse):.2f}")
 ```
 
 **Migration Benefits:**
@@ -467,18 +479,20 @@ plt.show()
 ```python
 import numpy as np
 import pandas as pd
-import sklears_python as skl
+import sklears as skl
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA  # Not available in Sklears yet
-from sklearn.metrics import silhouette_score  # Not available in Sklears yet
+from sklearn.metrics import silhouette_score  # Coming Soon in Sklears
 
 # Load customer data
 df = pd.read_csv('customers.csv')
 X = df[['annual_spending', 'frequency', 'recency']].values
 
-# Preprocessing
-scaler = skl.StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# NOTE: StandardScaler - Coming Soon (not yet exposed in Sklears)
+# Manual standardization workaround:
+X_mean = X.mean(axis=0)
+X_std = X.std(axis=0) + 1e-8
+X_scaled = (X - X_mean) / X_std
 
 # Find optimal number of clusters
 inertias = []
@@ -488,14 +502,14 @@ K_range = range(2, 11)
 for k in K_range:
     kmeans = skl.KMeans(n_clusters=k, random_state=42, n_init=10)
     labels = kmeans.fit_predict(X_scaled)
-    
+
     inertias.append(kmeans.inertia_)
-    
-    # Use sklearn for silhouette score (not yet available in Sklears)
+
+    # NOTE: silhouette_score - Coming Soon in Sklears; using sklearn as fallback
     sil_score = silhouette_score(X_scaled, labels)
     silhouette_scores.append(sil_score)
 
-# Find best k
+# Find best k using elbow method (inertia only, no silhouette)
 best_k = K_range[np.argmax(silhouette_scores)]
 print(f"Optimal number of clusters: {best_k}")
 
@@ -508,7 +522,7 @@ pca = PCA(n_components=2, random_state=42)
 X_pca = pca.fit_transform(X_scaled)
 
 # Plot results
-plt.scatter(X_pca[:, 0], X_pca[:1], c=labels, cmap='viridis')
+plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='viridis')
 plt.title('Customer Segmentation (Sklears + Sklearn)')
 plt.show()
 
@@ -571,7 +585,8 @@ print(confusion_matrix(y_test, y_pred))
 **Migrated Sklears Code:**
 ```python
 import numpy as np
-import sklears_python as skl
+import time
+import sklears as skl
 from sklearn.datasets import make_classification
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 
@@ -581,25 +596,37 @@ X, y = make_classification(
     n_redundant=10, n_clusters_per_class=1, random_state=42
 )
 
-# Manual pipeline implementation
+# NOTE: StandardScaler - Coming Soon (not yet exposed in Sklears)
+# NOTE: Pipeline class - Coming Soon (not yet available)
+# Manual pipeline implementation with numpy standardization workaround:
 class SklearsClassificationPipeline:
     def __init__(self):
-        self.scaler = skl.StandardScaler()
+        # StandardScaler not yet available; standardize manually
+        self._X_mean = None
+        self._X_std = None
         self.classifier = skl.LogisticRegression(max_iter=1000)
         self.is_fitted = False
-    
+
+    def _fit_transform(self, X):
+        self._X_mean = X.mean(axis=0)
+        self._X_std = X.std(axis=0) + 1e-8
+        return (X - self._X_mean) / self._X_std
+
+    def _transform(self, X):
+        return (X - self._X_mean) / self._X_std
+
     def fit(self, X, y):
-        X_scaled = self.scaler.fit_transform(X)
+        X_scaled = self._fit_transform(X)
         self.classifier.fit(X_scaled, y)
         self.is_fitted = True
         return self
-    
+
     def predict(self, X):
-        X_scaled = self.scaler.transform(X)
+        X_scaled = self._transform(X)
         return self.classifier.predict(X_scaled)
-    
+
     def predict_proba(self, X):
-        X_scaled = self.scaler.transform(X)
+        X_scaled = self._transform(X)
         return self.classifier.predict_proba(X_scaled)
 
 # Split data
@@ -607,21 +634,20 @@ X_train, X_test, y_train, y_test = skl.train_test_split(
     X, y, test_size=0.2, stratify=y, random_state=42
 )
 
-# Cross-validation
-pipeline = SklearsClassificationPipeline()
+# Cross-validation (cross_val_score not yet available; use manual loop)
 kfold = skl.KFold(n_splits=5, shuffle=True, random_state=42)
 
 cv_scores = []
 for train_idx, val_idx in kfold.split(X_train, y_train):
     X_tr, X_val = X_train[train_idx], X_train[val_idx]
     y_tr, y_val = y_train[train_idx], y_train[val_idx]
-    
+
     # Create new pipeline for each fold
     fold_pipeline = SklearsClassificationPipeline()
     fold_pipeline.fit(X_tr, y_tr)
-    
+
     y_val_proba = fold_pipeline.predict_proba(X_val)[:, 1]
-    score = roc_auc_score(y_val, y_val_proba)
+    score = roc_auc_score(y_val, y_val_proba)  # sklearn metric (Coming Soon in Sklears)
     cv_scores.append(score)
 
 print(f"Cross-validation AUC: {np.mean(cv_scores):.4f} (+/- {np.std(cv_scores) * 2:.4f})")
@@ -633,15 +659,13 @@ final_pipeline.fit(X_train, y_train)
 y_pred = final_pipeline.predict(X_test)
 y_pred_proba = final_pipeline.predict_proba(X_test)[:, 1]
 
-# Evaluate
+# NOTE: accuracy_score, classification_report, confusion_matrix - Coming Soon in Sklears
+# Using sklearn metrics as fallback for evaluation:
 print(f"Test AUC: {roc_auc_score(y_test, y_pred_proba):.4f}")
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 print("\nConfusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
-
-# Performance comparison
-import time
 
 # Benchmark training time
 start_time = time.time()
@@ -660,27 +684,31 @@ print("Note: Typically 5-20x faster than scikit-learn for this dataset size")
 
 ```python
 import time
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 def benchmark_pipeline(X, y, n_runs=5):
     """Benchmark your migrated pipeline"""
     times = []
-    
+
+    # NOTE: StandardScaler - Coming Soon (not yet exposed in Sklears)
+    # Precompute standardization parameters outside timing loop
+    X_mean = X.mean(axis=0)
+    X_std = X.std(axis=0) + 1e-8
+
     for _ in range(n_runs):
         start = time.perf_counter()
-        
-        # Your migrated pipeline
-        scaler = skl.StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        
+
+        # Manual standardization until StandardScaler is available
+        X_scaled = (X - X_mean) / X_std
+
         model = skl.LinearRegression()
         model.fit(X_scaled, y)
         predictions = model.predict(X_scaled)
-        
+
         end = time.perf_counter()
         times.append(end - start)
-    
+
     return {
         'mean_time': np.mean(times),
         'std_time': np.std(times),
@@ -729,6 +757,8 @@ X_opt, y_opt = optimize_data(X, y)
 ```python
 import psutil
 import os
+import numpy as np
+import sklears as skl
 
 def monitor_memory_usage():
     """Monitor memory usage during migration"""
@@ -738,9 +768,11 @@ def monitor_memory_usage():
 # Before and after comparison
 print(f"Initial memory: {monitor_memory_usage():.1f} MB")
 
-# Your Sklears pipeline
-scaler = skl.StandardScaler(copy=False)  # In-place when possible
-X_scaled = scaler.fit_transform(X)
+# NOTE: StandardScaler - Coming Soon (not yet exposed in Sklears)
+# Manual standardization until StandardScaler becomes available
+X_mean = X.mean(axis=0)
+X_std = X.std(axis=0) + 1e-8
+X_scaled = (X - X_mean) / X_std
 print(f"After scaling: {monitor_memory_usage():.1f} MB")
 
 model = skl.LinearRegression()
@@ -754,16 +786,16 @@ print(f"After training: {monitor_memory_usage():.1f} MB")
 
 **Problem:**
 ```python
-ImportError: cannot import name 'LinearRegression' from 'sklears_python'
+ImportError: cannot import name 'LinearRegression' from 'sklears'
 ```
 
 **Solution:**
 ```python
 # Instead of:
-from sklears_python import LinearRegression  # Might not work
+from sklears import LinearRegression  # Might not work
 
 # Use:
-import sklears_python as skl
+import sklears as skl
 model = skl.LinearRegression()  # Always works
 ```
 
@@ -785,19 +817,25 @@ model = skl.LogisticRegression(c=1.0, max_iter=1000)  # Use supported params
 
 **Problem:**
 ```python
-# Some sklearn algorithms might not be available yet
+# Some sklearn algorithms are not yet available in Sklears
+# Not yet exposed: StandardScaler, MinMaxScaler, LabelEncoder
+# Not yet exposed: RandomForestClassifier, DecisionTreeClassifier
+# Not yet exposed: Pipeline, cross_val_score, StratifiedKFold
+# Not yet exposed: metrics functions (accuracy_score, r2_score, etc.)
 from sklearn.ensemble import RandomForestClassifier  # Not in Sklears yet
 ```
 
 **Solution:**
 ```python
 # Gradual migration - use sklearn for unavailable algorithms
-import sklears_python as skl
+import sklears as skl
 from sklearn.ensemble import RandomForestClassifier
 
-# Use Sklears where available
-scaler = skl.StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# NOTE: StandardScaler - Coming Soon; use numpy workaround
+import numpy as np
+X_mean = X.mean(axis=0)
+X_std = X.std(axis=0) + 1e-8
+X_scaled = (X - X_mean) / X_std
 
 # Use sklearn for unavailable algorithms
 rf = RandomForestClassifier()
@@ -812,21 +850,20 @@ Performance improvement is less than expected.
 **Solution:**
 ```python
 # Check your setup
-import sklears_python as skl
+import sklears as skl
 
-# Verify hardware capabilities
-hw_info = skl.get_hardware_info()
-print("Hardware check:")
-for feature, available in hw_info.items():
-    print(f"  {feature}: {available}")
-
-# Check data properties
+# NOTE: get_hardware_info() - Coming Soon (not yet available)
+# Check data properties instead:
 print(f"Data contiguous: {X.flags.c_contiguous}")
 print(f"Data type: {X.dtype}")
 
 # Optimize if needed
 if not X.flags.c_contiguous:
     X = np.ascontiguousarray(X)
+
+# Check version info (available):
+print(f"Sklears version: {skl.get_version()}")
+print(f"Build info: {skl.get_build_info()}")
 ```
 
 ## Gradual Migration Strategy
@@ -834,14 +871,14 @@ if not X.flags.c_contiguous:
 For large projects, consider a gradual migration approach:
 
 ### Phase 1: Non-Critical Components (Week 1-2)
-- Start with preprocessing (StandardScaler, MinMaxScaler)
-- Migrate basic metrics (accuracy_score, mean_squared_error)
 - Update data splitting (train_test_split)
+- Migrate available linear models (LinearRegression, Ridge, Lasso, ElasticNet)
+- Note: StandardScaler, MinMaxScaler, and metrics functions are Coming Soon
 
 ### Phase 2: Core Algorithms (Week 3-4)
-- Migrate main algorithms (LinearRegression, Ridge, KMeans)
-- Update prediction pipelines
-- Benchmark performance improvements
+- Migrate clustering (KMeans, DBSCAN)
+- Migrate classifiers (LogisticRegression, MLPClassifier, GaussianNB, etc.)
+- Update prediction pipelines and benchmark performance improvements
 
 ### Phase 3: Advanced Features (Week 5-6)
 - Migrate cross-validation logic
@@ -858,11 +895,28 @@ For large projects, consider a gradual migration approach:
 ```python
 # migration_template.py
 """
-Template for gradual migration from sklearn to sklears
+Template for gradual migration from sklearn to sklears.
+
+Currently available in sklears:
+  LinearRegression, Ridge, Lasso, ElasticNet, BayesianRidge, ARDRegression,
+  LogisticRegression, GradientBoostingClassifier, GradientBoostingRegressor,
+  AdaBoostClassifier, VotingClassifier, BaggingClassifier,
+  MLPClassifier, MLPRegressor,
+  GaussianNB, MultinomialNB, BernoulliNB, ComplementNB,
+  KMeans, DBSCAN,
+  KFold, train_test_split, get_version(), get_build_info()
+
+Coming Soon (not yet exposed):
+  StandardScaler, MinMaxScaler, LabelEncoder
+  RandomForestClassifier, DecisionTreeClassifier
+  Pipeline, cross_val_score, StratifiedKFold
+  Metrics: accuracy_score, r2_score, mean_squared_error, silhouette_score, etc.
+  get_hardware_info(), benchmark_basic_operations(), show_versions(),
+  set_config(), get_config()
 """
 
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 # For algorithms not yet available in Sklears
 try:
@@ -871,13 +925,19 @@ try:
 except ImportError:
     SKLEARN_FALLBACK_AVAILABLE = False
 
+
 class HybridPipeline:
-    """Pipeline that uses Sklears where possible, sklearn as fallback"""
-    
+    """Pipeline that uses Sklears where possible, sklearn as fallback.
+
+    NOTE: StandardScaler not yet exposed in Sklears; uses numpy workaround.
+    """
+
     def __init__(self, algorithm='linear'):
         self.algorithm = algorithm
-        self.scaler = skl.StandardScaler()  # Always use Sklears for preprocessing
-        
+        # NOTE: StandardScaler - Coming Soon; using numpy workaround
+        self._X_mean = None
+        self._X_std = None
+
         if algorithm == 'linear':
             self.model = skl.LinearRegression()
         elif algorithm == 'ridge':
@@ -887,42 +947,45 @@ class HybridPipeline:
                 from sklearn.ensemble import RandomForestClassifier
                 self.model = RandomForestClassifier()
             else:
-                raise ValueError("RandomForest not available")
+                raise ValueError("RandomForest not available (sklearn fallback not installed)")
         else:
             raise ValueError(f"Unknown algorithm: {algorithm}")
-    
+
     def fit(self, X, y):
-        X_scaled = self.scaler.fit_transform(X)
+        self._X_mean = X.mean(axis=0)
+        self._X_std = X.std(axis=0) + 1e-8
+        X_scaled = (X - self._X_mean) / self._X_std
         self.model.fit(X_scaled, y)
         return self
-    
+
     def predict(self, X):
-        X_scaled = self.scaler.transform(X)
+        X_scaled = (X - self._X_mean) / self._X_std
         return self.model.predict(X_scaled)
-    
+
     def get_performance_info(self):
         """Report which components are using Sklears vs sklearn"""
         info = {
-            'preprocessing': 'Sklears (StandardScaler)',
+            'preprocessing': 'numpy (StandardScaler - Coming Soon)',
             'algorithm': f'{"Sklears" if hasattr(self.model, "__module__") and "sklears" in str(self.model.__module__) else "Sklearn"} ({self.algorithm})'
         }
         return info
+
 
 # Usage example
 if __name__ == "__main__":
     # Generate test data
     X = np.random.randn(1000, 10)
     y = np.random.randn(1000)
-    
+
     # Test hybrid pipeline
     pipeline = HybridPipeline('linear')
     pipeline.fit(X, y)
     predictions = pipeline.predict(X)
-    
+
     print("Performance info:")
     for component, library in pipeline.get_performance_info().items():
         print(f"  {component}: {library}")
-    
+
     print(f"Predictions shape: {predictions.shape}")
     print("Migration successful!")
 ```

@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-multiclass.svg)](https://crates.io/crates/sklears-multiclass)
 [![Documentation](https://docs.rs/sklears-multiclass/badge.svg)](https://docs.rs/sklears-multiclass)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 State-of-the-art multiclass classification strategies for Rust, providing 5-15x performance improvements over scikit-learn while maintaining API familiarity.
@@ -162,11 +162,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md) f
 
 ## License
 
-Licensed under either of:
-- Apache License, Version 2.0 ([LICENSE-APACHE](../../LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](../../LICENSE-MIT))
-
-at your option.
+Licensed under the Apache License, Version 2.0 ([LICENSE](../../LICENSE)).
 
 ## Citation
 

@@ -1051,7 +1051,7 @@ mod tests {
 
         assert_eq!(result.len(), 3);
         for &val in result.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
         assert!(calibrator.levy_process.is_some());
     }

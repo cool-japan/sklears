@@ -838,9 +838,9 @@ pub mod derive_helpers {
                     // Parse range(min, max) format
                     let range_str = attr
                         .strip_prefix("range(")
-                        .unwrap()
+                        .expect("expected valid value")
                         .strip_suffix(")")
-                        .unwrap();
+                        .expect("expected valid value");
                     let parts: Vec<&str> = range_str.split(',').map(|s| s.trim()).collect();
                     if parts.len() == 2 {
                         let min_val = parts[0];

@@ -53,13 +53,16 @@ impl ArrayStats {
         }
 
         // Compute sample means
-        let means = data.mean_axis(Axis(0)).unwrap();
+        let means = data.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError("mean_axis computation failed on empty axis".to_string())
+        })?;
 
         // Center the data
         let centered = data - &means.insert_axis(Axis(0));
 
         // Compute empirical covariance
-        let cov_empirical = centered.t().dot(&centered) / T::from_usize(n_samples - 1).unwrap();
+        let cov_empirical =
+            centered.t().dot(&centered) / T::from_usize(n_samples - 1).unwrap_or_else(|| T::zero());
 
         // Apply shrinkage if specified
         if let Some(shrink) = shrinkage {
@@ -67,7 +70,8 @@ impl ArrayStats {
             let trace = (0..n_features)
                 .map(|i| cov_empirical[[i, i]])
                 .fold(T::zero(), |acc, x| acc + x);
-            let target = identity * (trace / T::from_usize(n_features).unwrap());
+            let target =
+                identity * (trace / T::from_usize(n_features).unwrap_or_else(|| T::zero()));
 
             Ok(&cov_empirical * (T::one() - shrink) + &target * shrink)
         } else {
@@ -86,26 +90,27 @@ impl ArrayStats {
             ));
         }
 
-        if q < T::zero() || q > T::from_f64(100.0).unwrap() {
+        if q < T::zero() || q > T::from_f64(100.0).unwrap_or_else(|| T::zero()) {
             return Err(SklearsError::InvalidInput(
                 "Percentile must be between 0 and 100".to_string(),
             ));
         }
 
         let mut sorted = array.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted.len();
-        let index = q / T::from_f64(100.0).unwrap() * T::from_usize(n - 1).unwrap();
-        let lower_idx = index.floor().to_usize().unwrap();
-        let upper_idx = index.ceil().to_usize().unwrap().min(n - 1);
+        let index = q / T::from_f64(100.0).unwrap_or_else(|| T::zero())
+            * T::from_usize(n - 1).unwrap_or_else(|| T::zero());
+        let lower_idx = index.floor().to_usize().unwrap_or(0);
+        let upper_idx = index.ceil().to_usize().unwrap_or(0).min(n - 1);
 
         if lower_idx == upper_idx {
             Ok(sorted[lower_idx])
         } else {
             let lower_val = sorted[lower_idx];
             let upper_val = sorted[upper_idx];
-            let weight = index - T::from_usize(lower_idx).unwrap();
+            let weight = index - T::from_usize(lower_idx).unwrap_or_else(|| T::zero());
             Ok(lower_val * (T::one() - weight) + upper_val * weight)
         }
     }
@@ -157,7 +162,8 @@ impl MatrixOps {
     {
         let (rows, cols) = matrix.dim();
         let tol = tolerance.unwrap_or_else(|| {
-            T::from_f64(1e-12).unwrap() * T::from_usize(rows.max(cols)).unwrap()
+            T::from_f64(1e-12).unwrap_or_else(|| T::zero())
+                * T::from_usize(rows.max(cols)).unwrap_or_else(|| T::zero())
         });
 
         // Simplified rank computation - count non-zero diagonal elements
@@ -225,7 +231,7 @@ impl MatrixOps {
         let mut inv = Array2::<T>::zeros((rows, cols));
         for i in 0..rows {
             let diag_val = matrix[[i, i]];
-            if diag_val.abs() < T::from_f64(1e-15).unwrap() {
+            if diag_val.abs() < T::from_f64(1e-15).unwrap_or_else(|| T::zero()) {
                 return Err(SklearsError::InvalidInput("Matrix is singular".to_string()));
             }
             inv[[i, i]] = T::one() / diag_val;
@@ -290,13 +296,13 @@ impl MemoryOps {
         for value in values {
             count += 1;
             let delta = value - mean;
-            mean += delta / T::from_usize(count).unwrap();
+            mean += delta / T::from_usize(count).unwrap_or_else(|| T::zero());
             let delta2 = value - mean;
             m2 += delta * delta2;
         }
 
         let variance = if count > 1 {
-            m2 / T::from_usize(count - 1).unwrap()
+            m2 / T::from_usize(count - 1).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
@@ -318,7 +324,7 @@ mod tests {
         let data = array![1.0, 2.0, 3.0, 4.0];
         let weights = array![1.0, 2.0, 3.0, 4.0];
 
-        let result = ArrayStats::weighted_mean(&data, &weights).unwrap();
+        let result = ArrayStats::weighted_mean(&data, &weights).expect("expected valid value");
         let expected = (1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0) / (1.0 + 2.0 + 3.0 + 4.0);
 
         assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
@@ -328,10 +334,10 @@ mod tests {
     fn test_percentile() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let median = ArrayStats::percentile(&data, 50.0).unwrap();
+        let median = ArrayStats::percentile(&data, 50.0).expect("expected valid value");
         assert_abs_diff_eq!(median, 3.0, epsilon = 1e-10);
 
-        let q25 = ArrayStats::percentile(&data, 25.0).unwrap();
+        let q25 = ArrayStats::percentile(&data, 25.0).expect("expected valid value");
         assert_abs_diff_eq!(q25, 2.0, epsilon = 1e-10);
     }
 
@@ -340,7 +346,7 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let b = array![2.0, 3.0, 4.0, 5.0, 6.0];
 
-        let result = MemoryOps::chunked_dot(&a, &b, Some(2)).unwrap();
+        let result = MemoryOps::chunked_dot(&a, &b, Some(2)).expect("expected valid value");
         let expected: f64 = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum();
 
         assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
@@ -362,7 +368,7 @@ mod tests {
         use scirs2_core::ndarray::array;
 
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let cov = ArrayStats::robust_covariance(&data, None).unwrap();
+        let cov = ArrayStats::robust_covariance(&data, None).expect("expected valid value");
 
         assert_eq!(cov.dim(), (2, 2));
         // Basic sanity checks

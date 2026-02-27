@@ -891,10 +891,10 @@ pub fn mean_reciprocal_rank(y_true: &Array2<i32>, y_score: &Array2<f64>) -> Metr
 /// Cost matrix for cost-sensitive classification
 ///
 /// Represents the cost of misclassifying class i as class j.
-/// cost_matrix[i][j] is the cost of predicting class j when true class is i.
+/// cost_matrix\[i\]\[j\] is the cost of predicting class j when true class is i.
 #[derive(Debug, Clone)]
 pub struct CostMatrix {
-    /// Cost matrix where element [i,j] is cost of predicting j when true class is i
+    /// Cost matrix where element \[i,j\] is cost of predicting j when true class is i
     pub costs: Array2<f64>,
     /// Class labels corresponding to matrix indices
     pub classes: Vec<i32>,
@@ -1375,7 +1375,7 @@ mod tests {
         // Test one-vs-one
         let score_ovo =
             roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Macro), "ovo").unwrap();
-        assert!(score_ovo >= 0.0 && score_ovo <= 1.0);
+        assert!((0.0..=1.0).contains(&score_ovo));
 
         // Binary case with 2 columns
         let y_true_binary = array![0, 0, 1, 1];
@@ -1432,7 +1432,7 @@ mod tests {
         let y_score = array![[0.9, 0.1, 0.8], [0.2, 0.9, 0.7]];
 
         let map_score = mean_average_precision(&y_true, &y_score).unwrap();
-        assert!(map_score >= 0.0 && map_score <= 1.0);
+        assert!((0.0..=1.0).contains(&map_score));
 
         // Perfect ranking should give MAP = 1.0
         let y_true_perfect = array![[1, 1, 0], [1, 1, 0]];
@@ -1544,7 +1544,7 @@ mod tests {
         let accuracy = cost_sensitive_accuracy(&y_true, &y_pred, &cost_matrix).unwrap();
 
         // Perfect predictions would have accuracy 1.0, worst would have accuracy 0.0
-        assert!(accuracy >= 0.0 && accuracy <= 1.0);
+        assert!((0.0..=1.0).contains(&accuracy));
 
         // Test perfect predictions
         let y_pred_perfect = array![0, 0, 1, 1, 2, 2];
@@ -1559,7 +1559,7 @@ mod tests {
             cost_sensitive_accuracy(&y_true, &y_pred, &custom_cost_matrix).unwrap();
 
         // Should be different due to different costs
-        assert!(custom_accuracy >= 0.0 && custom_accuracy <= 1.0);
+        assert!((0.0..=1.0).contains(&custom_accuracy));
     }
 
     #[test]
@@ -1607,7 +1607,7 @@ mod tests {
 
         // All costs should be normalized between 0 and 1
         for &cost in costs.iter() {
-            assert!(cost >= 0.0 && cost <= 1.0);
+            assert!((0.0..=1.0).contains(&cost));
         }
 
         // Check boundary conditions

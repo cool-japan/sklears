@@ -550,7 +550,7 @@ impl HealthcareImputationFramework {
         // Use clinical knowledge to identify potentially informative missing variables
         let mut informative = Vec::new();
 
-        for (_i, var_name) in variable_names.iter().enumerate() {
+        for var_name in variable_names.iter() {
             if self.is_informative_missing(var_name, clinical_context) {
                 informative.push(var_name.clone());
             }

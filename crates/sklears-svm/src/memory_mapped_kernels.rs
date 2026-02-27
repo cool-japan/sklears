@@ -512,8 +512,10 @@ mod tests {
     #[test]
     fn test_memory_mapped_kernel_creation() {
         let temp_file = NamedTempFile::new().unwrap();
-        let mut config = MemoryMappedKernelConfig::default();
-        config.file_path = temp_file.path().to_path_buf();
+        let config = MemoryMappedKernelConfig {
+            file_path: temp_file.path().to_path_buf(),
+            ..MemoryMappedKernelConfig::default()
+        };
 
         let kernel = Box::new(LinearKernel);
         let matrix = MemoryMappedKernelMatrix::new(kernel, (100, 100), config);
@@ -523,8 +525,10 @@ mod tests {
     #[test]
     fn test_kernel_value_set_get() {
         let temp_file = NamedTempFile::new().unwrap();
-        let mut config = MemoryMappedKernelConfig::default();
-        config.file_path = temp_file.path().to_path_buf();
+        let config = MemoryMappedKernelConfig {
+            file_path: temp_file.path().to_path_buf(),
+            ..MemoryMappedKernelConfig::default()
+        };
 
         let kernel = Box::new(LinearKernel);
         let mut matrix = MemoryMappedKernelMatrix::new(kernel, (10, 10), config).unwrap();
@@ -536,8 +540,10 @@ mod tests {
     #[test]
     fn test_sparse_memory_mapped_kernel() {
         let temp_file = NamedTempFile::new().unwrap();
-        let mut config = MemoryMappedKernelConfig::default();
-        config.file_path = temp_file.path().to_path_buf();
+        let config = MemoryMappedKernelConfig {
+            file_path: temp_file.path().to_path_buf(),
+            ..MemoryMappedKernelConfig::default()
+        };
 
         let kernel = Box::new(LinearKernel);
         let sparse_matrix = SparseMemoryMappedKernelMatrix::new(kernel, (10, 10), config, 0.1);

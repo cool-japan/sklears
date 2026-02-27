@@ -112,7 +112,7 @@ fn test_simple_data_generation() {
 fn test_basic_validation() {
     // Skipping test due to validation API module not being re-exported
     // TODO: Update when validation module is properly re-exported in sklears facade
-    assert!(true); // Placeholder
+    // Placeholder - test intentionally empty pending implementation
 }
 
 // Test simple array utilities

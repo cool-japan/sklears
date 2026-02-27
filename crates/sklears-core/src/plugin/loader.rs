@@ -288,7 +288,10 @@ impl PluginLoader {
                     if ext_str == "so" || ext_str == "dll" || ext_str == "dylib" {
                         // Use the filename (without extension) as the plugin ID
                         if let Some(plugin_id) = path.file_stem().and_then(|s| s.to_str()) {
-                            match self.load_from_library(path.to_str().unwrap(), plugin_id) {
+                            match self.load_from_library(
+                                path.to_str().expect("load_from_library should succeed"),
+                                plugin_id,
+                            ) {
                                 Ok(()) => {
                                     loaded_plugins.push(plugin_id.to_string());
                                     println!("Successfully loaded plugin: {}", plugin_id);

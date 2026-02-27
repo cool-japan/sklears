@@ -129,19 +129,19 @@ pub fn accuracy(y_true: &[usize], y_pred: &[usize]) -> f64 {
 }
 
 /// Create batches for training data
-pub fn create_batches(
+pub fn create_batches<R: scirs2_core::random::Rng>(
     x: &Array2<f64>,
     y: &[usize],
     batch_size: usize,
     shuffle: bool,
+    rng: &mut R,
 ) -> Vec<(Array2<f64>, Vec<usize>)> {
     let n_samples = x.nrows();
     let mut indices: Vec<usize> = (0..n_samples).collect();
 
     if shuffle {
         use scirs2_core::random::seq::SliceRandom;
-        let mut rng = scirs2_core::random::thread_rng();
-        indices.shuffle(&mut rng);
+        indices.shuffle(rng);
     }
 
     let mut batches = Vec::new();
@@ -160,19 +160,19 @@ pub fn create_batches(
 }
 
 /// Create batches for regression data
-pub fn create_batches_regression(
+pub fn create_batches_regression<R: scirs2_core::random::Rng>(
     x: &Array2<f64>,
     y: &Array2<f64>,
     batch_size: usize,
     shuffle: bool,
+    rng: &mut R,
 ) -> Vec<(Array2<f64>, Array2<f64>)> {
     let n_samples = x.nrows();
     let mut indices: Vec<usize> = (0..n_samples).collect();
 
     if shuffle {
         use scirs2_core::random::seq::SliceRandom;
-        let mut rng = scirs2_core::random::thread_rng();
-        indices.shuffle(&mut rng);
+        indices.shuffle(rng);
     }
 
     let mut batches = Vec::new();
@@ -195,11 +195,13 @@ pub fn create_batches_regression(
 }
 
 /// Initialize weights based on initialization strategy
-pub fn initialize_weights(rows: usize, cols: usize, init: &WeightInit) -> Array2<f64> {
+pub fn initialize_weights<R: scirs2_core::random::Rng>(
+    rows: usize,
+    cols: usize,
+    init: &WeightInit,
+    rng: &mut R,
+) -> Array2<f64> {
     use scirs2_core::random::essentials::{Normal, Uniform};
-    use scirs2_core::random::thread_rng;
-
-    let mut rng = thread_rng();
 
     match init {
         WeightInit::Zero => Array2::zeros((rows, cols)),
@@ -230,11 +232,12 @@ pub fn initialize_weights(rows: usize, cols: usize, init: &WeightInit) -> Array2
 }
 
 /// Initialize biases
-pub fn initialize_biases(size: usize, init: &WeightInit) -> Array1<f64> {
+pub fn initialize_biases<R: scirs2_core::random::Rng>(
+    size: usize,
+    init: &WeightInit,
+    rng: &mut R,
+) -> Array1<f64> {
     use scirs2_core::random::essentials::{Normal, Uniform};
-    use scirs2_core::random::thread_rng;
-
-    let mut rng = thread_rng();
 
     match init {
         WeightInit::Zero => Array1::zeros(size),

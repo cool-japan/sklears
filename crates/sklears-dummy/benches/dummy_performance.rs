@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Rng;
@@ -8,6 +8,7 @@ use sklears_dummy::{
     ClassifierStrategy, DummyClassifier, DummyRegressor, OnlineClassificationStrategy,
     OnlineDummyClassifier, OnlineDummyRegressor, OnlineStrategy, RegressorStrategy,
 };
+use std::hint::black_box;
 
 /// Generate synthetic regression data for benchmarks
 fn generate_regression_data(
@@ -18,11 +19,11 @@ fn generate_regression_data(
     let mut rng = StdRng::seed_from_u64(random_state);
 
     // Generate random features (uniform distribution scaled to [-1, 1])
-    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen() * 2.0 - 1.0);
+    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>() * 2.0 - 1.0);
 
     // Generate targets as sum of features with some noise
     let y = Array1::from_shape_fn(n_samples, |i| {
-        x.row(i).sum() + (rng.gen() * 2.0 - 1.0) * 0.1
+        x.row(i).sum() + (rng.random::<f64>() * 2.0 - 1.0) * 0.1
     });
 
     (x, y)
@@ -38,10 +39,12 @@ fn generate_classification_data(
     let mut rng = StdRng::seed_from_u64(random_state);
 
     // Generate random features (uniform distribution scaled to [-1, 1])
-    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen() * 2.0 - 1.0);
+    let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>() * 2.0 - 1.0);
 
     // Generate random class labels
-    let y = Array1::from_shape_fn(n_samples, |_| (rng.gen() * n_classes as f64).floor() as i32);
+    let y = Array1::from_shape_fn(n_samples, |_| {
+        (rng.random::<f64>() * n_classes as f64).floor() as i32
+    });
 
     (x, y)
 }

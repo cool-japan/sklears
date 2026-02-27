@@ -887,7 +887,7 @@ mod tests {
 
         assert_eq!(svm.config.c, 2.0);
         assert_eq!(svm.config.lambda, 0.5);
-        assert_eq!(svm.config.adaptive_weights, true);
+        assert!(svm.config.adaptive_weights);
         assert!(
             matches!(svm.config.strategy, GroupLassoStrategy::Sparse { l1_ratio } if l1_ratio == 0.3)
         );

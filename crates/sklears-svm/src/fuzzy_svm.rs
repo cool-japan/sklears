@@ -656,7 +656,7 @@ mod tests {
 
         // Check that fuzzy memberships are in valid range
         for &membership in fitted_model.fuzzy_memberships().iter() {
-            assert!(membership >= 0.0 && membership <= 1.0);
+            assert!((0.0..=1.0).contains(&membership));
         }
     }
 
@@ -699,7 +699,7 @@ mod tests {
 
         // All memberships should be in valid range
         for &membership in memberships.iter() {
-            assert!(membership >= 0.0 && membership <= 1.0);
+            assert!((0.0..=1.0).contains(&membership));
         }
     }
 }

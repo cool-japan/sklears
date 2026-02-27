@@ -11,7 +11,7 @@ pub fn generate_random_seed() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .expect("expected valid value")
         .as_nanos() as u64
 }
 
@@ -80,7 +80,7 @@ pub fn gini_impurity(probabilities: &Array1<Float>) -> Float {
 /// assert!(mean.abs() < 1e-10);
 /// ```
 pub fn standardize(array: &Array1<Float>) -> Array1<Float> {
-    let mean = array.mean().unwrap();
+    let mean = array.mean().unwrap_or_default();
     let std = array.std(0.0);
 
     if std > 1e-10 {
@@ -356,7 +356,7 @@ mod tests {
     fn test_standardize() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let normalized = standardize(&data);
-        let mean = normalized.mean().unwrap();
+        let mean = normalized.mean().unwrap_or_default();
         let std = normalized.std(0.0);
         assert!(mean.abs() < 1e-10);
         assert!((std - 1.0).abs() < 1e-10);
@@ -411,8 +411,8 @@ mod tests {
         assert_eq!(samples.shape(), &[100, 2]);
 
         // Check that sample means are approximately correct
-        let sample_mean_0 = samples.column(0).mean().unwrap();
-        let sample_mean_1 = samples.column(1).mean().unwrap();
+        let sample_mean_0 = samples.column(0).mean().unwrap_or_default();
+        let sample_mean_1 = samples.column(1).mean().unwrap_or_default();
 
         // With 100 samples, means should be within ~0.3 of true means (roughly 3 * std_err)
         assert!(

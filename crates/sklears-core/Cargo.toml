@@ -34,38 +34,38 @@ log = { workspace = true }
 rayon = { workspace = true }
 bytemuck = { workspace = true }
 futures-core = { workspace = true }
-num_cpus = "1.17"
-memmap2 = { version = "0.9", optional = true }
+num_cpus = { workspace = true }
+memmap2 = { workspace = true, optional = true }
 oxicode = { workspace = true, optional = true }
-rmp-serde = { version = "1.3", optional = true }
-flate2 = { version = "1.1", optional = true }
-zstd = { version = "0.13", optional = true }
-polars = { version = "0.51", optional = true, default-features = false, features = ["lazy"] }
-arrow = { version = "54", optional = true, default-features = false }
-arrow-ipc = { version = "54", optional = true }
-arrow-csv = { version = "54", optional = true }
-serde_json = { version = "1.0", optional = true }
-serde_yaml = { version = "0.9", optional = true }
-libloading = { version = "0.8", optional = true }
+rmp-serde = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+zstd = { workspace = true, optional = true }
+polars = { workspace = true, optional = true }
+arrow = { workspace = true, optional = true }
+arrow-ipc = { workspace = true, optional = true }
+arrow-csv = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
+libloading = { workspace = true, optional = true }
 # cudarc = { version = "0.12", optional = true, default-features = false, features = ["cublas", "curand", "cuda-12060"] }  # Disabled for macOS compatibility
-chrono = { version = "0.4", features = ["serde", "std"] }
-async-trait = { version = "0.1", optional = true }
-tokio = { version = "1.47", features = ["time", "macros", "rt-multi-thread"], optional = true }
+chrono = { workspace = true }
+async-trait = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 # Platform-specific dependencies for benchmarking and system monitoring
 [target.'cfg(target_os = "macos")'.dependencies]
 mach = "0.3"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3", features = ["processthreadsapi", "psapi"] }
+winapi = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
-once_cell = "1.21"
+once_cell = { workspace = true }
 tempfile = { workspace = true }
 
 [features]

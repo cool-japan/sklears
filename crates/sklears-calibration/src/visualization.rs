@@ -624,13 +624,13 @@ mod tests {
 
         let curve = generate_calibration_curve(&y_true, &y_prob, &config).unwrap();
 
-        assert!(curve.bin_centers.len() > 0);
+        assert!(!curve.bin_centers.is_empty());
         assert_eq!(curve.bin_centers.len(), curve.bin_frequencies.len());
         assert_eq!(curve.bin_centers.len(), curve.bin_counts.len());
 
         // Check that frequencies are valid probabilities
         for &freq in curve.bin_frequencies.iter() {
-            assert!(freq >= 0.0 && freq <= 1.0);
+            assert!((0.0..=1.0).contains(&freq));
         }
     }
 
@@ -664,7 +664,7 @@ mod tests {
             };
 
             let curve = generate_calibration_curve(&y_true, &y_prob, &config).unwrap();
-            assert!(curve.bin_centers.len() > 0);
+            assert!(!curve.bin_centers.is_empty());
         }
     }
 

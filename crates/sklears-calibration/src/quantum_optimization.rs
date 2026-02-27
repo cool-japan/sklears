@@ -804,9 +804,11 @@ mod tests {
     #[test]
     fn test_simple_optimization() {
         let bounds = Array2::from_shape_vec((1, 2), vec![-5.0, 5.0]).unwrap();
-        let mut config = QuantumOptimizationConfig::default();
-        config.max_iterations = 10; // Short test
-        config.n_annealing_steps = 10;
+        let config = QuantumOptimizationConfig {
+            max_iterations: 10,
+            n_annealing_steps: 10,
+            ..QuantumOptimizationConfig::default()
+        };
 
         let mut optimizer = QuantumCalibrationOptimizer::new(config, bounds);
 

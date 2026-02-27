@@ -914,7 +914,7 @@ mod tests {
 
         // Check that results are in valid probability range
         for &val in result.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
 
         // Check specific values
@@ -929,7 +929,7 @@ mod tests {
 
         // Results should be valid probabilities
         for &val in result.iter() {
-            assert!(val >= 0.0 && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
     }
 
@@ -1026,7 +1026,7 @@ mod tests {
         // Verify results are valid probabilities
         assert_eq!(result.len(), probabilities.len());
         for &prob in result.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0, "Invalid probability: {}", prob);
+            assert!((0.0..=1.0).contains(&prob), "Invalid probability: {}", prob);
         }
     }
 
@@ -1041,7 +1041,7 @@ mod tests {
         // Verify results are valid probabilities
         assert_eq!(result.len(), logits.len());
         for &prob in result.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0, "Invalid probability: {}", prob);
+            assert!((0.0..=1.0).contains(&prob), "Invalid probability: {}", prob);
         }
     }
 
@@ -1119,7 +1119,7 @@ mod tests {
         // Verify results
         assert_eq!(result.len(), probabilities.len());
         for &prob in result.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -1135,7 +1135,7 @@ mod tests {
         // Verify results
         assert_eq!(result.len(), probabilities.len());
         for &prob in result.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -1150,7 +1150,7 @@ mod tests {
         // Verify results
         assert_eq!(result.len(), logits.len());
         for &prob in result.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -1175,7 +1175,7 @@ mod tests {
     #[test]
     fn test_computation_strategy_enum() {
         // Test that all strategy variants are distinct
-        let strategies = vec![
+        let strategies = [
             ComputationStrategy::Standard,
             ComputationStrategy::Simd,
             ComputationStrategy::Parallel,

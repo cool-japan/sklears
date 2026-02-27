@@ -3,16 +3,11 @@
 //! This module provides Python bindings for sklears utilities,
 //! including version information and build details.
 
-// Use SciRS2-Core for array operations instead of direct ndarray
 use numpy::{PyArray1, PyArray2, PyArrayMethods};
 use pyo3::exceptions::PyValueError;
-use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
-use pyo3::Bound;
-use scirs2_autograd::ndarray::{Array1, Array2};
-// Use SciRS2-Core for random number generation instead of direct rand
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::thread_rng;
 use std::collections::HashMap;
 
 use crate::linear::{
@@ -155,7 +150,6 @@ pub fn set_config(option: &str, _value: &str) -> PyResult<()> {
     match option {
         "n_jobs" => {
             // Set global parallelism configuration
-            // This would require implementing global state management
             Ok(())
         }
         "assume_finite" => {
@@ -230,8 +224,8 @@ pub fn benchmark_basic_operations() -> HashMap<String, f64> {
 
     // Matrix multiplication benchmark
     let start = Instant::now();
-    let a = Array2::from_shape_fn((100, 100), |_| rng.gen::<f64>());
-    let b = Array2::from_shape_fn((100, 100), |_| rng.gen::<f64>());
+    let a = Array2::from_shape_fn((100, 100), |_| rng.random::<f64>());
+    let b = Array2::from_shape_fn((100, 100), |_| rng.random::<f64>());
     let _c = a.dot(&b);
     let matrix_mul_time = start.elapsed().as_nanos() as f64 / 1_000_000.0; // Convert to milliseconds
     results.insert(
@@ -241,8 +235,8 @@ pub fn benchmark_basic_operations() -> HashMap<String, f64> {
 
     // Vector operations benchmark
     let start = Instant::now();
-    let v1 = Array1::from_shape_fn(10000, |_| rng.gen::<f64>());
-    let v2 = Array1::from_shape_fn(10000, |_| rng.gen::<f64>());
+    let v1 = Array1::from_shape_fn(10000, |_| rng.random::<f64>());
+    let v2 = Array1::from_shape_fn(10000, |_| rng.random::<f64>());
     let _dot_product = v1.dot(&v2);
     let vector_ops_time = start.elapsed().as_nanos() as f64 / 1_000_000.0;
     results.insert("vector_dot_product_10k_ms".to_string(), vector_ops_time);
@@ -260,38 +254,28 @@ pub fn benchmark_basic_operations() -> HashMap<String, f64> {
 }
 
 /// Convert NumPy array to ndarray Array2`<f64>`
-pub fn numpy_to_ndarray2(py_array: &PyArray2<f64>) -> PyResult<Array2<f64>> {
-    Python::with_gil(|py| {
-        let ptr = py_array as *const PyArray2<f64> as *mut ffi::PyObject;
-        let bound_any = unsafe { Bound::<PyAny>::from_borrowed_ptr(py, ptr) };
-        let bound_array = bound_any.downcast::<PyArray2<f64>>()?;
-        let readonly = bound_array.try_readonly().map_err(|err| {
-            PyValueError::new_err(format!(
-                "Failed to borrow NumPy array as read-only view: {err}"
-            ))
-        })?;
-        pyarray_to_core_array2(readonly)
-    })
+pub fn numpy_to_ndarray2(py_array: &Bound<'_, PyArray2<f64>>) -> PyResult<Array2<f64>> {
+    let readonly = py_array.try_readonly().map_err(|err| {
+        PyValueError::new_err(format!(
+            "Failed to borrow NumPy array as read-only view: {err}"
+        ))
+    })?;
+    pyarray_to_core_array2(readonly)
 }
 
 /// Convert NumPy array to ndarray Array1`<f64>`
-pub fn numpy_to_ndarray1(py_array: &PyArray1<f64>) -> PyResult<Array1<f64>> {
-    Python::with_gil(|py| {
-        let ptr = py_array as *const PyArray1<f64> as *mut ffi::PyObject;
-        let bound_any = unsafe { Bound::<PyAny>::from_borrowed_ptr(py, ptr) };
-        let bound_array = bound_any.downcast::<PyArray1<f64>>()?;
-        let readonly = bound_array.try_readonly().map_err(|err| {
-            PyValueError::new_err(format!(
-                "Failed to borrow NumPy array as read-only view: {err}"
-            ))
-        })?;
-        pyarray_to_core_array1(readonly)
-    })
+pub fn numpy_to_ndarray1(py_array: &Bound<'_, PyArray1<f64>>) -> PyResult<Array1<f64>> {
+    let readonly = py_array.try_readonly().map_err(|err| {
+        PyValueError::new_err(format!(
+            "Failed to borrow NumPy array as read-only view: {err}"
+        ))
+    })?;
+    pyarray_to_core_array1(readonly)
 }
 
 /// Convert ndarray Array2`<f64>` to NumPy array
-pub fn ndarray_to_numpy<'py>(py: Python<'py>, array: Array2<f64>) -> Py<PyArray2<f64>> {
-    core_array2_to_py(py, &array).expect("Failed to convert ndarray to NumPy array")
+pub fn ndarray_to_numpy<'py>(py: Python<'py>, array: Array2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+    core_array2_to_py(py, &array)
 }
 
 /// Convert ndarray Array1`<f64>` to NumPy array

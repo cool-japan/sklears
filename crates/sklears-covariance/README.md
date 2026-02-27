@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-covariance.svg)](https://crates.io/crates/sklears-covariance)
 [![Documentation](https://docs.rs/sklears-covariance/badge.svg)](https://docs.rs/sklears-covariance)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 > **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
@@ -207,4 +207,4 @@ Contributions are welcome! See the main sklears repository for contribution guid
 
 ## License
 
-Licensed under either of Apache License, Version 2.0 or MIT license at your option.
+Licensed under the Apache License, Version 2.0.

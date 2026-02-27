@@ -146,8 +146,16 @@ impl RbfKernel {
 
 impl Kernel for RbfKernel {
     fn compute(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
-        let diff = &x.to_owned() - &y.to_owned();
-        let squared_distance = diff.dot(&diff);
+        // Compute squared distance inline without allocating temporary arrays
+        let squared_distance: f64 = x
+            .iter()
+            .zip(y.iter())
+            .map(|(xi, yi)| {
+                let diff = xi - yi;
+                diff * diff
+            })
+            .sum();
+
         (-self.gamma * squared_distance).exp()
     }
 
@@ -308,9 +316,17 @@ impl PeriodicKernel {
 
 impl Kernel for PeriodicKernel {
     fn compute(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
-        let diff = &x.to_owned() - &y.to_owned();
-        let sin_term = diff.mapv(|d| (std::f64::consts::PI * d / self.period).sin());
-        let sin_squared = sin_term.dot(&sin_term);
+        // Compute inline without allocating temporary arrays
+        let sin_squared: f64 = x
+            .iter()
+            .zip(y.iter())
+            .map(|(xi, yi)| {
+                let diff = xi - yi;
+                let sin_val = (std::f64::consts::PI * diff / self.period).sin();
+                sin_val * sin_val
+            })
+            .sum();
+
         (-2.0 * sin_squared / (self.length_scale * self.length_scale)).exp()
     }
 
@@ -652,7 +668,7 @@ impl Kernel for KernelType {
     }
 }
 
-/// Implement Kernel trait for Box<dyn Kernel> to enable polymorphic usage
+/// Implement Kernel trait for `Box<dyn Kernel>` to enable polymorphic usage
 impl Kernel for Box<dyn Kernel> {
     fn compute(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {
         self.as_ref().compute(x, y)

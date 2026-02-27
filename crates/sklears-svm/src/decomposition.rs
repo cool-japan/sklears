@@ -605,9 +605,11 @@ mod tests {
     #[test]
     fn test_block_decomposition() {
         let kernel = Box::new(RbfKernel::new(1.0));
-        let mut config = DecompositionConfig::default();
-        config.max_working_set_size = 100;
-        config.selection_strategy = WorkingSetSelectionStrategy::BlockWise;
+        let config = DecompositionConfig {
+            max_working_set_size: 100,
+            selection_strategy: WorkingSetSelectionStrategy::BlockWise,
+            ..DecompositionConfig::default()
+        };
 
         let mut solver = DecompositionSolver::new(kernel, config);
         solver.create_initial_decomposition(250).unwrap();

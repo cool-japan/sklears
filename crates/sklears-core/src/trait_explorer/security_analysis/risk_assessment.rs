@@ -259,7 +259,7 @@ impl SecurityRiskAssessor {
             }
             EnsembleMethod::Median => {
                 let mut scores: Vec<f64> = results.values().cloned().collect();
-                scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let len = scores.len();
                 if len % 2 == 0 {
                     Ok((scores[len / 2 - 1] + scores[len / 2]) / 2.0)
@@ -380,7 +380,7 @@ impl SecurityRiskAssessor {
         }
 
         // Calculate statistics
-        results.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        results.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mean = results.iter().sum::<f64>() / results.len() as f64;
         let variance = results.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / results.len() as f64;
         let std_dev = variance.sqrt();
@@ -434,7 +434,7 @@ impl SecurityRiskAssessor {
         factors.extend(self.analyze_combination_factors(context, base_score)?);
 
         // Sort by impact (highest first)
-        factors.sort_by(|a, b| b.impact_score.partial_cmp(&a.impact_score).unwrap());
+        factors.sort_by(|a, b| b.impact_score.partial_cmp(&a.impact_score).unwrap_or(std::cmp::Ordering::Equal));
 
         // Keep only significant factors
         factors.retain(|f| f.impact_score > self.config.risk_factor_threshold);
@@ -616,7 +616,7 @@ impl SecurityRiskAssessor {
 
         // Simple forecast for next period
         let forecast = if relevant_data.len() >= 3 {
-            let last_score = relevant_data.last().unwrap().risk_score;
+            let last_score = relevant_data.last().expect("last should succeed").risk_score;
             Some(last_score + slope)
         } else {
             None
@@ -677,7 +677,7 @@ impl SecurityRiskAssessor {
     fn calculate_trend_confidence(&self, data: &[&HistoricalRiskData]) -> f64 {
         let data_points = data.len() as f64;
         let recency_factor = {
-            let latest = data.last().unwrap().timestamp;
+            let latest = data.last().expect("last should succeed").timestamp;
             let age_days = Utc::now().signed_duration_since(latest).num_days();
             ((-age_days as f64 / 30.0).exp()).min(1.0)
         };
@@ -1351,7 +1351,7 @@ mod tests {
 
         let result = assessor.assess_quick_risk(&context);
         assert!(result.is_ok());
-        assert!(result.unwrap() > 0.0);
+        assert!(result.expect("expected valid value") > 0.0);
     }
 
     #[test]
@@ -1368,7 +1368,7 @@ mod tests {
         let result = assessor.assess_comprehensive_risk(&context);
         assert!(result.is_ok());
 
-        let assessment = result.unwrap();
+        let assessment = result.expect("expected valid value");
         assert!(assessment.overall_risk_score > 0.0);
         assert!(!assessment.risk_factors.is_empty());
         assert!(!assessment.recommendations.is_empty());

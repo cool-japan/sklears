@@ -732,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_length_indexed_vector() {
-        let v = LVec::<i32, N3>::new(vec![1, 2, 3]).unwrap();
+        let v = LVec::<i32, N3>::new(vec![1, 2, 3]).expect("expected valid value");
         assert_eq!(v.len(), 3);
 
         let wrong_length = LVec::<i32, N3>::new(vec![1, 2]);
@@ -750,12 +750,12 @@ mod tests {
     #[test]
     fn test_matrix_creation() {
         let data = vec![1, 2, 3, 4, 5, 6];
-        let matrix = Matrix::<i32, 2, 3>::new(data).unwrap();
+        let matrix = Matrix::<i32, 2, 3>::new(data).expect("expected valid value");
 
         assert_eq!(Matrix::<i32, 2, 3>::rows(), 2);
         assert_eq!(Matrix::<i32, 2, 3>::cols(), 3);
-        assert_eq!(*matrix.get(0, 0).unwrap(), 1);
-        assert_eq!(*matrix.get(1, 2).unwrap(), 6);
+        assert_eq!(*matrix.get(0, 0).expect("get should succeed"), 1);
+        assert_eq!(*matrix.get(1, 2).expect("get should succeed"), 6);
     }
 
     #[test]
@@ -838,15 +838,15 @@ mod tests {
 
     #[test]
     fn test_lvec_map() {
-        let v = LVec::<i32, N3>::new(vec![1, 2, 3]).unwrap();
+        let v = LVec::<i32, N3>::new(vec![1, 2, 3]).expect("expected valid value");
         let doubled = v.map(|x| x * 2);
         assert_eq!(doubled.as_slice(), &[2, 4, 6]);
     }
 
     #[test]
     fn test_lvec_zip() {
-        let v1 = LVec::<i32, N3>::new(vec![1, 2, 3]).unwrap();
-        let v2 = LVec::<i32, N3>::new(vec![4, 5, 6]).unwrap();
+        let v1 = LVec::<i32, N3>::new(vec![1, 2, 3]).expect("expected valid value");
+        let v2 = LVec::<i32, N3>::new(vec![4, 5, 6]).expect("expected valid value");
         let zipped = v1.zip(v2);
 
         assert_eq!(zipped.as_slice(), &[(1, 4), (2, 5), (3, 6)]);
@@ -854,18 +854,18 @@ mod tests {
 
     #[test]
     fn test_dot_product() {
-        let v1 = LVec::<i32, N3>::new(vec![1, 2, 3]).unwrap();
-        let v2 = LVec::<i32, N3>::new(vec![4, 5, 6]).unwrap();
+        let v1 = LVec::<i32, N3>::new(vec![1, 2, 3]).expect("expected valid value");
+        let v2 = LVec::<i32, N3>::new(vec![4, 5, 6]).expect("expected valid value");
 
         let dot = dot_product(&v1, &v2);
-        assert_eq!(dot, 1 * 4 + 2 * 5 + 3 * 6);
+        assert_eq!(dot, 4 + 2 * 5 + 3 * 6);
         assert_eq!(dot, 32);
     }
 
     #[test]
     fn test_concat() {
-        let v1 = LVec::<i32, N2>::new(vec![1, 2]).unwrap();
-        let v2 = LVec::<i32, N3>::new(vec![3, 4, 5]).unwrap();
+        let v1 = LVec::<i32, N2>::new(vec![1, 2]).expect("expected valid value");
+        let v2 = LVec::<i32, N3>::new(vec![3, 4, 5]).expect("expected valid value");
 
         let concatenated = concat(v1, v2);
 

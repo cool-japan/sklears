@@ -376,7 +376,9 @@ impl StreamingLinearRegression<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: n_features not available".to_string())
+        })?;
 
         if x.ncols() != n_features {
             return Err(SklearsError::FeatureMismatch {
@@ -385,8 +387,12 @@ impl Predict<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Trained
             });
         }
 
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })?;
+        let intercept = self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })?;
 
         let predictions = x.dot(coef) + intercept;
         Ok(predictions)
@@ -395,28 +401,38 @@ impl Predict<Array2<Float>, Array1<Float>> for StreamingLinearRegression<Trained
 
 impl StreamingLinearRegression<Trained> {
     /// Get coefficients
-    pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array1<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })
     }
 
     /// Get intercept
-    pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+    pub fn intercept(&self) -> Result<Float> {
+        self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })
     }
 
     /// Get number of samples seen during training
-    pub fn n_samples_seen(&self) -> usize {
-        self.n_samples_seen_.unwrap()
+    pub fn n_samples_seen(&self) -> Result<usize> {
+        self.n_samples_seen_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: n_samples_seen not available".to_string())
+        })
     }
 
     /// Get loss history
-    pub fn loss_history(&self) -> &Vec<Float> {
-        self.loss_history_.as_ref().unwrap()
+    pub fn loss_history(&self) -> Result<&Vec<Float>> {
+        self.loss_history_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: loss_history not available".to_string())
+        })
     }
 
     /// Partial fit with new data (online learning)
     pub fn partial_fit(&mut self, x: &Array2<Float>, y: &Array1<Float>) -> Result<()> {
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: n_features not available".to_string())
+        })?;
 
         if x.ncols() != n_features {
             return Err(SklearsError::FeatureMismatch {
@@ -432,9 +448,15 @@ impl StreamingLinearRegression<Trained> {
             });
         }
 
-        let mut coef = self.coef_.take().unwrap();
-        let mut intercept = self.intercept_.unwrap();
-        let current_lr = self.current_lr_.unwrap();
+        let mut coef = self.coef_.take().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })?;
+        let mut intercept = self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })?;
+        let current_lr = self.current_lr_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: current_lr not available".to_string())
+        })?;
 
         // Use a temporary config and create a temporary untrained model for update logic
         let temp_model = StreamingLinearRegression {
@@ -454,7 +476,10 @@ impl StreamingLinearRegression<Trained> {
         // Update model state
         self.coef_ = Some(coef);
         self.intercept_ = Some(intercept);
-        self.n_samples_seen_ = Some(self.n_samples_seen_.unwrap() + x.nrows());
+        let current_samples = self.n_samples_seen_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: n_samples_seen not available".to_string())
+        })?;
+        self.n_samples_seen_ = Some(current_samples + x.nrows());
 
         Ok(())
     }
@@ -542,12 +567,12 @@ impl Predict<Array2<Float>, Array1<Float>> for StreamingLasso<Trained> {
 
 impl StreamingLasso<Trained> {
     /// Get coefficients
-    pub fn coef(&self) -> &Array1<Float> {
+    pub fn coef(&self) -> Result<&Array1<Float>> {
         self.base_model.coef()
     }
 
     /// Get intercept
-    pub fn intercept(&self) -> Float {
+    pub fn intercept(&self) -> Result<Float> {
         self.base_model.intercept()
     }
 
@@ -725,8 +750,8 @@ mod tests {
             assert!((predictions[i] - y[i]).abs() < 1.0);
         }
 
-        assert_eq!(fitted.n_samples_seen(), 4);
-        assert!(!fitted.loss_history().is_empty());
+        assert_eq!(fitted.n_samples_seen().unwrap(), 4);
+        assert!(!fitted.loss_history().unwrap().is_empty());
     }
 
     #[test]
@@ -741,7 +766,7 @@ mod tests {
             .learning_rate(0.1);
 
         let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef();
+        let coef = fitted.coef().unwrap();
 
         // Should have non-zero coefficients for relevant features
         assert!(coef[0].abs() > 0.1); // x1 should be important
@@ -782,7 +807,7 @@ mod tests {
         let model = StreamingLinearRegression::new().chunk_size(1);
         let mut fitted = model.fit(&x1, &y1).unwrap();
 
-        let original_samples = fitted.n_samples_seen();
+        let original_samples = fitted.n_samples_seen().unwrap();
 
         // Add more data
         let x2 = array![[3.0, 4.0], [4.0, 5.0]];
@@ -790,7 +815,7 @@ mod tests {
 
         fitted.partial_fit(&x2, &y2).unwrap();
 
-        assert_eq!(fitted.n_samples_seen(), original_samples + 2);
+        assert_eq!(fitted.n_samples_seen().unwrap(), original_samples + 2);
     }
 
     #[test]
@@ -813,7 +838,7 @@ mod tests {
         let result = StreamingUtils::stream_process(&x, &y, 2, |x_chunk, y_chunk| {
             chunk_count += 1;
             assert!(x_chunk.nrows() > 0);
-            assert!(y_chunk.len() > 0);
+            assert!(!y_chunk.is_empty());
             Ok(())
         });
 

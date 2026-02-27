@@ -517,7 +517,9 @@ pub fn calculate_regression_diversity(
     let mut total_variance = 0.0;
     for sample_idx in 0..n_samples {
         let sample_predictions = individual_predictions.row(sample_idx);
-        let mean_pred = sample_predictions.mean().unwrap();
+        let mean_pred = sample_predictions.mean().ok_or_else(|| {
+            SklearsError::NumericalError("Failed to compute mean prediction".to_string())
+        })?;
         let variance = sample_predictions
             .iter()
             .map(|&pred| (pred - mean_pred).powi(2))
@@ -530,7 +532,9 @@ pub fn calculate_regression_diversity(
     let mut total_variance_component = 0.0;
     for sample_idx in 0..n_samples {
         let sample_predictions = individual_predictions.row(sample_idx);
-        let mean_pred = sample_predictions.mean().unwrap();
+        let mean_pred = sample_predictions.mean().ok_or_else(|| {
+            SklearsError::NumericalError("Failed to compute mean prediction".to_string())
+        })?;
         let true_val = true_values[sample_idx];
         let bias_squared = (mean_pred - true_val).powi(2);
         total_bias += bias_squared;
@@ -557,8 +561,12 @@ fn calculate_pearson_correlation(x: &Array1<f64>, y: &Array1<f64>) -> Result<f64
         ));
     }
     let _n = x.len() as f64;
-    let mean_x = x.mean().unwrap();
-    let mean_y = y.mean().unwrap();
+    let mean_x = x
+        .mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean for x".to_string()))?;
+    let mean_y = y
+        .mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean for y".to_string()))?;
     let mut numerator = 0.0;
     let mut sum_sq_x = 0.0;
     let mut sum_sq_y = 0.0;

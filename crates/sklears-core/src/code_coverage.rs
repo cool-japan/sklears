@@ -501,7 +501,7 @@ impl CoverageCollector {
     fn simulate_coverage_data(&self, tool: &str) -> RawCoverageData {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("expected valid value")
             .as_secs();
 
         RawCoverageData {
@@ -563,7 +563,7 @@ impl CoverageCollector {
 
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("expected valid value")
             .as_secs();
 
         // Analyze quality gates
@@ -661,9 +661,11 @@ impl CoverageCollector {
 
         // Sort by priority and estimated impact
         recommendations.sort_by(|a, b| {
-            a.priority
-                .cmp(&b.priority)
-                .then_with(|| b.estimated_impact.partial_cmp(&a.estimated_impact).unwrap())
+            a.priority.cmp(&b.priority).then_with(|| {
+                b.estimated_impact
+                    .partial_cmp(&a.estimated_impact)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
         });
 
         recommendations

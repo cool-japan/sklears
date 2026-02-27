@@ -1164,7 +1164,7 @@ mod tests {
             .analyze(&residuals, &fitted_values, &x_matrix, &coefficients)
             .unwrap();
 
-        assert_eq!(result.basic_stats.mean.abs() < 0.1, true);
+        assert!(result.basic_stats.mean.abs() < 0.1);
         assert!(result.assumptions.overall_adequacy >= 0.0);
         assert!(result.assumptions.overall_adequacy <= 1.0);
         assert_eq!(result.plot_data.residuals.len(), residuals.len());

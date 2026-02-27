@@ -160,7 +160,7 @@ impl Fit<Array1<Float>, Array1<Float>> for RegularizedIsotonicRegression<Untrain
 
         // Sort by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].total_cmp(&x[b]));
 
         let mut x_sorted = Array1::zeros(x.len());
         let mut y_sorted = Array1::zeros(y.len());

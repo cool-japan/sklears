@@ -864,7 +864,7 @@ mod tests {
         let (statistic, p_value) = mcnemar_test::<f64>(&y_true, &y_pred1, &y_pred2, false).unwrap();
 
         assert!(statistic >= 0.0);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
     }
 
     #[test]
@@ -881,7 +881,7 @@ mod tests {
         let (statistic, p_value, cd) = friedman_test(&scores).unwrap();
 
         assert!(statistic >= 0.0);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
         assert!(cd > 0.0);
     }
 
@@ -893,7 +893,7 @@ mod tests {
         let (statistic, p_value) = wilcoxon_signed_rank_test(&x, &y, "two-sided").unwrap();
 
         assert!(statistic >= 0.0);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
     }
 
     #[test]
@@ -911,7 +911,7 @@ mod tests {
         let (statistic, p_value) =
             permutation_test(&sample1, &sample2, mean_difference, 1000).unwrap();
 
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
         assert_abs_diff_eq!(statistic, -1.0, epsilon = 1e-10);
     }
 

@@ -335,10 +335,9 @@ impl SVC<Trained> {
             let mut score = 0.0;
 
             for (j, _support_idx) in self.support_indices().iter().enumerate() {
-                let k_val = kernel.compute(
-                    x.row(i).to_owned().view(),
-                    support_vectors.row(j).to_owned().view(),
-                );
+                let x_row = x.row(i);
+                let sv_row = support_vectors.row(j);
+                let k_val = kernel.compute(x_row, sv_row);
                 score += dual_coef[j] * k_val;
             }
 
@@ -547,7 +546,7 @@ mod tests {
         // Check fitted attributes
         assert_eq!(svc.classes().len(), 2);
         assert!(svc.support_vectors().nrows() > 0);
-        assert!(svc.dual_coef().len() > 0);
+        assert!(!svc.dual_coef().is_empty());
 
         // Test prediction
         let x_test = array![
@@ -652,7 +651,7 @@ mod tests {
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} not in [0,1]",
                 prob
             );

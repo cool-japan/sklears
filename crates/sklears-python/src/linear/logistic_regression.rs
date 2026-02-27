@@ -84,141 +84,27 @@ impl From<PyLogisticRegressionConfig> for LogisticRegressionConfig {
 /// In the multiclass case, the training algorithm uses the one-vs-rest (OvR)
 /// scheme if the 'multi_class' option is set to 'ovr', and uses the
 /// cross-entropy loss if the 'multi_class' option is set to 'multinomial'.
-/// (Currently the 'multinomial' option is supported only by the 'lbfgs',
-/// 'sag', 'saga' and 'newton-cg' solvers.)
 ///
 /// This class implements regularized logistic regression using various solvers.
-/// **Note that regularization is applied by default**. It can handle both
-/// dense and sparse input. Use C-ordered arrays containing
-/// 64-bit floats for optimal performance; any other input format will be
-/// converted (and copied).
+/// **Note that regularization is applied by default**.
 ///
-/// The 'newton-cg', 'sag', and 'lbfgs' solvers support only L2 regularization
-/// with primal formulation, or no regularization. The Elastic-Net regularization
-/// is only supported by the 'saga' solver.
+/// # Parameters
 ///
-/// Parameters
-/// ----------
-/// penalty : {'l1', 'l2', 'elasticnet'}, default='l2'
-///     Specify the norm of the penalty:
+/// - `penalty` - One of "l1", "l2", "elasticnet". Default: "l2"
+/// - `tol` - Tolerance for stopping criteria. Default: 1e-4
+/// - `c` - Inverse of regularization strength. Default: 1.0
+/// - `fit_intercept` - Whether to add bias term. Default: true
+/// - `solver` - One of "lbfgs", "newton-cg", "sag", "saga". Default: "lbfgs"
+/// - `max_iter` - Maximum iterations. Default: 100
+/// - `multi_class` - One of "auto", "ovr", "multinomial". Default: "auto"
+/// - `random_state` - Random seed for reproducibility
+/// - `l1_ratio` - Elastic-Net mixing parameter (0 to 1)
 ///
-///     - 'l2': add a L2 penalty term and it is the default choice;
-///     - 'l1': add a L1 penalty term;
-///     - 'elasticnet': both L1 and L2 penalty terms are added.
+/// # References
 ///
-/// tol : float, default=1e-4
-///     Tolerance for stopping criteria.
-///
-/// C : float, default=1.0
-///     Inverse of regularization strength; must be a positive float.
-///     Like in support vector machines, smaller values specify stronger
-///     regularization.
-///
-/// fit_intercept : bool, default=True
-///     Specifies if a constant (a.k.a. bias or intercept) should be
-///     added to the decision function.
-///
-/// class_weight : dict or 'balanced', default=None
-///     Weights associated with classes in the form ``{class_label: weight}``.
-///     If not given, all classes are supposed to have weight one.
-///
-///     The "balanced" mode uses the values of y to automatically adjust
-///     weights inversely proportional to class frequencies in the input data
-///     as ``n_samples / (n_classes * np.bincount(y))``.
-///
-/// random_state : int, default=None
-///     Used when ``solver`` == 'sag', 'saga' to shuffle the
-///     data. See :term:`Glossary <random_state>` for details.
-///
-/// solver : {'lbfgs', 'newton-cg', 'sag', 'saga'}, default='lbfgs'
-///
-///     Algorithm to use in the optimization problem. Default is 'lbfgs'.
-///     To choose a solver, you might want to consider the following aspects:
-///
-///         - For small datasets, 'lbfgs' is a good choice, whereas 'sag'
-///           and 'saga' are faster for large ones;
-///         - For multiclass problems, only 'newton-cg', 'sag', 'saga' and
-///           'lbfgs' handle multinomial loss.
-///
-/// max_iter : int, default=100
-///     Maximum number of iterations taken for the solvers to converge.
-///
-/// multi_class : {'auto', 'ovr', 'multinomial'}, default='auto'
-///     If the option chosen is 'ovr', then a binary problem is fit for each
-///     label. For 'multinomial' the loss minimised is the multinomial loss fit
-///     across the entire probability distribution, *even when the data is
-///     binary*. 'auto' selects 'ovr' if the data is binary,
-///     and otherwise selects 'multinomial'.
-///
-/// warm_start : bool, default=False
-///     When set to True, reuse the solution of the previous call to fit as
-///     initialization, otherwise, just erase the previous solution.
-///     See :term:`the Glossary <warm_start>`.
-///
-/// n_jobs : int, default=None
-///     Number of CPU cores used when parallelizing over classes if
-///     multi_class='ovr'". ``None`` means 1 unless in a
-///     :obj:`joblib.parallel_backend` context. ``-1`` means using all
-///     processors. See :term:`Glossary <n_jobs>` for more details.
-///
-/// l1_ratio : float, default=None
-///     The Elastic-Net mixing parameter, with ``0 <= l1_ratio <= 1``. Only
-///     used if ``penalty='elasticnet'``. Setting ``l1_ratio=0`` is equivalent
-///     to using ``penalty='l2'``, while setting ``l1_ratio=1`` is equivalent
-///     to using ``penalty='l1'``. For ``0 < l1_ratio <1``, the penalty is a
-///     combination of L1 and L2.
-///
-/// Attributes
-/// ----------
-/// classes_ : ndarray of shape (n_classes, )
-///     A list of class labels known to the classifier.
-///
-/// coef_ : ndarray of shape (1, n_features) or (n_classes, n_features)
-///     Coefficient of the features in the decision function.
-///
-///     `coef_` is of shape (1, n_features) when the given problem is binary.
-///
-/// intercept_ : float or ndarray of shape (n_classes,)
-///     Intercept (a.k.a. bias) added to the decision function.
-///
-///     If `fit_intercept` is set to False, the intercept is set to zero.
-///     `intercept_` is of shape (1,) when the given problem is binary.
-///
-/// n_features_in_ : int
-///     Number of features seen during :term:`fit`.
-///
-/// Examples
-/// --------
-/// >>> from sklears_python import LogisticRegression
-/// >>> import numpy as np
-/// >>> X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]])
-/// >>> y = np.array([0, 0, 1, 1])
-/// >>> clf = LogisticRegression(random_state=0).fit(X, y)
-/// >>> clf.predict(X[:2, :])
-/// array([0, 0])
-/// >>> clf.predict_proba(X[:2, :])
-/// array([[...]])
-/// >>> clf.score(X, y)
-/// 1.0
-///
-/// Notes
-/// -----
-/// The underlying implementation uses optimized solvers from sklears-linear.
-///
-/// References
-/// ----------
-/// L-BFGS-B -- Software for Large-scale Bound-constrained Optimization
-/// Ciyou Zhu, Richard Byrd, Jorge Nocedal and Jose Luis Morales.
-/// http://users.iems.northwestern.edu/~nocedal/lbfgsb.html
-///
-/// SAG -- Mark Schmidt, Nicolas Le Roux, and Francis Bach
-/// Minimizing Finite Sums with the Stochastic Average Gradient
-/// https://hal.inria.fr/hal-00860051/document
-///
-/// SAGA -- Defazio, A., Bach F. & Lacoste-Julien S. (2014).
-/// SAGA: A Fast Incremental Gradient Method With Support
-/// for Non-Strongly Convex Composite Objectives
-/// https://arxiv.org/abs/1407.0202
+/// - L-BFGS-B: <http://users.iems.northwestern.edu/~nocedal/lbfgsb.html>
+/// - SAG: <https://hal.inria.fr/hal-00860051/document>
+/// - SAGA: <https://arxiv.org/abs/1407.0202>
 #[pyclass(name = "LogisticRegression")]
 pub struct PyLogisticRegression {
     py_config: PyLogisticRegressionConfig,

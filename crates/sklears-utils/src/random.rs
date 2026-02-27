@@ -769,14 +769,14 @@ mod tests {
         let uniform_samples = sampler.uniform(0.0, 1.0, 100).unwrap();
         assert_eq!(uniform_samples.len(), 100);
         for &sample in &uniform_samples {
-            assert!(sample >= 0.0 && sample < 1.0);
+            assert!((0.0..1.0).contains(&sample));
         }
 
         // Test beta distribution
         let beta_samples = sampler.beta(2.0, 3.0, 100).unwrap();
         assert_eq!(beta_samples.len(), 100);
         for &sample in &beta_samples {
-            assert!(sample >= 0.0 && sample <= 1.0);
+            assert!((0.0..=1.0).contains(&sample));
         }
 
         // Test gamma distribution
@@ -801,7 +801,7 @@ mod tests {
         let truncated_samples = sampler.truncated_normal(0.0, 1.0, -1.0, 1.0, 50).unwrap();
         assert_eq!(truncated_samples.len(), 50);
         for &sample in &truncated_samples {
-            assert!(sample >= -1.0 && sample <= 1.0);
+            assert!((-1.0..=1.0).contains(&sample));
         }
 
         // Test mixture normal

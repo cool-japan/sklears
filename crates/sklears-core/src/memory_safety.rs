@@ -65,7 +65,7 @@
 /// use sklears_core::memory_safety::SafeMemoryPool;
 ///
 /// fn pooled_allocation_example() {
-///     let mut pool = SafeMemoryPool::`<f64>`::new();
+///     let pool = SafeMemoryPool::<f64>::new();
 ///     
 ///     // Safe allocation with automatic cleanup
 ///     let buffer = pool.allocate(1000);
@@ -297,7 +297,7 @@ impl<T> SafeMemoryPool<T> {
     /// Allocate a vector with the specified capacity
     pub fn allocate(&self, capacity: usize) -> SafePooledBuffer<T> {
         let buffer = {
-            let mut pools = self.pools.lock().unwrap();
+            let mut pools = self.pools.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(pool) = pools.get_mut(&capacity) {
                 if let Some(mut buffer) = pool.pop() {
                     buffer.clear();
@@ -311,7 +311,10 @@ impl<T> SafeMemoryPool<T> {
         };
 
         {
-            let mut count = self.allocated_count.lock().unwrap();
+            let mut count = self
+                .allocated_count
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             *count += 1;
         }
 
@@ -326,8 +329,11 @@ impl<T> SafeMemoryPool<T> {
 
     /// Get current allocation statistics
     pub fn stats(&self) -> MemoryPoolStats {
-        let allocated_count = *self.allocated_count.lock().unwrap();
-        let pools = self.pools.lock().unwrap();
+        let allocated_count = *self
+            .allocated_count
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let pools = self.pools.lock().unwrap_or_else(|e| e.into_inner());
         let pooled_count: usize = pools.values().map(|v| v.len()).sum();
 
         MemoryPoolStats {
@@ -382,7 +388,7 @@ impl<T> Drop for SafePooledBuffer<T> {
     fn drop(&mut self) {
         if let Some(buffer) = self.buffer.take() {
             // Only return to pool if we haven't exceeded the limit
-            let mut pools = self.pool.lock().unwrap();
+            let mut pools = self.pool.lock().unwrap_or_else(|e| e.into_inner());
             let pool = pools.entry(self.capacity).or_default();
 
             if pool.len() < self.max_pool_size {
@@ -391,7 +397,10 @@ impl<T> Drop for SafePooledBuffer<T> {
             // Otherwise, let the buffer be freed normally
 
             // Decrement allocation count
-            let mut count = self.allocated_count.lock().unwrap();
+            let mut count = self
+                .allocated_count
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             *count = count.saturating_sub(1);
         }
     }

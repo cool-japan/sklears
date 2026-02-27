@@ -7,10 +7,6 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Random;
 
-// Type aliases for compatibility
-type DMatrix<T> = Array2<T>;
-type DVector<T> = Array1<T>;
-
 use crate::kernels::KernelType;
 use crate::svc::SVC;
 use sklears_core::error::{Result, SklearsError};
@@ -44,7 +40,7 @@ impl GridSearchCV {
     }
 
     /// Run grid search optimization
-    pub fn fit(&mut self, x: &DMatrix<f64>, y: &DVector<f64>) -> Result<OptimizationResult> {
+    pub fn fit(&mut self, x: &Array2<f64>, y: &Array1<f64>) -> Result<OptimizationResult> {
         let start_time = Instant::now();
 
         // Generate parameter grid
@@ -222,8 +218,8 @@ impl GridSearchCV {
     fn evaluate_params(
         &self,
         params: &ParameterSet,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<f64> {
         let scores = self.cross_validate(params, x, y)?;
         Ok(scores.iter().sum::<f64>() / scores.len() as f64)
@@ -233,8 +229,8 @@ impl GridSearchCV {
     fn cross_validate(
         &self,
         params: &ParameterSet,
-        x: &DMatrix<f64>,
-        y: &DVector<f64>,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
     ) -> Result<Vec<f64>> {
         let n_samples = x.nrows();
         let fold_size = n_samples / self.config.cv_folds;
@@ -297,7 +293,7 @@ impl GridSearchCV {
     }
 
     /// Calculate score based on scoring metric
-    fn calculate_score(&self, y_true: &DVector<f64>, y_pred: &DVector<f64>) -> Result<f64> {
+    fn calculate_score(&self, y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Result<f64> {
         match self.config.scoring {
             ScoringMetric::Accuracy => {
                 let correct = y_true

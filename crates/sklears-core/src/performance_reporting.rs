@@ -886,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_performance_database() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create temp directory");
         let db_path = dir.path().join("test.db");
         let mut database = PerformanceDatabase::new(&db_path);
 
@@ -912,7 +912,7 @@ mod tests {
         let analysis = analyzer.analyze(&results, &database);
         assert!(analysis.is_ok());
 
-        let analysis = analysis.unwrap();
+        let analysis = analysis.expect("expected valid value");
         assert_eq!(analysis.analyzer_name, "Regression Analyzer");
         assert!(matches!(
             analysis.analysis_type,
@@ -959,7 +959,7 @@ mod tests {
 
     #[test]
     fn test_output_formats() {
-        let formats = vec![
+        let formats = [
             OutputFormat::Html,
             OutputFormat::Json,
             OutputFormat::Csv,

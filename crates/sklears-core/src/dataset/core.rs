@@ -10,8 +10,8 @@ use crate::types::{Array1, Array2, Float};
 ///
 /// # Type Parameters
 ///
-/// - `X`: Type of the feature matrix (defaults to `Array2`<Float>``)
-/// - `Y`: Type of the target values (defaults to `Array1`<Float>``)
+/// - `X`: Type of the feature matrix (defaults to `Array2<Float>`)
+/// - `Y`: Type of the target values (defaults to `Array1<Float>`)
 ///
 /// # Examples
 ///
@@ -19,8 +19,8 @@ use crate::types::{Array1, Array2, Float};
 /// use sklears_core::dataset::Dataset;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
-/// let features = Array2::`<f64>`::zeros((100, 4));
-/// let targets = Array1::`<f64>`::zeros(100);
+/// let features = Array2::<f64>::zeros((100, 4));
+/// let targets = Array1::<f64>::zeros(100);
 /// let dataset = Dataset::new(features, targets)
 ///     .with_description("Sample dataset".to_string());
 /// ```
@@ -211,6 +211,13 @@ mod tests {
             .with_target_names(vec!["class_a".to_string(), "class_b".to_string()]);
 
         assert!(dataset.target_names.is_some());
-        assert_eq!(dataset.target_names.as_ref().unwrap().len(), 2);
+        assert_eq!(
+            dataset
+                .target_names
+                .as_ref()
+                .expect("value should be present")
+                .len(),
+            2
+        );
     }
 }

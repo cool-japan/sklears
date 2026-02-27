@@ -8,7 +8,7 @@
 //! - When gradient information is not available
 
 use crate::{CrossValidator, ParameterValue};
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Dim, OwnedRepr};
 use scirs2_core::rand_prelude::IndexedRandom;
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::SeedableRng;
@@ -954,8 +954,19 @@ pub struct EvolutionarySearchCV<E, S> {
 
 impl<E, S> EvolutionarySearchCV<E, S>
 where
-    E: Clone + Fit<Array2<Float>, Array1<Float>> + Predict<Array2<Float>, Array1<Float>>,
-    S: Fn(&E::Fitted, &Array2<Float>, &Array1<Float>) -> Result<f64>,
+    E: Clone
+        + Fit<
+            ArrayBase<OwnedRepr<Float>, Dim<[usize; 2]>, Float>,
+            ArrayBase<OwnedRepr<Float>, Dim<[usize; 1]>, Float>,
+        > + Predict<
+            ArrayBase<OwnedRepr<Float>, Dim<[usize; 2]>, Float>,
+            ArrayBase<OwnedRepr<Float>, Dim<[usize; 1]>, Float>,
+        >,
+    S: Fn(
+        &E::Fitted,
+        &ArrayBase<OwnedRepr<Float>, Dim<[usize; 2]>, Float>,
+        &ArrayBase<OwnedRepr<Float>, Dim<[usize; 1]>, Float>,
+    ) -> Result<f64>,
 {
     /// Create a new evolutionary search with cross-validation
     pub fn new(
@@ -1097,14 +1108,21 @@ where
         let n_samples = x.nrows();
         let train_size = (n_samples as f64 * 0.8) as usize;
 
-        let x_train = x
-            .slice(scirs2_core::ndarray::s![..train_size, ..])
-            .to_owned();
-        let y_train = y.slice(scirs2_core::ndarray::s![..train_size]).to_owned();
-        let x_test = x
-            .slice(scirs2_core::ndarray::s![train_size.., ..])
-            .to_owned();
-        let y_test = y.slice(scirs2_core::ndarray::s![train_size..]).to_owned();
+        let x_train_view = x.slice(scirs2_core::ndarray::s![..train_size, ..]);
+        let y_train_view = y.slice(scirs2_core::ndarray::s![..train_size]);
+        let x_test_view = x.slice(scirs2_core::ndarray::s![train_size.., ..]);
+        let y_test_view = y.slice(scirs2_core::ndarray::s![train_size..]);
+
+        let x_train = Array2::from_shape_vec(
+            (x_train_view.nrows(), x_train_view.ncols()),
+            x_train_view.iter().copied().collect(),
+        )?;
+        let y_train = Array1::from_vec(y_train_view.iter().copied().collect());
+        let x_test = Array2::from_shape_vec(
+            (x_test_view.nrows(), x_test_view.ncols()),
+            x_test_view.iter().copied().collect(),
+        )?;
+        let y_test = Array1::from_vec(y_test_view.iter().copied().collect());
 
         // Configure estimator with parameters (simplified)
         let estimator = self.estimator.clone();

@@ -1025,7 +1025,7 @@ mod tests {
         let series = Array1::from_vec(vec![1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let patterns = recognizer.extract_patterns(&series);
 
-        assert!(patterns.len() > 0);
+        assert!(!patterns.is_empty());
         assert_eq!(patterns[0].len(), 3);
     }
 

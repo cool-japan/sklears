@@ -45,7 +45,7 @@ impl ClusteringValidator {
     /// .unwrap();
     ///
     /// // Define clustering function
-    /// let clustering_fn = |data: &Array2`<f64>`, k: usize| -> Result<Vec<i32>> {
+    /// let clustering_fn = |data: &Array2<f64>, k: usize| -> Result<Vec<i32>> {
     ///     // Your clustering implementation here
     ///     // For example, K-means clustering
     ///     Ok((0..data.nrows()).map(|i| (i % k) as i32).collect())

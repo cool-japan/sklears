@@ -69,15 +69,17 @@ impl IsolationNode {
         } else if let Some(feature_idx) = self.feature {
             let value = sample[feature_idx];
             if value < self.threshold {
-                self.left
-                    .as_ref()
-                    .unwrap()
-                    .path_length(sample, current_depth + 1)
+                if let Some(left) = self.left.as_ref() {
+                    left.path_length(sample, current_depth + 1)
+                } else {
+                    current_depth as Float
+                }
             } else {
-                self.right
-                    .as_ref()
-                    .unwrap()
-                    .path_length(sample, current_depth + 1)
+                if let Some(right) = self.right.as_ref() {
+                    right.path_length(sample, current_depth + 1)
+                } else {
+                    current_depth as Float
+                }
             }
         } else {
             current_depth as Float
@@ -146,15 +148,17 @@ impl ExtendedIsolationNode {
         } else if let Some(ref normal) = self.normal {
             let projection = sample.dot(normal) - self.intercept;
             if projection < 0.0 {
-                self.left
-                    .as_ref()
-                    .unwrap()
-                    .path_length(sample, current_depth + 1)
+                if let Some(left) = self.left.as_ref() {
+                    left.path_length(sample, current_depth + 1)
+                } else {
+                    current_depth as Float
+                }
             } else {
-                self.right
-                    .as_ref()
-                    .unwrap()
-                    .path_length(sample, current_depth + 1)
+                if let Some(right) = self.right.as_ref() {
+                    right.path_length(sample, current_depth + 1)
+                } else {
+                    current_depth as Float
+                }
             }
         } else {
             current_depth as Float
@@ -335,7 +339,7 @@ impl Fit<Array2<Float>, Array1<Float>> for IsolationForest<Untrained> {
             // Build Extended Isolation Trees
             let extension_level = self.config.extension_level.unwrap_or(n_features);
             for _ in 0..self.config.n_estimators {
-                let indices = sample_indices(n_samples, max_samples, &mut rng);
+                let indices = sample_indices(n_samples, max_samples, &mut rng)?;
                 let tree =
                     build_extended_tree(x, &indices, 0, max_depth, extension_level, &mut rng)?;
                 self.extended_trees.push(tree);
@@ -343,7 +347,7 @@ impl Fit<Array2<Float>, Array1<Float>> for IsolationForest<Untrained> {
         } else {
             // Build standard Isolation Trees
             for _ in 0..self.config.n_estimators {
-                let indices = sample_indices(n_samples, max_samples, &mut rng);
+                let indices = sample_indices(n_samples, max_samples, &mut rng)?;
                 let tree = build_isolation_tree(x, &indices, 0, max_depth, &mut rng)?;
                 self.trees.push(tree);
             }
@@ -447,20 +451,29 @@ impl Predict<Array2<Float>, Array1<i32>> for IsolationForest<Trained> {
 }
 
 /// Sample random indices without replacement
-fn sample_indices(n_samples: usize, n_to_sample: usize, rng: &mut CoreRandom) -> Vec<usize> {
+fn sample_indices(
+    n_samples: usize,
+    n_to_sample: usize,
+    rng: &mut CoreRandom,
+) -> Result<Vec<usize>> {
     use scirs2_core::random::essentials::Uniform;
 
     let mut indices: Vec<usize> = (0..n_samples).collect();
 
     // Fisher-Yates shuffle for first n_to_sample elements
     for i in 0..n_to_sample.min(n_samples) {
-        let uniform = Uniform::new(i, n_samples).unwrap();
+        let uniform = Uniform::new(i, n_samples).map_err(|_| {
+            SklearsError::InvalidInput(format!(
+                "Failed to create uniform distribution for range [{}, {})",
+                i, n_samples
+            ))
+        })?;
         let j = rng.sample(uniform);
         indices.swap(i, j);
     }
 
     indices.truncate(n_to_sample);
-    indices
+    Ok(indices)
 }
 
 /// Build a standard Isolation Tree
@@ -738,7 +751,7 @@ impl StreamingIsolationForest {
         // Clear and rebuild trees
         self.trees.clear();
         for _ in 0..self.config.n_estimators {
-            let indices = sample_indices(n_samples, max_samples, &mut rng);
+            let indices = sample_indices(n_samples, max_samples, &mut rng)?;
             let tree = build_isolation_tree(&x, &indices, 0, max_depth, &mut rng)?;
             self.trees.push(tree);
         }

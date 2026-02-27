@@ -489,8 +489,10 @@ mod tests {
     #[test]
     fn test_budget_maintenance() {
         let kernel = RbfKernel::new(1.0);
-        let mut config = OnlineSvmConfig::default();
-        config.max_support_vectors = 3;
+        let config = OnlineSvmConfig {
+            max_support_vectors: 3,
+            ..OnlineSvmConfig::default()
+        };
         let mut online_svm = OnlineSvm::new(kernel, config);
 
         // Add more samples than the budget allows
@@ -507,9 +509,11 @@ mod tests {
     #[test]
     fn test_learning_rate_decay() {
         let kernel = RbfKernel::new(1.0);
-        let mut config = OnlineSvmConfig::default();
-        config.learning_rate = 0.1;
-        config.learning_rate_decay = 0.9;
+        let config = OnlineSvmConfig {
+            learning_rate: 0.1,
+            learning_rate_decay: 0.9,
+            ..OnlineSvmConfig::default()
+        };
         let mut online_svm = OnlineSvm::new(kernel, config);
 
         let initial_lr = online_svm.current_learning_rate;

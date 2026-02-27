@@ -441,8 +441,10 @@ mod tests {
         let y = array![1.0, 1.0, -1.0, -1.0];
 
         let kernel = RbfKernel::new(1.0);
-        let mut config = DualCoordinateAscentConfig::default();
-        config.shrinking_factor = 0.5; // More aggressive shrinking
+        let config = DualCoordinateAscentConfig {
+            shrinking_factor: 0.5, // More aggressive shrinking
+            ..DualCoordinateAscentConfig::default()
+        };
         let mut solver = DualCoordinateAscent::new(config);
 
         let result = solver.solve(&kernel, &x, &y).unwrap();

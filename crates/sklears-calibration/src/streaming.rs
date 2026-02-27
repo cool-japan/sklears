@@ -640,7 +640,7 @@ mod tests {
         let predictions = calibrator.predict_proba(&test_probs).unwrap();
 
         assert_eq!(predictions.len(), 2);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -668,7 +668,7 @@ mod tests {
         let predictions = calibrator.predict_proba(&test_probs).unwrap();
 
         assert_eq!(predictions.len(), 2);
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -740,7 +740,7 @@ mod tests {
             let predictions = calibrator.predict_proba(&test_probs).unwrap();
 
             assert_eq!(predictions.len(), 2);
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
             // Test reset
             calibrator.reset();

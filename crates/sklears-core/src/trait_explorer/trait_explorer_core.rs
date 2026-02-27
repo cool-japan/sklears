@@ -438,7 +438,11 @@ impl TraitExplorer {
             }
         }
 
-        similar.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap());
+        similar.sort_by(|a, b| {
+            b.similarity_score
+                .partial_cmp(&a.similarity_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(similar)
     }
 
@@ -1149,7 +1153,7 @@ mod tests {
     #[test]
     fn test_trait_explorer_creation() {
         let config = ExplorerConfig::new();
-        let explorer = TraitExplorer::new(config).unwrap();
+        let explorer = TraitExplorer::new(config).expect("expected valid value");
         assert_eq!(explorer.get_metrics().traits_explored(), 0);
     }
 
@@ -1176,7 +1180,7 @@ mod tests {
     #[test]
     fn test_complexity_score_calculation() {
         let config = ExplorerConfig::new();
-        let explorer = TraitExplorer::new(config).unwrap();
+        let explorer = TraitExplorer::new(config).expect("expected valid value");
 
         let trait_info = TraitInfo {
             name: "TestTrait".to_string(),

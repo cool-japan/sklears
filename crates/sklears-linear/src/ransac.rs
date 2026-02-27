@@ -18,6 +18,14 @@ use sklears_core::{
 
 use crate::linear_regression::LinearRegression;
 
+// Helper function for safe float comparison
+#[inline]
+fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
+
 /// Configuration for RANSACRegressor
 #[derive(Debug, Clone)]
 pub struct RANSACRegressorConfig {
@@ -204,7 +212,8 @@ impl Fit<Array2<Float>, Array1<Float>> for RANSACRegressor<Untrained> {
                 let predictions = base_model.predict(x)?;
                 let residuals = (y - &predictions).mapv(|x| x.abs());
                 let mut sorted_residuals = residuals.to_vec();
-                sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_residuals
+                    .sort_by(|a, b| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal));
                 let median = sorted_residuals[sorted_residuals.len() / 2];
                 median * 1.4826 // MAD to std deviation conversion factor
             }
@@ -322,15 +331,26 @@ impl Fit<Array2<Float>, Array1<Float>> for RANSACRegressor<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for RANSACRegressor<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        let n_features = self.n_features_in_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
+
+        if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "X has {} features, but RANSACRegressor is expecting {} features",
                 x.ncols(),
-                self.n_features_in_.unwrap()
+                n_features
             )));
         }
 
-        self.estimator_.as_ref().unwrap().predict(x)
+        let estimator = self
+            .estimator_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
+
+        estimator.predict(x)
     }
 }
 
@@ -338,39 +358,64 @@ impl Score<Array2<Float>, Array1<Float>> for RANSACRegressor<Trained> {
     type Float = Float;
 
     fn score(&self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Float> {
-        self.estimator_.as_ref().unwrap().score(x, y)
+        let estimator = self
+            .estimator_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "score".to_string(),
+            })?;
+        estimator.score(x, y)
     }
 }
 
 impl RANSACRegressor<Trained> {
     /// Get the final estimator
-    pub fn estimator(&self) -> &LinearRegression<Trained> {
-        self.estimator_.as_ref().unwrap()
+    pub fn estimator(&self) -> Result<&LinearRegression<Trained>> {
+        self.estimator_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "estimator".to_string(),
+            })
     }
 
     /// Get the boolean mask of inliers
-    pub fn inlier_mask(&self) -> &Array1<bool> {
-        self.inlier_mask_.as_ref().unwrap()
+    pub fn inlier_mask(&self) -> Result<&Array1<bool>> {
+        self.inlier_mask_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "inlier_mask".to_string(),
+            })
     }
 
     /// Get the number of trials run
-    pub fn n_trials(&self) -> usize {
-        self.n_trials_.unwrap()
+    pub fn n_trials(&self) -> Result<usize> {
+        self.n_trials_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "n_trials".to_string(),
+        })
     }
 
     /// Get the number of skips due to no inliers
-    pub fn n_skips_no_inliers(&self) -> usize {
-        self.n_skips_no_inliers_.unwrap()
+    pub fn n_skips_no_inliers(&self) -> Result<usize> {
+        self.n_skips_no_inliers_
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "n_skips_no_inliers".to_string(),
+            })
     }
 
     /// Get the number of skips due to invalid data
-    pub fn n_skips_invalid_data(&self) -> usize {
-        self.n_skips_invalid_data_.unwrap()
+    pub fn n_skips_invalid_data(&self) -> Result<usize> {
+        self.n_skips_invalid_data_
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "n_skips_invalid_data".to_string(),
+            })
     }
 
     /// Get the number of skips due to invalid model
-    pub fn n_skips_invalid_model(&self) -> usize {
-        self.n_skips_invalid_model_.unwrap()
+    pub fn n_skips_invalid_model(&self) -> Result<usize> {
+        self.n_skips_invalid_model_
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "n_skips_invalid_model".to_string(),
+            })
     }
 }
 
@@ -400,7 +445,7 @@ mod tests {
         let model = RANSACRegressor::new().random_state(42).fit(&x, &y).unwrap();
 
         // Check that some outliers are detected
-        let inlier_mask = model.inlier_mask();
+        let inlier_mask = model.inlier_mask().unwrap();
         let n_inliers = inlier_mask.iter().filter(|&&x| x).count();
         // Should detect at least some inliers (but not all due to outlier)
         assert!(
@@ -441,10 +486,10 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let inlier_mask = model.inlier_mask();
+        let inlier_mask = model.inlier_mask().unwrap();
         let n_inliers = inlier_mask.iter().filter(|&&x| x).count();
         // With residual threshold 0.5, should find at least some inliers
-        assert!(n_inliers >= 2 && n_inliers <= 4);
+        assert!((2..=4).contains(&n_inliers));
     }
 
     #[test]
@@ -459,7 +504,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let inlier_mask = model.inlier_mask();
+        let inlier_mask = model.inlier_mask().unwrap();
         assert!(inlier_mask
             .slice(scirs2_core::ndarray::s![0..3])
             .iter()
@@ -480,7 +525,7 @@ mod tests {
 
         let model = RANSACRegressor::new().random_state(42).fit(&x, &y).unwrap();
 
-        let inlier_mask = model.inlier_mask();
+        let inlier_mask = model.inlier_mask().unwrap();
         assert_eq!(inlier_mask.iter().filter(|&&x| x).count(), 5); // 5 inliers
     }
 }

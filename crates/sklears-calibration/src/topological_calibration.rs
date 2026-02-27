@@ -1092,7 +1092,7 @@ mod tests {
         let mut complex = SimplicialComplex::new(vertex_positions);
         complex.construct_vietoris_rips(1.5).unwrap();
 
-        assert!(complex.simplices.len() > 0);
+        assert!(!complex.simplices.is_empty());
         assert!(complex.simplices_by_dimension.contains_key(&0)); // vertices
         assert!(complex.simplices_by_dimension.contains_key(&1)); // edges
     }

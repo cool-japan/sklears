@@ -60,7 +60,7 @@
 /// let rust_array = Array2::zeros((10, 5));
 ///
 /// // Convert to numpy-compatible format
-/// let numpy_compatible: NumpyArray`<f64>` = NumpyArray::from_ndarray(&rust_array)?;
+/// let numpy_compatible: NumpyArray<f64> = NumpyArray::from_ndarray(&rust_array)?;
 ///
 /// // Export for Python consumption
 /// let exported_data = numpy_compatible.to_bytes()?;
@@ -384,7 +384,7 @@ pub mod sklearn {
     /// Get unique classes from target array
     fn get_unique_classes(y: &ArrayView1<f64>) -> Vec<f64> {
         let mut classes: Vec<f64> = y.iter().copied().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
         classes
     }
@@ -709,7 +709,8 @@ pub mod pandas {
                         let _std = variance.sqrt();
 
                         let mut sorted = numeric_values.clone();
-                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted
+                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                         let _min = sorted[0];
                         let _max = sorted[sorted.len() - 1];
@@ -754,7 +755,7 @@ pub mod pytorch {
         requires_grad: bool,
     ) -> Result<(Vec<u8>, TensorMetadata)> {
         let shape = array.shape().to_vec();
-        let data_bytes = bytemuck::cast_slice(array.as_slice().unwrap());
+        let data_bytes = bytemuck::cast_slice(array.as_slice().unwrap_or(&[]));
         let dtype = if std::mem::size_of::<T>() == 8 {
             "float64"
         } else {
@@ -871,7 +872,9 @@ mod tests {
         let mut model = ScikitLearnModel::linear_regression();
         assert!(model.set_param("fit_intercept", false).is_ok());
         assert_eq!(
-            model.get_param("fit_intercept").unwrap(),
+            model
+                .get_param("fit_intercept")
+                .expect("get_param should succeed"),
             ParamValue::Bool(false)
         );
     }
@@ -886,10 +889,17 @@ mod tests {
 
         // Test getting parameters
         assert_eq!(
-            model.get_param("n_estimators").unwrap(),
+            model
+                .get_param("n_estimators")
+                .expect("get_param should succeed"),
             ParamValue::Int(200)
         );
-        assert_eq!(model.get_param("max_depth").unwrap(), ParamValue::Int(10));
+        assert_eq!(
+            model
+                .get_param("max_depth")
+                .expect("get_param should succeed"),
+            ParamValue::Int(10)
+        );
 
         // Test get_params
         let params = model.get_params(false);
@@ -903,7 +913,7 @@ mod tests {
         let numpy_array = NumpyArray::from_ndarray(&array);
         assert!(numpy_array.is_ok());
 
-        let numpy_array = numpy_array.unwrap();
+        let numpy_array = numpy_array.expect("expected valid value");
         assert_eq!(numpy_array.shape(), &[10, 5]);
         assert_eq!(numpy_array.data().len(), 50);
     }
@@ -925,10 +935,11 @@ mod tests {
 
     #[test]
     fn test_dataframe_to_ndarray() {
-        let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let df = DataFrame::from_ndarray(&array, None).unwrap();
+        let array =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
+        let df = DataFrame::from_ndarray(&array, None).expect("expected valid value");
 
-        let converted = df.to_ndarray().unwrap();
+        let converted = df.to_ndarray().expect("to_ndarray should succeed");
         assert_eq!(converted.shape(), [2, 2]);
         assert_eq!(converted[[0, 0]], 1.0);
         assert_eq!(converted[[1, 1]], 4.0);
@@ -943,7 +954,7 @@ mod tests {
         let fitted = model.fit(&features.view(), &targets.view());
         assert!(fitted.is_ok());
 
-        let fitted = fitted.unwrap();
+        let fitted = fitted.expect("expected valid value");
         assert_eq!(fitted.n_features_in(), 3);
     }
 
@@ -962,9 +973,12 @@ mod tests {
         let sklearn_meta = model.to_sklearn_metadata();
         assert!(sklearn_meta.is_ok());
 
-        let meta = sklearn_meta.unwrap();
+        let meta = sklearn_meta.expect("expected valid value");
         assert_eq!(
-            meta.get("__class__").unwrap().as_str().unwrap(),
+            meta.get("__class__")
+                .expect("key should exist")
+                .as_str()
+                .expect("key should exist"),
             "LinearRegression"
         );
     }

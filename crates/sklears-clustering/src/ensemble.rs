@@ -16,7 +16,7 @@
 //!
 //! ## Evidence Accumulation Clustering
 //! The co-association matrix C measures how often pairs of points cluster together:
-//! C[i,j] = (1/K) * Σ_k δ(labels_k[i] == labels_k[j])
+//! C\[i,j\] = (1/K) * Σ_k δ(labels_k\[i\] == labels_k\[j\])
 //! where K is the number of partitions and δ is the indicator function.
 //!
 //! ## Consensus Function

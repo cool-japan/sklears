@@ -752,7 +752,7 @@ mod tests {
         assert_eq!(result.len(), 4);
         for (i, &prob) in result.iter().enumerate() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "probability at index {} = {} is outside [0, 1] range",
                 i,
                 prob
@@ -810,7 +810,7 @@ mod tests {
 
         let naturality = calibrator.verify_naturality(&transformation);
 
-        assert!(naturality >= 0.0 && naturality <= 1.0);
+        assert!((0.0..=1.0).contains(&naturality));
     }
 
     #[test]
@@ -823,7 +823,7 @@ mod tests {
             .compute_topos_consistency(&predictions, &targets)
             .unwrap();
 
-        assert!(consistency >= 0.0 && consistency <= 1.0);
+        assert!((0.0..=1.0).contains(&consistency));
         assert!(consistency > 0.5); // Should be high for close values
     }
 
@@ -840,7 +840,7 @@ mod tests {
 
         assert_eq!(global.len(), 3);
         for &prob in global.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

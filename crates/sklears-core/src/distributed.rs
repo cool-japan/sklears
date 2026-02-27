@@ -1235,8 +1235,9 @@ mod tests {
     #[test]
     fn test_message_type_serialization() {
         let msg_type = MessageType::ParameterSync;
-        let serialized = serde_json::to_string(&msg_type).unwrap();
-        let deserialized: MessageType = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&msg_type).unwrap_or_default();
+        let deserialized: MessageType =
+            serde_json::from_str(&serialized).expect("valid JSON operation");
         assert_eq!(msg_type, deserialized);
     }
 
@@ -1252,8 +1253,9 @@ mod tests {
         ];
 
         for strategy in strategies {
-            let serialized = serde_json::to_string(&strategy).unwrap();
-            let _deserialized: PartitioningStrategy = serde_json::from_str(&serialized).unwrap();
+            let serialized = serde_json::to_string(&strategy).unwrap_or_default();
+            let _deserialized: PartitioningStrategy =
+                serde_json::from_str(&serialized).expect("valid JSON operation");
         }
     }
 
@@ -1274,10 +1276,13 @@ mod tests {
 
         assert_eq!(cluster.coordinator(), &coordinator);
 
-        let nodes = cluster.active_nodes().await.unwrap();
+        let nodes = cluster.active_nodes().await.expect("expected valid value");
         assert!(nodes.is_empty()); // No nodes initially
 
-        let health = cluster.cluster_health().await.unwrap();
+        let health = cluster
+            .cluster_health()
+            .await
+            .expect("expected valid value");
         assert_eq!(health.overall_health, 1.0);
     }
 }

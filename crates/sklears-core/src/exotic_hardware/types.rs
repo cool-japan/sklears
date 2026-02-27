@@ -136,11 +136,15 @@ impl QuantumDevice {
                     );
                     features.insert(
                         "coherence_time_us".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from_f64(100.0).unwrap()),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(100.0).expect("valid JSON operation"),
+                        ),
                     );
                     features.insert(
                         "gate_error_rate".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from_f64(0.001).unwrap()),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(0.001).expect("valid JSON operation"),
+                        ),
                     );
                     features.insert(
                         "topology".to_string(),
@@ -165,11 +169,15 @@ impl QuantumDevice {
                     );
                     features.insert(
                         "coherence_time_us".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from_f64(10000.0).unwrap()),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(10000.0).expect("valid JSON operation"),
+                        ),
                     );
                     features.insert(
                         "gate_error_rate".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from_f64(0.0001).unwrap()),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(0.0001).expect("valid JSON operation"),
+                        ),
                     );
                     features.insert(
                         "topology".to_string(),

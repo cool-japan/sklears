@@ -970,7 +970,7 @@ mod tests {
         let b = Array1::from_vec(vec![0.7, 0.5, 0.3, 0.1, 0.05]);
 
         let jaccard = top_k_jaccard_similarity(&a.view(), &b.view(), 3);
-        assert!(jaccard >= 0.0 && jaccard <= 1.0);
+        assert!((0.0..=1.0).contains(&jaccard));
     }
 
     #[test]

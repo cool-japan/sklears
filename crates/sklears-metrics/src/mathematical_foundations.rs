@@ -625,6 +625,6 @@ mod tests {
     fn test_mathematical_documentation_exists() {
         // This test ensures the mathematical documentation compiles
         // In practice, these would be rendered in documentation
-        assert!(true);
+        // Documentation module compiles successfully
     }
 }

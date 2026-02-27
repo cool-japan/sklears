@@ -429,7 +429,7 @@ mod tests {
 
         // Check fitted attributes
         assert!(svr.support_vectors().nrows() > 0);
-        assert!(svr.dual_coef().len() > 0);
+        assert!(!svr.dual_coef().is_empty());
 
         // Test prediction
         let x_test = array![[3.0]];

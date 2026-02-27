@@ -731,9 +731,9 @@ mod tests {
     fn test_module_reexports() {
         // Test that we can use re-exported types
         let _array: Array2<Float> = Array2::zeros((3, 4));
-        let _prob = Probability::new(0.5).unwrap();
-        let _lr = LearningRate::new(0.01).unwrap();
-        let _fc = FeatureCount::new(10).unwrap();
+        let _prob = Probability::new(0.5).expect("expected valid value");
+        let _lr = LearningRate::new(0.01).expect("expected valid value");
+        let _fc = FeatureCount::new(10).expect("expected valid value");
     }
 
     #[test]
@@ -766,7 +766,8 @@ mod tests {
 
     #[test]
     fn test_zero_copy_dataset() {
-        let features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
         let target = Array1::from_vec(vec![0.0, 1.0, 2.0]);
 
         let dataset = zero_copy::ZeroCopyDataset::from_owned(features, target);
@@ -774,7 +775,7 @@ mod tests {
         assert_eq!(dataset.n_features(), 2);
         assert!(!dataset.is_fully_zero_copy());
 
-        dataset.validate().unwrap();
+        dataset.validate().expect("validate should succeed");
     }
 
     #[test]

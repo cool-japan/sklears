@@ -3,12 +3,15 @@
 //! These benchmarks focus on scaling behavior, memory efficiency,
 //! and algorithmic complexity analysis.
 
+#![allow(non_snake_case)]
+
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
-    PlotConfiguration, Throughput,
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    Throughput,
 };
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_utils::data_generation::make_classification;
+use std::hint::black_box;
 
 // Scaling analysis benchmarks
 fn benchmark_scaling_analysis(c: &mut Criterion) {
@@ -20,7 +23,7 @@ fn benchmark_scaling_analysis(c: &mut Criterion) {
     let sample_sizes = vec![100, 200, 500, 1000, 2000, 5000];
 
     for &n_samples in &sample_sizes {
-        let (X, y) =
+        let (X, _y) =
             make_classification(n_samples, base_features, 3, None, None, 0.0, 1.0, Some(42))
                 .unwrap();
 
@@ -82,7 +85,7 @@ fn benchmark_feature_scaling(c: &mut Criterion) {
     let feature_sizes = vec![5, 10, 20, 50, 100, 200];
 
     for &n_features in &feature_sizes {
-        let (X, y) =
+        let (X, _y) =
             make_classification(base_samples, n_features, 3, None, None, 0.0, 1.0, Some(42))
                 .unwrap();
 
@@ -159,8 +162,8 @@ fn benchmark_memory_patterns(c: &mut Criterion) {
             |b, (X, y)| {
                 b.iter(|| {
                     for _ in 0..10 {
-                        let copied_x = X.clone();
-                        let copied_y = y.clone();
+                        let copied_x = (*X).to_owned();
+                        let copied_y = (*y).to_owned();
                         black_box((copied_x, copied_y));
                     }
                 })

@@ -3,9 +3,10 @@
 //! This benchmark suite is designed to track performance over time
 //! and detect regressions in CI/CD pipelines.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::types::Float;
+use std::hint::black_box;
 
 // Import specific types we'll use
 use sklears::{

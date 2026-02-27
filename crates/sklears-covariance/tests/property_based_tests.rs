@@ -117,7 +117,7 @@ fn test_property_ledoit_wolf_shrinkage_bounds() {
         if let Ok(fitted) = estimator.fit(&data.view(), &()) {
             let shrinkage = fitted.get_shrinkage();
 
-            prop_assert!(shrinkage >= 0.0 && shrinkage <= 1.0,
+            prop_assert!((0.0..=1.0).contains(&shrinkage),
                 "Shrinkage parameter must be in [0, 1], got {}", shrinkage);
         }
     });
@@ -169,7 +169,7 @@ fn test_property_covariance_validation() {
             let cov = fitted.get_covariance();
 
             // Validate covariance properties
-            if let Ok(props) = validate_covariance_matrix(&cov) {
+            if let Ok(props) = validate_covariance_matrix(cov) {
                 prop_assert!(props.is_symmetric,
                     "Covariance matrix must be symmetric");
                 prop_assert!(props.is_positive_semi_definite,
@@ -252,8 +252,8 @@ fn test_property_regularization_improves_conditioning() {
             let strong_cov = strong_fitted.get_covariance();
 
             if let (Ok(weak_props), Ok(strong_props)) = (
-                validate_covariance_matrix(&weak_cov),
-                validate_covariance_matrix(&strong_cov)
+                validate_covariance_matrix(weak_cov),
+                validate_covariance_matrix(strong_cov)
             ) {
                 // Stronger regularization should reduce condition number
                 prop_assert!(strong_props.condition_number <= weak_props.condition_number * 1.1,
@@ -410,7 +410,7 @@ fn test_property_graphical_lasso_sparsity() {
             let sparsity_ratio = zero_count as f64 / total_off_diag as f64;
 
             // With regularization, we expect some sparsity
-            prop_assert!(sparsity_ratio >= 0.0 && sparsity_ratio <= 1.0,
+            prop_assert!((0.0..=1.0).contains(&sparsity_ratio),
                 "Sparsity ratio should be between 0 and 1");
         }
     });

@@ -833,7 +833,10 @@ mod tests {
 
         let progress = system.get_user_progress("user1");
         assert!(progress.is_some());
-        assert_eq!(progress.unwrap().current_tutorial, Some("test".to_string()));
+        assert_eq!(
+            progress.expect("expected valid value").current_tutorial,
+            Some("test".to_string())
+        );
     }
 
     #[test]
@@ -846,7 +849,7 @@ mod tests {
 
         system
             .start_tutorial("user1".to_string(), "test".to_string())
-            .unwrap();
+            .expect("expected valid value");
         let result = system.complete_section("user1", "test", "section1");
         assert!(result.is_ok());
     }

@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-decomposition.svg)](https://crates.io/crates/sklears-decomposition)
 [![Documentation](https://docs.rs/sklears-decomposition/badge.svg)](https://docs.rs/sklears-decomposition)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 High-performance matrix decomposition and dimensionality reduction algorithms for Rust, featuring streaming capabilities and 10-50x speedup over scikit-learn.
@@ -306,9 +306,7 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Licensed under either of:
-- Apache License, Version 2.0
-- MIT license
+Licensed under the Apache License, Version 2.0.
 
 ## Citation
 

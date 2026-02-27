@@ -17,6 +17,24 @@ use sklears_core::{
 
 use crate::solver::Solver;
 
+// Helper function for safe mean computation along axis
+fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
+    if arr.is_empty() {
+        return Err(SklearsError::InvalidInput(
+            "Cannot compute mean of empty array".to_string(),
+        ));
+    }
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::InvalidInput("Mean computation failed (empty axis)".to_string())
+    })
+}
+
+// Helper function for NaN-safe float comparison
+fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b)
+        .ok_or_else(|| SklearsError::InvalidInput("NaN encountered in comparison".to_string()))
+}
+
 /// Configuration for RidgeClassifier
 #[derive(Debug, Clone)]
 pub struct RidgeClassifierConfig {
@@ -190,8 +208,8 @@ impl Fit<Array2<Float>, Array1<Int>> for RidgeClassifier<Untrained> {
 
         // Center X and y if fitting intercept
         let (x_centered, y_centered, x_mean, y_mean) = if self.config.fit_intercept {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
-            let y_mean = y_bin.mean_axis(Axis(0)).unwrap();
+            let x_mean = safe_mean_axis(x, Axis(0))?;
+            let y_mean = safe_mean_axis(&y_bin, Axis(0))?;
             let x_centered = x - &x_mean;
             let y_centered = if n_classes == 2 {
                 // For binary case, just center the single column
@@ -249,8 +267,8 @@ impl Fit<Array2<Float>, Array1<Int>> for RidgeClassifier<Untrained> {
 
         // Compute intercept if needed
         let intercept = if self.config.fit_intercept {
-            let x_mean = x_mean.unwrap();
-            let y_mean = y_mean.unwrap();
+            let x_mean = x_mean.expect("x_mean should be Some when fit_intercept is true");
+            let y_mean = y_mean.expect("y_mean should be Some when fit_intercept is true");
 
             if n_classes == 2 {
                 // Binary case
@@ -281,26 +299,33 @@ impl Fit<Array2<Float>, Array1<Int>> for RidgeClassifier<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Int>> for RidgeClassifier<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Int>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state");
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .expect("intercept_ must be Some in Trained state");
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ must be Some in Trained state");
 
         // Compute decision function
         let scores = x.dot(&coef.t()) + intercept;
 
         // Predict class with maximum score
-        let predictions = scores
-            .axis_iter(Axis(0))
-            .map(|row| {
-                let max_idx = row
-                    .iter()
-                    .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .map(|(idx, _)| idx)
-                    .unwrap();
-                classes[max_idx]
-            })
-            .collect();
+        let mut predictions = Vec::with_capacity(scores.nrows());
+        for row in scores.axis_iter(Axis(0)) {
+            let max_idx = row
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(idx, _)| idx)
+                .ok_or_else(|| SklearsError::InvalidInput("Empty row in scores".to_string()))?;
+            predictions.push(classes[max_idx]);
+        }
 
         Ok(Array1::from_vec(predictions))
     }
@@ -324,7 +349,9 @@ impl Score<Array2<Float>, Array1<Int>> for RidgeClassifier<Trained> {
 impl RidgeClassifier<Trained> {
     /// Get the coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state")
     }
 
     /// Get the intercept
@@ -334,18 +361,27 @@ impl RidgeClassifier<Trained> {
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ must be Some in Trained state")
     }
 
     /// Get the number of features seen during fit
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ must be Some in Trained state")
     }
 
     /// Get decision function (raw scores)
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ must be Some in Trained state");
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .expect("intercept_ must be Some in Trained state");
 
         Ok(x.dot(&coef.t()) + intercept)
     }

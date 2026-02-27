@@ -191,7 +191,7 @@ impl PyMinMaxScaler {
     /// -------
     /// Xt : ndarray of shape (n_samples, n_features)
     ///     Transformed data.
-    fn transform(&self, py: Python<'_>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+    fn transform<'py>(&self, py: Python<'py>, x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -234,9 +234,9 @@ impl PyMinMaxScaler {
     /// -------
     /// X_new : ndarray array of shape (n_samples, n_features_new)
     ///     Transformed array.
-    fn fit_transform(
+    fn fit_transform<'py>(
         &mut self,
-        py: Python<'_>,
+        py: Python<'py>,
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<Py<PyArray2<f64>>> {
         let x_array = pyarray_to_core_array2(&x)?;
@@ -277,9 +277,9 @@ impl PyMinMaxScaler {
     /// -------
     /// Xt : ndarray of shape (n_samples, n_features)
     ///     Transformed data.
-    fn inverse_transform(
+    fn inverse_transform<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         x: PyReadonlyArray2<f64>,
     ) -> PyResult<Py<PyArray2<f64>>> {
         let state = self
@@ -304,7 +304,7 @@ impl PyMinMaxScaler {
 
     /// Per feature minimum seen in the data
     #[getter]
-    fn data_min_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn data_min_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -315,7 +315,7 @@ impl PyMinMaxScaler {
 
     /// Per feature maximum seen in the data
     #[getter]
-    fn data_max_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn data_max_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -326,7 +326,7 @@ impl PyMinMaxScaler {
 
     /// Per feature range (data_max_ - data_min_) seen in the data
     #[getter]
-    fn data_range_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn data_range_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -337,7 +337,7 @@ impl PyMinMaxScaler {
 
     /// Per feature relative scaling of the data
     #[getter]
-    fn scale_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn scale_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()
@@ -348,7 +348,7 @@ impl PyMinMaxScaler {
 
     /// Per feature adjustment for minimum
     #[getter]
-    fn min_(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f64>>> {
+    fn min_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let state = self
             .state
             .as_ref()

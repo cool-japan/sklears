@@ -628,10 +628,12 @@ mod tests {
 
     #[test]
     fn test_pipeline_metrics_display() {
-        let mut metrics = PipelineMetrics::default();
-        metrics.total_executions = 10;
-        metrics.successful_executions = 8;
-        metrics.average_execution_time = Duration::from_millis(50);
+        let metrics = PipelineMetrics {
+            total_executions: 10,
+            successful_executions: 8,
+            average_execution_time: Duration::from_millis(50),
+            ..PipelineMetrics::default()
+        };
 
         let display = format!("{metrics}");
         assert!(display.contains("Total Executions: 10"));

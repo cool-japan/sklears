@@ -921,7 +921,7 @@ mod tests {
         let extractor = TraitFeatureExtractor::new();
         let features = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let normalized = extractor.normalize_features(features).unwrap();
+        let normalized = extractor.normalize_features(features).expect("normalize_features should succeed");
 
         // For standard scaling, mean should be approximately 0
         let mean = normalized.iter().sum::<f64>() / normalized.len() as f64;

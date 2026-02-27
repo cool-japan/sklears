@@ -89,8 +89,8 @@ mod data_types_tests {
     #[test]
     fn test_trait_context_serialization() {
         let context = create_test_trait_context();
-        let serialized = serde_json::to_string(&context).unwrap();
-        let deserialized: TraitContext = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&context).unwrap_or_default();
+        let deserialized: TraitContext = serde_json::from_str(&serialized).expect("valid JSON operation");
         assert_eq!(context.project_type, deserialized.project_type);
     }
 
@@ -166,7 +166,7 @@ mod neural_networks_tests {
         let model = NeuralEmbeddingModel::new(config);
         assert!(model.is_ok());
 
-        let model = model.unwrap();
+        let model = model.expect("expected valid value");
         assert_eq!(model.embedding_dim, 64);
         assert_eq!(model.input_weights.nrows(), 128);
         assert_eq!(model.input_weights.ncols(), 64);
@@ -175,20 +175,20 @@ mod neural_networks_tests {
     #[test]
     fn test_neural_model_forward_pass() {
         let config = NeuralNetworkConfig::default();
-        let model = NeuralEmbeddingModel::new(config).unwrap();
+        let model = NeuralEmbeddingModel::new(config).expect("expected valid value");
 
         let input = Array1::zeros(128);
         let output = model.forward(&input);
         assert!(output.is_ok());
 
-        let output = output.unwrap();
+        let output = output.expect("expected valid value");
         assert_eq!(output.len(), 64);
     }
 
     #[test]
     fn test_neural_model_training() {
         let config = NeuralNetworkConfig::default();
-        let mut model = NeuralEmbeddingModel::new(config).unwrap();
+        let mut model = NeuralEmbeddingModel::new(config).expect("expected valid value");
 
         let contexts = vec![create_test_trait_context()];
         let features = Array2::zeros((1, 128));
@@ -200,7 +200,7 @@ mod neural_networks_tests {
     #[test]
     fn test_activation_functions() {
         let config = NeuralNetworkConfig::default();
-        let model = NeuralEmbeddingModel::new(config).unwrap();
+        let model = NeuralEmbeddingModel::new(config).expect("expected valid value");
 
         let input = 0.5;
         let relu_output = model.relu(input);
@@ -219,15 +219,15 @@ mod neural_networks_tests {
             learning_rate: 0.01,
             ..Default::default()
         };
-        let mut model = NeuralEmbeddingModel::new(config).unwrap();
+        let mut model = NeuralEmbeddingModel::new(config).expect("expected valid value");
 
         // Test that training reduces loss over iterations
         let contexts = vec![create_test_trait_context(); 10];
         let features = Array2::zeros((10, 128));
 
-        let initial_loss = model.calculate_loss(&features, &features).unwrap();
-        model.train(&contexts, &features, 50).unwrap();
-        let final_loss = model.calculate_loss(&features, &features).unwrap();
+        let initial_loss = model.calculate_loss(&features, &features).expect("calculate_loss should succeed");
+        model.train(&contexts, &features, 50).expect("train should succeed");
+        let final_loss = model.calculate_loss(&features, &features).expect("calculate_loss should succeed");
 
         // Loss should decrease (or at least not increase significantly)
         assert!(final_loss <= initial_loss + 0.1);
@@ -253,7 +253,7 @@ mod feature_extraction_tests {
     fn test_trait_feature_extractor_creation() {
         let config = FeatureExtractionConfig::default();
         let extractor = TraitFeatureExtractor::new(config);
-        assert_eq!(extractor.feature_cache.read().unwrap().len(), 0);
+        assert_eq!(extractor.feature_cache.read().unwrap_or_else(|e| e.into_inner()).len(), 0);
     }
 
     #[test]
@@ -265,7 +265,7 @@ mod feature_extraction_tests {
         let features = extractor.extract_context_features(&context);
         assert!(features.is_ok());
 
-        let features = features.unwrap();
+        let features = features.expect("expected valid value");
         assert_eq!(features.len(), 128);
     }
 
@@ -296,7 +296,7 @@ mod feature_extraction_tests {
         let tfidf_matrix = extractor.calculate_tfidf(&documents);
         assert!(tfidf_matrix.is_ok());
 
-        let matrix = tfidf_matrix.unwrap();
+        let matrix = tfidf_matrix.expect("expected valid value");
         assert_eq!(matrix.nrows(), 3); // 3 documents
         assert!(matrix.ncols() > 0); // Should have vocabulary features
     }
@@ -339,11 +339,11 @@ mod feature_extraction_tests {
         let context = create_test_trait_context();
 
         // First extraction
-        let features1 = extractor.extract_context_features(&context).unwrap();
-        assert_eq!(extractor.feature_cache.read().unwrap().len(), 1);
+        let features1 = extractor.extract_context_features(&context).expect("extract_context_features should succeed");
+        assert_eq!(extractor.feature_cache.read().unwrap_or_else(|e| e.into_inner()).len(), 1);
 
         // Second extraction should use cache
-        let features2 = extractor.extract_context_features(&context).unwrap();
+        let features2 = extractor.extract_context_features(&context).expect("extract_context_features should succeed");
         assert_eq!(features1.len(), features2.len());
 
         // Features should be identical due to caching
@@ -374,7 +374,7 @@ mod ml_models_tests {
         let model = ClusteringModel::new(config);
         assert!(model.is_ok());
 
-        let model = model.unwrap();
+        let model = model.expect("expected valid value");
         assert_eq!(model.n_clusters, 5);
         assert_eq!(model.assignments.len(), 0);
     }
@@ -382,9 +382,9 @@ mod ml_models_tests {
     #[test]
     fn test_clustering_model_fitting() {
         let config = ClusteringConfig::default();
-        let mut model = ClusteringModel::new(config).unwrap();
+        let mut model = ClusteringModel::new(config).expect("expected valid value");
 
-        let data = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f64).collect()).expect("valid array shape");
         let result = model.fit(&data);
         assert!(result.is_ok());
 
@@ -395,23 +395,23 @@ mod ml_models_tests {
     #[test]
     fn test_clustering_prediction() {
         let config = ClusteringConfig::default();
-        let mut model = ClusteringModel::new(config).unwrap();
+        let mut model = ClusteringModel::new(config).expect("expected valid value");
 
-        let data = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f64).collect()).unwrap();
-        model.fit(&data).unwrap();
+        let data = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f64).collect()).expect("valid array shape");
+        model.fit(&data).expect("model fitting should succeed");
 
         let sample = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let cluster = model.predict(&sample);
         assert!(cluster.is_ok());
 
-        let cluster_id = cluster.unwrap();
+        let cluster_id = cluster.expect("expected valid value");
         assert!(cluster_id < 5); // Should be valid cluster ID
     }
 
     #[test]
     fn test_collaborative_filtering_model() {
         let config = CollaborativeFilteringConfig::default();
-        let mut model = CollaborativeFilteringModel::new(config).unwrap();
+        let mut model = CollaborativeFilteringModel::new(config).expect("expected valid value");
 
         let user_trait_matrix = Array2::zeros((5, 10)); // 5 users, 10 traits
         let trait_features = Array2::zeros((10, 8)); // 10 traits, 8 features
@@ -423,21 +423,21 @@ mod ml_models_tests {
     #[test]
     fn test_collaborative_filtering_recommendations() {
         let config = CollaborativeFilteringConfig::default();
-        let mut model = CollaborativeFilteringModel::new(config).unwrap();
+        let mut model = CollaborativeFilteringModel::new(config).expect("expected valid value");
 
         let user_trait_matrix = Array2::from_shape_vec(
             (3, 4),
             vec![1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0]
-        ).unwrap();
+        ).expect("expected valid value");
         let trait_features = Array2::zeros((4, 3));
 
-        model.fit(&user_trait_matrix, &trait_features).unwrap();
+        model.fit(&user_trait_matrix, &trait_features).expect("model fitting should succeed");
 
         let user_preferences = Array1::from_vec(vec![1.0, 0.0, 1.0, 0.0]);
         let recommendations = model.recommend(&user_preferences, 2);
         assert!(recommendations.is_ok());
 
-        let recs = recommendations.unwrap();
+        let recs = recommendations.expect("expected valid value");
         assert!(recs.len() <= 2);
     }
 
@@ -522,13 +522,13 @@ mod usage_patterns_tests {
         // Add multiple events
         for i in 0..10 {
             let event = create_test_usage_event("TestTrait", 1234567890 + (i * 3600));
-            analyzer.record_usage(event).unwrap();
+            analyzer.record_usage(event).expect("record_usage should succeed");
         }
 
         let pattern = analyzer.analyze_temporal_patterns("TestTrait");
         assert!(pattern.is_ok());
 
-        let pattern = pattern.unwrap();
+        let pattern = pattern.expect("expected valid value");
         assert_eq!(pattern.trait_name, "TestTrait");
         assert_eq!(pattern.hourly_distribution.len(), 24);
         assert_eq!(pattern.weekly_distribution.len(), 7);
@@ -543,13 +543,13 @@ mod usage_patterns_tests {
         // Add events for a specific user
         for i in 0..5 {
             let event = create_test_usage_event("TestTrait", 1234567890 + (i * 3600));
-            analyzer.record_usage(event).unwrap();
+            analyzer.record_usage(event).expect("record_usage should succeed");
         }
 
         let behavior = analyzer.analyze_user_behavior("test_user");
         assert!(behavior.is_ok());
 
-        let behavior = behavior.unwrap();
+        let behavior = behavior.expect("expected valid value");
         assert_eq!(behavior.user_id, "test_user");
         assert!(behavior.usage_frequency > 0.0);
         assert!(behavior.success_rate > 0.0);
@@ -564,13 +564,13 @@ mod usage_patterns_tests {
         // Add many events to enable seasonal analysis
         for i in 0..100 {
             let event = create_test_usage_event("TestTrait", 1234567890 + (i * 3600));
-            analyzer.record_usage(event).unwrap();
+            analyzer.record_usage(event).expect("record_usage should succeed");
         }
 
         let patterns = analyzer.detect_seasonal_patterns("TestTrait");
         assert!(patterns.is_ok());
 
-        let patterns = patterns.unwrap();
+        let patterns = patterns.expect("expected valid value");
         assert!(patterns.len() >= 0); // May or may not detect patterns
     }
 
@@ -583,14 +583,14 @@ mod usage_patterns_tests {
         // Create temporal pattern first
         for i in 0..10 {
             let event = create_test_usage_event("TestTrait", 1234567890 + (i * 3600));
-            analyzer.record_usage(event).unwrap();
+            analyzer.record_usage(event).expect("record_usage should succeed");
         }
-        analyzer.analyze_temporal_patterns("TestTrait").unwrap();
+        analyzer.analyze_temporal_patterns("TestTrait").expect("analyze_temporal_patterns should succeed");
 
         let predictions = analyzer.predict_usage("TestTrait", 7);
         assert!(predictions.is_ok());
 
-        let predictions = predictions.unwrap();
+        let predictions = predictions.expect("expected valid value");
         assert_eq!(predictions.len(), 7);
 
         // All predictions should be non-negative
@@ -610,7 +610,7 @@ mod usage_patterns_tests {
         let recommendations = recommender.recommend_based_on_patterns(&context);
         assert!(recommendations.is_ok());
 
-        let recommendations = recommendations.unwrap();
+        let recommendations = recommendations.expect("expected valid value");
         assert!(recommendations.len() >= 0); // May return empty if no patterns
     }
 
@@ -624,7 +624,7 @@ mod usage_patterns_tests {
         let anomaly = analyzer.detect_anomaly(&event);
         assert!(anomaly.is_ok());
 
-        let anomaly = anomaly.unwrap();
+        let anomaly = anomaly.expect("expected valid value");
         assert!(anomaly.is_none()); // Should be none without pattern history
     }
 }
@@ -661,7 +661,7 @@ mod recommender_engine_tests {
         db.add_trait(trait_info.clone());
 
         assert!(db.get_trait("TestTrait").is_some());
-        assert_eq!(db.get_trait("TestTrait").unwrap().name, "TestTrait");
+        assert_eq!(db.get_trait("TestTrait").expect("get_trait should succeed").name, "TestTrait");
 
         db.add_relationship("TestTrait", "RelatedTrait");
         let related = db.get_related_traits("TestTrait");
@@ -711,7 +711,7 @@ mod recommender_engine_tests {
     #[test]
     fn test_recommendation_generation() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let context = create_test_trait_context();
         let recommendations = engine.recommend(&context, 5);
@@ -723,7 +723,7 @@ mod recommender_engine_tests {
     #[test]
     fn test_cosine_similarity_calculation() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let vec_a = array![1.0, 0.0, 0.0];
         let vec_b = array![0.0, 1.0, 0.0];
@@ -739,7 +739,7 @@ mod recommender_engine_tests {
     #[test]
     fn test_cache_key_generation() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let context1 = create_test_trait_context();
         let context2 = create_test_trait_context();
@@ -753,7 +753,7 @@ mod recommender_engine_tests {
     #[test]
     fn test_usage_event_recording() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let event = create_test_usage_event("TestTrait", 1234567890);
         let result = engine.record_usage(event);
@@ -763,7 +763,7 @@ mod recommender_engine_tests {
     #[test]
     fn test_trait_database_updates() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let trait_info = create_test_trait_info("NewTrait");
         let result = engine.update_trait_database(trait_info);
@@ -781,15 +781,15 @@ mod integration_tests {
     #[test]
     fn test_end_to_end_recommendation_flow() {
         let config = RecommenderEngineConfig::default();
-        let mut engine = MLRecommendationEngine::new(config).unwrap();
+        let mut engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         // Add some trait data
         let trait_info = create_test_trait_info("Debug");
-        engine.update_trait_database(trait_info).unwrap();
+        engine.update_trait_database(trait_info).expect("update_trait_database should succeed");
 
         // Record some usage
         let event = create_test_usage_event("Debug", 1234567890);
-        engine.record_usage(event).unwrap();
+        engine.record_usage(event).expect("record_usage should succeed");
 
         // Get recommendations
         let context = create_test_trait_context();
@@ -845,7 +845,7 @@ mod integration_tests {
 
         let start = SystemTime::now();
         let similarity = similarity_model.calculate_cosine_similarity(&large_vec, &other_vec);
-        let duration = start.elapsed().unwrap();
+        let duration = start.elapsed().unwrap_or_default();
 
         // Should complete in reasonable time
         assert!(duration.as_millis() < 100);
@@ -858,7 +858,7 @@ mod integration_tests {
         use std::thread;
 
         let config = RecommenderEngineConfig::default();
-        let engine = Arc::new(MLRecommendationEngine::new(config).unwrap());
+        let engine = Arc::new(MLRecommendationEngine::new(config).expect("expected valid value"));
 
         let mut handles = vec![];
 
@@ -875,7 +875,7 @@ mod integration_tests {
 
         // Wait for all threads to complete
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("join should succeed");
         }
     }
 
@@ -889,7 +889,7 @@ mod integration_tests {
         // Add many events
         for i in 0..1000 {
             let event = create_test_usage_event("TestTrait", 1234567890 + i);
-            analyzer.record_usage(event).unwrap();
+            analyzer.record_usage(event).expect("record_usage should succeed");
         }
 
         // Should maintain reasonable memory usage (tested by not crashing)
@@ -914,7 +914,7 @@ mod benchmark_tests {
         for _ in 0..100 {
             let _ = extractor.extract_context_features(&context);
         }
-        let duration = start.elapsed().unwrap();
+        let duration = start.elapsed().unwrap_or_default();
 
         // Should complete 100 extractions in reasonable time
         assert!(duration.as_millis() < 1000);
@@ -932,7 +932,7 @@ mod benchmark_tests {
         for _ in 0..1000 {
             let _ = model.calculate_cosine_similarity(&vec_a, &vec_b);
         }
-        let duration = start.elapsed().unwrap();
+        let duration = start.elapsed().unwrap_or_default();
 
         // Should complete 1000 similarity calculations in reasonable time
         assert!(duration.as_millis() < 500);
@@ -941,14 +941,14 @@ mod benchmark_tests {
     #[test]
     fn benchmark_neural_forward_pass() {
         let config = NeuralNetworkConfig::default();
-        let model = NeuralEmbeddingModel::new(config).unwrap();
+        let model = NeuralEmbeddingModel::new(config).expect("expected valid value");
         let input = Array1::zeros(128);
 
         let start = SystemTime::now();
         for _ in 0..100 {
             let _ = model.forward(&input);
         }
-        let duration = start.elapsed().unwrap();
+        let duration = start.elapsed().unwrap_or_default();
 
         // Should complete 100 forward passes in reasonable time
         assert!(duration.as_millis() < 1000);
@@ -1001,12 +1001,12 @@ mod property_tests {
     #[test]
     fn property_neural_output_finite() {
         let config = NeuralNetworkConfig::default();
-        let model = NeuralEmbeddingModel::new(config).unwrap();
+        let model = NeuralEmbeddingModel::new(config).expect("expected valid value");
 
         // Test with random inputs
         for _ in 0..50 {
             let input = Array1::from_iter((0..128).map(|_| (rng().gen::<f64>() - 0.5) * 10.0));
-            let output = model.forward(&input).unwrap();
+            let output = model.forward(&input).expect("forward should succeed");
 
             // All outputs should be finite
             for value in output.iter() {

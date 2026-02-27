@@ -36,7 +36,7 @@ where
 
     /// Get a buffer from the pool, or allocate a new one if none available
     pub fn get_buffer(&self) -> PooledBuffer<T> {
-        let mut buffers = self.buffers.lock().unwrap();
+        let mut buffers = self.buffers.lock().unwrap_or_else(|e| e.into_inner());
         let buffer = if let Some(mut buf) = buffers.pop_front() {
             buf.clear();
             buf.resize(self.buffer_size, T::default());
@@ -54,12 +54,12 @@ where
 
     /// Get the current number of pooled buffers
     pub fn available_buffers(&self) -> usize {
-        self.buffers.lock().unwrap().len()
+        self.buffers.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
     /// Clear all pooled buffers
     pub fn clear(&self) {
-        self.buffers.lock().unwrap().clear();
+        self.buffers.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 }
 
@@ -116,7 +116,7 @@ impl<T> std::ops::DerefMut for PooledBuffer<T> {
 
 impl<T> Drop for PooledBuffer<T> {
     fn drop(&mut self) {
-        let mut pool = self.pool.lock().unwrap();
+        let mut pool = self.pool.lock().unwrap_or_else(|e| e.into_inner());
         if pool.len() < self.max_buffers {
             pool.push_back(std::mem::take(&mut self.buffer));
         }
@@ -491,22 +491,22 @@ mod tests {
     #[test]
     fn test_zero_copy_array() {
         let data = vec![1, 2, 3, 4, 5, 6];
-        let array = ZeroCopyArray::new(&data, 2, 3).unwrap();
+        let array = ZeroCopyArray::new(&data, 2, 3).expect("expected valid value");
 
         assert_eq!(array.shape(), (2, 3));
         assert_eq!(array.nrows(), 2);
         assert_eq!(array.ncols(), 3);
 
-        assert_eq!(*array.get(0, 0).unwrap(), 1);
-        assert_eq!(*array.get(1, 2).unwrap(), 6);
+        assert_eq!(*array.get(0, 0).expect("get should succeed"), 1);
+        assert_eq!(*array.get(1, 2).expect("get should succeed"), 6);
 
-        let row = array.row(1).unwrap();
+        let row = array.row(1).expect("row should succeed");
         assert_eq!(row, &[4, 5, 6]);
 
-        let sub = array.submatrix(0, 2, 1, 3).unwrap();
+        let sub = array.submatrix(0, 2, 1, 3).expect("submatrix should succeed");
         assert_eq!(sub.shape(), (2, 2));
-        assert_eq!(*sub.get(0, 0).unwrap(), 2);
-        assert_eq!(*sub.get(1, 1).unwrap(), 6);
+        assert_eq!(*sub.get(0, 0).expect("get should succeed"), 2);
+        assert_eq!(*sub.get(1, 1).expect("get should succeed"), 6);
     }
 
     #[test]
@@ -525,19 +525,19 @@ mod tests {
     fn test_cache_friendly_array() {
         let mut array = CacheFriendlyArray::new(3, 3, MemoryLayout::RowMajor);
 
-        array.set(1, 1, 42).unwrap();
-        assert_eq!(*array.get(1, 1).unwrap(), 42);
+        array.set(1, 1, 42).expect("set should succeed");
+        assert_eq!(*array.get(1, 1).expect("get should succeed"), 42);
 
         let mut tiled_array = CacheFriendlyArray::new(4, 4, MemoryLayout::Tiled { tile_size: 2 });
-        tiled_array.set(0, 0, 1).unwrap();
-        tiled_array.set(0, 1, 2).unwrap();
-        tiled_array.set(1, 0, 3).unwrap();
-        tiled_array.set(1, 1, 4).unwrap();
+        tiled_array.set(0, 0, 1).expect("set should succeed");
+        tiled_array.set(0, 1, 2).expect("set should succeed");
+        tiled_array.set(1, 0, 3).expect("set should succeed");
+        tiled_array.set(1, 1, 4).expect("set should succeed");
 
-        assert_eq!(*tiled_array.get(0, 0).unwrap(), 1);
-        assert_eq!(*tiled_array.get(0, 1).unwrap(), 2);
-        assert_eq!(*tiled_array.get(1, 0).unwrap(), 3);
-        assert_eq!(*tiled_array.get(1, 1).unwrap(), 4);
+        assert_eq!(*tiled_array.get(0, 0).expect("get should succeed"), 1);
+        assert_eq!(*tiled_array.get(0, 1).expect("get should succeed"), 2);
+        assert_eq!(*tiled_array.get(1, 0).expect("get should succeed"), 3);
+        assert_eq!(*tiled_array.get(1, 1).expect("get should succeed"), 4);
     }
 
     #[test]

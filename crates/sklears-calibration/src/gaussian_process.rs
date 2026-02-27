@@ -526,7 +526,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -549,7 +549,7 @@ mod tests {
         assert_eq!(stds.len(), 2);
 
         for (&mean, &std) in means.iter().zip(stds.iter()) {
-            assert!(mean >= 0.0 && mean <= 1.0);
+            assert!((0.0..=1.0).contains(&mean));
             assert!(std >= 0.0);
         }
     }
@@ -577,7 +577,7 @@ mod tests {
 
             assert_eq!(calibrated.len(), 2);
             for &prob in calibrated.iter() {
-                assert!(prob >= 0.0 && prob <= 1.0);
+                assert!((0.0..=1.0).contains(&prob));
             }
         }
     }
@@ -596,7 +596,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -614,7 +614,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -647,7 +647,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 }

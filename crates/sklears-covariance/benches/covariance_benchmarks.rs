@@ -3,7 +3,7 @@
 //! This benchmark suite measures the performance of various covariance
 //! estimators across different data sizes and configurations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::Distribution;
@@ -13,6 +13,7 @@ use sklears_covariance::{
     GraphicalLasso, HuberCovariance, LedoitWolf, MinCovDet, RaoBlackwellLedoitWolf,
     RidgeCovariance, ShrunkCovariance, OAS,
 };
+use std::hint::black_box;
 
 /// Generate random test data
 fn generate_test_data(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {

@@ -1115,7 +1115,13 @@ mod tests {
 
     #[test]
     fn test_spectral_normalization_basic() {
-        let mut spec_norm = SpectralNormalization::new(5, 1e-6);
+        // Use 20 power iterations to guarantee convergence regardless of random
+        // initial vector alignment. The convergence rate is (lambda2/lambda1)^k;
+        // for this 2x2 diagonal matrix with singular values 3 and 2, that is
+        // (2/3)^k. At k=5 the residual error is ~13%, which can cause flaky
+        // failures. At k=20 the residual is (2/3)^20 < 0.03%, ensuring the
+        // result always lands within the [0.95, 1.05] tolerance window.
+        let mut spec_norm = SpectralNormalization::new(20, 1e-6);
 
         // Create a matrix with known spectral norm
         let weights = array![[3.0, 0.0], [0.0, 2.0]]; // Spectral norm should be 3.0

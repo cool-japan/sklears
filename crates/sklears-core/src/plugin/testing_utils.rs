@@ -39,14 +39,14 @@ use std::time::{Duration, Instant, SystemTime};
 /// mock.metadata.capabilities.push(PluginCapability::Parallel);
 ///
 /// // Add supported types
-/// mock.add_supported_type(TypeId::of::`<f64>`());
+/// mock.add_supported_type(TypeId::of::<f64>());
 ///
 /// // Configure error behavior
 /// mock.set_initialization_error(Some("Test error"));
 ///
 /// // Use in tests
 /// assert_eq!(mock.id(), "test_plugin");
-/// assert!(mock.is_compatible(TypeId::of::`<f64>`()));
+/// assert!(mock.is_compatible(TypeId::of::<f64>()));
 /// ```
 #[derive(Debug, Clone)]
 pub struct MockPlugin {

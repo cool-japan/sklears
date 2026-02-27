@@ -554,11 +554,11 @@ mod tests {
         let config = FeatureConfig::from_compile_time();
 
         // Test JSON serialization
-        let json = config.to_json().unwrap();
+        let json = config.to_json().unwrap_or_default();
         assert!(!json.is_empty());
 
         // Test round-trip
-        let config2 = FeatureConfig::from_json(&json).unwrap();
+        let config2 = FeatureConfig::from_json(&json).expect("valid JSON");
         assert_eq!(
             config.enabled_features().len(),
             config2.enabled_features().len()

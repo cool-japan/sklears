@@ -5,24 +5,23 @@
 
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
 use numpy::{IntoPyArray, PyArray1, PyArray2};
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyList;
-use sklears_core::error::{Result as SklearsResult, SklearsError};
 use sklears_core::traits::{Fit, Predict};
-use sklears_neural::{
-    Activation, LearningRateSchedule, MLPClassifier, MLPRegressor, Solver, WeightInit,
-};
+use sklears_neural::solvers::LearningRateSchedule;
+use sklears_neural::{Activation, MLPClassifier, MLPRegressor, Solver};
 
 /// Python wrapper for MLP Classifier
 #[pyclass(name = "MLPClassifier")]
 pub struct PyMLPClassifier {
-    inner: Option<MLPClassifier>,
-    trained: Option<sklears_neural::TrainedMLPClassifier>,
+    inner: Option<MLPClassifier<sklears_core::traits::Untrained>>,
+    trained: Option<MLPClassifier<sklears_neural::TrainedMLPClassifier>>,
 }
 
 #[pymethods]
 impl PyMLPClassifier {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
         hidden_layer_sizes=None,
         activation="relu",
@@ -145,7 +144,7 @@ impl PyMLPClassifier {
     }
 
     /// Fit the MLP classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -169,7 +168,11 @@ impl PyMLPClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -179,7 +182,7 @@ impl PyMLPClassifier {
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
                 let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                Ok(PyArray1::from_vec(py, predictions_f64).unbind())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
@@ -189,8 +192,8 @@ impl PyMLPClassifier {
     fn predict_proba<'py>(
         &self,
         py: Python<'py>,
-        x: &PyArray2<f64>,
-    ) -> PyResult<&'py PyArray2<f64>> {
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -198,7 +201,7 @@ impl PyMLPClassifier {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py)),
+            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -213,7 +216,7 @@ impl PyMLPClassifier {
             .as_ref()
             .ok_or_else(|| PyRuntimeError::new_err("Model must be fitted before accessing loss"))?;
 
-        Ok(trained_model.loss)
+        Ok(trained_model.loss())
     }
 
     /// Get number of iterations
@@ -222,7 +225,7 @@ impl PyMLPClassifier {
             PyRuntimeError::new_err("Model must be fitted before accessing n_iter")
         })?;
 
-        Ok(trained_model.n_iter)
+        Ok(trained_model.n_iter())
     }
 
     fn __repr__(&self) -> String {
@@ -237,13 +240,14 @@ impl PyMLPClassifier {
 /// Python wrapper for MLP Regressor
 #[pyclass(name = "MLPRegressor")]
 pub struct PyMLPRegressor {
-    inner: Option<MLPRegressor>,
-    trained: Option<sklears_neural::TrainedMLPRegressor>,
+    inner: Option<MLPRegressor<sklears_core::traits::Untrained>>,
+    trained: Option<MLPRegressor<sklears_neural::TrainedMLPRegressor>>,
 }
 
 #[pymethods]
 impl PyMLPRegressor {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
         hidden_layer_sizes=None,
         activation="relu",
@@ -366,9 +370,12 @@ impl PyMLPRegressor {
     }
 
     /// Fit the MLP regressor
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
-        let y_array = numpy_to_ndarray1(y)?;
+        let y_array_1d = numpy_to_ndarray1(y)?;
+
+        // Convert y from 1D to 2D array (n_samples, 1)
+        let y_array = y_array_1d.insert_axis(scirs2_core::ndarray::Axis(1));
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -387,7 +394,11 @@ impl PyMLPRegressor {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -395,7 +406,13 @@ impl PyMLPRegressor {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict(&x_array) {
-            Ok(predictions) => Ok(predictions.into_pyarray(py)),
+            Ok(predictions_2d) => {
+                // Convert from Array2 (n_samples, 1) to Array1 (n_samples,)
+                let predictions_1d = predictions_2d
+                    .index_axis(scirs2_core::ndarray::Axis(1), 0)
+                    .to_owned();
+                Ok(predictions_1d.into_pyarray(py).unbind())
+            }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
     }
@@ -407,7 +424,7 @@ impl PyMLPRegressor {
             .as_ref()
             .ok_or_else(|| PyRuntimeError::new_err("Model must be fitted before accessing loss"))?;
 
-        Ok(trained_model.loss)
+        Ok(trained_model.loss())
     }
 
     /// Get number of iterations
@@ -416,7 +433,7 @@ impl PyMLPRegressor {
             PyRuntimeError::new_err("Model must be fitted before accessing n_iter")
         })?;
 
-        Ok(trained_model.n_iter)
+        Ok(trained_model.n_iter())
     }
 
     fn __repr__(&self) -> String {

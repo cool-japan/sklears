@@ -6,12 +6,12 @@
 //!
 //! The module is organized into specialized submodules for different neural network components:
 //!
-//! - [`activation`]: Activation functions (ReLU, Sigmoid, Tanh, Linear, Softmax)
-//! - [`loss`]: Loss functions for training (MSE, Cross-Entropy, Binary Cross-Entropy)
-//! - [`mlp`]: Multi-Layer Perceptron for basic feedforward neural networks
-//! - [`recurrent`]: Recurrent neural networks (RNN, LSTM, GRU) for sequence modeling
-//! - [`multitask`]: Multi-task learning with shared representations
-//! - [`adversarial`]: Adversarial multi-task learning with feature disentanglement
+//! - `activation`: Activation functions (ReLU, Sigmoid, Tanh, Linear, Softmax)
+//! - `loss`: Loss functions for training (MSE, Cross-Entropy, Binary Cross-Entropy)
+//! - `mlp`: Multi-Layer Perceptron for basic feedforward neural networks
+//! - `recurrent`: Recurrent neural networks (RNN, LSTM, GRU) for sequence modeling
+//! - `multitask`: Multi-task learning with shared representations
+//! - `adversarial`: Adversarial multi-task learning with feature disentanglement
 //!
 //! # Architecture Overview
 //!

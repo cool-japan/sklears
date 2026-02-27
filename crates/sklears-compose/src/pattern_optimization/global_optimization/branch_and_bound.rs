@@ -381,7 +381,7 @@ pub enum Constraint {
     SOS(SOSConstraint),
 }
 
-/// Linear constraint of the form: sum(coeff[i] * x[i]) <= rhs
+/// Linear constraint of the form: sum(coeff\[i\] * x\[i\]) <= rhs
 #[derive(Debug, Clone)]
 pub struct LinearConstraint {
     /// Constraint coefficients

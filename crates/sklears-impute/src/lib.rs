@@ -37,12 +37,10 @@ pub mod parallel;
 pub mod sampling;
 pub mod simd_ops;
 pub mod simple;
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub mod testing_pipeline;
+pub mod testing_pipeline;
 pub mod timeseries;
 pub mod type_safe;
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub mod validation;
+pub mod validation;
 pub mod visualization;
 
 // Re-export commonly used types and functions for convenience
@@ -138,11 +136,10 @@ pub use type_safe::{
     TypeSafeImputation, TypeSafeMeanImputer, TypeSafeMissingOps, TypedArray, UnknownMechanism,
     WithMissing, MAR, MCAR, MNAR,
 };
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub use validation::{
-//     validate_with_holdout, CrossValidationResults, CrossValidationStrategy, HoldOutValidator,
-//     ImputationCrossValidator, ImputationMetrics, MissingDataPattern, SyntheticMissingValidator,
-// };
+pub use validation::{
+    CrossValidationResults, CrossValidationStrategy, HoldOutValidator, ImputationCrossValidator,
+    ImputationMetrics, MissingDataPattern, SyntheticMissingValidator,
+};
 pub use visualization::{
     create_completeness_matrix, create_missing_correlation_heatmap,
     create_missing_distribution_plot, create_missing_pattern_plot, export_correlation_csv,
@@ -168,11 +165,10 @@ pub use sampling::{
     ProposalDistribution, QuasiSequenceType, SampleDistribution, SamplingConfig,
     SamplingSimpleImputer, SamplingStrategy, StratifiedSamplingImputer, WeightFunction,
 };
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
-// pub use testing_pipeline::{
-//     AutomatedTestPipeline, CompletedTestCase, PerformanceBenchmarks, QualityThresholds, TestCase,
-//     TestDataset, TestPipelineConfig, TestResults, TestRunner, TestStatus,
-// };
+pub use testing_pipeline::{
+    AutomatedTestPipeline, CompletedTestCase, PerformanceBenchmarks, QualityThresholds, TestCase,
+    TestDataset, TestPipelineConfig, TestResults, TestRunner, TestStatus,
+};
 
 // ✅ SciRS2 Policy compliant imports
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};

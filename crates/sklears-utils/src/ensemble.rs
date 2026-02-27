@@ -445,7 +445,7 @@ mod tests {
         let (in_bag, out_of_bag) = bootstrap.sample(10).unwrap();
 
         assert_eq!(in_bag.len(), 10);
-        assert!(out_of_bag.len() > 0); // Typically ~37% are OOB
+        assert!(!out_of_bag.is_empty()); // Typically ~37% are OOB
         assert!(out_of_bag.len() < 10);
 
         // Check all indices are valid
@@ -596,8 +596,8 @@ mod tests {
         // Check all samples are covered exactly once in test sets
         let mut all_test_indices: Vec<usize> = Vec::new();
         for (train, test) in &folds {
-            assert!(train.len() > 0);
-            assert!(test.len() > 0);
+            assert!(!train.is_empty());
+            assert!(!test.is_empty());
             assert_eq!(train.len() + test.len(), 10);
             all_test_indices.extend(test);
         }

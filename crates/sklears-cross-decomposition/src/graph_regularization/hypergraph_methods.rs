@@ -26,7 +26,7 @@ pub struct Hypergraph {
     /// Number of hyperedges
     pub n_hyperedges: usize,
     /// Incidence matrix: vertices × hyperedges
-    /// H[i,e] = 1 if vertex i is in hyperedge e, 0 otherwise
+    /// H\[i,e\] = 1 if vertex i is in hyperedge e, 0 otherwise
     pub incidence_matrix: Array2<Float>,
     /// Hyperedge weights
     pub hyperedge_weights: Array1<Float>,

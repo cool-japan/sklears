@@ -5,11 +5,14 @@
 //! identify performance bottlenecks and validate theoretical complexity
 //! guarantees.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+#![allow(dead_code)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 /// Performance metrics collector
@@ -64,7 +67,7 @@ mod scalability_datasets {
 
     pub fn uniform_random(n_samples: usize, n_features: usize, random_state: u64) -> Array2<f64> {
         let mut rng = StdRng::seed_from_u64(random_state);
-        Array2::from_shape_fn((n_samples, n_features), |_| rng.gen_range(-1.0..1.0))
+        Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-1.0..1.0))
     }
 
     pub fn gaussian_mixture(
@@ -80,7 +83,7 @@ mod scalability_datasets {
         let mut centers = Array2::zeros((n_clusters, n_features));
         for i in 0..n_clusters {
             for j in 0..n_features {
-                centers[[i, j]] = rng.gen_range(-5.0..5.0);
+                centers[[i, j]] = rng.random_range(-5.0..5.0);
             }
         }
 
@@ -88,7 +91,7 @@ mod scalability_datasets {
         for i in 0..n_samples {
             let cluster = i % n_clusters;
             for j in 0..n_features {
-                data[[i, j]] = centers[[cluster, j]] + rng.gen() * 2.0 - 1.0 * 0.5;
+                data[[i, j]] = centers[[cluster, j]] + rng.random::<f64>() * 2.0 - 1.0 * 0.5;
             }
         }
 
@@ -97,7 +100,7 @@ mod scalability_datasets {
 
     pub fn manifold_swiss_roll_nd(
         n_samples: usize,
-        intrinsic_dim: usize,
+        _intrinsic_dim: usize,
         embedding_dim: usize,
         noise: f64,
         random_state: u64,
@@ -108,8 +111,8 @@ mod scalability_datasets {
         // Generate intrinsic coordinates
         for i in 0..n_samples {
             // Primary manifold coordinates (like Swiss roll)
-            let t = 2.0 * std::f64::consts::PI * rng.gen();
-            let s = 10.0 * rng.gen();
+            let t = 2.0 * std::f64::consts::PI * rng.random::<f64>();
+            let s = 10.0 * rng.random::<f64>();
 
             // Map to embedding space
             if embedding_dim >= 3 {
@@ -140,7 +143,7 @@ mod scalability_datasets {
 
             // Add noise
             for d in 0..embedding_dim {
-                data[[i, d]] += noise * rng.gen() * 2.0 - 1.0;
+                data[[i, d]] += noise * rng.random::<f64>() * 2.0 - 1.0;
             }
         }
 
@@ -158,8 +161,8 @@ mod scalability_datasets {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if rng.gen() < sparsity {
-                    data[[i, j]] = rng.gen() * 2.0 - 1.0;
+                if rng.random::<f64>() < sparsity {
+                    data[[i, j]] = rng.random::<f64>() * 2.0 - 1.0;
                 }
             }
         }
@@ -652,8 +655,8 @@ fn benchmark_complexity_validation(c: &mut Criterion) {
 
                     // Additional O(n log n) work
                     let mut result = 0.0;
-                    for i in 0..n {
-                        result += values[i] * (i as f64 + 1.0).log2();
+                    for (i, &val) in values.iter().enumerate().take(n) {
+                        result += val * (i as f64 + 1.0).log2();
                     }
 
                     black_box(result)

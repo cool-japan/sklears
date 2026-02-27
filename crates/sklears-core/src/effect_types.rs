@@ -231,6 +231,15 @@ where
         self.value
     }
 
+    /// Consume the effect and return the inner value.
+    ///
+    /// Unlike `Option::expect` or `Result::expect`, this never panics because
+    /// an `Effect` always contains a valid value. The message parameter is
+    /// accepted for API compatibility with code that uses `expect` idiomatically.
+    pub fn expect(self, _msg: &str) -> T {
+        self.value
+    }
+
     /// Get a reference to the value
     pub fn value(&self) -> &T {
         &self.value
@@ -856,7 +865,10 @@ impl EffectAnalyzer {
 
     /// Get performance statistics for effects
     pub fn get_statistics(&self) -> EffectStatistics {
-        let tracked = self.tracked_effects.lock().unwrap();
+        let tracked = self
+            .tracked_effects
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let total_duration: std::time::Duration = tracked.values().map(|m| m.duration).sum();
 
@@ -1091,7 +1103,10 @@ impl EffectInference {
         // In practice, this would use static analysis
         let effects = vec!["Pure".to_string()];
 
-        let mut cache = self.inferred_effects.lock().unwrap();
+        let mut cache = self
+            .inferred_effects
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         cache.insert(name.clone(), effects.clone());
 
         effects
@@ -1099,7 +1114,11 @@ impl EffectInference {
 
     /// Get inferred effects for a named computation
     pub fn get_effects(&self, name: &str) -> Option<Vec<String>> {
-        self.inferred_effects.lock().unwrap().get(name).cloned()
+        self.inferred_effects
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(name)
+            .cloned()
     }
 }
 
@@ -1182,14 +1201,14 @@ mod tests {
     #[test]
     fn test_pure_effect() {
         let effect = EffectBuilder::pure(42);
-        assert_eq!(effect.unwrap(), 42);
+        assert_eq!(effect.expect("expected valid value"), 42);
     }
 
     #[test]
     fn test_effect_mapping() {
         let effect = EffectBuilder::pure(10);
         let mapped = effect.map(|x| x * 2);
-        assert_eq!(mapped.unwrap(), 20);
+        assert_eq!(mapped.expect("expected valid value"), 20);
     }
 
     #[test]
@@ -1210,7 +1229,7 @@ mod tests {
             42
         });
 
-        assert_eq!(effect.unwrap(), 42);
+        assert_eq!(effect.expect("expected valid value"), 42);
     }
 
     #[test]
@@ -1289,7 +1308,7 @@ mod tests {
         let async_effect = AsyncEffect::new(async { Effect::<i32, Pure>::pure(100) });
 
         let result = async_effect.await_effect().await;
-        assert_eq!(result.unwrap(), 100);
+        assert_eq!(result.expect("expected valid value"), 100);
     }
 
     #[test]
@@ -1311,7 +1330,7 @@ mod tests {
 
         let cached = inference.get_effects("my_computation");
         assert!(cached.is_some());
-        assert_eq!(cached.unwrap(), effects);
+        assert_eq!(cached.expect("expected valid value"), effects);
     }
 
     #[test]

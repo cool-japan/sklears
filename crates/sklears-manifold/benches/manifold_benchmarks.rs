@@ -4,11 +4,12 @@
 //! algorithms implemented in sklears-manifold, providing detailed timing
 //! and scalability analysis.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use std::hint::black_box;
 
 // Import the algorithms we want to benchmark
 // Note: These would need to be properly exposed from the lib.rs
@@ -17,7 +18,7 @@ use scirs2_core::random::SeedableRng;
 /// Generate synthetic high-dimensional data for benchmarking
 fn generate_synthetic_data(n_samples: usize, n_features: usize, random_state: u64) -> Array2<f64> {
     let mut rng = StdRng::seed_from_u64(random_state);
-    Array2::from_shape_fn((n_samples, n_features), |_| rng.gen() * 2.0 - 1.0)
+    Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>() * 2.0 - 1.0)
 }
 
 /// Generate Swiss roll dataset (common manifold learning benchmark)
@@ -26,12 +27,12 @@ fn generate_swiss_roll(n_samples: usize, noise: f64, random_state: u64) -> Array
     let mut data = Array2::zeros((n_samples, 3));
 
     for i in 0..n_samples {
-        let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.gen());
-        let height = 21.0 * rng.gen();
+        let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.random::<f64>());
+        let height = 21.0 * rng.random::<f64>();
 
-        data[[i, 0]] = t * t.cos() + noise * (rng.gen() * 2.0 - 1.0);
-        data[[i, 1]] = height + noise * (rng.gen() * 2.0 - 1.0);
-        data[[i, 2]] = t * t.sin() + noise * (rng.gen() * 2.0 - 1.0);
+        data[[i, 0]] = t * t.cos() + noise * (rng.random::<f64>() * 2.0 - 1.0);
+        data[[i, 1]] = height + noise * (rng.random::<f64>() * 2.0 - 1.0);
+        data[[i, 2]] = t * t.sin() + noise * (rng.random::<f64>() * 2.0 - 1.0);
     }
 
     data
@@ -43,12 +44,12 @@ fn generate_s_curve(n_samples: usize, noise: f64, random_state: u64) -> Array2<f
     let mut data = Array2::zeros((n_samples, 3));
 
     for i in 0..n_samples {
-        let t = 3.0 * std::f64::consts::PI * rng.gen();
-        let height = 2.0 * rng.gen();
+        let t = 3.0 * std::f64::consts::PI * rng.random::<f64>();
+        let height = 2.0 * rng.random::<f64>();
 
-        data[[i, 0]] = t.sin() + noise * (rng.gen() * 2.0 - 1.0);
-        data[[i, 1]] = height + noise * (rng.gen() * 2.0 - 1.0);
-        data[[i, 2]] = (t / 2.0).sin() + noise * (rng.gen() * 2.0 - 1.0);
+        data[[i, 0]] = t.sin() + noise * (rng.random::<f64>() * 2.0 - 1.0);
+        data[[i, 1]] = height + noise * (rng.random::<f64>() * 2.0 - 1.0);
+        data[[i, 2]] = (t / 2.0).sin() + noise * (rng.random::<f64>() * 2.0 - 1.0);
     }
 
     data
@@ -289,7 +290,7 @@ fn benchmark_random_generation(c: &mut Criterion) {
     group.bench_function("standard_normal_1000", |b| {
         b.iter(|| {
             let mut rng = StdRng::seed_from_u64(42);
-            let samples: Vec<f64> = (0..1000).map(|_| rng.gen() * 2.0 - 1.0).collect();
+            let samples: Vec<f64> = (0..1000).map(|_| rng.random::<f64>() * 2.0 - 1.0).collect();
             black_box(samples)
         })
     });
@@ -297,7 +298,7 @@ fn benchmark_random_generation(c: &mut Criterion) {
     group.bench_function("uniform_1000", |b| {
         b.iter(|| {
             let mut rng = StdRng::seed_from_u64(42);
-            let samples: Vec<f64> = (0..1000).map(|_| rng.gen()).collect();
+            let samples: Vec<f64> = (0..1000).map(|_| rng.random::<f64>()).collect();
             black_box(samples)
         })
     });

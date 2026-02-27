@@ -8,7 +8,6 @@ use scirs2_core::numeric::Zero;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread;
-#[allow(non_snake_case)]
 #[cfg(test)]
 use std::time::Duration;
 

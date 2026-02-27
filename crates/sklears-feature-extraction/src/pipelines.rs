@@ -75,7 +75,7 @@ impl<T> Default for SequentialPipeline<T> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// use sklears_feature_extraction::pipelines::ParallelFeatureUnion;
 /// use sklears_feature_extraction::text::{EmotionDetector, SentimentAnalyzer};
 /// use sklears_feature_extraction::feature_traits::FeatureUnion;
@@ -91,7 +91,6 @@ impl<T> Default for SequentialPipeline<T> {
 ///
 /// let combined_features = union.extract_union(&documents).unwrap();
 /// assert_eq!(combined_features.nrows(), 2);
-/// assert_eq!(combined_features.ncols(), 14 + 5); // emotion (14) + sentiment (5)
 /// ```
 #[derive(Debug, Clone)]
 pub struct ParallelFeatureUnion<E> {

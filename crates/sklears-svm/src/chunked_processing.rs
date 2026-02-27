@@ -701,9 +701,9 @@ mod tests {
         let mut dataset = ChunkedDataset::from_arrays(&x, &y, config).unwrap();
 
         let mut total_samples = 0;
-        let mut chunk_iter = dataset.chunk_iter();
+        let chunk_iter = dataset.chunk_iter();
 
-        while let Some(chunk_result) = chunk_iter.next() {
+        for chunk_result in chunk_iter {
             let (_chunk_id, chunk_x, chunk_y) = chunk_result.unwrap();
             total_samples += chunk_x.nrows();
             assert_eq!(chunk_x.ncols(), 3);

@@ -32,12 +32,12 @@ pub fn parse_ml_pipeline(input: TokenStream) -> SynResult<PipelineConfig> {
             .name
             .unwrap_or_else(|| "default_pipeline".to_string()),
         stages: parsed.stages,
-        input_type: parsed
-            .input_type
-            .unwrap_or_else(|| syn::parse_str("scirs2_core::ndarray::Array2<f64>").unwrap()),
-        output_type: parsed
-            .output_type
-            .unwrap_or_else(|| syn::parse_str("scirs2_core::ndarray::Array1<usize>").unwrap()),
+        input_type: parsed.input_type.unwrap_or_else(|| {
+            syn::parse_str("scirs2_core::ndarray::Array2<f64>").expect("valid default type")
+        }),
+        output_type: parsed.output_type.unwrap_or_else(|| {
+            syn::parse_str("scirs2_core::ndarray::Array1<usize>").expect("valid default type")
+        }),
         parallel: parsed.parallel.unwrap_or(false),
         validate_input: parsed.validate_input.unwrap_or(true),
         cache_transforms: parsed.cache_transforms.unwrap_or(false),
@@ -62,7 +62,7 @@ pub fn parse_feature_engineering(input: TokenStream) -> SynResult<FeatureEnginee
     Ok(FeatureEngineeringConfig {
         dataset: parsed
             .dataset
-            .unwrap_or_else(|| syn::parse_str("dataset").unwrap()),
+            .unwrap_or_else(|| syn::parse_str("dataset").expect("valid default identifier")),
         features: parsed.features,
         selection: parsed.selection,
         validation: parsed.validation,
@@ -86,7 +86,7 @@ pub fn parse_hyperparameter_config(input: TokenStream) -> SynResult<Hyperparamet
     Ok(HyperparameterConfig {
         model: parsed
             .model
-            .unwrap_or_else(|| syn::parse_str("DefaultModel").unwrap()),
+            .unwrap_or_else(|| syn::parse_str("DefaultModel").expect("valid default model type")),
         parameters: parsed.parameters,
         constraints: parsed.constraints,
         optimization: parsed.optimization.unwrap_or_default(),
@@ -577,7 +577,7 @@ mod tests {
         let result = parse_feature_engineering(input);
         assert!(result.is_ok());
 
-        let config = result.unwrap();
+        let config = result.expect("expected valid value");
         assert_eq!(config.features.len(), 1);
         assert_eq!(config.features[0].name, "price_per_sqft");
     }
@@ -589,7 +589,7 @@ mod tests {
         let result = parse_ml_pipeline(input);
         assert!(result.is_ok());
 
-        let config = result.unwrap();
+        let config = result.expect("expected valid value");
         assert_eq!(config.name, "default_pipeline");
         assert_eq!(config.stages.len(), 0);
     }

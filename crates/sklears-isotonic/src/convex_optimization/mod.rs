@@ -43,6 +43,7 @@
 //! ### Basic Semidefinite Programming
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use sklears_isotonic::convex_optimization::SemidefiniteIsotonicRegression;
 //! use scirs2_core::ndarray::array;
 //!
@@ -53,13 +54,16 @@
 //! let x = array![1.0, 2.0, 3.0, 4.0];
 //! let y = array![1.5, 1.0, 2.5, 3.0]; // Non-monotonic
 //!
-//! model.fit(&x, &y).unwrap();
-//! let predictions = model.predict(&x).unwrap();
+//! model.fit(&x, &y)?;
+//! let predictions = model.predict(&x)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### Cone Programming with Second-Order Cone
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use sklears_isotonic::convex_optimization::{ConeProgrammingIsotonicRegression, ConeType};
 //! use scirs2_core::ndarray::array;
 //!
@@ -70,13 +74,16 @@
 //! let x = array![1.0, 2.0, 3.0, 4.0];
 //! let y = array![1.5, 1.0, 2.5, 3.0];
 //!
-//! model.fit(&x, &y).unwrap();
-//! let predictions = model.predict(&x).unwrap();
+//! model.fit(&x, &y)?;
+//! let predictions = model.predict(&x)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### ADMM with Adaptive Parameter Adjustment
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use sklears_isotonic::convex_optimization::AdmmIsotonicRegression;
 //! use scirs2_core::ndarray::array;
 //!
@@ -88,13 +95,16 @@
 //! let x = array![1.0, 2.0, 3.0, 4.0];
 //! let y = array![1.5, 1.0, 2.5, 3.0];
 //!
-//! model.fit(&x, &y).unwrap();
-//! let predictions = model.predict(&x).unwrap();
+//! model.fit(&x, &y)?;
+//! let predictions = model.predict(&x)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### Proximal Gradient with Elastic Net Regularization
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use sklears_isotonic::convex_optimization::{
 //!     ProximalGradientIsotonicRegression, RegularizationType
 //! };
@@ -108,8 +118,10 @@
 //! let x = array![1.0, 2.0, 3.0, 4.0];
 //! let y = array![1.5, 1.0, 2.5, 3.0];
 //!
-//! model.fit(&x, &y).unwrap();
-//! let predictions = model.predict(&x).unwrap();
+//! model.fit(&x, &y)?;
+//! let predictions = model.predict(&x)?;
+//! # Ok(())
+//! # }
 //! ```
 
 // Module declarations
@@ -323,7 +335,7 @@ pub mod utils {
 
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.total_cmp(&b.0));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());

@@ -16,6 +16,21 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+// Helper functions for safe operations
+#[inline]
+fn create_normal_distribution() -> Result<Normal<Float>> {
+    Normal::new(0.0, 1.0).map_err(|e| {
+        SklearsError::NumericalError(format!("Failed to create normal distribution: {}", e))
+    })
+}
+
+#[inline]
+fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
+
 /// Strategy for shared representation learning
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SharedRepresentationStrategy {
@@ -326,7 +341,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
 
         // Initialize parameters
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = create_normal_distribution()?;
         let mut shared_weights = Array2::zeros((n_features, shared_dim));
         for elem in shared_weights.iter_mut() {
             *elem = normal.sample(&mut rng) * 0.1;
@@ -488,7 +503,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
 
         // Factorize W = U * V^T where U is shared (n_features x rank), V is task-specific (n_tasks x rank)
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = create_normal_distribution()?;
         let mut u_shared = Array2::zeros((n_features, rank));
         for elem in u_shared.iter_mut() {
             *elem = normal.sample(&mut rng) * 0.1;
@@ -664,7 +679,7 @@ impl MultiTaskSharedRepresentation<Untrained> {
 
         // Initialize shared representation and attention weights
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = create_normal_distribution()?;
         let mut shared_weights = Array2::zeros((n_features, shared_dim));
         for elem in shared_weights.iter_mut() {
             *elem = normal.sample(&mut rng) * 0.1;
@@ -832,8 +847,12 @@ impl MultiTaskSharedRepresentation<Untrained> {
 
 impl Predict<Array2<Float>, Array2<Float>> for MultiTaskSharedRepresentation<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let n_features = self.n_features_.unwrap();
-        let n_tasks = self.n_tasks_.unwrap();
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
+        let n_tasks = self.n_tasks_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
 
         if x.ncols() != n_features {
             return Err(SklearsError::FeatureMismatch {
@@ -842,17 +861,42 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskSharedRepresentation<Tra
             });
         }
 
-        let shared_weights = self.shared_weights_.as_ref().unwrap();
-        let task_weights = self.task_weights_.as_ref().unwrap();
-        let shared_bias = self.shared_bias_.as_ref().unwrap();
-        let task_bias = self.task_bias_.as_ref().unwrap();
+        let shared_weights =
+            self.shared_weights_
+                .as_ref()
+                .ok_or_else(|| SklearsError::NotFitted {
+                    operation: "predict".to_string(),
+                })?;
+        let task_weights = self
+            .task_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
+        let shared_bias = self
+            .shared_bias_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
+        let task_bias = self
+            .task_bias_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
 
         let mut predictions = Array2::zeros((x.nrows(), n_tasks));
 
         match self.config.strategy {
             SharedRepresentationStrategy::Attention => {
                 // Use attention-based prediction
-                let attention_weights = self.attention_weights_.as_ref().unwrap();
+                let attention_weights =
+                    self.attention_weights_
+                        .as_ref()
+                        .ok_or_else(|| SklearsError::NotFitted {
+                            operation: "predict".to_string(),
+                        })?;
                 let shared_features = self.compute_shared_features(x, shared_weights, shared_bias);
 
                 for task_id in 0..n_tasks {
@@ -910,13 +954,21 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskSharedRepresentation<Tra
 
 impl MultiTaskSharedRepresentation<Trained> {
     /// Get shared representation weights
-    pub fn shared_weights(&self) -> &Array2<Float> {
-        self.shared_weights_.as_ref().unwrap()
+    pub fn shared_weights(&self) -> Result<&Array2<Float>> {
+        self.shared_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "shared_weights".to_string(),
+            })
     }
 
     /// Get task-specific weights
-    pub fn task_weights(&self) -> &Array3<Float> {
-        self.task_weights_.as_ref().unwrap()
+    pub fn task_weights(&self) -> Result<&Array3<Float>> {
+        self.task_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "task_weights".to_string(),
+            })
     }
 
     /// Get attention weights (if using attention strategy)
@@ -926,14 +978,26 @@ impl MultiTaskSharedRepresentation<Trained> {
 
     /// Compute shared representation for input data
     pub fn transform_to_shared(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let shared_weights = self.shared_weights_.as_ref().unwrap();
-        let shared_bias = self.shared_bias_.as_ref().unwrap();
+        let shared_weights =
+            self.shared_weights_
+                .as_ref()
+                .ok_or_else(|| SklearsError::NotFitted {
+                    operation: "transform_to_shared".to_string(),
+                })?;
+        let shared_bias = self
+            .shared_bias_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_to_shared".to_string(),
+            })?;
         Ok(self.compute_shared_features(x, shared_weights, shared_bias))
     }
 
     /// Get number of iterations taken during training
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "n_iter".to_string(),
+        })
     }
 }
 

@@ -6,12 +6,11 @@
 //! - Nuclear norm minimization
 //! - Matrix completion with side information
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::{Rng, thread_rng, Random, SeedableRng};
 use scirs2_core::random::rngs::StdRng;
+use scirs2_linalg::compat::{svd, ArrayLinalgExt};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -704,35 +703,17 @@ impl MatrixCompletion<Untrained> {
         matrix: &Array2<f64>,
         rank: usize,
     ) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        let matrix_vec: Vec<f64> = matrix.iter().cloned().collect();
-        let na_matrix = DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &matrix_vec);
-
-        let svd = na_matrix.svd(true);
-        let u = svd
-            .u
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let v_t = svd
-            .v_t
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let s = svd.singular_values;
+        // Use scirs2-linalg SVD
+        let (u, s, vt) = svd(&matrix.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })?;
 
         let actual_rank = rank.min(s.len());
 
-        // Convert back to ndarray with truncation
-        let u_trunc = u.columns(0, actual_rank);
-        let s_trunc = s.rows(0, actual_rank);
-        let vt_trunc = v_t.rows(0, actual_rank);
-
-        let u_vec: Vec<f64> = u_trunc.iter().cloned().collect();
-        let u_nd = Array2::from_shape_vec((u_trunc.nrows(), u_trunc.ncols()), u_vec)
-            .map_err(|_| SklearsError::NumericalError("Failed to create U matrix".to_string()))?;
-
-        let vt_vec: Vec<f64> = vt_trunc.iter().cloned().collect();
-        let vt_nd = Array2::from_shape_vec((vt_trunc.nrows(), vt_trunc.ncols()), vt_vec)
-            .map_err(|_| SklearsError::NumericalError("Failed to create V^T matrix".to_string()))?;
-
-        let s_vec: Vec<f64> = s_trunc.iter().cloned().collect();
-        let s_nd = Array1::from_vec(s_vec);
+        // Truncate to desired rank
+        let u_nd = u.slice(scirs2_core::ndarray::s![.., ..actual_rank]).to_owned();
+        let s_nd = s.slice(scirs2_core::ndarray::s![..actual_rank]).to_owned();
+        let vt_nd = vt.slice(scirs2_core::ndarray::s![..actual_rank, ..]).to_owned();
 
         Ok((u_nd, s_nd, vt_nd))
     }
@@ -742,70 +723,51 @@ impl MatrixCompletion<Untrained> {
         &self,
         matrix: &Array2<f64>,
     ) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        let matrix_vec: Vec<f64> = matrix.iter().cloned().collect();
-        let na_matrix = DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &matrix_vec);
-
-        let svd = na_matrix.svd(true);
-        let u = svd
-            .u
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let v_t = svd
-            .v_t
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let s = svd.singular_values;
-
-        // Convert back to ndarray
-        let u_vec: Vec<f64> = u.iter().cloned().collect();
-        let u_nd = Array2::from_shape_vec((u.nrows(), u.ncols()), u_vec)
-            .map_err(|_| SklearsError::NumericalError("Failed to create U matrix".to_string()))?;
-
-        let vt_vec: Vec<f64> = v_t.iter().cloned().collect();
-        let vt_nd = Array2::from_shape_vec((v_t.nrows(), v_t.ncols()), vt_vec)
-            .map_err(|_| SklearsError::NumericalError("Failed to create V^T matrix".to_string()))?;
-
-        let s_vec: Vec<f64> = s.iter().cloned().collect();
-        let s_nd = Array1::from_vec(s_vec);
-
-        Ok((u_nd, s_nd, vt_nd))
+        // Use scirs2-linalg SVD directly
+        svd(&matrix.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })
     }
 
     /// Solve linear system for ALS
     fn solve_linear_system_als(&self, a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>> {
-        // Convert to nalgebra
-        let a_vec: Vec<f64> = a.iter().cloned().collect();
-        let b_vec: Vec<f64> = b.iter().cloned().collect();
-        let a_na = DMatrix::from_row_slice(a.nrows(), a.ncols(), &a_vec);
-        let b_na = nalgebra::DVector::from_vec(b_vec);
+        // Try direct solve first (uses LU decomposition internally)
+        if let Ok(result) = a.solve(b) {
+            return Ok(result);
+        }
 
-        // Solve using Cholesky decomposition if possible, otherwise use QR
-        let result_na = if let Some(chol) = a_na.clone().cholesky() {
-            chol.solve(&b_na)
-        } else {
-            // Use QR decomposition
-            let qr = a_na.clone().qr();
-            qr.solve(&b_na).unwrap_or_else(|| {
-                // Fallback to pseudoinverse
-                let svd = a_na.svd(true);
-                let tolerance = 1e-12;
+        // Fallback to Cholesky if matrix is positive definite
+        if let Ok(chol) = a.cholesky() {
+            let result = chol.solve(b).map_err(|e| {
+                SklearsError::NumericalError(format!("Cholesky solve failed: {}", e))
+            })?;
+            return Ok(result);
+        }
 
-                let u = svd.u.unwrap();
-                let v_t = svd.v_t.unwrap();
-                let s = svd.singular_values;
+        // Final fallback: pseudoinverse using SVD
+        let (u, s, vt) = svd(&a.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })?;
 
-                let mut s_inv = nalgebra::DMatrix::zeros(s.len(), s.len());
-                for i in 0..s.len() {
-                    if s[i] > tolerance {
-                        s_inv[(i, i)] = 1.0 / s[i];
-                    }
-                }
+        let tolerance = 1e-12;
 
-                v_t.transpose() * s_inv * u.transpose() * b_na
-            })
-        };
+        // Create diagonal inverse matrix S^+
+        let k = s.len();
+        let mut s_inv = Array2::zeros((k, k));
+        for i in 0..k {
+            if s[i] > tolerance {
+                s_inv[[i, i]] = 1.0 / s[i];
+            }
+        }
 
-        // Convert back to ndarray
-        let result_vec: Vec<f64> = result_na.iter().cloned().collect();
-        let result = Array1::from_vec(result_vec);
+        // Compute pseudoinverse: A^+ = V * S^+ * U^T
+        let vt_t = vt.t();
+        let u_t = u.t();
+        let temp = s_inv.dot(&u_t);
+        let a_pinv = vt_t.dot(&temp);
+
+        // Compute result: A^+ * b
+        let result = a_pinv.dot(b);
 
         Ok(result)
     }
@@ -1279,41 +1241,10 @@ impl LowRankMatrixRecovery<Untrained> {
 
     /// Compute SVD decomposition
     fn compute_svd(&self, matrix: &Array2<f64>) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
-        let (m, n) = matrix.dim();
-        let matrix_na = DMatrix::from_row_slice(m, n, matrix.as_slice().unwrap());
-
-        let svd = matrix_na.svd(true);
-
-        let u = svd.u.ok_or_else(|| {
-            SklearsError::NumericalError("Failed to compute U matrix in SVD".to_string())
-        })?;
-
-        let vt = svd.v_t.ok_or_else(|| {
-            SklearsError::NumericalError("Failed to compute V^T matrix in SVD".to_string())
-        })?;
-
-        // Convert back to ndarray
-        let mut u_array = Array2::zeros((m, u.ncols()));
-        let mut vt_array = Array2::zeros((vt.nrows(), n));
-        let mut s_array = Array1::zeros(svd.singular_values.len());
-
-        for i in 0..m {
-            for j in 0..u.ncols() {
-                u_array[[i, j]] = u[(i, j)];
-            }
-        }
-
-        for i in 0..vt.nrows() {
-            for j in 0..n {
-                vt_array[[i, j]] = vt[(i, j)];
-            }
-        }
-
-        for i in 0..svd.singular_values.len() {
-            s_array[i] = svd.singular_values[i];
-        }
-
-        Ok((u_array, s_array, vt_array))
+        // Use scirs2-linalg SVD directly
+        svd(&matrix.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })
     }
 
     /// Reconstruct matrix from SVD components
@@ -1350,66 +1281,43 @@ impl LowRankMatrixRecovery<Untrained> {
     /// Update factor U in alternating minimization
     fn update_factor_u(&self, x: &Array2<f64>, v: &Array2<f64>) -> Result<Array2<f64>> {
         // Solve for U in ||X - UV^T||_F^2 by solving U = XV(V^TV)^{-1}
-        let vtv = v.t().dot(v);
+        let mut vtv = v.t().dot(v);
         let xv = x.dot(v);
 
-        // Convert to nalgebra for matrix operations
-        let vtv_matrix = DMatrix::from_row_slice(vtv.nrows(), vtv.ncols(), vtv.as_slice().unwrap());
-        let xv_matrix = DMatrix::from_row_slice(xv.nrows(), xv.ncols(), xv.as_slice().unwrap());
-
         // Add regularization for numerical stability
-        let mut reg_vtv = vtv_matrix.clone();
-        for i in 0..reg_vtv.nrows() {
-            reg_vtv[(i, i)] += 1e-12;
+        for i in 0..vtv.nrows() {
+            vtv[[i, i]] += 1e-12;
         }
 
-        let vtv_inv = reg_vtv.try_inverse().ok_or_else(|| {
-            SklearsError::NumericalError("Failed to invert matrix in factor update".to_string())
+        // Use scirs2-linalg for matrix inversion
+        let vtv_inv = vtv.inv().map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to invert matrix in factor update: {}", e))
         })?;
 
-        let u = xv_matrix * vtv_inv;
+        let u = xv.dot(&vtv_inv);
 
-        // Convert back to ndarray
-        let mut u_array = Array2::zeros((u.nrows(), u.ncols()));
-        for i in 0..u.nrows() {
-            for j in 0..u.ncols() {
-                u_array[[i, j]] = u[(i, j)];
-            }
-        }
-
-        Ok(u_array)
+        Ok(u)
     }
 
     /// Update factor V in alternating minimization
     fn update_factor_v(&self, x: &Array2<f64>, u: &Array2<f64>) -> Result<Array2<f64>> {
         // Solve for V in ||X - UV^T||_F^2 by solving V = X^TU(U^TU)^{-1}
-        let utu = u.t().dot(u);
+        let mut utu = u.t().dot(u);
         let xtu = x.t().dot(u);
 
-        let utu_matrix = DMatrix::from_row_slice(utu.nrows(), utu.ncols(), utu.as_slice().unwrap());
-        let xtu_matrix = DMatrix::from_row_slice(xtu.nrows(), xtu.ncols(), xtu.as_slice().unwrap());
-
         // Add regularization for numerical stability
-        let mut reg_utu = utu_matrix.clone();
-        for i in 0..reg_utu.nrows() {
-            reg_utu[(i, i)] += 1e-12;
+        for i in 0..utu.nrows() {
+            utu[[i, i]] += 1e-12;
         }
 
-        let utu_inv = reg_utu.try_inverse().ok_or_else(|| {
-            SklearsError::NumericalError("Failed to invert matrix in factor update".to_string())
+        // Use scirs2-linalg for matrix inversion
+        let utu_inv = utu.inv().map_err(|e| {
+            SklearsError::NumericalError(format!("Failed to invert matrix in factor update: {}", e))
         })?;
 
-        let v = xtu_matrix * utu_inv;
+        let v = xtu.dot(&utu_inv);
 
-        // Convert back to ndarray
-        let mut v_array = Array2::zeros((v.nrows(), v.ncols()));
-        for i in 0..v.nrows() {
-            for j in 0..v.ncols() {
-                v_array[[i, j]] = v[(i, j)];
-            }
-        }
-
-        Ok(v_array)
+        Ok(v)
     }
 
     /// Compute PCP objective function

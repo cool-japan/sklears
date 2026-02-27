@@ -493,12 +493,12 @@ impl Graph3DGenerator {
                         let fz = force * dz / distance;
 
                         // Apply force to both nodes
-                        let f1 = forces.get_mut(&node1.id).unwrap();
+                        let f1 = forces.get_mut(&node1.id).expect("get_mut should succeed");
                         f1.0 += fx;
                         f1.1 += fy;
                         f1.2 += fz;
 
-                        let f2 = forces.get_mut(&node2.id).unwrap();
+                        let f2 = forces.get_mut(&node2.id).expect("get_mut should succeed");
                         f2.0 -= fx;
                         f2.1 -= fy;
                         f2.2 -= fz;
@@ -523,12 +523,12 @@ impl Graph3DGenerator {
                     let fz = force * dz / distance;
 
                     // Apply attractive force
-                    let f1 = forces.get_mut(&edge.from).unwrap();
+                    let f1 = forces.get_mut(&edge.from).expect("get_mut should succeed");
                     f1.0 += fx;
                     f1.1 += fy;
                     f1.2 += fz;
 
-                    let f2 = forces.get_mut(&edge.to).unwrap();
+                    let f2 = forces.get_mut(&edge.to).expect("get_mut should succeed");
                     f2.0 -= fx;
                     f2.1 -= fy;
                     f2.2 -= fz;
@@ -544,7 +544,7 @@ impl Graph3DGenerator {
                         let displacement = cooling.min(force_magnitude);
                         let scale = displacement / force_magnitude;
 
-                        let pos = positions.get_mut(&node.id).unwrap();
+                        let pos = positions.get_mut(&node.id).expect("get_mut should succeed");
                         pos.0 += fx * scale;
                         pos.1 += fy * scale;
                         pos.2 += fz * scale;
@@ -1494,7 +1494,7 @@ mod tests {
         let positions = generator.compute_spherical_layout(&graph);
         assert!(positions.is_ok());
 
-        let positions = positions.unwrap();
+        let positions = positions.expect("expected valid value");
         assert_eq!(positions.len(), graph.nodes.len());
     }
 
@@ -1507,7 +1507,7 @@ mod tests {
         let positions = generator.compute_cylindrical_layout(&graph);
         assert!(positions.is_ok());
 
-        let positions = positions.unwrap();
+        let positions = positions.expect("expected valid value");
         assert_eq!(positions.len(), graph.nodes.len());
     }
 
@@ -1520,7 +1520,7 @@ mod tests {
         let positions = generator.compute_force_3d_layout(&graph);
         assert!(positions.is_ok());
 
-        let positions = positions.unwrap();
+        let positions = positions.expect("expected valid value");
         assert_eq!(positions.len(), graph.nodes.len());
     }
 
@@ -1533,7 +1533,7 @@ mod tests {
         let layout_result = generator.compute_3d_layout(&graph);
         assert!(layout_result.is_ok());
 
-        let result = layout_result.unwrap();
+        let result = layout_result.expect("expected valid value");
         assert_eq!(result.positions.len(), graph.nodes.len());
         assert_eq!(result.rotations.len(), graph.nodes.len());
     }
@@ -1590,7 +1590,7 @@ mod tests {
         let html_result = generator.generate_3d_html(&graph);
         assert!(html_result.is_ok());
 
-        let html = html_result.unwrap();
+        let html = html_result.expect("expected valid value");
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("three.min.js"));
         assert!(html.contains("OrbitControls"));

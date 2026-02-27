@@ -643,7 +643,7 @@ mod tests {
         let predictions = neural_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -659,7 +659,7 @@ mod tests {
         let predictions = mixup_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -674,7 +674,7 @@ mod tests {
         let predictions = dropout_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -687,7 +687,7 @@ mod tests {
         let predictions = ensemble_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -711,7 +711,7 @@ mod tests {
             let predictions = neural_cal.predict_proba(&probabilities).unwrap();
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 

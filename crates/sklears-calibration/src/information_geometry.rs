@@ -850,7 +850,7 @@ mod tests {
         assert_eq!(point.natural_params.len(), 3);
         assert_eq!(point.expectation_params.len(), 3);
         assert!(point.log_normalizer.is_finite());
-        assert!(point.probability_distribution.len() > 0);
+        assert!(!point.probability_distribution.is_empty());
     }
 
     #[test]
@@ -911,7 +911,7 @@ mod tests {
         assert_eq!(predictions.len(), 4);
 
         for &pred in predictions.iter() {
-            assert!(pred >= 0.0 && pred <= 1.0);
+            assert!((0.0..=1.0).contains(&pred));
         }
     }
 

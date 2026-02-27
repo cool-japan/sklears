@@ -61,15 +61,13 @@ impl Individual {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```text
 /// use sklears_multioutput::optimization::evolutionary_multi_objective::NSGAII;
-/// // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 /// use scirs2_core::ndarray::array;
 ///
-/// // Define a multi-objective function (minimize both objectives)
-/// let objectives = |x: &scirs2_autograd::scirs2_core::ndarray::ArrayView1`<f64>`| {
-///     let obj1 = x[0].powi(2) + x[1].powi(2);           // Minimize distance from origin
-///     let obj2 = (x[0] - 1.0).powi(2) + (x[1] - 1.0).powi(2); // Minimize distance from (1,1)
+/// let objectives = |x: &ArrayView1<f64>| {
+///     let obj1 = x[0].powi(2) + x[1].powi(2);
+///     let obj2 = (x[0] - 1.0).powi(2) + (x[1] - 1.0).powi(2);
 ///     array![obj1, obj2]
 /// };
 ///

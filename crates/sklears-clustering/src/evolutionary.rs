@@ -34,7 +34,7 @@ use std::f64;
 /// Where:
 /// - w: inertia weight (exploration vs exploitation balance)
 /// - c1, c2: acceleration coefficients (cognitive and social parameters)
-/// - r1, r2: random numbers in [0,1]
+/// - r1, r2: random numbers in \[0,1\]
 ///
 /// # Example
 ///

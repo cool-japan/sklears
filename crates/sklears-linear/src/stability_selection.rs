@@ -41,7 +41,7 @@ pub struct StabilitySelectionConfig {
     pub sample_fraction: f64,
     /// Threshold for feature selection probability
     pub threshold: f64,
-    /// Upper bound for expected number of false discoveries (E[V])
+    /// Upper bound for expected number of false discoveries (E\[V\])
     pub expected_fdr: Option<f64>,
     /// Per-family error rate (PFER) bound
     pub pfer_bound: Option<f64>,
@@ -833,7 +833,7 @@ mod tests {
         let transformed = result.unwrap();
 
         assert_eq!(transformed.len(), 10); // Same number of samples
-        assert!(transformed[0].len() > 0); // Some features selected
+        assert!(!transformed[0].is_empty()); // Some features selected
     }
 
     #[test]
@@ -852,7 +852,7 @@ mod tests {
 
         // Probabilities should be between 0 and 1
         for &prob in probabilities {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -872,7 +872,7 @@ mod tests {
 
         // Stability scores should be between 0 and 1
         for &score in stability_scores {
-            assert!(score >= 0.0 && score <= 1.0);
+            assert!((0.0..=1.0).contains(&score));
         }
     }
 

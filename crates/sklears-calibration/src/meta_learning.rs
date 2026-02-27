@@ -1247,7 +1247,7 @@ mod tests {
         let predictions = meta_calibrator.predict_proba(&test_probs).unwrap();
 
         assert_eq!(predictions.len(), test_probs.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1259,7 +1259,7 @@ mod tests {
         let predictions = calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1282,7 +1282,7 @@ mod tests {
         let predictions = selector.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1307,7 +1307,7 @@ mod tests {
             let predictions = selector.predict_proba(&probabilities).unwrap();
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 
@@ -1333,7 +1333,7 @@ mod tests {
         let predictions = calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         assert!(predictions.iter().all(|&p| p.is_finite()));
     }
 
@@ -1349,7 +1349,7 @@ mod tests {
         let predictions = calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         assert!(predictions.iter().all(|&p| p.is_finite()));
     }
 

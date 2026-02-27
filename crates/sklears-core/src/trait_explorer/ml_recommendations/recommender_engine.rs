@@ -208,7 +208,7 @@ impl TraitDatabase {
     fn update_timestamp(&mut self) {
         self.last_updated = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("expected valid value")
             .as_secs();
     }
 }
@@ -245,19 +245,19 @@ impl MLRecommendationEngine {
         // Initialize neural embedding model
         if self.config.ml_config.enable_neural_embeddings {
             let neural_model = NeuralEmbeddingModel::new(self.config.neural_config.clone())?;
-            *self.neural_model.write().unwrap() = Some(neural_model);
+            *self.neural_model.write().unwrap_or_else(|e| e.into_inner()) = Some(neural_model);
         }
 
         // Initialize clustering model
         if self.config.ml_config.enable_clustering {
             let clustering_model = ClusteringModel::new(Default::default())?;
-            *self.clustering_model.write().unwrap() = Some(clustering_model);
+            *self.clustering_model.write().unwrap_or_else(|e| e.into_inner()) = Some(clustering_model);
         }
 
         // Initialize collaborative filtering model
         if self.config.ml_config.enable_collaborative_filtering {
             let collaborative_model = CollaborativeFilteringModel::new(Default::default())?;
-            *self.collaborative_model.write().unwrap() = Some(collaborative_model);
+            *self.collaborative_model.write().unwrap_or_else(|e| e.into_inner()) = Some(collaborative_model);
         }
 
         // Train models with provided data
@@ -272,7 +272,7 @@ impl MLRecommendationEngine {
 
         // Increment request counter
         {
-            let mut counter = self.request_counter.lock().unwrap();
+            let mut counter = self.request_counter.lock().unwrap_or_else(|e| e.into_inner());
             *counter += 1;
         }
 
@@ -358,7 +358,7 @@ impl MLRecommendationEngine {
         }
 
         // Update statistics
-        let elapsed = start_time.elapsed().unwrap().as_millis() as f64;
+        let elapsed = start_time.elapsed().unwrap_or_default().as_millis() as f64;
         self.update_recommendation_stats(elapsed, true);
 
         // Cleanup cache if needed
@@ -369,26 +369,26 @@ impl MLRecommendationEngine {
 
     /// Record a usage event for pattern learning
     pub fn record_usage(&self, event: UsageEvent) -> Result<(), CoreError> {
-        let mut pattern_analyzer = self.pattern_analyzer.write().unwrap();
+        let mut pattern_analyzer = self.pattern_analyzer.write().unwrap_or_else(|e| e.into_inner());
         pattern_analyzer.record_usage(event)?;
         Ok(())
     }
 
     /// Get recommendation statistics
     pub fn get_stats(&self) -> RecommendationStats {
-        self.recommendation_stats.read().unwrap().clone()
+        self.recommendation_stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Update the trait database
     pub fn update_trait_database(&self, trait_info: TraitInfo) -> Result<(), CoreError> {
-        let mut db = self.trait_database.write().unwrap();
+        let mut db = self.trait_database.write().unwrap_or_else(|e| e.into_inner());
         db.add_trait(trait_info);
         Ok(())
     }
 
     /// Get similar traits using the similarity model
     pub fn get_similar_traits(&self, trait_name: &str, num_similar: usize) -> Result<Vec<(String, f64)>, CoreError> {
-        let similarity_model = self.similarity_model.read().unwrap();
+        let similarity_model = self.similarity_model.read().unwrap_or_else(|e| e.into_inner());
         similarity_model.find_similar_traits(trait_name, num_similar)
     }
 
@@ -396,22 +396,22 @@ impl MLRecommendationEngine {
     pub fn train_models(&self, training_data: &TrainingData) -> Result<(), CoreError> {
         // Train similarity model
         {
-            let mut similarity_model = self.similarity_model.write().unwrap();
+            let mut similarity_model = self.similarity_model.write().unwrap_or_else(|e| e.into_inner());
             similarity_model.train(training_data)?;
         }
 
         // Train neural model if enabled
-        if let Some(neural_model) = self.neural_model.write().unwrap().as_mut() {
+        if let Some(neural_model) = self.neural_model.write().unwrap_or_else(|e| e.into_inner()).as_mut() {
             neural_model.train(&training_data.contexts, &training_data.features, 100)?;
         }
 
         // Train clustering model if enabled
-        if let Some(clustering_model) = self.clustering_model.write().unwrap().as_mut() {
+        if let Some(clustering_model) = self.clustering_model.write().unwrap_or_else(|e| e.into_inner()).as_mut() {
             clustering_model.fit(&training_data.features)?;
         }
 
         // Train collaborative filtering model if enabled
-        if let Some(collaborative_model) = self.collaborative_model.write().unwrap().as_mut() {
+        if let Some(collaborative_model) = self.collaborative_model.write().unwrap_or_else(|e| e.into_inner()).as_mut() {
             collaborative_model.fit(
                 &training_data.user_trait_matrix,
                 &training_data.trait_features
@@ -424,10 +424,10 @@ impl MLRecommendationEngine {
     // Private helper methods
 
     fn get_similarity_recommendations(&self, context: &TraitContext, num_recs: usize) -> Result<Vec<TraitRecommendation>, CoreError> {
-        let similarity_model = self.similarity_model.read().unwrap();
+        let similarity_model = self.similarity_model.read().unwrap_or_else(|e| e.into_inner());
 
         let mut recommendations = Vec::new();
-        let db = self.trait_database.read().unwrap();
+        let db = self.trait_database.read().unwrap_or_else(|e| e.into_inner());
 
         // Get traits related to current context
         let related_traits = self.extract_related_traits_from_context(context);
@@ -448,23 +448,23 @@ impl MLRecommendationEngine {
             }
         }
 
-        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
         recommendations.truncate(num_recs);
         Ok(recommendations)
     }
 
     fn get_neural_recommendations(&self, context: &TraitContext, num_recs: usize) -> Result<Vec<TraitRecommendation>, CoreError> {
-        let neural_model_guard = self.neural_model.read().unwrap();
+        let neural_model_guard = self.neural_model.read().unwrap_or_else(|e| e.into_inner());
         let neural_model = neural_model_guard.as_ref()
             .ok_or_else(|| CoreError::new("Neural model not initialized"))?;
 
-        let mut feature_extractor = self.feature_extractor.write().unwrap();
+        let mut feature_extractor = self.feature_extractor.write().unwrap_or_else(|e| e.into_inner());
         let context_features = feature_extractor.extract_context_features(context)?;
 
         let context_embedding = neural_model.forward(&context_features)?;
 
         let mut recommendations = Vec::new();
-        let db = self.trait_database.read().unwrap();
+        let db = self.trait_database.read().unwrap_or_else(|e| e.into_inner());
 
         for trait_info in db.get_all_traits() {
             if let Some(trait_embedding) = db.get_trait_embedding(&trait_info.name) {
@@ -482,13 +482,13 @@ impl MLRecommendationEngine {
             }
         }
 
-        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
         recommendations.truncate(num_recs);
         Ok(recommendations)
     }
 
     fn get_collaborative_recommendations(&self, context: &TraitContext, num_recs: usize) -> Result<Vec<TraitRecommendation>, CoreError> {
-        let collaborative_model_guard = self.collaborative_model.read().unwrap();
+        let collaborative_model_guard = self.collaborative_model.read().unwrap_or_else(|e| e.into_inner());
         let collaborative_model = collaborative_model_guard.as_ref()
             .ok_or_else(|| CoreError::new("Collaborative filtering model not initialized"))?;
 
@@ -512,16 +512,16 @@ impl MLRecommendationEngine {
     }
 
     fn get_pattern_recommendations(&self, context: &TraitContext, num_recs: usize) -> Result<Vec<TraitRecommendation>, CoreError> {
-        let mut pattern_recommender = self.pattern_recommender.write().unwrap();
+        let mut pattern_recommender = self.pattern_recommender.write().unwrap_or_else(|e| e.into_inner());
         pattern_recommender.recommend_based_on_patterns(context)
     }
 
     fn get_clustering_recommendations(&self, context: &TraitContext, num_recs: usize) -> Result<Vec<TraitRecommendation>, CoreError> {
-        let clustering_model_guard = self.clustering_model.read().unwrap();
+        let clustering_model_guard = self.clustering_model.read().unwrap_or_else(|e| e.into_inner());
         let clustering_model = clustering_model_guard.as_ref()
             .ok_or_else(|| CoreError::new("Clustering model not initialized"))?;
 
-        let mut feature_extractor = self.feature_extractor.write().unwrap();
+        let mut feature_extractor = self.feature_extractor.write().unwrap_or_else(|e| e.into_inner());
         let context_features = feature_extractor.extract_context_features(context)?;
 
         let cluster_id = clustering_model.predict(&context_features)?;
@@ -544,7 +544,7 @@ impl MLRecommendationEngine {
 
     fn get_content_recommendations(&self, context: &TraitContext, num_recs: usize) -> Result<Vec<TraitRecommendation>, CoreError> {
         let mut recommendations = Vec::new();
-        let db = self.trait_database.read().unwrap();
+        let db = self.trait_database.read().unwrap_or_else(|e| e.into_inner());
 
         // Simple content-based filtering using trait categories and tags
         let context_keywords = self.extract_keywords_from_context(context);
@@ -585,7 +585,7 @@ impl MLRecommendationEngine {
             }
         }
 
-        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
         recommendations.truncate(num_recs);
         Ok(recommendations)
     }
@@ -636,18 +636,18 @@ impl MLRecommendationEngine {
         }
 
         // Sort and limit
-        final_recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        final_recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
         final_recommendations.truncate(num_final);
 
         Ok(final_recommendations)
     }
 
     fn get_cached_recommendations(&self, context: &TraitContext) -> Result<Option<CachedRecommendation>, CoreError> {
-        let cache = self.recommendation_cache.read().unwrap();
+        let cache = self.recommendation_cache.read().unwrap_or_else(|e| e.into_inner());
         let context_key = self.context_to_cache_key(context);
 
         if let Some(cached) = cache.get(&context_key) {
-            let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
             if current_time - cached.timestamp < self.config.cache_settings.cache_ttl_seconds {
                 return Ok(Some(cached.clone()));
             }
@@ -657,9 +657,9 @@ impl MLRecommendationEngine {
     }
 
     fn cache_recommendations(&self, context: &TraitContext, recommendations: &[TraitRecommendation]) -> Result<(), CoreError> {
-        let mut cache = self.recommendation_cache.write().unwrap();
+        let mut cache = self.recommendation_cache.write().unwrap_or_else(|e| e.into_inner());
         let context_key = self.context_to_cache_key(context);
-        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 
         cache.insert(context_key, CachedRecommendation {
             recommendations: recommendations.to_vec(),
@@ -676,11 +676,11 @@ impl MLRecommendationEngine {
     }
 
     fn cleanup_cache_if_needed(&self) -> Result<(), CoreError> {
-        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        let mut last_cleanup = self.last_cache_cleanup.lock().unwrap();
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        let mut last_cleanup = self.last_cache_cleanup.lock().unwrap_or_else(|e| e.into_inner());
 
         if current_time - *last_cleanup > self.config.cache_settings.cache_cleanup_interval {
-            let mut cache = self.recommendation_cache.write().unwrap();
+            let mut cache = self.recommendation_cache.write().unwrap_or_else(|e| e.into_inner());
             self.cleanup_old_cache_entries(&mut cache);
             *last_cleanup = current_time;
         }
@@ -689,7 +689,7 @@ impl MLRecommendationEngine {
     }
 
     fn cleanup_old_cache_entries(&self, cache: &mut HashMap<String, CachedRecommendation>) {
-        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
         cache.retain(|_, cached| {
             current_time - cached.timestamp < self.config.cache_settings.cache_ttl_seconds
         });
@@ -741,17 +741,17 @@ impl MLRecommendationEngine {
     }
 
     fn update_cache_hit_stats(&self) {
-        let mut stats = self.recommendation_stats.write().unwrap();
+        let mut stats = self.recommendation_stats.write().unwrap_or_else(|e| e.into_inner());
         stats.cache_hits += 1;
     }
 
     fn update_cache_miss_stats(&self) {
-        let mut stats = self.recommendation_stats.write().unwrap();
+        let mut stats = self.recommendation_stats.write().unwrap_or_else(|e| e.into_inner());
         stats.cache_misses += 1;
     }
 
     fn update_recommendation_stats(&self, response_time_ms: f64, success: bool) {
-        let mut stats = self.recommendation_stats.write().unwrap();
+        let mut stats = self.recommendation_stats.write().unwrap_or_else(|e| e.into_inner());
         stats.total_requests += 1;
 
         // Update average response time
@@ -835,13 +835,13 @@ mod tests {
 
         db.add_trait(trait_info.clone());
         assert!(db.get_trait("Debug").is_some());
-        assert_eq!(db.get_trait("Debug").unwrap().name, "Debug");
+        assert_eq!(db.get_trait("Debug").expect("get_trait should succeed").name, "Debug");
     }
 
     #[test]
     fn test_cosine_similarity_calculation() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let vec_a = array![1.0, 0.0, 0.0];
         let vec_b = array![0.0, 1.0, 0.0];
@@ -854,7 +854,7 @@ mod tests {
     #[test]
     fn test_cache_key_generation() {
         let config = RecommenderEngineConfig::default();
-        let engine = MLRecommendationEngine::new(config).unwrap();
+        let engine = MLRecommendationEngine::new(config).expect("expected valid value");
 
         let context = TraitContext::default();
         let key1 = engine.context_to_cache_key(&context);

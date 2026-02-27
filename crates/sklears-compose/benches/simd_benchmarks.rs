@@ -5,10 +5,11 @@
 
 #![allow(missing_docs)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use sklears_compose::simd_optimizations::{SimdConfig, SimdOps};
 use sklears_core::types::Float;
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Generate test data for benchmarking
@@ -302,7 +303,7 @@ fn bench_simd_configurations(c: &mut Criterion) {
     for (name, config) in configs {
         let simd_ops = SimdOps::new(config);
 
-        group.bench_function(&format!("config_{}", name), |bench| {
+        group.bench_function(format!("config_{}", name), |bench| {
             bench.iter(|| black_box(simd_ops.add_arrays(&a.view(), &b.view()).unwrap()));
         });
     }
@@ -330,7 +331,7 @@ fn bench_cache_performance(c: &mut Criterion) {
         let data = Array1::from_iter((0..size).map(|i| i as Float));
         let simd_ops = SimdOps::default();
 
-        group.bench_function(&format!("cache_test_{}", name), |bench| {
+        group.bench_function(format!("cache_test_{}", name), |bench| {
             bench.iter(|| black_box(simd_ops.vectorized_sum(&data.view()).unwrap()));
         });
     }

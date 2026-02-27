@@ -77,11 +77,13 @@ fn run_quick_ci_benchmarks() -> Result<(), Box<dyn std::error::Error>> {
 fn run_comprehensive_benchmarks() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Running comprehensive benchmarks with all features...");
 
-    let mut config = BenchmarkConfig::default();
-    config.test_sizes = vec![128, 256, 512, 1024]; // Moderate sizes for demo
-    config.iterations = 500; // Moderate iterations for demo
-    config.warmup_iterations = 50;
-    config.enable_detailed_reporting = true;
+    let config = BenchmarkConfig {
+        test_sizes: vec![128, 256, 512, 1024], // Moderate sizes for demo
+        iterations: 500,                       // Moderate iterations for demo
+        warmup_iterations: 50,
+        enable_detailed_reporting: true,
+        ..BenchmarkConfig::default()
+    };
 
     let mut suite = ComprehensiveBenchmarkSuite::new(config);
 
@@ -184,14 +186,16 @@ fn run_comprehensive_benchmarks() -> Result<(), Box<dyn std::error::Error>> {
 fn run_custom_benchmarks() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Running benchmarks with custom configuration...");
 
-    let mut config = BenchmarkConfig::default();
-    config.test_sizes = vec![64, 256, 1024]; // Specific sizes
-    config.iterations = 200; // Fewer iterations
-    config.enable_energy_tests = true;
-    config.enable_scaling_tests = true;
-    config.enable_regression_tests = false; // No regression testing
-    config.cpu_tdp = 95.0; // High-end CPU
-    config.energy_budget = 15.0; // Higher energy budget
+    let config = BenchmarkConfig {
+        test_sizes: vec![64, 256, 1024], // Specific sizes
+        iterations: 200,                 // Fewer iterations
+        enable_energy_tests: true,
+        enable_scaling_tests: true,
+        enable_regression_tests: false, // No regression testing
+        cpu_tdp: 95.0,                  // High-end CPU
+        energy_budget: 15.0,            // Higher energy budget
+        ..BenchmarkConfig::default()
+    };
 
     let mut suite = ComprehensiveBenchmarkSuite::new(config);
 

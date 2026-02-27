@@ -170,7 +170,7 @@ impl Fit<Array1<Float>, Array1<Float>> for SpectralGraphIsotonicRegression<Untra
             let smoothed = spectral_smooth(&fitted_values, &laplacian, self.smoothness_lambda);
 
             // Apply isotonic constraint (monotonic projection)
-            fitted_values = apply_monotonic_projection(&smoothed);
+            fitted_values = apply_monotonic_projection(&smoothed)?;
 
             // Apply bounds
             if let Some(y_min) = self.y_min {
@@ -254,13 +254,21 @@ impl Predict<Array1<Float>, Array1<Float>> for SpectralGraphIsotonicRegression<T
 
 impl SpectralGraphIsotonicRegression<Trained> {
     /// Get fitted values
-    pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+    pub fn fitted_values(&self) -> Result<&Array1<Float>> {
+        self.fitted_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "fitted_values".to_string(),
+            })
     }
 
     /// Get graph Laplacian
-    pub fn laplacian(&self) -> &Array2<Float> {
-        self.laplacian_.as_ref().unwrap()
+    pub fn laplacian(&self) -> Result<&Array2<Float>> {
+        self.laplacian_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "laplacian".to_string(),
+            })
     }
 }
 
@@ -411,7 +419,7 @@ impl Fit<Array1<Float>, Array1<Float>> for RandomWalkIsotonicRegression<Untraine
             let smoothed = random_walk_smooth(&fitted_values, &transition_matrix, &stationary_dist);
 
             // Apply isotonic constraint
-            fitted_values = apply_monotonic_projection(&smoothed);
+            fitted_values = apply_monotonic_projection(&smoothed)?;
 
             // Apply bounds
             if let Some(y_min) = self.y_min {
@@ -492,18 +500,30 @@ impl Predict<Array1<Float>, Array1<Float>> for RandomWalkIsotonicRegression<Trai
 
 impl RandomWalkIsotonicRegression<Trained> {
     /// Get fitted values
-    pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+    pub fn fitted_values(&self) -> Result<&Array1<Float>> {
+        self.fitted_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "fitted_values".to_string(),
+            })
     }
 
     /// Get transition matrix
-    pub fn transition_matrix(&self) -> &Array2<Float> {
-        self.transition_matrix_.as_ref().unwrap()
+    pub fn transition_matrix(&self) -> Result<&Array2<Float>> {
+        self.transition_matrix_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transition_matrix".to_string(),
+            })
     }
 
     /// Get stationary distribution
-    pub fn stationary_distribution(&self) -> &Array1<Float> {
-        self.stationary_dist_.as_ref().unwrap()
+    pub fn stationary_distribution(&self) -> Result<&Array1<Float>> {
+        self.stationary_dist_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "stationary_distribution".to_string(),
+            })
     }
 }
 
@@ -707,7 +727,7 @@ impl Fit<Array1<Float>, Array1<Float>> for NetworkConstrainedIsotonicRegression<
             );
 
             // Apply isotonic constraint
-            fitted_values = apply_monotonic_projection(&smoothed);
+            fitted_values = apply_monotonic_projection(&smoothed)?;
 
             // Apply bounds
             if let Some(y_min) = self.y_min {
@@ -790,18 +810,30 @@ impl Predict<Array1<Float>, Array1<Float>> for NetworkConstrainedIsotonicRegress
 
 impl NetworkConstrainedIsotonicRegression<Trained> {
     /// Get fitted values
-    pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+    pub fn fitted_values(&self) -> Result<&Array1<Float>> {
+        self.fitted_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "fitted_values".to_string(),
+            })
     }
 
     /// Get centrality scores
-    pub fn centrality_scores(&self) -> &Array1<Float> {
-        self.centrality_scores_.as_ref().unwrap()
+    pub fn centrality_scores(&self) -> Result<&Array1<Float>> {
+        self.centrality_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "centrality_scores".to_string(),
+            })
     }
 
     /// Get detected communities
-    pub fn detected_communities(&self) -> &Vec<usize> {
-        self.detected_communities_.as_ref().unwrap()
+    pub fn detected_communities(&self) -> Result<&Vec<usize>> {
+        self.detected_communities_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "detected_communities".to_string(),
+            })
     }
 }
 
@@ -927,7 +959,13 @@ impl Fit<Array2<Float>, Array1<Float>> for GraphNeuralNetworkIsotonicLayer<Untra
 
         // Initialize weights randomly
         let mut rng = seeded_rng(42);
-        let normal = Normal::new(0.0, (1.0 / n_features as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, (1.0 / n_features as Float).sqrt()).map_err(|_| {
+            SklearsError::InvalidParameter {
+                name: "weight_init_std".to_string(),
+                reason: "Failed to create normal distribution for weight initialization"
+                    .to_string(),
+            }
+        })?;
 
         let mut weights = Array2::zeros((n_features, self.hidden_dim));
         for i in 0..n_features {
@@ -949,7 +987,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GraphNeuralNetworkIsotonicLayer<Untra
 
         // Apply isotonic constraint
         let fitted_values = if self.enforce_isotonic {
-            apply_monotonic_projection(&output)
+            apply_monotonic_projection(&output)?
         } else {
             output
         };
@@ -1000,7 +1038,7 @@ impl Predict<Array2<Float>, Array1<Float>> for GraphNeuralNetworkIsotonicLayer<T
 
             // Apply isotonic constraint if enabled
             if self.enforce_isotonic {
-                Ok(apply_monotonic_projection(&activated))
+                apply_monotonic_projection(&activated)
             } else {
                 Ok(activated)
             }
@@ -1014,18 +1052,28 @@ impl Predict<Array2<Float>, Array1<Float>> for GraphNeuralNetworkIsotonicLayer<T
 
 impl GraphNeuralNetworkIsotonicLayer<Trained> {
     /// Get weights
-    pub fn weights(&self) -> &Array2<Float> {
-        self.weights_.as_ref().unwrap()
+    pub fn weights(&self) -> Result<&Array2<Float>> {
+        self.weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "weights".to_string(),
+            })
     }
 
     /// Get bias
-    pub fn bias(&self) -> &Array1<Float> {
-        self.bias_.as_ref().unwrap()
+    pub fn bias(&self) -> Result<&Array1<Float>> {
+        self.bias_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "bias".to_string(),
+        })
     }
 
     /// Get fitted values
-    pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+    pub fn fitted_values(&self) -> Result<&Array1<Float>> {
+        self.fitted_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "fitted_values".to_string(),
+            })
     }
 }
 
@@ -1084,12 +1132,12 @@ fn spectral_smooth(
 }
 
 /// Apply monotonic projection using PAV
-fn apply_monotonic_projection(values: &Array1<Float>) -> Array1<Float> {
+fn apply_monotonic_projection(values: &Array1<Float>) -> Result<Array1<Float>> {
     let n = values.len();
     let weights = Array1::from_elem(n, 1.0);
 
     // Use PAV for isotonic projection
-    pool_adjacent_violators_l2(values, Some(&weights), true).unwrap()
+    pool_adjacent_violators_l2(values, Some(&weights), true)
 }
 
 /// Build transition matrix for random walk
@@ -1507,7 +1555,7 @@ pub fn spectral_graph_isotonic_regression(
         .smoothness_lambda(smoothness_lambda);
 
     let fitted = model.fit(&x, y)?;
-    Ok(fitted.fitted_values().clone())
+    Ok(fitted.fitted_values()?.clone())
 }
 
 /// Random walk isotonic regression (convenience function)
@@ -1525,7 +1573,7 @@ pub fn random_walk_isotonic_regression(
         .teleport_prob(teleport_prob);
 
     let fitted = model.fit(&x, y)?;
-    Ok(fitted.fitted_values().clone())
+    Ok(fitted.fitted_values()?.clone())
 }
 
 /// Network-constrained isotonic regression (convenience function)
@@ -1541,7 +1589,7 @@ pub fn network_constrained_isotonic_regression(
         .constraint_type(constraint_type);
 
     let fitted = model.fit(&x, y)?;
-    Ok(fitted.fitted_values().clone())
+    Ok(fitted.fitted_values()?.clone())
 }
 
 // ============================================================================
@@ -1565,7 +1613,7 @@ mod tests {
             .smoothness_lambda(0.1);
 
         let fitted = model.fit(&x, &y).unwrap();
-        let fitted_values = fitted.fitted_values();
+        let fitted_values = fitted.fitted_values().unwrap();
 
         // Check that fitting completes successfully
         assert_eq!(fitted_values.len(), y.len());
@@ -1586,13 +1634,13 @@ mod tests {
             .teleport_prob(0.15);
 
         let fitted = model.fit(&x, &y).unwrap();
-        let fitted_values = fitted.fitted_values();
+        let fitted_values = fitted.fitted_values().unwrap();
 
         // Check that fitting completes successfully
         assert_eq!(fitted_values.len(), y.len());
 
         // Check that stationary distribution exists
-        let stationary = fitted.stationary_distribution();
+        let stationary = fitted.stationary_distribution().unwrap();
         assert_eq!(stationary.len(), y.len());
 
         // Stationary distribution should sum to approximately 1
@@ -1620,13 +1668,13 @@ mod tests {
                 .constraint_type(constraint_type);
 
             let fitted = model.fit(&x, &y).unwrap();
-            let fitted_values = fitted.fitted_values();
+            let fitted_values = fitted.fitted_values().unwrap();
 
             // Check that fitting completes successfully
             assert_eq!(fitted_values.len(), y.len());
 
             // Check that centrality scores are computed
-            let centrality = fitted.centrality_scores();
+            let centrality = fitted.centrality_scores().unwrap();
             assert_eq!(centrality.len(), y.len());
             assert!(centrality.iter().all(|&v| v >= 0.0 && v <= 1.0));
         }
@@ -1651,7 +1699,7 @@ mod tests {
         let fitted = model.fit(&x, &y).unwrap();
 
         // Check that weights are initialized
-        let weights = fitted.weights();
+        let weights = fitted.weights().unwrap();
         assert_eq!(weights.dim(), (3, 8));
 
         // Check prediction

@@ -34,27 +34,27 @@ tempfile = { workspace = true }
 rayon = { workspace = true }
 
 # Cloud storage dependencies (optional, behind feature flags)
-tokio = { version = "1.47", features = ["full"], optional = true }
-futures = { version = "0.3", optional = true }
-url = { version = "2.5", optional = true }
+tokio = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
 
 # AWS S3 support
-aws-config = { version = "1.8", optional = true }
-aws-sdk-s3 = { version = "1.79", optional = true }  # TODO: Upgrade to 1.118+ in Phase 4 (breaking changes)
+aws-config = { workspace = true, optional = true }
+aws-sdk-s3 = { workspace = true, optional = true }  # TODO: Upgrade to 1.118+ in Phase 4 (breaking changes)
 
 # Google Cloud Storage support
-google-cloud-storage = { version = "0.25", optional = true }  # TODO: Upgrade to 1.5+ in Phase 4 (breaking changes)
+google-cloud-storage = { workspace = true, optional = true }  # TODO: Upgrade to 1.5+ in Phase 4 (breaking changes)
 
 # Parquet support
-parquet = { version = "54.3", optional = true }
-arrow = { version = "54.3", optional = true }
+parquet = { workspace = true, optional = true }
+arrow = { workspace = true, optional = true }
 
 # HDF5 support
-hdf5 = { version = "0.8", optional = true }
+hdf5 = { workspace = true, optional = true }
 
 # Visualization support
-plotters = { version = "0.3", optional = true }
-plotters-backend = { version = "0.3", optional = true }
+plotters = { workspace = true, optional = true }
+plotters-backend = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

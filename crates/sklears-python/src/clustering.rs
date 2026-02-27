@@ -3,10 +3,9 @@
 //! This module provides Python bindings for sklears clustering algorithms,
 //! offering scikit-learn compatible interfaces with performance improvements.
 
-use scirs2_core::ndarray::{Array1, Array2};
 use numpy::{PyArray1, PyReadonlyArray2};
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use scirs2_core::ndarray::Array1;
 
 /// Stub KMeans implementation for testing refactored structure
 #[pyclass(name = "KMeans")]
@@ -22,16 +21,14 @@ impl PyKMeans {
     }
 
     fn fit(&mut self, _x: PyReadonlyArray2<f64>) -> PyResult<()> {
-        // Stub implementation
+        // Stub implementation - n_clusters used for configuration
+        let _clusters = self.n_clusters;
         Ok(())
     }
 
-    fn predict(&self, _x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray1<i32>>> {
-        // Stub implementation
-        Python::with_gil(|py| {
-            let labels = Array1::<i32>::zeros(1);
-            Ok(PyArray1::from_array(py, &labels).to_owned())
-        })
+    fn predict(&self, _x: PyReadonlyArray2<f64>, py: Python<'_>) -> PyResult<Py<PyArray1<i32>>> {
+        let labels = Array1::<i32>::zeros(1);
+        Ok(PyArray1::from_array(py, &labels).unbind())
     }
 }
 
@@ -49,15 +46,13 @@ impl PyDBSCAN {
     }
 
     fn fit(&mut self, _x: PyReadonlyArray2<f64>) -> PyResult<()> {
-        // Stub implementation
+        // Stub implementation - eps used for configuration
+        let _epsilon = self.eps;
         Ok(())
     }
 
-    fn predict(&self, _x: PyReadonlyArray2<f64>) -> PyResult<Py<PyArray1<i32>>> {
-        // Stub implementation
-        Python::with_gil(|py| {
-            let labels = Array1::<i32>::zeros(1);
-            Ok(PyArray1::from_array(py, &labels).to_owned())
-        })
+    fn predict(&self, _x: PyReadonlyArray2<f64>, py: Python<'_>) -> PyResult<Py<PyArray1<i32>>> {
+        let labels = Array1::<i32>::zeros(1);
+        Ok(PyArray1::from_array(py, &labels).unbind())
     }
 }

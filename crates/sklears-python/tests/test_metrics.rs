@@ -35,8 +35,7 @@ mod metric_properties {
             let mut indices_to_change: Vec<usize> = (0..n_samples).collect();
             indices_to_change.shuffle(&mut rng);
 
-            for i in 0..(n_samples - num_correct) {
-                let idx = indices_to_change[i];
+            for &idx in indices_to_change.iter().take(n_samples - num_correct) {
                 // Change to a different class
                 y_pred[idx] = match y_pred[idx] {
                     0 => 1,

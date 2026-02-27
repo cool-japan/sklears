@@ -471,7 +471,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
 
         // First test point (0.25) should have lower calibrated probability than second (0.75)
@@ -500,7 +500,7 @@ mod tests {
 
             assert_eq!(calibrated.len(), 2);
             for &prob in calibrated.iter() {
-                assert!(prob >= 0.0 && prob <= 1.0);
+                assert!((0.0..=1.0).contains(&prob));
             }
         }
     }
@@ -527,7 +527,7 @@ mod tests {
 
             assert_eq!(calibrated.len(), 2);
             for &prob in calibrated.iter() {
-                assert!(prob >= 0.0 && prob <= 1.0);
+                assert!((0.0..=1.0).contains(&prob));
             }
         }
     }
@@ -547,7 +547,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -563,7 +563,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

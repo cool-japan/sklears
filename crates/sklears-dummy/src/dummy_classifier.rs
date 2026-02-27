@@ -151,7 +151,12 @@ impl Fit<Features, Array1<Int>> for DummyClassifier {
         let n_samples = y.len() as Float;
         let class_prior: Vec<Float> = classes
             .iter()
-            .map(|&class| *class_counts.get(&class).unwrap() as Float / n_samples)
+            .map(|&class| {
+                class_counts
+                    .get(&class)
+                    .map(|&c| c as Float / n_samples)
+                    .unwrap_or(0.0)
+            })
             .collect();
 
         // Find most frequent class
@@ -159,15 +164,23 @@ impl Fit<Features, Array1<Int>> for DummyClassifier {
             .iter()
             .max_by_key(|(_, count)| *count)
             .map(|(class, _)| class)
-            .unwrap();
+            .ok_or_else(|| {
+                sklears_core::error::SklearsError::InvalidInput(
+                    "Failed to find most frequent class".to_string(),
+                )
+            })?;
 
         // Automatic/Adaptive strategy selection
         let selected_strategy = match &self.strategy {
             Strategy::Auto => {
                 let max_class_prior = class_prior
                     .iter()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap();
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .ok_or_else(|| {
+                        sklears_core::error::SklearsError::InvalidInput(
+                            "Failed to find maximum class prior".to_string(),
+                        )
+                    })?;
 
                 if *max_class_prior >= 0.8 {
                     // Heavily imbalanced - use most frequent
@@ -209,7 +222,12 @@ impl Fit<Features, Array1<Int>> for DummyClassifier {
                 // Count observations for each class
                 let mut counts = Array1::<Float>::zeros(n_classes);
                 for &label in y.iter() {
-                    let class_idx = classes.iter().position(|&c| c == label).unwrap();
+                    let class_idx = classes.iter().position(|&c| c == label).ok_or_else(|| {
+                        sklears_core::error::SklearsError::InvalidInput(format!(
+                            "Label {} not found in classes",
+                            label
+                        ))
+                    })?;
                     counts[class_idx] += 1.0;
                 }
 
@@ -264,14 +282,22 @@ impl Predict<Features, Array1<Int>> for DummyClassifier<sklears_core::traits::Tr
 
         let n_samples = x.nrows();
         let mut predictions = Array1::zeros(n_samples);
-        let classes = self.classes_.as_ref().unwrap();
-        let class_prior = self.class_prior_.as_ref().unwrap();
-        let effective_strategy = self.selected_strategy_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })?;
+        let class_prior = self.class_prior_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })?;
+        let effective_strategy = self.selected_strategy_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })?;
 
         match effective_strategy {
             Strategy::MostFrequent | Strategy::Prior => {
                 // Both strategies use the most frequent class
-                let most_frequent = self.most_frequent_class_.unwrap();
+                let most_frequent = self.most_frequent_class_.ok_or_else(|| {
+                    sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+                })?;
                 predictions.fill(most_frequent);
             }
             Strategy::Auto | Strategy::Adaptive => {
@@ -281,7 +307,11 @@ impl Predict<Features, Array1<Int>> for DummyClassifier<sklears_core::traits::Tr
                 ));
             }
             Strategy::Constant => {
-                let constant = self.constant.unwrap();
+                let constant = self.constant.ok_or_else(|| {
+                    sklears_core::error::SklearsError::InvalidInput(
+                        "Constant value not set".to_string(),
+                    )
+                })?;
                 predictions.fill(constant);
             }
             Strategy::Stratified => {
@@ -383,10 +413,16 @@ impl PredictProba<Features, Array2<Float>> for DummyClassifier<sklears_core::tra
         }
 
         let n_samples = x.nrows();
-        let n_classes = self.n_classes_.unwrap();
-        let class_prior = self.class_prior_.as_ref().unwrap();
+        let n_classes = self.n_classes_.ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })?;
+        let class_prior = self.class_prior_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })?;
         let mut probabilities = Array2::zeros((n_samples, n_classes));
-        let effective_strategy = self.selected_strategy_.as_ref().unwrap();
+        let effective_strategy = self.selected_strategy_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })?;
 
         match effective_strategy {
             Strategy::MostFrequent | Strategy::Prior => {
@@ -405,8 +441,14 @@ impl PredictProba<Features, Array2<Float>> for DummyClassifier<sklears_core::tra
             }
             Strategy::Constant => {
                 // Find the index of the constant class
-                let constant = self.constant.unwrap();
-                let classes = self.classes_.as_ref().unwrap();
+                let constant = self.constant.ok_or_else(|| {
+                    sklears_core::error::SklearsError::InvalidInput(
+                        "Constant value not set".to_string(),
+                    )
+                })?;
+                let classes = self.classes_.as_ref().ok_or_else(|| {
+                    sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+                })?;
                 if let Some(const_idx) = classes.iter().position(|&c| c == constant) {
                     for i in 0..n_samples {
                         probabilities[[i, const_idx]] = 1.0;
@@ -460,23 +502,31 @@ impl PredictProba<Features, Array2<Float>> for DummyClassifier<sklears_core::tra
 
 impl DummyClassifier<sklears_core::traits::Trained> {
     /// Get the class labels
-    pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().unwrap()
+    pub fn classes(&self) -> Result<&Array1<Int>> {
+        self.classes_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })
     }
 
     /// Get the class priors
-    pub fn class_prior(&self) -> &Array1<Float> {
-        self.class_prior_.as_ref().unwrap()
+    pub fn class_prior(&self) -> Result<&Array1<Float>> {
+        self.class_prior_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })
     }
 
     /// Get the number of classes
-    pub fn n_classes(&self) -> usize {
-        self.n_classes_.unwrap()
+    pub fn n_classes(&self) -> Result<usize> {
+        self.n_classes_.ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })
     }
 
     /// Get the selected strategy (useful when Auto was used)
-    pub fn selected_strategy(&self) -> &Strategy {
-        self.selected_strategy_.as_ref().unwrap()
+    pub fn selected_strategy(&self) -> Result<&Strategy> {
+        self.selected_strategy_.as_ref().ok_or_else(|| {
+            sklears_core::error::SklearsError::InvalidInput("Model not fitted".to_string())
+        })
     }
 
     /// Get the Bayesian prior parameters (alpha)
@@ -626,7 +676,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select MostFrequent for heavily imbalanced data
-        assert_eq!(fitted.selected_strategy(), &Strategy::MostFrequent);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::MostFrequent);
 
         let predictions = fitted.predict(&x).unwrap();
         // All predictions should be class 0 (most frequent)
@@ -644,7 +694,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select Stratified for balanced binary data
-        assert_eq!(fitted.selected_strategy(), &Strategy::Stratified);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Stratified);
     }
 
     #[test]
@@ -656,7 +706,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select Prior for relatively balanced multiclass data
-        assert_eq!(fitted.selected_strategy(), &Strategy::Prior);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Prior);
     }
 
     #[test]
@@ -668,7 +718,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select MostFrequent for imbalanced data
-        assert_eq!(fitted.selected_strategy(), &Strategy::MostFrequent);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::MostFrequent);
 
         let predictions = fitted.predict(&x).unwrap();
         // All predictions should be class 0 (most frequent)
@@ -686,7 +736,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Should select Stratified for balanced binary data
-        assert_eq!(fitted.selected_strategy(), &Strategy::Stratified);
+        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Stratified);
 
         let predictions = fitted.predict(&x).unwrap();
         // Check that predictions are within the valid class range
@@ -707,8 +757,8 @@ mod tests {
         // Should handle small datasets appropriately
         let selected_strategy = fitted.selected_strategy();
         assert!(matches!(
-            selected_strategy,
-            Strategy::MostFrequent | Strategy::Stratified
+            selected_strategy.unwrap(),
+            &Strategy::MostFrequent | &Strategy::Stratified
         ));
 
         let predictions = fitted.predict(&x).unwrap();

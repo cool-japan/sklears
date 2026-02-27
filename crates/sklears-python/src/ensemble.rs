@@ -3,23 +3,27 @@
 //! This module provides PyO3-based Python bindings for sklears ensemble algorithms.
 //! It includes implementations for Gradient Boosting, AdaBoost, Voting, and Stacking classifiers.
 
-use crate::utils::{ndarray_to_numpy, numpy_to_ndarray1, numpy_to_ndarray2};
+use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
 use numpy::{IntoPyArray, PyArray1, PyArray2};
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PyString};
-use sklears_core::error::{Result as SklearsResult, SklearsError};
-use sklears_core::traits::{Fit, Predict, Transform};
+use pyo3::types::PyList;
+use scirs2_core::ndarray::{Array1, Array2};
+use sklears_core::traits::{Fit, Predict, Trained, Untrained};
+use sklears_ensemble::gradient_boosting::{
+    TrainedGradientBoostingClassifier, TrainedGradientBoostingRegressor,
+};
 use sklears_ensemble::{
-    AdaBoostClassifier, AdaBoostConfig, BaggingClassifier, BaggingConfig, BaggingRegressor,
-    GradientBoostingClassifier, GradientBoostingConfig, GradientBoostingRegressor, LossFunction,
-    StackingClassifier, StackingConfig, VotingClassifier, VotingClassifierConfig, VotingStrategy,
+    AdaBoostClassifier, BaggingClassifier, GradientBoostingClassifier, GradientBoostingConfig,
+    GradientBoostingRegressor, LossFunction, VotingClassifier, VotingClassifierConfig,
+    VotingStrategy,
 };
 
 /// Python wrapper for GradientBoostingClassifier
 #[pyclass(name = "GradientBoostingClassifier")]
 pub struct PyGradientBoostingClassifier {
     inner: Option<GradientBoostingClassifier>,
-    trained: Option<sklears_ensemble::TrainedGradientBoostingClassifier>,
+    trained: Option<TrainedGradientBoostingClassifier>,
 }
 
 #[pymethods]
@@ -83,7 +87,7 @@ impl PyGradientBoostingClassifier {
     }
 
     /// Fit the gradient boosting classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -104,30 +108,31 @@ impl PyGradientBoostingClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
 
         let x_array = numpy_to_ndarray2(x)?;
 
-        match trained_model.predict(&x_array) {
-            Ok(predictions) => Ok(predictions.into_pyarray(py)),
-            Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
-        }
+        let predictions: Array1<f64> =
+            Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
+                .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
+        Ok(predictions.into_pyarray(py).unbind())
     }
 
     /// Get feature importances
-    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
+    fn feature_importances_<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before accessing feature importances")
         })?;
 
-        // This would need to be implemented in the actual ensemble crate
-        // For now, return a placeholder
-        let n_features = trained_model.n_features;
-        let importances = vec![1.0 / n_features as f64; n_features];
-        Ok(PyArray1::from_vec(py, importances))
+        let importances = trained_model.feature_importances_gain();
+        Ok(importances.clone().into_pyarray(py).unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -143,7 +148,7 @@ impl PyGradientBoostingClassifier {
 #[pyclass(name = "GradientBoostingRegressor")]
 pub struct PyGradientBoostingRegressor {
     inner: Option<GradientBoostingRegressor>,
-    trained: Option<sklears_ensemble::TrainedGradientBoostingRegressor>,
+    trained: Option<TrainedGradientBoostingRegressor>,
 }
 
 #[pymethods]
@@ -204,7 +209,7 @@ impl PyGradientBoostingRegressor {
     }
 
     /// Fit the gradient boosting regressor
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -225,17 +230,21 @@ impl PyGradientBoostingRegressor {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
 
         let x_array = numpy_to_ndarray2(x)?;
 
-        match trained_model.predict(&x_array) {
-            Ok(predictions) => Ok(predictions.into_pyarray(py)),
-            Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
-        }
+        let predictions: Array1<f64> =
+            Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
+                .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
+        Ok(predictions.into_pyarray(py).unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -250,8 +259,8 @@ impl PyGradientBoostingRegressor {
 /// Python wrapper for AdaBoost Classifier
 #[pyclass(name = "AdaBoostClassifier")]
 pub struct PyAdaBoostClassifier {
-    inner: Option<AdaBoostClassifier>,
-    trained: Option<sklears_ensemble::TrainedAdaBoostClassifier>,
+    inner: Option<AdaBoostClassifier<Untrained>>,
+    trained: Option<AdaBoostClassifier<Trained>>,
 }
 
 #[pymethods]
@@ -259,21 +268,22 @@ impl PyAdaBoostClassifier {
     #[new]
     #[pyo3(signature = (n_estimators=50, learning_rate=1.0, random_state=None))]
     fn new(n_estimators: usize, learning_rate: f64, random_state: Option<u64>) -> PyResult<Self> {
-        let config = AdaBoostConfig {
-            n_estimators,
-            learning_rate,
-            random_state,
-            ..Default::default()
-        };
+        let mut model = AdaBoostClassifier::new()
+            .n_estimators(n_estimators)
+            .learning_rate(learning_rate);
+
+        if let Some(seed) = random_state {
+            model = model.random_state(seed);
+        }
 
         Ok(Self {
-            inner: Some(AdaBoostClassifier::new(config)),
+            inner: Some(model),
             trained: None,
         })
     }
 
     /// Fit the AdaBoost classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -294,17 +304,21 @@ impl PyAdaBoostClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
 
         let x_array = numpy_to_ndarray2(x)?;
 
-        match trained_model.predict(&x_array) {
-            Ok(predictions) => Ok(predictions.into_pyarray(py)),
-            Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
-        }
+        let predictions: Array1<f64> =
+            Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
+                .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
+        Ok(predictions.into_pyarray(py).unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -319,15 +333,19 @@ impl PyAdaBoostClassifier {
 /// Python wrapper for Voting Classifier
 #[pyclass(name = "VotingClassifier")]
 pub struct PyVotingClassifier {
-    inner: Option<VotingClassifier>,
-    trained: Option<sklears_ensemble::TrainedVotingClassifier>,
+    inner: Option<VotingClassifier<Untrained>>,
+    trained: Option<VotingClassifier<Trained>>,
 }
 
 #[pymethods]
 impl PyVotingClassifier {
     #[new]
-    #[pyo3(signature = (estimators, voting="hard", weights=None))]
-    fn new(estimators: &PyList, voting: &str, weights: Option<Vec<f64>>) -> PyResult<Self> {
+    #[pyo3(signature = (_estimators, voting="hard", weights=None))]
+    fn new(
+        _estimators: &Bound<'_, PyList>,
+        voting: &str,
+        weights: Option<Vec<f64>>,
+    ) -> PyResult<Self> {
         let voting_strategy = match voting {
             "hard" => VotingStrategy::Hard,
             "soft" => VotingStrategy::Soft,
@@ -339,10 +357,8 @@ impl PyVotingClassifier {
             }
         };
 
-        // For now, we'll create a placeholder configuration
-        // In a full implementation, we'd need to handle the estimators list
         let config = VotingClassifierConfig {
-            voting_strategy,
+            voting: voting_strategy,
             weights,
             ..Default::default()
         };
@@ -354,7 +370,7 @@ impl PyVotingClassifier {
     }
 
     /// Fit the voting classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
@@ -375,17 +391,21 @@ impl PyVotingClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
 
         let x_array = numpy_to_ndarray2(x)?;
 
-        match trained_model.predict(&x_array) {
-            Ok(predictions) => Ok(predictions.into_pyarray(py)),
-            Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
-        }
+        let predictions: Array1<f64> =
+            Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
+                .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
+        Ok(predictions.into_pyarray(py).unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -400,8 +420,8 @@ impl PyVotingClassifier {
 /// Python wrapper for Bagging Classifier
 #[pyclass(name = "BaggingClassifier")]
 pub struct PyBaggingClassifier {
-    inner: Option<BaggingClassifier>,
-    trained: Option<sklears_ensemble::TrainedBaggingClassifier>,
+    inner: Option<BaggingClassifier<Untrained>>,
+    trained: Option<BaggingClassifier<Trained>>,
 }
 
 #[pymethods]
@@ -409,46 +429,57 @@ impl PyBaggingClassifier {
     #[new]
     #[pyo3(signature = (
         n_estimators=10,
-        max_samples=1.0,
-        max_features=1.0,
+        max_samples=None,
+        max_features=None,
         bootstrap=true,
         bootstrap_features=false,
         random_state=None
     ))]
     fn new(
         n_estimators: usize,
-        max_samples: f64,
-        max_features: f64,
+        max_samples: Option<usize>,
+        max_features: Option<usize>,
         bootstrap: bool,
         bootstrap_features: bool,
         random_state: Option<u64>,
     ) -> PyResult<Self> {
-        let config = BaggingConfig {
-            n_estimators,
-            max_samples,
-            max_features,
-            bootstrap,
-            bootstrap_features,
-            random_state,
-            ..Default::default()
-        };
+        let mut model = BaggingClassifier::new()
+            .n_estimators(n_estimators)
+            .bootstrap(bootstrap)
+            .bootstrap_features(bootstrap_features);
+
+        if let Some(samples) = max_samples {
+            model = model.max_samples(Some(samples));
+        }
+
+        if let Some(features) = max_features {
+            model = model.max_features(Some(features));
+        }
+
+        if let Some(seed) = random_state {
+            model = model.random_state(seed);
+        }
 
         Ok(Self {
-            inner: Some(BaggingClassifier::new(config)),
+            inner: Some(model),
             trained: None,
         })
     }
 
     /// Fit the bagging classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
+
+        // Convert y to integer array for BaggingClassifier (Fit<Array2<Float>, Array1<Int>>)
+        let y_int: Vec<i32> = y_array.iter().map(|&val| val as i32).collect();
+        let y_int_array = Array1::from_vec(y_int);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
         })?;
 
-        match model.fit(&x_array, &y_array) {
+        match model.fit(&x_array, &y_int_array) {
             Ok(trained_model) => {
                 self.trained = Some(trained_model);
                 Ok(())
@@ -461,17 +492,23 @@ impl PyBaggingClassifier {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
 
         let x_array = numpy_to_ndarray2(x)?;
 
-        match trained_model.predict(&x_array) {
-            Ok(predictions) => Ok(predictions.into_pyarray(py)),
-            Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
-        }
+        let predictions: Array1<i32> =
+            Predict::<Array2<f64>, Array1<i32>>::predict(trained_model, &x_array)
+                .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
+        // Convert i32 predictions to f64
+        let predictions_f64: Vec<f64> = predictions.iter().map(|&v| v as f64).collect();
+        Ok(PyArray1::from_vec(py, predictions_f64).unbind())
     }
 
     fn __repr__(&self) -> String {

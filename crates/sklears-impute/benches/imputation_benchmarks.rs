@@ -8,7 +8,7 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::traits::{Fit, Transform};
 use sklears_impute::{KNNImputer, SimpleImputer};
 
@@ -24,7 +24,7 @@ fn generate_data_with_missing(
     // Generate random data
     for i in 0..n_samples {
         for j in 0..n_features {
-            data[[i, j]] = rng.gen_range(-10.0..10.0);
+            data[[i, j]] = rng.random_range(-10.0..10.0);
         }
     }
 

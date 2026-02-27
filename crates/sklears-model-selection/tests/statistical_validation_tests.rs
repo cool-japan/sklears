@@ -76,7 +76,7 @@ mod statistical_validation_tests {
         ];
 
         for cv_method in cv_methods {
-            let cv_scores = simulate_cv_scores(&cv_method, &x, &y, 10, &mut rng);
+            let cv_scores = simulate_cv_scores(cv_method.as_ref(), &x, &y, 10, &mut rng);
 
             // Calculate bias and variance
             let bias = calculate_bias(&cv_scores);
@@ -156,13 +156,7 @@ mod statistical_validation_tests {
 
         for _ in 0..n_simulations {
             let kfold = KFold::new(5, Some(rng.random::<u64>()), true);
-            let cv_scores = simulate_cv_scores(
-                &(Box::new(kfold.clone()) as Box<dyn CrossValidator>),
-                &x,
-                &y,
-                1,
-                &mut rng,
-            );
+            let cv_scores = simulate_cv_scores(&kfold as &dyn CrossValidator, &x, &y, 1, &mut rng);
             all_cv_scores.extend(cv_scores);
         }
 
@@ -239,7 +233,7 @@ mod statistical_validation_tests {
         ];
 
         for (name, cv_method) in cv_methods {
-            let cv_scores = simulate_cv_scores(&cv_method, &x, &y, 1, &mut rng);
+            let cv_scores = simulate_cv_scores(cv_method.as_ref(), &x, &y, 1, &mut rng);
             let statistical_power = calculate_statistical_power(&cv_scores, 0.05);
 
             // Statistical power should be reasonable
@@ -274,19 +268,14 @@ mod statistical_validation_tests {
 
         // Test CV with and without outliers
         let kfold = KFold::new(5, Some(42), true);
-        let cv_scores_with_outliers = simulate_cv_scores(
-            &(Box::new(kfold.clone()) as Box<dyn CrossValidator>),
-            &x,
-            &y,
-            1,
-            &mut rng,
-        );
+        let cv_scores_with_outliers =
+            simulate_cv_scores(&kfold as &dyn CrossValidator, &x, &y, 1, &mut rng);
 
         // Remove outliers
         let clean_x = x.slice(s![n_outliers.., ..]).to_owned();
         let clean_y = y.slice(s![n_outliers.., ..]).to_owned();
         let cv_scores_clean = simulate_cv_scores(
-            &(Box::new(kfold) as Box<dyn CrossValidator>),
+            &kfold as &dyn CrossValidator,
             &clean_x,
             &clean_y,
             1,
@@ -326,7 +315,7 @@ mod statistical_validation_tests {
     }
 
     fn simulate_cv_scores(
-        cv_method: &Box<dyn CrossValidator>,
+        cv_method: &dyn CrossValidator,
         x: &Array2<f64>,
         y: &Array2<f64>,
         n_simulations: usize,

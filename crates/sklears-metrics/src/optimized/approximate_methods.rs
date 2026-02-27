@@ -647,7 +647,7 @@ mod tests {
         }
 
         let median = sketch.approximate_median().unwrap();
-        assert!(median >= 8.0 && median <= 12.0); // Should be around 9.5
+        assert!((8.0..=12.0).contains(&median)); // Should be around 9.5
     }
 
     #[test]

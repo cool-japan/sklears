@@ -869,17 +869,17 @@ mod tests {
         // Test creation with isotonic calibrator
         let isotonic_result = GpuIsotonicCalibrator::new(config.clone());
         // GPU may not be available in test environment, so we accept both outcomes
-        if isotonic_result.is_err() {
+        if let Err(ref e) = isotonic_result {
             // Expected in environments without GPU
-            let error_msg = format!("{:?}", isotonic_result.as_ref().unwrap_err());
+            let error_msg = format!("{e:?}");
             assert!(error_msg.contains("GPU") || error_msg.contains("device"));
         }
 
         // Test creation with temperature scaling calibrator
         let temp_result = GpuTemperatureScalingCalibrator::new(config);
-        if temp_result.is_err() {
+        if let Err(ref e) = temp_result {
             // Expected in environments without GPU
-            let error_msg = format!("{:?}", temp_result.as_ref().unwrap_err());
+            let error_msg = format!("{e:?}");
             assert!(error_msg.contains("GPU") || error_msg.contains("device"));
         }
     }
@@ -917,9 +917,9 @@ mod tests {
 
             // This should either work with GPU or fallback to CPU
             let result = gpu_calibrator.fit(&probabilities, &y);
-            if result.is_err() {
+            if let Err(ref e) = result {
                 // GPU operations may fail in test environment - this is acceptable
-                let error_msg = format!("{:?}", result.as_ref().unwrap_err());
+                let error_msg = format!("{e:?}");
                 assert!(
                     error_msg.contains("GPU")
                         || error_msg.contains("device")

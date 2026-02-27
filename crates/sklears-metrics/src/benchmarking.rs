@@ -1222,7 +1222,7 @@ mod tests {
 
         suite.add_classification_benchmark(
             "test_accuracy",
-            |y_true, y_pred| ReferenceImplementations::accuracy_score(y_true, y_pred),
+            ReferenceImplementations::accuracy_score,
             Dataset::Iris,
         );
 
@@ -1236,7 +1236,7 @@ mod tests {
 
         suite.add_regression_benchmark(
             "test_mse",
-            |y_true, y_pred| ReferenceImplementations::mean_squared_error(y_true, y_pred),
+            ReferenceImplementations::mean_squared_error,
             Dataset::BostonHousing,
         );
 
@@ -1357,10 +1357,10 @@ mod tests {
 
         // Check that labels are in valid range
         for &label in y_true.iter() {
-            assert!(label >= 0 && label < 5);
+            assert!((0..5).contains(&label));
         }
         for &label in y_pred.iter() {
-            assert!(label >= 0 && label < 5);
+            assert!((0..5).contains(&label));
         }
     }
 }

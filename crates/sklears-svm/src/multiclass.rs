@@ -1210,7 +1210,7 @@ mod tests {
 
         // Check that all predictions are valid classes
         for &pred in predictions.iter() {
-            assert!(pred >= 0.0 && pred <= 3.0);
+            assert!((0.0..=3.0).contains(&pred));
         }
     }
 

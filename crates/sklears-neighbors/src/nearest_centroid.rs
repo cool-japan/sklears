@@ -294,7 +294,7 @@ impl NearestCentroid<Untrained> {
                 let mut centroid = Array1::zeros(n_features);
                 for feature_idx in 0..n_features {
                     let mut values: Vec<Float> = class_data.column(feature_idx).to_vec();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                     let median = if values.len() % 2 == 0 {
                         let mid = values.len() / 2;
@@ -320,7 +320,7 @@ impl NearestCentroid<Untrained> {
 
                 for feature_idx in 0..n_features {
                     let mut values: Vec<Float> = class_data.column(feature_idx).to_vec();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                     // Remove outliers from both ends
                     let trimmed_values = &values[trim_count..(values.len() - trim_count)];
@@ -446,7 +446,9 @@ impl NearestCentroid<Untrained> {
         let mut shrunken_centroid = centroid.clone();
 
         // Compute overall centroid (mean of all class centroids)
-        let overall_centroid = all_centroids.mean_axis(Axis(0)).unwrap();
+        let overall_centroid = all_centroids.mean_axis(Axis(0)).ok_or_else(|| {
+            NeighborsError::InvalidInput("Failed to compute mean of centroids".to_string())
+        })?;
 
         // For each feature, apply shrinkage towards overall centroid
         for feature_idx in 0..n_features {
@@ -498,7 +500,9 @@ impl NearestCentroid<Untrained> {
         let mut shrunken_centroids = centroids.clone();
 
         // Compute overall centroid (mean of all class centroids)
-        let overall_centroid = centroids.mean_axis(Axis(0)).unwrap();
+        let overall_centroid = centroids.mean_axis(Axis(0)).ok_or_else(|| {
+            NeighborsError::InvalidInput("Failed to compute mean of centroids".to_string())
+        })?;
 
         // For each feature, compute variance across class centroids
         for feature_idx in 0..n_features {
@@ -543,8 +547,14 @@ impl Predict<Features, Array1<Int>> for NearestCentroid<sklears_core::traits::Tr
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let centroids = self.centroids_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let centroids = self
+            .centroids_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let classes = self
+            .classes_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
         if x.ncols() != centroids.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -587,13 +597,17 @@ impl Predict<Features, Array1<Int>> for NearestCentroid<sklears_core::traits::Tr
 
 impl NearestCentroid<sklears_core::traits::Trained> {
     /// Get the class centroids
-    pub fn centroids(&self) -> &Array2<Float> {
-        self.centroids_.as_ref().unwrap()
+    pub fn centroids(&self) -> Result<&Array2<Float>> {
+        self.centroids_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()).into())
     }
 
     /// Get the class labels
-    pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().unwrap()
+    pub fn classes(&self) -> Result<&Array1<Int>> {
+        self.classes_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()).into())
     }
 
     /// Check if shrinkage was applied during training
@@ -612,7 +626,10 @@ impl NearestCentroid<sklears_core::traits::Trained> {
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let centroids = self.centroids_.as_ref().unwrap();
+        let centroids = self
+            .centroids_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
         if x.ncols() != centroids.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -625,7 +642,10 @@ impl NearestCentroid<sklears_core::traits::Trained> {
         let n_samples = x.nrows();
         let n_classes = centroids.nrows();
         let mut scores = Array2::zeros((n_samples, n_classes));
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
         let class_metrics = self.class_metrics_.as_ref();
 
         for (i, sample) in x.axis_iter(Axis(0)).enumerate() {
@@ -650,8 +670,11 @@ impl NearestCentroid<sklears_core::traits::Trained> {
 
     /// Get the feature importances based on variance across centroids
     /// Higher variance indicates more important features for classification
-    pub fn feature_importances(&self) -> Array1<Float> {
-        let centroids = self.centroids_.as_ref().unwrap();
+    pub fn feature_importances(&self) -> Result<Array1<Float>> {
+        let centroids = self
+            .centroids_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
         let n_classes = centroids.nrows();
         let n_features = centroids.ncols();
         let mut importances = Array1::zeros(n_features);
@@ -678,7 +701,7 @@ impl NearestCentroid<sklears_core::traits::Trained> {
             importances.mapv_inplace(|x| x / total_variance);
         }
 
-        importances
+        Ok(importances)
     }
 
     /// Update centroids with new samples online
@@ -705,7 +728,11 @@ impl NearestCentroid<sklears_core::traits::Trained> {
             .into());
         }
 
-        let n_features = self.centroids_.as_ref().unwrap().ncols();
+        let n_features = self
+            .centroids_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?
+            .ncols();
 
         if x_new.ncols() != n_features {
             return Err(NeighborsError::ShapeMismatch {
@@ -715,46 +742,60 @@ impl NearestCentroid<sklears_core::traits::Trained> {
             .into());
         }
 
-        let mut classes = self.classes_.as_ref().unwrap().to_vec();
+        let mut classes = self
+            .classes_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?
+            .to_vec();
 
         // Process each new sample
         for (i, &new_label) in y_new.iter().enumerate() {
             let new_sample = x_new.row(i);
 
             // Find or create class index
-            let class_idx = if let Some(idx) = classes.iter().position(|&c| c == new_label) {
-                idx
-            } else {
-                // New class - add to classes and resize centroids
-                classes.push(new_label);
-                let new_class_idx = classes.len() - 1;
+            let class_idx =
+                if let Some(idx) = classes.iter().position(|&c| c == new_label) {
+                    idx
+                } else {
+                    // New class - add to classes and resize centroids
+                    classes.push(new_label);
+                    let new_class_idx = classes.len() - 1;
 
-                // Resize centroids array
-                let centroids = self.centroids_.as_mut().unwrap();
-                let mut new_centroids = Array2::zeros((classes.len(), n_features));
-                new_centroids
-                    .slice_mut(s![0..centroids.nrows(), ..])
-                    .assign(centroids);
+                    // Resize centroids array
+                    let centroids = self.centroids_.as_mut().ok_or_else(|| {
+                        NeighborsError::InvalidInput("Model not fitted".to_string())
+                    })?;
+                    let mut new_centroids = Array2::zeros((classes.len(), n_features));
+                    new_centroids
+                        .slice_mut(s![0..centroids.nrows(), ..])
+                        .assign(centroids);
 
-                // Initialize new class centroid with this first sample
-                new_centroids.row_mut(new_class_idx).assign(&new_sample);
-                *centroids = new_centroids;
+                    // Initialize new class centroid with this first sample
+                    new_centroids.row_mut(new_class_idx).assign(&new_sample);
+                    *centroids = new_centroids;
 
-                // Initialize tracking for new class
-                let sample_counts = self.class_sample_counts_.as_mut().unwrap();
-                let running_sums = self.class_running_sums_.as_mut().unwrap();
-                sample_counts.insert(new_label, 1);
-                running_sums.insert(new_label, new_sample.to_owned());
+                    // Initialize tracking for new class
+                    let sample_counts = self.class_sample_counts_.as_mut().ok_or_else(|| {
+                        NeighborsError::InvalidInput("Model not fitted".to_string())
+                    })?;
+                    let running_sums = self.class_running_sums_.as_mut().ok_or_else(|| {
+                        NeighborsError::InvalidInput("Model not fitted".to_string())
+                    })?;
+                    sample_counts.insert(new_label, 1);
+                    running_sums.insert(new_label, new_sample.to_owned());
 
-                // Initialize class configuration if not exists
-                self.class_configs.entry(new_label).or_default();
+                    // Initialize class configuration if not exists
+                    self.class_configs.entry(new_label).or_default();
 
-                new_class_idx
-            };
+                    new_class_idx
+                };
 
             // Update existing class (if it's not a newly created class)
             // For new classes, the centroid is already set to the first sample above
-            let sample_counts = self.class_sample_counts_.as_ref().unwrap();
+            let sample_counts = self
+                .class_sample_counts_
+                .as_ref()
+                .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
             if let Some(&existing_count) = sample_counts.get(&new_label) {
                 // This is an existing class, update the centroid
                 if existing_count > 0 {
@@ -776,9 +817,18 @@ impl NearestCentroid<sklears_core::traits::Trained> {
         class_label: Int,
         new_sample: &scirs2_core::ndarray::ArrayView1<Float>,
     ) -> Result<()> {
-        let centroids = self.centroids_.as_mut().unwrap();
-        let sample_counts = self.class_sample_counts_.as_mut().unwrap();
-        let running_sums = self.class_running_sums_.as_mut().unwrap();
+        let centroids = self
+            .centroids_
+            .as_mut()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let sample_counts = self
+            .class_sample_counts_
+            .as_mut()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let running_sums = self
+            .class_running_sums_
+            .as_mut()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
         // Get class configuration
         let config = self
@@ -800,7 +850,12 @@ impl NearestCentroid<sklears_core::traits::Trained> {
                 let new_count = current_count + 1;
 
                 // Update running sum
-                let current_sum = running_sums.get_mut(&class_label).unwrap();
+                let current_sum = running_sums.get_mut(&class_label).ok_or_else(|| {
+                    NeighborsError::InvalidInput(format!(
+                        "Running sum not found for class {}",
+                        class_label
+                    ))
+                })?;
                 *current_sum = &*current_sum + new_sample;
 
                 // Update centroid = running_sum / count
@@ -816,7 +871,12 @@ impl NearestCentroid<sklears_core::traits::Trained> {
                 let current_count = *sample_counts.get(&class_label).unwrap_or(&0);
                 let new_count = current_count + 1;
 
-                let current_sum = running_sums.get_mut(&class_label).unwrap();
+                let current_sum = running_sums.get_mut(&class_label).ok_or_else(|| {
+                    NeighborsError::InvalidInput(format!(
+                        "Running sum not found for class {}",
+                        class_label
+                    ))
+                })?;
                 *current_sum = &*current_sum + new_sample;
 
                 let new_centroid = current_sum.mapv(|x| x / new_count as Float);
@@ -831,7 +891,12 @@ impl NearestCentroid<sklears_core::traits::Trained> {
                 let current_count = *sample_counts.get(&class_label).unwrap_or(&0);
                 let new_count = current_count + 1;
 
-                let current_sum = running_sums.get_mut(&class_label).unwrap();
+                let current_sum = running_sums.get_mut(&class_label).ok_or_else(|| {
+                    NeighborsError::InvalidInput(format!(
+                        "Running sum not found for class {}",
+                        class_label
+                    ))
+                })?;
                 *current_sum = &*current_sum + new_sample;
 
                 let new_centroid = current_sum.mapv(|x| x / new_count as Float);
@@ -857,10 +922,22 @@ impl NearestCentroid<sklears_core::traits::Trained> {
         class_label: Int,
         sample: &scirs2_core::ndarray::ArrayView1<Float>,
     ) -> Result<()> {
-        let centroids = self.centroids_.as_mut().unwrap();
-        let sample_counts = self.class_sample_counts_.as_mut().unwrap();
-        let running_sums = self.class_running_sums_.as_mut().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let centroids = self
+            .centroids_
+            .as_mut()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let sample_counts = self
+            .class_sample_counts_
+            .as_mut()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let running_sums = self
+            .class_running_sums_
+            .as_mut()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let classes = self
+            .classes_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
 
         // Find class index
         let class_idx = classes
@@ -881,7 +958,9 @@ impl NearestCentroid<sklears_core::traits::Trained> {
         let new_count = current_count - 1;
 
         // Update running sum
-        let current_sum = running_sums.get_mut(&class_label).unwrap();
+        let current_sum = running_sums.get_mut(&class_label).ok_or_else(|| {
+            NeighborsError::InvalidInput(format!("Running sum not found for class {}", class_label))
+        })?;
         *current_sum = &*current_sum - sample;
 
         // Update centroid
@@ -895,13 +974,20 @@ impl NearestCentroid<sklears_core::traits::Trained> {
     }
 
     /// Get the current sample count for each class
-    pub fn class_sample_counts(&self) -> &HashMap<Int, usize> {
-        self.class_sample_counts_.as_ref().unwrap()
+    pub fn class_sample_counts(&self) -> Result<&HashMap<Int, usize>> {
+        self.class_sample_counts_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()).into())
     }
 
     /// Get the total number of samples used for training
-    pub fn total_samples(&self) -> usize {
-        self.class_sample_counts_.as_ref().unwrap().values().sum()
+    pub fn total_samples(&self) -> Result<usize> {
+        Ok(self
+            .class_sample_counts_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?
+            .values()
+            .sum())
     }
 
     /// Reset the online learning state (clear all accumulated statistics)
@@ -914,15 +1000,22 @@ impl NearestCentroid<sklears_core::traits::Trained> {
     }
 
     /// Get a summary of the current online learning state
-    pub fn online_summary(&self) -> String {
-        let sample_counts = self.class_sample_counts_.as_ref().unwrap();
-        let total_samples = self.total_samples();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+    pub fn online_summary(&self) -> Result<String> {
+        let sample_counts = self
+            .class_sample_counts_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?;
+        let total_samples = self.total_samples()?;
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .ok_or_else(|| NeighborsError::InvalidInput("Model not fitted".to_string()))?
+            .len();
 
-        format!(
+        Ok(format!(
             "Online NearestCentroid: {} classes, {} total samples, per-class counts: {:?}",
             n_classes, total_samples, sample_counts
-        )
+        ))
     }
 }
 
@@ -953,7 +1046,7 @@ mod tests {
         let fitted = classifier.fit(&x, &y).unwrap();
 
         // Check centroids
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
         assert_eq!(centroids.shape(), &[2, 2]);
 
         // Class 0 centroid should be around (1.5, 1.5)
@@ -1041,7 +1134,7 @@ mod tests {
         assert_eq!(fitted.shrink_threshold(), Some(0.5));
 
         // Get centroids and check that low-variance features were shrunk
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
         assert_eq!(centroids.shape(), &[2, 4]);
 
         // Feature 3 should be shrunk towards overall mean (low variance: 0.1 vs 0.2)
@@ -1104,7 +1197,9 @@ mod tests {
         let classifier = NearestCentroid::new();
         let fitted = classifier.fit(&x, &y).unwrap();
 
-        let importances = fitted.feature_importances();
+        let importances = fitted
+            .feature_importances()
+            .expect("importances should be available");
         assert_eq!(importances.len(), 3);
 
         // Feature 2 should have highest importance (largest difference between classes: 21.0 - 11.0 = 10.0)
@@ -1168,7 +1263,7 @@ mod tests {
             .with_class_centroid_type(1, CentroidType::Mean);
 
         let fitted = classifier.fit(&x, &y).unwrap();
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
 
         // Class 0 centroid should be robust to outlier (closer to median ~1.15)
         assert!(
@@ -1252,7 +1347,7 @@ mod tests {
             NearestCentroid::new().with_class_centroid_type(0, CentroidType::TrimmedMean(0.2));
 
         let fitted = classifier.fit(&x, &y).unwrap();
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
 
         // Centroid should be robust to outlier
         assert!(
@@ -1286,7 +1381,7 @@ mod tests {
             .with_class_weights(0, weights);
 
         let fitted = classifier.fit(&x, &y).unwrap();
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
 
         // Class 0 centroid should be closer to (2,2) due to higher weight
         // Weighted centroid = (1*1 + 3*2, 1*1 + 3*2) / (1+3) = (7/4, 7/4) = (1.75, 1.75)
@@ -1315,7 +1410,7 @@ mod tests {
             NearestCentroid::new().with_class_centroid_type(0, CentroidType::GeometricMedian);
 
         let fitted = classifier.fit(&x, &y).unwrap();
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
 
         // Geometric median should be at origin (0, 0)
         assert!(centroids[[0, 0]].abs() < 0.1);
@@ -1344,7 +1439,7 @@ mod tests {
             .with_class_shrink_threshold(1, 0.01); // Weaker shrinkage for class 1
 
         let fitted = classifier.fit(&x, &y).unwrap();
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
 
         // Both classes should have centroids computed
         assert_eq!(centroids.shape(), &[2, 3]);
@@ -1374,7 +1469,10 @@ mod tests {
         let mut fitted = classifier.fit(&x_initial, &y_initial).unwrap();
 
         // Check initial centroids
-        let initial_centroids = fitted.centroids().clone();
+        let initial_centroids = fitted
+            .centroids()
+            .expect("initial centroids should be available")
+            .clone();
         assert_eq!(initial_centroids.shape(), &[2, 2]);
 
         // Add new samples online
@@ -1392,7 +1490,9 @@ mod tests {
         fitted.partial_fit(&x_new, &y_new).unwrap();
 
         // Check updated centroids
-        let updated_centroids = fitted.centroids();
+        let updated_centroids = fitted
+            .centroids()
+            .expect("updated centroids should be available");
         assert_eq!(updated_centroids.shape(), &[2, 2]);
 
         // Class 0 centroid should now be (1.0 + 1.1 + 1.2) / 3 = 1.1
@@ -1404,10 +1504,12 @@ mod tests {
         assert!((updated_centroids[[1, 1]] - 5.1).abs() < 0.01);
 
         // Check sample counts
-        let sample_counts = fitted.class_sample_counts();
-        assert_eq!(*sample_counts.get(&0).unwrap(), 3);
-        assert_eq!(*sample_counts.get(&1).unwrap(), 3);
-        assert_eq!(fitted.total_samples(), 6);
+        let sample_counts = fitted
+            .class_sample_counts()
+            .expect("sample counts should be available");
+        assert_eq!(*sample_counts.get(&0).expect("class 0 count"), 3);
+        assert_eq!(*sample_counts.get(&1).expect("class 1 count"), 3);
+        assert_eq!(fitted.total_samples().expect("total samples"), 6);
     }
 
     #[test]
@@ -1442,12 +1544,12 @@ mod tests {
         fitted.partial_fit(&x_new, &y_new).unwrap();
 
         // Check that we now have 3 classes
-        let classes = fitted.classes();
+        let classes = fitted.classes().expect("classes should be available");
         assert_eq!(classes.len(), 3);
         assert!(classes.iter().any(|&c| c == 2));
 
         // Check centroids shape
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
         assert_eq!(centroids.shape(), &[3, 2]);
 
         // Test prediction with new class
@@ -1480,11 +1582,13 @@ mod tests {
         fitted.remove_sample(0, &sample_to_remove).unwrap();
 
         // Check updated sample count
-        let sample_counts = fitted.class_sample_counts();
-        assert_eq!(*sample_counts.get(&0).unwrap(), 2);
+        let sample_counts = fitted
+            .class_sample_counts()
+            .expect("sample counts should be available");
+        assert_eq!(*sample_counts.get(&0).expect("class 0 count"), 2);
 
         // Check updated centroid for class 0 should now be (1.1 + 1.2) / 2 = 1.15
-        let centroids = fitted.centroids();
+        let centroids = fitted.centroids().expect("centroids should be available");
         assert!((centroids[[0, 0]] - 1.15).abs() < 0.01);
         assert!((centroids[[0, 1]] - 1.15).abs() < 0.01);
     }
@@ -1531,7 +1635,9 @@ mod tests {
         let classifier = NearestCentroid::new();
         let fitted = classifier.fit(&x, &y).unwrap();
 
-        let summary = fitted.online_summary();
+        let summary = fitted
+            .online_summary()
+            .expect("summary should be available");
         assert!(summary.contains("2 classes"));
         assert!(summary.contains("4 total samples"));
     }

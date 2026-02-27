@@ -1038,7 +1038,7 @@ mod tests {
                 3.0, 3.0, 3.0, 3.0, 3.0,
                 2.9, 3.1, 2.8, 3.2, 2.9,
             ],
-        ).unwrap();
+        ).expect("expected valid value");
 
         let result = model.fit(&features, 10);
         assert!(result.is_ok());

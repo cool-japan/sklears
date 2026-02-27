@@ -647,7 +647,7 @@ mod tests {
 
         // Coverage should be between 0 and 1
         let coverage = metrics["confidence_coverage"];
-        assert!(coverage >= 0.0 && coverage <= 1.0);
+        assert!((0.0..=1.0).contains(&coverage));
 
         // Width should be positive
         let width = metrics["average_interval_width"];

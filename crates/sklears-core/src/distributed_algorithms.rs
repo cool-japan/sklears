@@ -331,7 +331,10 @@ impl DistributedLinearRegression {
         for iteration in 0..self.config.max_iterations {
             // Get current parameters from parameter server
             let params = {
-                let ps = self.parameter_server.read().unwrap();
+                let ps = self
+                    .parameter_server
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 ps.get_parameters()
             };
 
@@ -344,7 +347,10 @@ impl DistributedLinearRegression {
 
             // Send gradients to parameter server
             {
-                let mut ps = self.parameter_server.write().unwrap();
+                let mut ps = self
+                    .parameter_server
+                    .write()
+                    .unwrap_or_else(|e| e.into_inner());
                 for gradient in all_gradients {
                     ps.receive_gradient(gradient)?;
                 }
@@ -353,7 +359,7 @@ impl DistributedLinearRegression {
             // Check for convergence
             if iteration % 10 == 0 {
                 let loss = self.compute_global_loss(&params)?;
-                let mut model_params = self.parameters.write().unwrap();
+                let mut model_params = self.parameters.write().unwrap_or_else(|e| e.into_inner());
 
                 if (model_params.metadata.current_loss - loss).abs() < self.config.tolerance {
                     model_params.metadata.converged = true;
@@ -369,11 +375,14 @@ impl DistributedLinearRegression {
 
         // Update final parameters
         let final_params = {
-            let ps = self.parameter_server.read().unwrap();
+            let ps = self
+                .parameter_server
+                .read()
+                .unwrap_or_else(|e| e.into_inner());
             ps.get_parameters()
         };
 
-        let mut model_params = self.parameters.write().unwrap();
+        let mut model_params = self.parameters.write().unwrap_or_else(|e| e.into_inner());
         model_params.weights = final_params;
 
         Ok(())
@@ -423,13 +432,17 @@ impl DistributedLinearRegression {
             total_samples_processed: total_samples,
             total_compute_time_ms: total_compute_time,
             total_gradient_computations,
-            parameter_server_version: self.parameter_server.read().unwrap().get_version(),
+            parameter_server_version: self
+                .parameter_server
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .get_version(),
         }
     }
 
     /// Predict on new data using trained parameters
     pub fn predict(&self, features: &[Vec<f64>]) -> Result<Vec<f64>> {
-        let params = self.parameters.read().unwrap();
+        let params = self.parameters.read().unwrap_or_else(|e| e.into_inner());
         let mut predictions = Vec::new();
 
         for feature_row in features {
@@ -617,8 +630,10 @@ impl FederatedLearning {
 
         // Apply differential privacy if enabled
         if self.config.dp_epsilon.is_some() {
-            self.privacy_mechanism
-                .apply_noise(&mut averaged, self.config.dp_epsilon.unwrap());
+            self.privacy_mechanism.apply_noise(
+                &mut averaged,
+                self.config.dp_epsilon.expect("expected valid value"),
+            );
         }
 
         averaged
@@ -626,7 +641,10 @@ impl FederatedLearning {
 
     /// Get global model parameters
     pub fn get_global_model(&self) -> ModelParameters {
-        self.global_model.read().unwrap().clone()
+        self.global_model
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 
@@ -650,7 +668,8 @@ impl PrivacyMechanism {
 
         let mut rng = thread_rng();
         let noise_std = self.noise_scale / epsilon;
-        let normal = Normal::new(0.0, noise_std).unwrap();
+        let normal = Normal::new(0.0, noise_std)
+            .unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution"));
 
         for grad in gradients.iter_mut() {
             *grad += rng.sample(normal);
@@ -756,7 +775,7 @@ impl ByzantineFaultTolerant {
 
         for i in 0..num_features {
             let mut values: Vec<f64> = gradients.iter().map(|g| g[i]).collect();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             result[i] = values[values.len() / 2];
         }
 
@@ -771,7 +790,7 @@ impl ByzantineFaultTolerant {
 
         for i in 0..num_features {
             let mut values: Vec<f64> = gradients.iter().map(|g| g[i]).collect();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             // Remove extreme values
             let trimmed = &values[trim_count..values.len() - trim_count];
@@ -801,7 +820,7 @@ impl ByzantineFaultTolerant {
             }
 
             // Sort by distance and sum m closest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             scores[i] = distances.iter().take(m).map(|(_, d)| d).sum();
         }
 
@@ -809,9 +828,9 @@ impl ByzantineFaultTolerant {
         let best_idx = scores
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(idx, _)| idx)
-            .unwrap();
+            .expect("expected valid value");
 
         Ok(gradients[best_idx].clone())
     }
@@ -922,7 +941,11 @@ impl LoadBalancer {
     fn least_loaded_select(&self) -> Option<String> {
         self.worker_loads
             .iter()
-            .min_by(|(_, a), (_, b)| a.load_factor.partial_cmp(&b.load_factor).unwrap())
+            .min_by(|(_, a), (_, b)| {
+                a.load_factor
+                    .partial_cmp(&b.load_factor)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(id, _)| id.clone())
     }
 
@@ -1017,8 +1040,10 @@ mod tests {
         let grad1 = vec![1.0, 2.0, 3.0];
         let grad2 = vec![2.0, 3.0, 4.0];
 
-        ps.receive_gradient(grad1).unwrap();
-        ps.receive_gradient(grad2).unwrap();
+        ps.receive_gradient(grad1)
+            .expect("receive_gradient should succeed");
+        ps.receive_gradient(grad2)
+            .expect("receive_gradient should succeed");
 
         // After 2 updates (all workers), parameters should be updated
         let params = ps.get_parameters();
@@ -1050,7 +1075,9 @@ mod tests {
         let mut worker = WorkerNode::new(NodeId::new("worker_0"), partition);
         let params = vec![1.0, 1.0];
 
-        let gradient = worker.compute_local_gradient(&params).unwrap();
+        let gradient = worker
+            .compute_local_gradient(&params)
+            .expect("compute_local_gradient should succeed");
         assert_eq!(gradient.len(), 2);
         assert!(worker.stats.gradient_computations > 0);
     }
@@ -1061,7 +1088,15 @@ mod tests {
         let model = DistributedLinearRegression::new(config, 5);
 
         assert_eq!(model.workers.len(), 0);
-        assert!(model.parameters.read().unwrap().weights.len() == 5);
+        assert!(
+            model
+                .parameters
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .weights
+                .len()
+                == 5
+        );
     }
 
     #[test]
@@ -1081,10 +1116,12 @@ mod tests {
         ];
         let targets = vec![3.0, 7.0, 11.0, 15.0];
 
-        model.partition_data(features, targets).unwrap();
+        model
+            .partition_data(features, targets)
+            .expect("partition_data should succeed");
 
         assert_eq!(model.workers.len(), 2);
-        assert!(model.workers[0].data_partition.features.len() > 0);
+        assert!(!model.workers[0].data_partition.features.is_empty());
     }
 
     #[test]
@@ -1108,8 +1145,10 @@ mod tests {
         ];
         let targets = vec![5.0, 10.0, 15.0, 20.0];
 
-        model.partition_data(features, targets).unwrap();
-        model.fit().unwrap();
+        model
+            .partition_data(features, targets)
+            .expect("partition_data should succeed");
+        model.fit().expect("model fitting should succeed");
 
         let stats = model.get_training_stats();
         assert!(stats.total_samples_processed > 0);
@@ -1122,7 +1161,9 @@ mod tests {
         let model = DistributedLinearRegression::new(config, 2);
 
         let test_features = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
-        let predictions = model.predict(&test_features).unwrap();
+        let predictions = model
+            .predict(&test_features)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
     }
@@ -1168,8 +1209,10 @@ mod tests {
 
     #[test]
     fn test_federated_client_selection() {
-        let mut config = FederatedConfig::default();
-        config.client_fraction = 0.5;
+        let config = FederatedConfig {
+            client_fraction: 0.5,
+            ..Default::default()
+        };
         let mut fed_learning = FederatedLearning::new(config, 5);
 
         for i in 0..10 {
@@ -1244,7 +1287,7 @@ mod tests {
             vec![100.0, 100.0, 100.0], // Byzantine outlier
         ];
 
-        let result = bft.aggregate(&gradients).unwrap();
+        let result = bft.aggregate(&gradients).expect("aggregate should succeed");
         assert_eq!(result.len(), 3);
         // Median should filter out the outlier
         assert!(result[0] < 50.0);
@@ -1267,7 +1310,7 @@ mod tests {
             vec![4.0, 5.0, 6.0],
         ];
 
-        let result = bft.aggregate(&gradients).unwrap();
+        let result = bft.aggregate(&gradients).expect("aggregate should succeed");
         assert_eq!(result.len(), 3);
         // Trimmed mean should produce reasonable values
         assert!(result[0] > 1.0 && result[0] < 4.0);
@@ -1285,7 +1328,7 @@ mod tests {
             vec![100.0, 100.0, 100.0], // Byzantine outlier
         ];
 
-        let result = bft.aggregate(&gradients).unwrap();
+        let result = bft.aggregate(&gradients).expect("aggregate should succeed");
         assert_eq!(result.len(), 3);
         // Krum should select one of the non-outlier gradients
         assert!(result[0] < 10.0);
@@ -1317,8 +1360,20 @@ mod tests {
         lb.register_worker("worker_2".to_string(), 20);
 
         assert_eq!(lb.worker_loads.len(), 2);
-        assert_eq!(lb.worker_loads.get("worker_1").unwrap().capacity, 10);
-        assert_eq!(lb.worker_loads.get("worker_2").unwrap().capacity, 20);
+        assert_eq!(
+            lb.worker_loads
+                .get("worker_1")
+                .expect("key should exist")
+                .capacity,
+            10
+        );
+        assert_eq!(
+            lb.worker_loads
+                .get("worker_2")
+                .expect("key should exist")
+                .capacity,
+            20
+        );
     }
 
     #[test]
@@ -1348,12 +1403,39 @@ mod tests {
         lb.register_worker("worker_1".to_string(), 10);
 
         lb.update_load("worker_1", true);
-        assert_eq!(lb.worker_loads.get("worker_1").unwrap().active_tasks, 1);
-        assert!((lb.worker_loads.get("worker_1").unwrap().load_factor - 0.1).abs() < 1e-6);
+        assert_eq!(
+            lb.worker_loads
+                .get("worker_1")
+                .expect("key should exist")
+                .active_tasks,
+            1
+        );
+        assert!(
+            (lb.worker_loads
+                .get("worker_1")
+                .expect("key should exist")
+                .load_factor
+                - 0.1)
+                .abs()
+                < 1e-6
+        );
 
         lb.update_load("worker_1", false);
-        assert_eq!(lb.worker_loads.get("worker_1").unwrap().active_tasks, 0);
-        assert!((lb.worker_loads.get("worker_1").unwrap().load_factor).abs() < 1e-6);
+        assert_eq!(
+            lb.worker_loads
+                .get("worker_1")
+                .expect("key should exist")
+                .active_tasks,
+            0
+        );
+        assert!(
+            (lb.worker_loads
+                .get("worker_1")
+                .expect("key should exist")
+                .load_factor)
+                .abs()
+                < 1e-6
+        );
     }
 
     #[test]

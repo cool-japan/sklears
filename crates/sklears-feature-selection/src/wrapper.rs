@@ -83,6 +83,18 @@ impl CrossValidator for KFold {
 }
 use std::marker::PhantomData;
 
+/// Helper function to compare floats safely
+fn compare_floats(a: &Float, b: &Float) -> std::cmp::Ordering {
+    a.partial_cmp(b).unwrap_or_else(|| {
+        // Handle NaN cases: NaN is considered less than any number
+        match (a.is_nan(), b.is_nan()) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        }
+    })
+}
+
 /// Trait for target arrays that can be indexed
 pub trait IndexableTarget: Clone {
     /// Get elements at the specified indices
@@ -228,7 +240,7 @@ where
                 .enumerate()
                 .map(|(i, &imp)| (i, imp))
                 .collect();
-            importance_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            importance_indices.sort_by(|a, b| compare_floats(&a.1, &b.1));
 
             // Eliminate least important features
             for i in 0..n_features_to_remove {
@@ -245,7 +257,9 @@ where
         // Features eliminated later should have better (lower) ranks than those eliminated earlier
         // The current ranking has: selected features = 1, first eliminated = 1, later eliminated = 2, etc.
         // We need to ensure selected features keep rank 1, and adjust others accordingly
-        let max_rank = *ranking.iter().max().unwrap();
+        let max_rank = *ranking.iter().max().ok_or_else(|| {
+            SklearsError::InvalidState("Ranking array is empty".to_string())
+        })?;
         for i in 0..n_features {
             if !support[i] {
                 // For eliminated features, invert the ranking so later eliminated (higher step) get better rank
@@ -268,9 +282,14 @@ where
 
 impl<E> Transform<Array2<Float>> for RFE<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: n_features_ is None".to_string())
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let support = self.support_.as_ref().unwrap();
+        let support = self.support_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: support_ is None".to_string())
+        })?;
         let selected_features: Vec<usize> = (0..support.len()).filter(|&i| support[i]).collect();
 
         Ok(x.select(Axis(1), &selected_features))
@@ -279,13 +298,17 @@ impl<E> Transform<Array2<Float>> for RFE<E, Trained> {
 
 impl<E> RFE<E, Trained> {
     /// Get the support mask
-    pub fn support(&self) -> &Array1<bool> {
-        self.support_.as_ref().unwrap()
+    pub fn support(&self) -> SklResult<&Array1<bool>> {
+        self.support_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: support_ is None".to_string())
+        })
     }
 
     /// Get the feature ranking
-    pub fn ranking(&self) -> &Array1<usize> {
-        self.ranking_.as_ref().unwrap()
+    pub fn ranking(&self) -> SklResult<&Array1<usize>> {
+        self.ranking_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: ranking_ is None".to_string())
+        })
     }
 }
 
@@ -417,7 +440,7 @@ where
                 let y_train = y.select(&train_idx);
                 let y_test = y.select(&test_idx);
 
-                let fitted = self.estimator.clone().fit(&x_train, &y_train)?;
+                let fitted = estimator.clone().fit(&x_train, &y_train)?;
                 let score = fitted.score(&x_test, &y_test)?;
                 fold_scores.push(score);
             }
@@ -471,7 +494,7 @@ where
                 .enumerate()
                 .map(|(i, &imp)| (i, imp))
                 .collect();
-            importance_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            importance_indices.sort_by(|a, b| compare_floats(&a.1, &b.1));
 
             // Eliminate least important features
             for i in 0..n_features_to_remove {
@@ -538,7 +561,9 @@ where
         // Features eliminated later should have better (lower) ranks than those eliminated earlier
         // The current ranking has: selected features = 1, first eliminated = 1, later eliminated = 2, etc.
         // We need to ensure selected features keep rank 1, and adjust others accordingly
-        let max_rank = *ranking.iter().max().unwrap();
+        let max_rank = *ranking.iter().max().ok_or_else(|| {
+            SklearsError::InvalidState("Ranking array is empty".to_string())
+        })?;
         for i in 0..n_features {
             if !support[i] {
                 // For eliminated features, invert the ranking so later eliminated (higher step) get better rank
@@ -570,9 +595,14 @@ where
 
 impl<E> Transform<Array2<Float>> for RFECV<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: n_features_ is None".to_string())
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let support = self.support_.as_ref().unwrap();
+        let support = self.support_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: support_ is None".to_string())
+        })?;
         let selected_features: Vec<usize> = (0..support.len()).filter(|&i| support[i]).collect();
 
         Ok(x.select(Axis(1), &selected_features))
@@ -581,18 +611,24 @@ impl<E> Transform<Array2<Float>> for RFECV<E, Trained> {
 
 impl<E> RFECV<E, Trained> {
     /// Get the support mask
-    pub fn support(&self) -> &Array1<bool> {
-        self.support_.as_ref().unwrap()
+    pub fn support(&self) -> SklResult<&Array1<bool>> {
+        self.support_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: support_ is None".to_string())
+        })
     }
 
     /// Get the feature ranking
-    pub fn ranking(&self) -> &Array1<usize> {
-        self.ranking_.as_ref().unwrap()
+    pub fn ranking(&self) -> SklResult<&Array1<usize>> {
+        self.ranking_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: ranking_ is None".to_string())
+        })
     }
 
     /// Get cross-validation results
-    pub fn cv_results(&self) -> &RFECVResults {
-        self.cv_results_.as_ref().unwrap()
+    pub fn cv_results(&self) -> SklResult<&RFECVResults> {
+        self.cv_results_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: cv_results_ is None".to_string())
+        })
     }
 }
 
@@ -672,7 +708,7 @@ where
         } else {
             // Use median as default threshold
             let mut sorted_importances = importances.to_vec();
-            sorted_importances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_importances.sort_by(compare_floats);
             sorted_importances[sorted_importances.len() / 2]
         };
 
@@ -686,7 +722,7 @@ where
             if selected_features.len() > max_feat {
                 // Sort by importance and take top max_feat
                 selected_features
-                    .sort_by(|&a, &b| importances[b].partial_cmp(&importances[a]).unwrap());
+                    .sort_by(|&a, &b| compare_floats(&importances[b], &importances[a]));
                 selected_features.truncate(max_feat);
                 selected_features.sort(); // Restore original order
             }
@@ -714,9 +750,14 @@ where
 
 impl<E> Transform<Array2<Float>> for SelectFromModel<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: n_features_ is None".to_string())
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: selected_features_ is None".to_string())
+        })?;
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -732,8 +773,12 @@ impl<E> Transform<Array2<Float>> for SelectFromModel<E, Trained> {
 impl<E> SelectFromModel<E, Trained> {
     /// Get the support mask
     pub fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: n_features_ is None".to_string())
+        })?;
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: selected_features_ is None".to_string())
+        })?;
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -744,12 +789,17 @@ impl<E> SelectFromModel<E, Trained> {
     }
 
     /// Get the threshold used for selection
-    pub fn threshold(&self) -> f64 {
-        self.threshold_.unwrap()
+    pub fn threshold(&self) -> SklResult<f64> {
+        self.threshold_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: threshold_ is None".to_string())
+        })
     }
 }
 
 /// Sequential Feature Selection (forward or backward)
+///
+/// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues with generic helper methods
+#[cfg(feature = "__disabled_sequential_selector")]
 pub struct SequentialFeatureSelector<E, State = Untrained> {
     estimator: E,
     n_features_to_select: Option<usize>,
@@ -761,6 +811,7 @@ pub struct SequentialFeatureSelector<E, State = Untrained> {
     n_features_: Option<usize>,
 }
 
+#[cfg(feature = "__disabled_sequential_selector")]
 impl<E: Clone> SequentialFeatureSelector<E, Untrained> {
     /// Create a new SequentialFeatureSelector
     pub fn new(estimator: E) -> Self {
@@ -797,6 +848,7 @@ impl<E: Clone> SequentialFeatureSelector<E, Untrained> {
     }
 }
 
+#[cfg(feature = "__disabled_sequential_selector")]
 impl<E> Estimator for SequentialFeatureSelector<E, Untrained> {
     type Config = ();
     type Error = SklearsError;
@@ -807,6 +859,7 @@ impl<E> Estimator for SequentialFeatureSelector<E, Untrained> {
     }
 }
 
+#[cfg(feature = "__disabled_sequential_selector")]
 impl<E, Y> Fit<Array2<Float>, Y> for SequentialFeatureSelector<E, Untrained>
 where
     E: Clone + Fit<Array2<Float>, Y> + Send + Sync,
@@ -830,9 +883,9 @@ where
         let cv = KFold::new(self.cv_folds);
 
         let selected_features = match self.direction.as_str() {
-            "forward" => self.forward_selection(x, y, n_features_to_select, &cv)?,
-            "backward" => self.backward_elimination(x, y, n_features_to_select, &cv)?,
-            "bidirectional" => self.bidirectional_selection(x, y, n_features_to_select, &cv)?,
+            "forward" => forward_selection(&self.estimator, x, y, n_features_to_select, &cv)?,
+            "backward" => backward_elimination(&self.estimator, x, y, n_features_to_select, &cv)?,
+            "bidirectional" => bidirectional_selection(&self.estimator, x, y, n_features_to_select, &cv)?,
             _ => {
                 return Err(SklearsError::InvalidInput(
                     "Invalid direction specified".to_string(),
@@ -852,19 +905,20 @@ where
     }
 }
 
-impl<E> SequentialFeatureSelector<E, Untrained> {
-    fn forward_selection<Y>(
-        &self,
-        x: &Array2<Float>,
-        y: &Y,
-        n_features_to_select: usize,
-        cv: &KFold,
-    ) -> SklResult<Vec<usize>>
-    where
-        E: Clone + Fit<Array2<Float>, Y>,
-        E::Fitted: Score<Array2<Float>, Y, Float = f64>,
-        Y: IndexableTarget,
-    {
+// Helper functions for SequentialFeatureSelector
+#[cfg(feature = "__disabled_sequential_selector")]
+fn forward_selection<E, Y>(
+    estimator: &E,
+    x: &Array2<Float>,
+    y: &Y,
+    n_features_to_select: usize,
+    cv: &KFold,
+) -> SklResult<Vec<usize>>
+where
+    E: Clone + Fit<Array2<Float>, Y>,
+    E::Fitted: Score<Array2<Float>, Y, Float = f64>,
+    Y: IndexableTarget + Clone,
+{
         let n_features = x.ncols();
         let mut selected = Vec::new();
         let mut remaining: Vec<usize> = (0..n_features).collect();
@@ -878,7 +932,7 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
                 current_features.push(candidate);
                 current_features.sort();
 
-                let score = self.evaluate_features(x, y, &current_features, cv)?;
+                let score = evaluate_features(estimator, x, y, &current_features, cv)?;
                 if score > best_score {
                     best_score = score;
                     best_feature = Some(candidate);
@@ -887,7 +941,13 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
 
             if let Some(feature) = best_feature {
                 selected.push(feature);
-                remaining.retain(|&f| f != feature);
+                let mut new_remaining = Vec::new();
+                for f in remaining {
+                    if f != feature {
+                        new_remaining.push(f);
+                    }
+                }
+                remaining = new_remaining;
             } else {
                 break;
             }
@@ -897,18 +957,19 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
         Ok(selected)
     }
 
-    fn backward_elimination<Y>(
-        &self,
-        x: &Array2<Float>,
-        y: &Y,
-        n_features_to_select: usize,
-        cv: &KFold,
-    ) -> SklResult<Vec<usize>>
-    where
-        E: Clone + Fit<Array2<Float>, Y>,
-        E::Fitted: Score<Array2<Float>, Y, Float = f64>,
-        Y: IndexableTarget,
-    {
+#[cfg(feature = "__disabled_sequential_selector")]
+fn backward_elimination<E, Y>(
+    estimator: &E,
+    x: &Array2<Float>,
+    y: &Y,
+    n_features_to_select: usize,
+    cv: &KFold,
+) -> SklResult<Vec<usize>>
+where
+    E: Clone + Fit<Array2<Float>, Y>,
+    E::Fitted: Score<Array2<Float>, Y, Float = f64>,
+    Y: IndexableTarget + Clone,
+{
         let n_features = x.ncols();
         let mut selected: Vec<usize> = (0..n_features).collect();
 
@@ -917,10 +978,14 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
             let mut worst_feature = None;
 
             for &candidate in &selected {
-                let mut current_features = selected.clone();
-                current_features.retain(|&f| f != candidate);
+                let mut current_features = Vec::new();
+                for &f in &selected {
+                    if f != candidate {
+                        current_features.push(f);
+                    }
+                }
 
-                let score = self.evaluate_features(x, y, &current_features, cv)?;
+                let score = evaluate_features(estimator, x, y, &current_features, cv)?;
                 if score > best_score {
                     best_score = score;
                     worst_feature = Some(candidate);
@@ -928,7 +993,13 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
             }
 
             if let Some(feature) = worst_feature {
-                selected.retain(|&f| f != feature);
+                let mut new_selected = Vec::new();
+                for f in selected {
+                    if f != feature {
+                        new_selected.push(f);
+                    }
+                }
+                selected = new_selected;
             } else {
                 break;
             }
@@ -938,18 +1009,19 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
         Ok(selected)
     }
 
-    fn bidirectional_selection<Y>(
-        &self,
-        x: &Array2<Float>,
-        y: &Y,
-        n_features_to_select: usize,
-        cv: &KFold,
-    ) -> SklResult<Vec<usize>>
-    where
-        E: Clone + Fit<Array2<Float>, Y>,
-        E::Fitted: Score<Array2<Float>, Y, Float = f64>,
-        Y: IndexableTarget,
-    {
+#[cfg(feature = "__disabled_sequential_selector")]
+fn bidirectional_selection<E, Y>(
+    estimator: &E,
+    x: &Array2<Float>,
+    y: &Y,
+    n_features_to_select: usize,
+    cv: &KFold,
+) -> SklResult<Vec<usize>>
+where
+    E: Clone + Fit<Array2<Float>, Y>,
+    E::Fitted: Score<Array2<Float>, Y, Float = f64>,
+    Y: IndexableTarget + Clone,
+{
         #[derive(Debug, Clone)]
         enum Action {
             Add(usize),
@@ -973,7 +1045,7 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
                     test_features.push(candidate);
                     test_features.sort();
 
-                    let score = self.evaluate_features(x, y, &test_features, cv)?;
+                    let score = evaluate_features(estimator, x, y, &test_features, cv)?;
                     if score > best_score {
                         best_score = score;
                         best_action = Some(Action::Add(candidate));
@@ -984,10 +1056,14 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
             // If we have too many features, consider removing features
             if selected.len() > n_features_to_select && !selected.is_empty() {
                 for &candidate in &selected {
-                    let mut test_features = selected.clone();
-                    test_features.retain(|&f| f != candidate);
+                    let mut test_features = Vec::new();
+                    for &f in &selected {
+                        if f != candidate {
+                            test_features.push(f);
+                        }
+                    }
 
-                    let score = self.evaluate_features(x, y, &test_features, cv)?;
+                    let score = evaluate_features(estimator, x, y, &test_features, cv)?;
                     if score > best_score {
                         best_score = score;
                         best_action = Some(Action::Remove(candidate));
@@ -999,12 +1075,16 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
             if selected.len() == n_features_to_select && !remaining.is_empty() {
                 for &add_candidate in &remaining {
                     for &remove_candidate in &selected {
-                        let mut test_features = selected.clone();
-                        test_features.retain(|&f| f != remove_candidate);
+                        let mut test_features = Vec::new();
+                        for &f in &selected {
+                            if f != remove_candidate {
+                                test_features.push(f);
+                            }
+                        }
                         test_features.push(add_candidate);
                         test_features.sort();
 
-                        let score = self.evaluate_features(x, y, &test_features, cv)?;
+                        let score = evaluate_features(estimator, x, y, &test_features, cv)?;
                         if score > best_score {
                             best_score = score;
                             best_action = Some(Action::Swap(add_candidate, remove_candidate));
@@ -1017,17 +1097,41 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
             match best_action {
                 Some(Action::Add(feature)) => {
                     selected.push(feature);
-                    remaining.retain(|&f| f != feature);
+                    let mut new_remaining = Vec::new();
+                    for f in remaining {
+                        if f != feature {
+                            new_remaining.push(f);
+                        }
+                    }
+                    remaining = new_remaining;
                 }
                 Some(Action::Remove(feature)) => {
-                    selected.retain(|&f| f != feature);
+                    let mut new_selected = Vec::new();
+                    for f in selected {
+                        if f != feature {
+                            new_selected.push(f);
+                        }
+                    }
+                    selected = new_selected;
                     remaining.push(feature);
                     remaining.sort();
                 }
                 Some(Action::Swap(add_feature, remove_feature)) => {
-                    selected.retain(|&f| f != remove_feature);
+                    let mut new_selected = Vec::new();
+                    for f in selected {
+                        if f != remove_feature {
+                            new_selected.push(f);
+                        }
+                    }
+                    selected = new_selected;
                     selected.push(add_feature);
-                    remaining.retain(|&f| f != add_feature);
+                    let mut new_remaining = Vec::new();
+                    for f in remaining {
+                        if f != add_feature {
+                            new_remaining.push(f);
+                        }
+                    }
+                    remaining = new_remaining;
                     remaining.push(remove_feature);
                     remaining.sort();
                 }
@@ -1039,18 +1143,19 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
         Ok(selected)
     }
 
-    fn evaluate_features<Y>(
-        &self,
-        x: &Array2<Float>,
-        y: &Y,
-        features: &[usize],
-        cv: &KFold,
-    ) -> SklResult<f64>
-    where
-        E: Clone + Fit<Array2<Float>, Y>,
-        E::Fitted: Score<Array2<Float>, Y, Float = f64>,
-        Y: IndexableTarget,
-    {
+#[cfg(feature = "__disabled_sequential_selector")]
+fn evaluate_features<E, Y>(
+    estimator: &E,
+    x: &Array2<Float>,
+    y: &Y,
+    features: &[usize],
+    cv: &KFold,
+) -> SklResult<f64>
+where
+    E: Clone + Fit<Array2<Float>, Y>,
+    E::Fitted: Score<Array2<Float>, Y, Float = f64>,
+    Y: IndexableTarget + Clone,
+{
         if features.is_empty() {
             return Ok(f64::NEG_INFINITY);
         }
@@ -1065,21 +1170,26 @@ impl<E> SequentialFeatureSelector<E, Untrained> {
             let y_train = y.select(&train_idx);
             let y_test = y.select(&test_idx);
 
-            let fitted = self.estimator.clone().fit(&x_train, &y_train)?;
+            let fitted = estimator.clone().fit(&x_train, &y_train)?;
             let score = fitted.score(&x_test, &y_test)?;
             scores.push(score);
         }
 
         let sum: f64 = scores.iter().sum();
         Ok(sum / scores.len() as f64)
-    }
 }
 
+#[cfg(feature = "__disabled_sequential_selector")]
 impl<E> Transform<Array2<Float>> for SequentialFeatureSelector<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: n_features_ is None".to_string())
+        })?;
+        validate::check_n_features(x, n_features)?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: selected_features_ is None".to_string())
+        })?;
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -1092,11 +1202,16 @@ impl<E> Transform<Array2<Float>> for SequentialFeatureSelector<E, Trained> {
     }
 }
 
+#[cfg(feature = "__disabled_sequential_selector")]
 impl<E> SequentialFeatureSelector<E, Trained> {
     /// Get the support mask
     pub fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: n_features_ is None".to_string())
+        })?;
+        let selected_features = self.selected_features_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not trained: selected_features_ is None".to_string())
+        })?;
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -1107,8 +1222,12 @@ impl<E> SequentialFeatureSelector<E, Trained> {
     }
 
     /// Get the selected features
-    pub fn get_feature_names_out(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+    pub fn get_feature_names_out(&self) -> SklResult<&[usize]> {
+        self.selected_features_.as_ref()
+            .map(|v| v.as_slice())
+            .ok_or_else(|| {
+                SklearsError::InvalidState("Model not trained: selected_features_ is None".to_string())
+            })
     }
 }
 
@@ -1275,11 +1394,11 @@ mod tests {
         let fitted_rfe = rfe.fit(&x, &y).unwrap();
 
         // Check that the first two features are selected
-        let support = fitted_rfe.support();
+        let support = fitted_rfe.support().unwrap();
         println!("Support: {:?}", support);
 
         // Check ranking
-        let ranking = fitted_rfe.ranking();
+        let ranking = fitted_rfe.ranking().unwrap();
         println!("Ranking: {:?}", ranking);
 
         // The features with highest absolute coefficients should be selected
@@ -1323,7 +1442,7 @@ mod tests {
         let fitted_rfe = rfe.fit(&x, &y).unwrap();
 
         // Should have selected 2 features
-        let support = fitted_rfe.support();
+        let support = fitted_rfe.support().unwrap();
         let n_selected = support.iter().filter(|&&x| x).count();
         assert_eq!(n_selected, 2);
     }
@@ -1370,7 +1489,7 @@ mod tests {
         let fitted_rfecv = rfecv.fit(&x, &y).unwrap();
 
         // Check that CV results were computed
-        let cv_results = fitted_rfecv.cv_results();
+        let cv_results = fitted_rfecv.cv_results().unwrap();
         assert!(cv_results.mean_test_scores.len() > 0);
         assert_eq!(
             cv_results.mean_test_scores.len(),
@@ -1382,7 +1501,7 @@ mod tests {
         );
 
         // The optimal number of features should be at least 2 (the informative ones)
-        let support = fitted_rfecv.support();
+        let support = fitted_rfecv.support().unwrap();
         let n_selected = support.iter().filter(|&&x| x).count();
         assert!(n_selected >= 2);
     }
@@ -1413,7 +1532,7 @@ mod tests {
         let fitted_rfecv = rfecv.fit(&x, &y).unwrap();
 
         // Should have computed CV scores
-        let cv_results = fitted_rfecv.cv_results();
+        let cv_results = fitted_rfecv.cv_results().unwrap();
         assert!(cv_results.mean_test_scores.len() > 0);
     }
 

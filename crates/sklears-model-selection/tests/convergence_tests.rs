@@ -142,7 +142,6 @@ mod convergence_tests {
 
         // Grid search should find parameters close to optimum
         // Since we use a coarse grid, we expect convergence within a reasonable range
-        assert!(true, "Grid search convergence test implemented");
     }
 
     /// Test convergence of Bayesian Optimization
@@ -168,7 +167,6 @@ mod convergence_tests {
 
         // Bayesian optimization should converge to near-optimal solution
         // The optimum is at (0, 0) with score 0
-        assert!(true, "Bayesian optimization convergence test implemented");
     }
 
     /// Test convergence of Evolutionary Algorithm
@@ -193,7 +191,6 @@ mod convergence_tests {
         let _evolutionary = (estimator, param_space); // Placeholder for EvolutionarySearchCV
 
         // Evolutionary algorithm should converge to near-optimal solution
-        assert!(true, "Evolutionary algorithm convergence test implemented");
     }
 
     /// Test convergence of Bandit Optimization
@@ -218,7 +215,6 @@ mod convergence_tests {
         let _bandit = (estimator, param_space); // Placeholder for BanditOptimization
 
         // Bandit optimization should converge to near-optimal solution
-        assert!(true, "Bandit optimization convergence test implemented");
     }
 
     /// Test convergence rate analysis

@@ -808,7 +808,7 @@ mod tests {
         });
 
         assert!(result.is_ok());
-        let profile = result.unwrap();
+        let profile = result.expect("expected valid value");
         assert_eq!(profile.result, 499500);
     }
 

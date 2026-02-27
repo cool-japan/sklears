@@ -487,7 +487,7 @@ where
             let scores_vec = query_matrix.dot(sample);
 
             // Apply softmax to get attention weights
-            let mut weights = DVector::zeros(self.n_features);
+            let mut weights = DVector::zeros(scores_vec.len());
             let max_score = scores_vec.fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
             for i in 0..scores_vec.len() {
                 let score_f64: f64 = NumCast::from(scores_vec[i] - max_score).unwrap_or(0.0);
@@ -527,7 +527,7 @@ where
             let scores_vec = query_matrix.dot(sample);
 
             // Apply softmax
-            let mut weights = DVector::zeros(self.n_features);
+            let mut weights = DVector::zeros(scores_vec.len());
             let max_score = scores_vec.fold(T::neg_infinity(), |a, &b| if a > b { a } else { b });
             for i in 0..scores_vec.len() {
                 let score_f64: f64 =
@@ -605,11 +605,9 @@ where
                     .unwrap_or_else(|| T::one() / NumCast::from(2.0).unwrap_or_else(T::one))
                     * (diff * diff / var
                         + Float::ln(var)
-                        + Float::ln(
-                            NumCast::from(2.0 * std::f64::consts::PI).unwrap_or_else(|| {
-                                NumCast::from(std::f64::consts::TAU).unwrap_or_else(T::one)
-                            }),
-                        ));
+                        + Float::ln(NumCast::from(2.0 * std::f64::consts::PI).unwrap_or_else(
+                            || NumCast::from(std::f64::consts::TAU).unwrap_or_else(T::one),
+                        )));
 
                 // Weight by attention
                 log_prob = log_prob + weight * gaussian_ll;

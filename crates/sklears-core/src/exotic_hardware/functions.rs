@@ -115,6 +115,7 @@ pub async fn example_exotic_hardware_usage() -> Result<()> {
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "async_support")]
     use super::*;
     use crate::exotic_hardware::{Complex64, HardwareId, HardwareType};
     #[cfg(feature = "async_support")]
@@ -122,27 +123,31 @@ mod tests {
     async fn test_tpu_device_creation() {
         let mut tpu = TpuDevice::new(0, TpuVersion::V3);
         assert_eq!(tpu.hardware_id().device_type, HardwareType::TPU);
-        assert!(!tpu.is_ready().await.unwrap());
-        tpu.initialize().await.unwrap();
-        assert!(tpu.is_ready().await.unwrap());
+        assert!(!tpu.is_ready().await.expect("expected valid value"));
+        tpu.initialize().await.expect("expected valid value");
+        assert!(tpu.is_ready().await.expect("expected valid value"));
     }
     #[cfg(feature = "async_support")]
     #[tokio::test]
     async fn test_fpga_device_reconfiguration() {
         let mut fpga = FpgaDevice::new(0, FpgaVendor::Xilinx);
-        assert!(!fpga.is_ready().await.unwrap());
-        fpga.initialize().await.unwrap();
-        assert!(fpga.is_ready().await.unwrap());
+        assert!(!fpga.is_ready().await.expect("expected valid value"));
+        fpga.initialize().await.expect("expected valid value");
+        assert!(fpga.is_ready().await.expect("expected valid value"));
         let new_bitstream = vec![1u8; 2048];
-        fpga.reconfigure(&new_bitstream).await.unwrap();
+        fpga.reconfigure(&new_bitstream)
+            .await
+            .expect("expected valid value");
         assert!(fpga.configuration.is_some());
     }
     #[cfg(feature = "async_support")]
     #[tokio::test]
     async fn test_quantum_device_state() {
         let mut quantum = QuantumDevice::new(0, QuantumBackend::Superconducting);
-        quantum.initialize().await.unwrap();
-        let state = quantum.quantum_state().unwrap();
+        quantum.initialize().await.expect("expected valid value");
+        let state = quantum
+            .quantum_state()
+            .expect("quantum_state should succeed");
         assert_eq!(state.num_qubits, 4);
         assert_eq!(state.amplitudes.len(), 1 << 4);
     }
@@ -150,7 +155,10 @@ mod tests {
     #[tokio::test]
     async fn test_hardware_manager_discovery() {
         let mut manager = ExoticHardwareManager::new();
-        let devices = manager.discover_hardware().await.unwrap();
+        let devices = manager
+            .discover_hardware()
+            .await
+            .expect("expected valid value");
         assert!(!devices.is_empty());
         let device_types: std::collections::HashSet<_> =
             devices.iter().map(|id| id.device_type).collect();
@@ -178,8 +186,10 @@ mod tests {
     async fn test_mock_computation_validation() {
         let computation = MockMLComputation::new();
         let mut tpu = TpuDevice::new(0, TpuVersion::V3);
-        tpu.initialize().await.unwrap();
-        let validation = computation.validate_for_hardware(&tpu).unwrap();
+        tpu.initialize().await.expect("expected valid value");
+        let validation = computation
+            .validate_for_hardware(&tpu)
+            .expect("validate_for_hardware should succeed");
         assert!(validation.is_compatible);
         assert!(validation.estimated_performance.is_some());
     }

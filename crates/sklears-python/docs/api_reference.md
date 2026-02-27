@@ -74,7 +74,7 @@ Return the coefficient of determination R² of the prediction.
 
 **Example:**
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
@@ -103,7 +103,7 @@ class Ridge(alpha=1.0, fit_intercept=True, copy_x=True)
 
 **Example:**
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
@@ -210,7 +210,7 @@ Compute cluster centers and predict cluster index for each sample.
 
 **Example:**
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 X = np.array([[1, 2], [1, 4], [1, 0], [10, 2], [10, 4], [10, 0]])
@@ -239,12 +239,15 @@ class DBSCAN(eps=0.5, min_samples=5, metric='euclidean', algorithm='auto')
 
 ## Preprocessing
 
-### StandardScaler
+> **Coming Soon:** Preprocessing classes (`StandardScaler`, `MinMaxScaler`, `LabelEncoder`) are not yet exposed in this release. They will be available in a future version.
+
+### StandardScaler *(Coming Soon)*
 
 Standardize features by removing the mean and scaling to unit variance.
 
 ```python
-class StandardScaler(copy=True, with_mean=True, with_std=True)
+# Not yet available - Coming Soon
+# class StandardScaler(copy=True, with_mean=True, with_std=True)
 ```
 
 **Parameters:**
@@ -269,24 +272,13 @@ Fit to data, then transform it.
 #### inverse_transform(X)
 Scale back the data to the original representation.
 
-**Example:**
-```python
-import sklears_python as skl
-import numpy as np
-
-X = np.array([[1, 2], [3, 4], [5, 6]])
-scaler = skl.StandardScaler()
-X_scaled = scaler.fit_transform(X)
-print(X_scaled.mean(axis=0))  # [0. 0.]
-print(X_scaled.std(axis=0))   # [1. 1.]
-```
-
-### MinMaxScaler
+### MinMaxScaler *(Coming Soon)*
 
 Transform features by scaling each feature to a given range.
 
 ```python
-class MinMaxScaler(feature_range=(0, 1), copy=True, clip=False)
+# Not yet available - Coming Soon
+# class MinMaxScaler(feature_range=(0, 1), copy=True, clip=False)
 ```
 
 **Parameters:**
@@ -303,12 +295,13 @@ class MinMaxScaler(feature_range=(0, 1), copy=True, clip=False)
 - `data_max_` : ndarray of shape (n_features,)
   Per feature maximum seen in the data.
 
-### LabelEncoder
+### LabelEncoder *(Coming Soon)*
 
 Encode target labels with value between 0 and n_classes-1.
 
 ```python
-class LabelEncoder()
+# Not yet available - Coming Soon
+# class LabelEncoder()
 ```
 
 **Attributes:**
@@ -323,94 +316,59 @@ Fit label encoder and return encoded labels.
 #### inverse_transform(y)
 Transform labels back to original encoding.
 
-**Example:**
-```python
-import sklears_python as skl
-
-le = skl.LabelEncoder()
-labels = ['paris', 'paris', 'tokyo', 'amsterdam']
-encoded = le.fit_transform(labels)
-print(encoded)  # [1 1 2 0]
-print(le.classes_)  # ['amsterdam', 'paris', 'tokyo']
-```
-
 ## Metrics
 
-### Classification Metrics
+> **Coming Soon:** All metrics functions are not yet exposed in this release. They will be available in a future version. Use `model.score()` for R² evaluation, or compute metrics manually with NumPy as an interim solution.
 
-#### accuracy_score(y_true, y_pred, normalize=True, sample_weight=None)
+### Classification Metrics *(Coming Soon)*
 
-Classification accuracy score.
+#### accuracy_score *(Coming Soon)*
 
-**Parameters:**
-- `y_true` : array-like of shape (n_samples,)
-  Ground truth (correct) labels.
-- `y_pred` : array-like of shape (n_samples,)
-  Predicted labels.
-- `normalize` : bool, default=True
-  If False, return the number of correctly classified samples.
-- `sample_weight` : array-like of shape (n_samples,), optional
-  Sample weights.
+Classification accuracy score. Not yet available.
 
-**Returns:**
-- `score` : float
-  If normalize == True, return the fraction of correctly classified samples, else returns the number of correctly classified samples.
+#### precision_score *(Coming Soon)*
 
-#### precision_score(y_true, y_pred, labels=None, pos_label=1, average='binary', sample_weight=None, zero_division='warn')
+Compute the precision. Not yet available.
 
-Compute the precision.
+#### recall_score *(Coming Soon)*
 
-#### recall_score(y_true, y_pred, labels=None, pos_label=1, average='binary', sample_weight=None, zero_division='warn')
+Compute the recall. Not yet available.
 
-Compute the recall.
+#### f1_score *(Coming Soon)*
 
-#### f1_score(y_true, y_pred, labels=None, pos_label=1, average='binary', sample_weight=None, zero_division='warn')
+Compute the F1 score. Not yet available.
 
-Compute the F1 score.
+#### confusion_matrix *(Coming Soon)*
 
-#### confusion_matrix(y_true, y_pred, labels=None, sample_weight=None, normalize=None)
+Compute confusion matrix. Not yet available.
 
-Compute confusion matrix to evaluate the accuracy of a classification.
+### Regression Metrics *(Coming Soon)*
 
-### Regression Metrics
+#### mean_squared_error *(Coming Soon)*
 
-#### mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average')
+Mean squared error regression loss. Not yet available.
 
-Mean squared error regression loss.
+#### mean_absolute_error *(Coming Soon)*
 
-**Parameters:**
-- `y_true` : array-like of shape (n_samples,)
-  Ground truth (correct) target values.
-- `y_pred` : array-like of shape (n_samples,)
-  Estimated target values.
-- `sample_weight` : array-like of shape (n_samples,), optional
-  Sample weights.
-- `multioutput` : str
-  Defines aggregating of multiple output values.
+Mean absolute error regression loss. Not yet available.
 
-**Returns:**
-- `loss` : float
-  A non-negative floating point value (the best value is 0.0).
+#### r2_score *(Coming Soon)*
 
-#### mean_absolute_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average')
+R² (coefficient of determination) regression score function. Not yet available.
 
-Mean absolute error regression loss.
-
-#### r2_score(y_true, y_pred, sample_weight=None, multioutput='uniform_average')
-
-R² (coefficient of determination) regression score function.
-
-**Example:**
+**Interim NumPy-based example:**
 ```python
-import sklears_python as skl
 import numpy as np
 
-y_true = [3, -0.5, 2, 7]
-y_pred = [2.5, 0.0, 2, 8]
+y_true = np.array([3, -0.5, 2, 7])
+y_pred = np.array([2.5, 0.0, 2, 8])
 
-mse = skl.mean_squared_error(y_true, y_pred)
-mae = skl.mean_absolute_error(y_true, y_pred)
-r2 = skl.r2_score(y_true, y_pred)
+# Compute metrics manually until sklears exposes them
+mse = float(np.mean((y_true - y_pred) ** 2))
+mae = float(np.mean(np.abs(y_true - y_pred)))
+ss_res = float(np.sum((y_true - y_pred) ** 2))
+ss_tot = float(np.sum((y_true - np.mean(y_true)) ** 2))
+r2 = 1.0 - ss_res / ss_tot
 
 print(f"MSE: {mse:.3f}")  # MSE: 0.375
 print(f"MAE: {mae:.3f}")  # MAE: 0.5
@@ -469,7 +427,7 @@ Returns the number of splitting iterations in the cross-validator.
 
 **Example:**
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 X = np.array([[1, 2], [3, 4], [1, 2], [3, 4]])
@@ -500,64 +458,34 @@ Get build information about sklears.
 - `info` : dict
   Dictionary containing build information including version, features, and dependencies.
 
-### get_hardware_info()
+### get_hardware_info() *(Coming Soon)*
 
-Get hardware acceleration capabilities.
+Get hardware acceleration capabilities. Not yet available in this release.
 
-**Returns:**
-- `info` : dict
-  Dictionary containing boolean values for various hardware features.
+### benchmark_basic_operations() *(Coming Soon)*
 
-### benchmark_basic_operations()
+Run basic performance benchmarks. Not yet available in this release.
 
-Run basic performance benchmarks.
+### set_config(option, value) *(Coming Soon)*
 
-**Returns:**
-- `results` : dict
-  Dictionary containing benchmark results in milliseconds.
+Set global configuration options. Not yet available in this release.
 
-### set_config(option, value)
+### get_config() *(Coming Soon)*
 
-Set global configuration options.
+Get current configuration. Not yet available in this release.
 
-**Parameters:**
-- `option` : str
-  Configuration option name.
-- `value` : str
-  Configuration value.
+### show_versions() *(Coming Soon)*
 
-### get_config()
+Print comprehensive system information. Not yet available in this release.
 
-Get current configuration.
-
-**Returns:**
-- `config` : dict
-  Dictionary containing current configuration.
-
-### show_versions()
-
-Print comprehensive system information.
-
-**Returns:**
-- `info` : str
-  Formatted string containing version and system information.
-
-**Example:**
+**Available utilities example:**
 ```python
-import sklears_python as skl
+import sklears as skl
 
 print(f"Version: {skl.get_version()}")
 
-# Hardware capabilities
-hw_info = skl.get_hardware_info()
-print(f"SIMD support: {hw_info.get('avx2', False)}")
-
-# Performance benchmarks
-benchmarks = skl.benchmark_basic_operations()
-print(f"Matrix multiplication: {benchmarks['matrix_multiplication_100x100_ms']:.2f} ms")
-
-# System information
-print(skl.show_versions())
+build_info = skl.get_build_info()
+print(f"Build info: {build_info}")
 ```
 
 ## Error Handling
@@ -570,12 +498,12 @@ All functions and methods raise appropriate Python exceptions:
 
 **Example:**
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 try:
     model = skl.LinearRegression()
-    # This will raise ValueError due to shape mismatch
+    # This will raise an error due to shape mismatch
     model.fit(np.array([[1, 2]]), np.array([1, 2]))
 except ValueError as e:
     print(f"Error: {e}")

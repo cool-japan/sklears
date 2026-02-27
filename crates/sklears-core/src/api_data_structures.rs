@@ -1189,7 +1189,7 @@ mod tests {
             relevance_score: 1.0,
         };
 
-        index.add_item(item).unwrap();
+        index.add_item(item).expect("add_item should succeed");
         assert_eq!(index.items.len(), 1);
         assert_eq!(index.metadata.total_items, 1);
 
@@ -1226,10 +1226,10 @@ mod tests {
         let mut engine = AutoCompleteEngine::new();
         engine
             .add_completion("TestTrait", CompletionType::Trait)
-            .unwrap();
+            .expect("expected valid value");
         engine
             .add_completion("TestType", CompletionType::Type)
-            .unwrap();
+            .expect("expected valid value");
 
         let completions = engine.get_completions("Test");
         assert_eq!(completions.len(), 2);
@@ -1253,8 +1253,9 @@ mod tests {
             expected_output: None,
         };
 
-        let serialized = serde_json::to_string(&example).unwrap();
-        let deserialized: CodeExample = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&example).unwrap_or_default();
+        let deserialized: CodeExample =
+            serde_json::from_str(&serialized).expect("valid JSON operation");
 
         assert_eq!(example.title, deserialized.title);
         assert_eq!(example.code, deserialized.code);

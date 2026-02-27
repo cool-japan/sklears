@@ -5,7 +5,7 @@
 
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::seeded_rng;
+use scirs2_core::random::{seeded_rng, Distribution};
 use sklears_core::traits::{Fit, Predict};
 use sklears_linear::LinearRegression;
 use std::time::Instant;
@@ -17,7 +17,7 @@ fn generate_synthetic_data(n_samples: usize, n_features: usize) -> (Array2<f64>,
     let normal = Normal::new(0.0, 1.0).unwrap();
 
     // Generate random feature matrix
-    let X = Array2::from_shape_fn((n_samples, n_features), |_| rng.sample(&normal));
+    let X = Array2::from_shape_fn((n_samples, n_features), |_| normal.sample(&mut rng));
 
     // Generate true coefficients (some zero for sparsity)
     let true_coefs: Array1<f64> = (0..n_features)
@@ -33,7 +33,7 @@ fn generate_synthetic_data(n_samples: usize, n_features: usize) -> (Array2<f64>,
 
     // Generate targets with some noise
     let y_clean = X.dot(&true_coefs);
-    let noise: Array1<f64> = Array1::from_shape_fn(n_samples, |_| rng.sample(&normal)) * 0.1;
+    let noise: Array1<f64> = Array1::from_shape_fn(n_samples, |_| normal.sample(&mut rng)) * 0.1;
     let y = y_clean + noise;
 
     (X, y)

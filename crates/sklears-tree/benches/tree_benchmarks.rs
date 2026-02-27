@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo bench --bench tree_benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::{essentials::Normal, thread_rng};
 use sklears_core::traits::{Fit, Predict};
@@ -10,6 +10,7 @@ use sklears_tree::{
     DecisionTreeClassifier, DecisionTreeRegressor, IsolationForest, LeafModelType, ModelTree,
     RandomForestClassifier, SplitCriterion,
 };
+use std::hint::black_box;
 
 /// Generate synthetic classification dataset for DecisionTree (f64 labels)
 fn generate_classification_data_f64(

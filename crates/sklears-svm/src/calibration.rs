@@ -595,7 +595,7 @@ mod tests {
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} not in [0,1]",
                 prob
             );
@@ -643,7 +643,7 @@ mod tests {
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} not in [0,1]",
                 prob
             );
@@ -713,7 +713,7 @@ mod tests {
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} not in [0,1]",
                 prob
             );
@@ -787,7 +787,7 @@ mod tests {
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} not in [0,1]",
                 prob
             );

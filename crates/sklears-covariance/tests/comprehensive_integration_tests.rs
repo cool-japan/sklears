@@ -30,7 +30,8 @@ fn test_integration_multiple_estimators_workflow() {
     let data = generate_test_data(n_samples, n_features, 42);
 
     // Test multiple estimators on the same data
-    let estimators: Vec<(&str, Box<dyn Fn() -> Box<dyn std::any::Any>>)> = vec![
+    type EstimatorFactory = Box<dyn Fn() -> Box<dyn std::any::Any>>;
+    let estimators: Vec<(&str, EstimatorFactory)> = vec![
         (
             "EmpiricalCovariance",
             Box::new(|| Box::new(EmpiricalCovariance::new()) as Box<dyn std::any::Any>),
@@ -107,7 +108,7 @@ fn test_integration_multiple_estimators_workflow() {
     // Verify all matrices are symmetric and positive semi-definite
     for (name, cov) in &covariance_matrices {
         let props = validate_covariance_matrix(cov)
-            .expect(&format!("{} should produce valid covariance", name));
+            .unwrap_or_else(|_| panic!("{} should produce valid covariance", name));
         assert!(props.is_symmetric, "{} matrix should be symmetric", name);
         assert!(
             props.is_positive_semi_definite,
@@ -153,29 +154,29 @@ fn test_integration_utility_functions() {
     let sample_cov = fitted.get_covariance();
 
     // Test frobenius_norm
-    let frob_norm = frobenius_norm(&sample_cov);
+    let frob_norm = frobenius_norm(sample_cov);
     assert!(frob_norm > 0.0, "Frobenius norm should be positive");
 
     // Test is_diagonally_dominant
-    let is_dd = is_diagonally_dominant(&sample_cov);
-    // May or may not be diagonally dominant, just verify it returns
-    assert!(is_dd == true || is_dd == false);
+    let is_dd = is_diagonally_dominant(sample_cov);
+    // May or may not be diagonally dominant, just verify it returns (value unused intentionally)
+    let _ = is_dd;
 
     // Test spectral_radius_estimate
-    let spectral_radius = spectral_radius_estimate(&sample_cov, 100)
+    let spectral_radius = spectral_radius_estimate(sample_cov, 100)
         .expect("Spectral radius estimation should succeed");
     assert!(spectral_radius > 0.0, "Spectral radius should be positive");
 
     // Test rank_estimate
-    let rank = rank_estimate(&sample_cov, 1e-6);
+    let rank = rank_estimate(sample_cov, 1e-6);
     assert!(
         rank > 0 && rank <= n_features,
         "Rank should be between 1 and n_features"
     );
 
     // Test adaptive_shrinkage
-    let shrunk_cov = adaptive_shrinkage(&sample_cov, n_samples, None)
-        .expect("Adaptive shrinkage should succeed");
+    let shrunk_cov =
+        adaptive_shrinkage(sample_cov, n_samples, None).expect("Adaptive shrinkage should succeed");
     assert_eq!(
         shrunk_cov.shape(),
         sample_cov.shape(),
@@ -287,7 +288,7 @@ fn test_integration_regularization_progression() {
         ("AdaptiveLasso", &adaptive_cov),
     ] {
         let props = validate_covariance_matrix(cov)
-            .expect(&format!("{} should produce valid covariance", name));
+            .unwrap_or_else(|_| panic!("{} should produce valid covariance", name));
         assert!(props.is_symmetric, "{} should be symmetric", name);
     }
 }
@@ -324,19 +325,19 @@ fn test_integration_shrinkage_comparison() {
 
     // Verify all shrinkage parameters are in valid range [0, 1]
     assert!(
-        lw_shrinkage >= 0.0 && lw_shrinkage <= 1.0,
+        (0.0..=1.0).contains(&lw_shrinkage),
         "LW shrinkage should be in [0, 1]"
     );
     assert!(
-        oas_shrinkage >= 0.0 && oas_shrinkage <= 1.0,
+        (0.0..=1.0).contains(&oas_shrinkage),
         "OAS shrinkage should be in [0, 1]"
     );
     assert!(
-        rblw_shrinkage >= 0.0 && rblw_shrinkage <= 1.0,
+        (0.0..=1.0).contains(&rblw_shrinkage),
         "Rao-Blackwell LW shrinkage should be in [0, 1]"
     );
     assert!(
-        chen_shrinkage >= 0.0 && chen_shrinkage <= 1.0,
+        (0.0..=1.0).contains(&chen_shrinkage),
         "Chen-Stein shrinkage should be in [0, 1]"
     );
 
@@ -348,7 +349,7 @@ fn test_integration_shrinkage_comparison() {
         ("ChenStein", &chen_cov),
     ] {
         let props = validate_covariance_matrix(cov)
-            .expect(&format!("{} should produce valid covariance", name));
+            .unwrap_or_else(|_| panic!("{} should produce valid covariance", name));
         assert!(props.is_symmetric, "{} should be symmetric", name);
         assert!(
             props.condition_number > 0.0,
@@ -387,9 +388,9 @@ fn test_integration_robust_estimators_outliers() {
     let huber_cov = fitted_huber.get_covariance();
 
     // Robust estimators should produce different results than empirical with outliers
-    let emp_frob = frobenius_norm(&emp_cov);
-    let mcd_frob = frobenius_norm(&mcd_cov);
-    let huber_frob = frobenius_norm(&huber_cov);
+    let emp_frob = frobenius_norm(emp_cov);
+    let mcd_frob = frobenius_norm(mcd_cov);
+    let huber_frob = frobenius_norm(huber_cov);
 
     // All should be positive and finite
     assert!(
@@ -445,7 +446,7 @@ fn test_integration_sparse_estimators() {
     // With regularization, we expect some sparsity
     let sparsity_ratio = zero_count as f64 / total_off_diag as f64;
     assert!(
-        sparsity_ratio >= 0.0 && sparsity_ratio <= 1.0,
+        (0.0..=1.0).contains(&sparsity_ratio),
         "Sparsity ratio should be valid"
     );
 }
@@ -473,7 +474,7 @@ fn test_integration_group_lasso() {
 
     // Verify valid covariance
     let props =
-        validate_covariance_matrix(&cov).expect("Group Lasso should produce valid covariance");
+        validate_covariance_matrix(cov).expect("Group Lasso should produce valid covariance");
     assert!(
         props.is_symmetric,
         "Group Lasso covariance should be symmetric"
@@ -495,13 +496,12 @@ fn test_integration_complete_workflow() {
     let sample_cov = fitted_emp.get_covariance();
 
     // Step 2: Validate covariance properties
-    let props = validate_covariance_matrix(&sample_cov).expect("Sample covariance should be valid");
+    let props = validate_covariance_matrix(sample_cov).expect("Sample covariance should be valid");
     assert!(props.is_symmetric, "Sample covariance should be symmetric");
     assert!(props.trace > 0.0, "Trace should be positive");
 
     // Step 3: Apply shrinkage
-    let shrunk =
-        adaptive_shrinkage(&sample_cov, n_samples, None).expect("Shrinkage should succeed");
+    let shrunk = adaptive_shrinkage(sample_cov, n_samples, None).expect("Shrinkage should succeed");
 
     // Step 4: Validate shrunk covariance
     let shrunk_props =
@@ -516,7 +516,7 @@ fn test_integration_complete_workflow() {
     );
 
     // Step 5: Compute diagnostics
-    let frob_before = frobenius_norm(&sample_cov);
+    let frob_before = frobenius_norm(sample_cov);
     let frob_after = frobenius_norm(&shrunk);
     assert!(
         frob_before > 0.0 && frob_after > 0.0,

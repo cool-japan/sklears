@@ -711,7 +711,7 @@ mod tests {
         let predictions = bma.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -724,7 +724,7 @@ mod tests {
         let predictions = vi_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -737,7 +737,7 @@ mod tests {
         let predictions = mcmc_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -758,7 +758,7 @@ mod tests {
         let predictions = hb_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -778,7 +778,7 @@ mod tests {
             let predictions = calibrator.predict_proba(&edge_probs).unwrap();
 
             assert_eq!(predictions.len(), edge_probs.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 }
@@ -1371,7 +1371,7 @@ mod nonparametric_tests {
         let predictions = dp_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         assert!(dp_cal.n_clusters > 0 && dp_cal.n_clusters <= 5);
     }
 
@@ -1387,7 +1387,7 @@ mod nonparametric_tests {
         let predictions = gp_cal.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         assert_eq!(gp_cal.inducing_points.len(), 4);
     }
 
@@ -1411,7 +1411,7 @@ mod nonparametric_tests {
             let predictions = gp_cal.predict_proba(&probabilities).unwrap();
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 

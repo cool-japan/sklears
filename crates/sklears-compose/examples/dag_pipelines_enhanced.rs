@@ -277,9 +277,11 @@ fn demo_advanced_dag() -> SklResult<()> {
 
     let mut prev_layer = "input".to_string();
     for (layer_name, transform_factor, enable_cache) in feature_layers {
-        let mut config = NodeConfig::default();
-        config.cache_output = enable_cache;
-        config.parallel_execution = true;
+        let config = NodeConfig {
+            cache_output: enable_cache,
+            parallel_execution: true,
+            ..NodeConfig::default()
+        };
 
         let layer_node = DAGNode {
             id: layer_name.to_string(),
@@ -303,9 +305,11 @@ fn demo_advanced_dag() -> SklResult<()> {
     }
 
     // Final predictor with monitoring
-    let mut final_config = NodeConfig::default();
-    final_config.parallel_execution = false; // Sequential for final prediction
-    final_config.retry_attempts = 2; // Retry on failure
+    let final_config = NodeConfig {
+        parallel_execution: false, // Sequential for final prediction
+        retry_attempts: 2,         // Retry on failure
+        ..NodeConfig::default()
+    };
 
     let final_predictor = DAGNode {
         id: "monitored_predictor".to_string(),

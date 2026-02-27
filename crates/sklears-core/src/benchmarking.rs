@@ -1,8 +1,8 @@
 /// Benchmarking utilities for comparing sklears performance against scikit-learn
 ///
-/// This module provides comprehensive benchmarking infrastructure to validate that
-/// sklears implementations achieve the target 14-20x performance (validated) improvements over
-/// scikit-learn while maintaining equivalent accuracy.
+/// This module provides comprehensive benchmarking infrastructure to measure performance
+/// of sklears implementations with ongoing optimization efforts to achieve
+/// performance improvements over scikit-learn while maintaining equivalent accuracy.
 ///
 /// # Key Features
 ///
@@ -951,8 +951,9 @@ impl MemoryTracker {
     pub fn new() -> Self {
         #[cfg(target_os = "linux")]
         {
-            let proc_file = std::fs::File::open("/proc/self/status")
-                .unwrap_or_else(|_| std::fs::File::open("/dev/null").unwrap());
+            let proc_file = std::fs::File::open("/proc/self/status").unwrap_or_else(|_| {
+                std::fs::File::open("/dev/null").expect("failed to open /dev/null")
+            });
             Self { proc_file }
         }
         #[cfg(target_os = "macos")]
@@ -1715,12 +1716,12 @@ impl<R> CrossPlatformBenchmarkResult<R> {
             mean_efficiency,
             best_efficiency: efficiencies
                 .iter()
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .cloned()
                 .unwrap_or(0.0),
             worst_efficiency: efficiencies
                 .iter()
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .cloned()
                 .unwrap_or(0.0),
         }

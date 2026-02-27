@@ -18,6 +18,66 @@ use sklears_core::{error::SklearsError, types::FloatBounds};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+/// Safe conversion from f64 to generic float type
+fn safe_from_f64<T: FloatBounds>(value: f64) -> NeuralResult<T> {
+    T::from(value).ok_or_else(|| {
+        SklearsError::NumericalError(format!("Failed to convert {} to target float type", value))
+    })
+}
+
+/// Safe comparison for float types
+fn safe_partial_cmp<T: FloatBounds>(a: T, b: T) -> NeuralResult<std::cmp::Ordering> {
+    a.to_f64()
+        .and_then(|a_f64| b.to_f64().map(|b_f64| (a_f64, b_f64)))
+        .and_then(|(a_f64, b_f64)| a_f64.partial_cmp(&b_f64))
+        .ok_or_else(|| SklearsError::NumericalError("Float comparison failed".to_string()))
+}
+
+/// Find maximum element with safe comparison
+fn safe_max<'a, T: FloatBounds>(iter: impl Iterator<Item = &'a T>) -> NeuralResult<&'a T>
+where
+    T: 'a,
+{
+    iter.max_by(|a, b| {
+        a.to_f64()
+            .and_then(|a_f64| b.to_f64().map(|b_f64| a_f64.partial_cmp(&b_f64)))
+            .flatten()
+            .unwrap_or(std::cmp::Ordering::Equal)
+    })
+    .ok_or_else(|| SklearsError::InvalidInput("Empty iterator".to_string()))
+}
+
+/// Find maximum element with index and safe comparison
+fn safe_max_by<T, F>(iter: impl Iterator<Item = T>, mut compare: F) -> NeuralResult<T>
+where
+    F: FnMut(&T, &T) -> NeuralResult<std::cmp::Ordering>,
+{
+    let mut max_item: Option<T> = None;
+
+    for item in iter {
+        max_item = Some(match max_item {
+            None => item,
+            Some(current_max) => {
+                match compare(&current_max, &item) {
+                    Ok(std::cmp::Ordering::Less) => item,
+                    Ok(_) => current_max,
+                    Err(_) => current_max, // On error, keep current max
+                }
+            }
+        });
+    }
+
+    max_item.ok_or_else(|| SklearsError::InvalidInput("Empty iterator".to_string()))
+}
+
+/// Create normal distribution safely
+fn safe_normal(mean: f64, std_dev: f64) -> NeuralResult<Normal<f64>> {
+    Normal::new(mean, std_dev).map_err(|e| SklearsError::InvalidParameter {
+        name: "distribution".to_string(),
+        reason: format!("Failed to create Normal distribution: {}", e),
+    })
+}
+
 /// Types of operations available in the search space
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -73,45 +133,43 @@ pub struct MixedOperation<T: FloatBounds> {
 
 impl<T: FloatBounds + ScalarOperand + std::iter::Sum> MixedOperation<T> {
     /// Create a new mixed operation
-    pub fn new(in_features: usize, out_features: usize, operations: Vec<OperationType>) -> Self {
+    pub fn new(
+        in_features: usize,
+        out_features: usize,
+        operations: Vec<OperationType>,
+    ) -> NeuralResult<Self> {
         let n_ops = operations.len();
         let mut rng = thread_rng();
+        let normal_dist = safe_normal(0.0, 1.0)?;
 
         // Initialize architecture parameters uniformly
-        let alpha = Array1::from_elem(n_ops, T::from(1.0 / n_ops as f64).unwrap());
+        let init_value = safe_from_f64(1.0 / n_ops as f64)?;
+        let alpha = Array1::from_elem(n_ops, init_value);
 
         // Initialize operation weights
         let mut op_weights = Vec::new();
         for _ in 0..n_ops {
             let std = (2.0 / in_features as f64).sqrt();
             let w = Array2::from_shape_fn((in_features, out_features), |_| {
-                T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+                let sample = rng.sample::<f64, _>(normal_dist);
+                safe_from_f64(sample * std).unwrap_or(T::zero())
             });
             op_weights.push(Some(w));
         }
 
-        Self {
+        Ok(Self {
             alpha,
             operations,
             op_weights,
             in_features,
             out_features,
-        }
+        })
     }
 
     /// Forward pass with weighted operations
     pub fn forward(&self, x: &Array2<T>) -> NeuralResult<Array2<T>> {
         // Apply softmax to architecture parameters
-        let alpha_max = self
-            .alpha
-            .iter()
-            .max_by(|a, b| {
-                a.to_f64()
-                    .unwrap()
-                    .partial_cmp(&b.to_f64().unwrap())
-                    .unwrap()
-            })
-            .unwrap();
+        let alpha_max = safe_max(self.alpha.iter())?;
 
         let exp_sum: T = self.alpha.iter().map(|&a| (a - *alpha_max).exp()).sum();
 
@@ -169,12 +227,12 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> MixedOperation<T> {
             .enumerate()
             .max_by(|(_, a), (_, b)| {
                 a.to_f64()
-                    .unwrap()
-                    .partial_cmp(&b.to_f64().unwrap())
-                    .unwrap()
+                    .and_then(|a_f64| b.to_f64().map(|b_f64| a_f64.partial_cmp(&b_f64)))
+                    .flatten()
+                    .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .unwrap()
-            .0;
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
 
         self.operations[max_idx]
     }
@@ -205,7 +263,7 @@ pub struct DARTSCell<T: FloatBounds> {
 
 impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTSCell<T> {
     /// Create a new DARTS cell
-    pub fn new(in_features: usize, out_features: usize, n_nodes: usize) -> Self {
+    pub fn new(in_features: usize, out_features: usize, n_nodes: usize) -> NeuralResult<Self> {
         let operations = OperationType::all_operations();
         let mut mixed_ops = Vec::new();
 
@@ -223,19 +281,19 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTSCell<T> {
                 } else {
                     out_features
                 };
-                let op = MixedOperation::new(input_dim, out_features, operations.clone());
+                let op = MixedOperation::new(input_dim, out_features, operations.clone())?;
                 node_ops.push(op);
             }
 
             mixed_ops.push(node_ops);
         }
 
-        Self {
+        Ok(Self {
             mixed_ops,
             n_nodes,
             in_features,
             out_features,
-        }
+        })
     }
 
     /// Forward pass through cell
@@ -269,7 +327,8 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTSCell<T> {
             output = output + node_output;
         }
 
-        output.mapv_inplace(|val| val / T::from(n_intermediate as f64).unwrap());
+        let divisor = safe_from_f64(n_intermediate as f64)?;
+        output.mapv_inplace(|val| val / divisor);
 
         Ok(output)
     }
@@ -315,19 +374,19 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTS<T> {
         n_cells: usize,
         arch_learning_rate: T,
         weight_learning_rate: T,
-    ) -> Self {
+    ) -> NeuralResult<Self> {
         // After first transformation, all cells work with out_features
         // So create cells that work with out_features for both dimensions
-        let normal_cell = DARTSCell::new(out_features, out_features, n_nodes);
-        let reduction_cell = DARTSCell::new(out_features, out_features, n_nodes);
+        let normal_cell = DARTSCell::new(out_features, out_features, n_nodes)?;
+        let reduction_cell = DARTSCell::new(out_features, out_features, n_nodes)?;
 
-        Self {
+        Ok(Self {
             normal_cell,
             reduction_cell,
             n_cells,
             arch_learning_rate,
             weight_learning_rate,
-        }
+        })
     }
 
     /// Search step: forward pass through architecture
@@ -348,7 +407,8 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> DARTS<T> {
                     for k in start_idx..end_idx {
                         sum = sum + x[[i, k]];
                     }
-                    sum / T::from((end_idx - start_idx) as f64).unwrap()
+                    let divisor = safe_from_f64((end_idx - start_idx) as f64).unwrap_or(T::one());
+                    sum / divisor
                 })
             } else {
                 // Upsample by repeating
@@ -492,9 +552,11 @@ impl<T: FloatBounds + ScalarOperand> ProgressiveNAS<T> {
 
         // Initialize weights for new operation
         let mut rng = thread_rng();
+        let normal_dist = safe_normal(0.0, 1.0)?;
         let std = (2.0 / self.in_features as f64).sqrt();
         let w = Array2::from_shape_fn((self.in_features, self.out_features), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            let sample = rng.sample::<f64, _>(normal_dist);
+            safe_from_f64(sample * std).unwrap_or(T::zero())
         });
         self.weights.push(w);
 
@@ -568,23 +630,26 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENASController<T> {
         num_layers: usize,
         num_operations: usize,
         learning_rate: T,
-    ) -> Self {
+    ) -> NeuralResult<Self> {
         let mut rng = thread_rng();
+        let normal_dist = safe_normal(0.0, 1.0)?;
 
         // Initialize controller weights with Xavier initialization
         let std_hidden = (2.0 / hidden_size as f64).sqrt();
         let weights_hidden = Array2::from_shape_fn((hidden_size, hidden_size), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std_hidden).unwrap()
+            let sample = rng.sample::<f64, _>(normal_dist);
+            safe_from_f64(sample * std_hidden).unwrap_or(T::zero())
         });
 
         let std_output = (2.0 / (hidden_size + num_operations) as f64).sqrt();
         let weights_output = Array2::from_shape_fn((hidden_size, num_operations), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std_output).unwrap()
+            let sample = rng.sample::<f64, _>(normal_dist);
+            safe_from_f64(sample * std_output).unwrap_or(T::zero())
         });
 
         let hidden_state = Array1::zeros(hidden_size);
 
-        Self {
+        Ok(Self {
             hidden_size,
             num_layers,
             num_operations,
@@ -592,10 +657,10 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENASController<T> {
             weights_output,
             hidden_state,
             learning_rate,
-            entropy_weight: T::from(0.01).unwrap(),
+            entropy_weight: safe_from_f64(0.01)?,
             baseline: T::zero(),
-            baseline_decay: T::from(0.99).unwrap(),
-        }
+            baseline_decay: safe_from_f64(0.99)?,
+        })
     }
 
     /// Sample an architecture from the controller
@@ -616,15 +681,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENASController<T> {
             let logits = self.hidden_state.dot(&self.weights_output);
 
             // Apply softmax to get probabilities
-            let max_logit = logits
-                .iter()
-                .max_by(|a, b| {
-                    a.to_f64()
-                        .unwrap()
-                        .partial_cmp(&b.to_f64().unwrap())
-                        .unwrap()
-                })
-                .unwrap();
+            let max_logit = safe_max(logits.iter())?;
 
             let exp_logits: Array1<T> = logits.mapv(|x| (x - *max_logit).exp());
             let sum_exp: T = exp_logits.iter().copied().sum();
@@ -636,7 +693,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENASController<T> {
             let mut selected_op_idx = 0;
 
             for (i, &p) in probs.iter().enumerate() {
-                cumsum += p.to_f64().unwrap();
+                cumsum += p.to_f64().unwrap_or(0.0);
                 if cumsum >= rand_val {
                     selected_op_idx = i;
                     break;
@@ -689,12 +746,12 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENASController<T> {
 
             // Update weights (simplified - in practice would backprop through RNN)
             let mut rng = thread_rng();
-            let noise_std = update_scale.to_f64().unwrap() * 0.01;
+            let noise_std = update_scale.to_f64().unwrap_or(0.001) * 0.01;
+            let noise_dist = safe_normal(0.0, 1.0)?;
 
             self.weights_output.mapv_inplace(|w| {
-                let noise =
-                    T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * noise_std)
-                        .unwrap();
+                let sample = rng.sample::<f64, _>(noise_dist);
+                let noise = safe_from_f64(sample * noise_std).unwrap_or(T::zero());
                 w + noise
             });
         }
@@ -737,24 +794,26 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
         num_layers: usize,
         learning_rate: T,
         num_steps: usize,
-    ) -> Self {
+    ) -> NeuralResult<Self> {
         let num_operations = OperationType::all_operations().len();
         let controller =
-            ENASController::new(hidden_size, num_layers, num_operations, learning_rate);
+            ENASController::new(hidden_size, num_layers, num_operations, learning_rate)?;
 
         // Initialize shared weights for all operations
         let mut shared_weights = Vec::new();
         let mut rng = thread_rng();
+        let normal_dist = safe_normal(0.0, 1.0)?;
         let std = (2.0 / in_features as f64).sqrt();
 
         for _ in 0..num_operations {
             let w = Array2::from_shape_fn((in_features, out_features), |_| {
-                T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+                let sample = rng.sample::<f64, _>(normal_dist);
+                safe_from_f64(sample * std).unwrap_or(T::zero())
             });
             shared_weights.push(w);
         }
 
-        Self {
+        Ok(Self {
             controller,
             shared_weights,
             in_features,
@@ -763,7 +822,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
             current_step: 0,
             best_architecture: None,
             best_reward: None,
-        }
+        })
     }
 
     /// Search step: sample architecture and train
@@ -798,23 +857,27 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
         for &op in architecture {
             score = score
                 + match op {
-                    OperationType::Skip => T::from(1.0).unwrap(),
-                    OperationType::SepConv3x3 => T::from(0.9).unwrap(),
-                    OperationType::SepConv5x5 => T::from(0.85).unwrap(),
-                    OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => T::from(0.8).unwrap(),
-                    OperationType::DilConv3x3 => T::from(0.88).unwrap(),
-                    OperationType::DilConv5x5 => T::from(0.83).unwrap(),
-                    OperationType::None => T::from(0.5).unwrap(),
+                    OperationType::Skip => safe_from_f64(1.0).unwrap_or(T::one()),
+                    OperationType::SepConv3x3 => safe_from_f64(0.9).unwrap_or(T::one()),
+                    OperationType::SepConv5x5 => safe_from_f64(0.85).unwrap_or(T::one()),
+                    OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => {
+                        safe_from_f64(0.8).unwrap_or(T::one())
+                    }
+                    OperationType::DilConv3x3 => safe_from_f64(0.88).unwrap_or(T::one()),
+                    OperationType::DilConv5x5 => safe_from_f64(0.83).unwrap_or(T::one()),
+                    OperationType::None => safe_from_f64(0.5).unwrap_or(T::zero()),
                 };
 
             complexity_penalty = complexity_penalty
                 + match op {
                     OperationType::None | OperationType::Skip => T::zero(),
-                    OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => T::from(0.01).unwrap(),
-                    OperationType::SepConv3x3 => T::from(0.02).unwrap(),
-                    OperationType::DilConv3x3 => T::from(0.025).unwrap(),
-                    OperationType::SepConv5x5 => T::from(0.03).unwrap(),
-                    OperationType::DilConv5x5 => T::from(0.035).unwrap(),
+                    OperationType::MaxPool3x3 | OperationType::AvgPool3x3 => {
+                        safe_from_f64(0.01).unwrap_or(T::zero())
+                    }
+                    OperationType::SepConv3x3 => safe_from_f64(0.02).unwrap_or(T::zero()),
+                    OperationType::DilConv3x3 => safe_from_f64(0.025).unwrap_or(T::zero()),
+                    OperationType::SepConv5x5 => safe_from_f64(0.03).unwrap_or(T::zero()),
+                    OperationType::DilConv5x5 => safe_from_f64(0.035).unwrap_or(T::zero()),
                 };
         }
 
@@ -861,7 +924,9 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
                                 for k in start..end {
                                     sum = sum + output[[i, k]];
                                 }
-                                sum / T::from(end - start).unwrap()
+                                let divisor =
+                                    safe_from_f64((end - start) as f64).unwrap_or(T::one());
+                                sum / divisor
                             })
                         } else {
                             // Upsample by repeating
@@ -945,7 +1010,7 @@ mod tests {
     #[test]
     fn test_mixed_operation_creation() {
         let ops = OperationType::all_operations();
-        let mixed_op: MixedOperation<f64> = MixedOperation::new(10, 16, ops);
+        let mixed_op: MixedOperation<f64> = MixedOperation::new(10, 16, ops).unwrap();
 
         assert_eq!(mixed_op.in_features, 10);
         assert_eq!(mixed_op.out_features, 16);
@@ -955,7 +1020,7 @@ mod tests {
     #[test]
     fn test_mixed_operation_forward() {
         let ops = vec![OperationType::Skip, OperationType::SepConv3x3];
-        let mixed_op: MixedOperation<f64> = MixedOperation::new(8, 8, ops);
+        let mixed_op: MixedOperation<f64> = MixedOperation::new(8, 8, ops).unwrap();
 
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
         let output = mixed_op.forward(&x).unwrap();
@@ -966,7 +1031,7 @@ mod tests {
     #[test]
     fn test_mixed_operation_argmax() {
         let ops = OperationType::all_operations();
-        let mut mixed_op: MixedOperation<f64> = MixedOperation::new(8, 8, ops);
+        let mut mixed_op: MixedOperation<f64> = MixedOperation::new(8, 8, ops).unwrap();
 
         // Set specific alpha values
         mixed_op.alpha[0] = 0.1;
@@ -978,7 +1043,7 @@ mod tests {
 
     #[test]
     fn test_darts_cell_creation() {
-        let cell: DARTSCell<f64> = DARTSCell::new(10, 16, 3);
+        let cell: DARTSCell<f64> = DARTSCell::new(10, 16, 3).unwrap();
 
         assert_eq!(cell.n_nodes, 3);
         assert_eq!(cell.in_features, 10);
@@ -988,7 +1053,7 @@ mod tests {
 
     #[test]
     fn test_darts_cell_forward() {
-        let cell: DARTSCell<f64> = DARTSCell::new(8, 12, 2);
+        let cell: DARTSCell<f64> = DARTSCell::new(8, 12, 2).unwrap();
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
 
         let output = cell.forward(&x).unwrap();
@@ -997,7 +1062,7 @@ mod tests {
 
     #[test]
     fn test_darts_cell_discrete_architecture() {
-        let cell: DARTSCell<f64> = DARTSCell::new(8, 8, 2);
+        let cell: DARTSCell<f64> = DARTSCell::new(8, 8, 2).unwrap();
         let arch = cell.get_discrete_architecture();
 
         assert_eq!(arch.len(), 2); // 2 nodes
@@ -1007,7 +1072,7 @@ mod tests {
 
     #[test]
     fn test_darts_creation() {
-        let darts: DARTS<f64> = DARTS::new(10, 16, 3, 6, 0.001, 0.01);
+        let darts: DARTS<f64> = DARTS::new(10, 16, 3, 6, 0.001, 0.01).unwrap();
 
         assert_eq!(darts.n_cells, 6);
         assert!(darts.num_parameters() > 0);
@@ -1015,7 +1080,7 @@ mod tests {
 
     #[test]
     fn test_darts_forward() {
-        let darts: DARTS<f64> = DARTS::new(8, 12, 2, 3, 0.001, 0.01);
+        let darts: DARTS<f64> = DARTS::new(8, 12, 2, 3, 0.001, 0.01).unwrap();
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
 
         let output = darts.forward(&x).unwrap();
@@ -1024,7 +1089,7 @@ mod tests {
 
     #[test]
     fn test_darts_get_architecture() {
-        let darts: DARTS<f64> = DARTS::new(8, 8, 2, 3, 0.001, 0.01);
+        let darts: DARTS<f64> = DARTS::new(8, 8, 2, 3, 0.001, 0.01).unwrap();
         let arch = darts.get_architecture();
 
         assert_eq!(arch.n_cells, 3);
@@ -1128,7 +1193,7 @@ mod tests {
 
     #[test]
     fn test_enas_controller_creation() {
-        let controller: ENASController<f64> = ENASController::new(16, 5, 8, 0.001);
+        let controller: ENASController<f64> = ENASController::new(16, 5, 8, 0.001).unwrap();
 
         assert_eq!(controller.hidden_size, 16);
         assert_eq!(controller.num_layers, 5);
@@ -1138,7 +1203,7 @@ mod tests {
 
     #[test]
     fn test_enas_controller_sample() {
-        let mut controller: ENASController<f64> = ENASController::new(16, 3, 8, 0.001);
+        let mut controller: ENASController<f64> = ENASController::new(16, 3, 8, 0.001).unwrap();
 
         let (architecture, log_probs) = controller.sample_architecture().unwrap();
 
@@ -1148,7 +1213,7 @@ mod tests {
 
     #[test]
     fn test_enas_controller_update() {
-        let mut controller: ENASController<f64> = ENASController::new(16, 3, 8, 0.001);
+        let mut controller: ENASController<f64> = ENASController::new(16, 3, 8, 0.001).unwrap();
 
         let (_, log_probs) = controller.sample_architecture().unwrap();
         let reward = 0.8;
@@ -1159,7 +1224,7 @@ mod tests {
 
     #[test]
     fn test_enas_creation() {
-        let enas: ENAS<f64> = ENAS::new(10, 16, 32, 5, 0.001, 100);
+        let enas: ENAS<f64> = ENAS::new(10, 16, 32, 5, 0.001, 100).unwrap();
 
         assert_eq!(enas.in_features, 10);
         assert_eq!(enas.out_features, 16);
@@ -1169,7 +1234,7 @@ mod tests {
 
     #[test]
     fn test_enas_search_step() {
-        let mut enas: ENAS<f64> = ENAS::new(8, 12, 16, 3, 0.01, 50);
+        let mut enas: ENAS<f64> = ENAS::new(8, 12, 16, 3, 0.01, 50).unwrap();
 
         let (architecture, reward) = enas.search_step().unwrap();
 
@@ -1179,7 +1244,7 @@ mod tests {
 
     #[test]
     fn test_enas_forward() {
-        let enas: ENAS<f64> = ENAS::new(8, 12, 16, 3, 0.01, 50);
+        let enas: ENAS<f64> = ENAS::new(8, 12, 16, 3, 0.01, 50).unwrap();
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
         let architecture = vec![
             OperationType::Skip,
@@ -1193,7 +1258,7 @@ mod tests {
 
     #[test]
     fn test_enas_best_architecture() {
-        let mut enas: ENAS<f64> = ENAS::new(8, 8, 16, 3, 0.01, 10);
+        let mut enas: ENAS<f64> = ENAS::new(8, 8, 16, 3, 0.01, 10).unwrap();
 
         // Initially no best architecture
         assert!(enas.get_best_architecture().is_none());
@@ -1207,7 +1272,7 @@ mod tests {
 
     #[test]
     fn test_enas_progress() {
-        let mut enas: ENAS<f64> = ENAS::new(8, 8, 16, 3, 0.01, 10);
+        let mut enas: ENAS<f64> = ENAS::new(8, 8, 16, 3, 0.01, 10).unwrap();
 
         let (current, total) = enas.get_progress();
         assert_eq!(current, 0);

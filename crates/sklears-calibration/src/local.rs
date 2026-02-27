@@ -442,7 +442,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -463,7 +463,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -480,7 +480,7 @@ mod tests {
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

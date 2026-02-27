@@ -376,7 +376,7 @@ impl GraphAnalyzer {
 
             // Try to move each node to the community that maximizes modularity
             for node in &graph.nodes {
-                let current_community = *node_communities.get(&node.id).unwrap();
+                let current_community = *node_communities.get(&node.id).expect("get should succeed");
                 let mut best_community = current_community;
                 let mut best_gain = 0.0;
 
@@ -483,7 +483,7 @@ impl GraphAnalyzer {
                 if let Some((&most_frequent_label, _)) = label_counts.iter()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(Ordering::Equal))
                 {
-                    let current_label = *node_labels.get(&node.id).unwrap();
+                    let current_label = *node_labels.get(&node.id).expect("get should succeed");
                     if most_frequent_label != current_label {
                         node_labels.insert(node.id.clone(), most_frequent_label);
                         changed = true;
@@ -1135,8 +1135,8 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let centrality_a = analyzer.calculate_degree_centrality(&graph, "A").unwrap();
-        let centrality_c = analyzer.calculate_degree_centrality(&graph, "C").unwrap();
+        let centrality_a = analyzer.calculate_degree_centrality(&graph, "A").expect("calculate_degree_centrality should succeed");
+        let centrality_c = analyzer.calculate_degree_centrality(&graph, "C").expect("calculate_degree_centrality should succeed");
 
         // Node A has 2 outgoing edges, Node C has 2 incoming edges
         assert!(centrality_a > 0.0);
@@ -1148,8 +1148,8 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let centrality_b = analyzer.calculate_betweenness_centrality(&graph, "B").unwrap();
-        let centrality_d = analyzer.calculate_betweenness_centrality(&graph, "D").unwrap();
+        let centrality_b = analyzer.calculate_betweenness_centrality(&graph, "B").expect("calculate_betweenness_centrality should succeed");
+        let centrality_d = analyzer.calculate_betweenness_centrality(&graph, "D").expect("calculate_betweenness_centrality should succeed");
 
         assert!(centrality_b >= 0.0);
         assert!(centrality_d >= 0.0);
@@ -1160,7 +1160,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let centrality_a = analyzer.calculate_closeness_centrality(&graph, "A").unwrap();
+        let centrality_a = analyzer.calculate_closeness_centrality(&graph, "A").expect("calculate_closeness_centrality should succeed");
         assert!(centrality_a >= 0.0);
     }
 
@@ -1169,8 +1169,8 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let pagerank_a = analyzer.calculate_pagerank(&graph, "A").unwrap();
-        let pagerank_c = analyzer.calculate_pagerank(&graph, "C").unwrap();
+        let pagerank_a = analyzer.calculate_pagerank(&graph, "A").expect("calculate_pagerank should succeed");
+        let pagerank_c = analyzer.calculate_pagerank(&graph, "C").expect("calculate_pagerank should succeed");
 
         assert!(pagerank_a > 0.0);
         assert!(pagerank_c > 0.0);
@@ -1181,7 +1181,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let centralities = analyzer.calculate_all_centrality_measures(&graph).unwrap();
+        let centralities = analyzer.calculate_all_centrality_measures(&graph).expect("calculate_all_centrality_measures should succeed");
 
         assert_eq!(centralities.len(), 4);
         assert!(centralities.contains_key("A"));
@@ -1202,7 +1202,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let paths = analyzer.find_all_shortest_paths(&graph, "A", "C").unwrap();
+        let paths = analyzer.find_all_shortest_paths(&graph, "A", "C").expect("find_all_shortest_paths should succeed");
         assert!(!paths.is_empty());
 
         // There should be at least one path from A to C
@@ -1214,7 +1214,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let communities = analyzer.detect_communities(&graph, CommunityDetection::Louvain).unwrap();
+        let communities = analyzer.detect_communities(&graph, CommunityDetection::Louvain).expect("detect_communities should succeed");
 
         // Should detect at least one community
         assert!(!communities.is_empty());
@@ -1230,7 +1230,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let communities = analyzer.label_propagation(&graph).unwrap();
+        let communities = analyzer.label_propagation(&graph).expect("label_propagation should succeed");
 
         // Label propagation may or may not find communities depending on the graph structure
         for community in communities {
@@ -1243,7 +1243,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let quality = analyzer.calculate_graph_quality_metrics(&graph).unwrap();
+        let quality = analyzer.calculate_graph_quality_metrics(&graph).expect("calculate_graph_quality_metrics should succeed");
 
         assert!(quality.clarity >= 0.0 && quality.clarity <= 1.0);
         assert!(quality.layout_quality >= 0.0 && quality.layout_quality <= 1.0);
@@ -1257,7 +1257,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let analysis = analyzer.analyze_graph(&graph).unwrap();
+        let analysis = analyzer.analyze_graph(&graph).expect("analyze_graph should succeed");
 
         assert!(!analysis.centrality_measures.is_empty());
         assert!(!analysis.critical_paths.is_empty());
@@ -1269,7 +1269,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let matrix = analyzer.build_adjacency_matrix(&graph).unwrap();
+        let matrix = analyzer.build_adjacency_matrix(&graph).expect("build_adjacency_matrix should succeed");
 
         assert_eq!(matrix.dim(), (4, 4));
         assert!(matrix.sum() > 0.0); // Should have some non-zero entries
@@ -1280,7 +1280,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let graph = create_test_graph();
 
-        let distances = analyzer.calculate_shortest_path_distances(&graph, "A").unwrap();
+        let distances = analyzer.calculate_shortest_path_distances(&graph, "A").expect("calculate_shortest_path_distances should succeed");
 
         assert!(distances.contains_key("A"));
         assert_eq!(distances["A"], 0.0);

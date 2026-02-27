@@ -1235,7 +1235,7 @@ pub fn create_security_event(
     source_system: String,
 ) -> SecurityEvent {
     SecurityEvent {
-        event_id: format!("evt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()),
+        event_id: format!("evt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs()),
         timestamp: SystemTime::now(),
         event_type,
         severity,

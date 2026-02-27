@@ -16,6 +16,27 @@ use sklears_core::{
     types::Float,
 };
 
+// Helper functions for safe operations
+#[inline]
+fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
+}
+
+#[inline]
+fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
+#[inline]
+fn compare_floats(a: &Float, b: &Float) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
+
 /// Configuration for TheilSenRegressor
 #[derive(Debug, Clone)]
 pub struct TheilSenRegressorConfig {
@@ -129,16 +150,16 @@ impl Estimator for TheilSenRegressor<Trained> {
 }
 
 /// Calculate the spatial median (geometric median) of points
-fn spatial_median(points: &Array2<Float>, max_iter: usize, tol: Float) -> Array1<Float> {
+fn spatial_median(points: &Array2<Float>, max_iter: usize, tol: Float) -> Result<Array1<Float>> {
     let n_points = points.nrows();
     let n_features = points.ncols();
 
     if n_points == 0 {
-        return Array1::zeros(n_features);
+        return Ok(Array1::zeros(n_features));
     }
 
     // Initialize with arithmetic mean
-    let mut median = points.mean_axis(Axis(0)).unwrap();
+    let mut median = safe_mean_axis(points, Axis(0))?;
 
     for _ in 0..max_iter {
         let old_median = median.clone();
@@ -175,7 +196,7 @@ fn spatial_median(points: &Array2<Float>, max_iter: usize, tol: Float) -> Array1
         }
     }
 
-    median
+    Ok(median)
 }
 
 /// Get combinations of indices for subsampling
@@ -315,7 +336,8 @@ impl Fit<Array2<Float>, Array1<Float>> for TheilSenRegressor<Untrained> {
                 }
 
                 if !pairwise_slopes.is_empty() {
-                    pairwise_slopes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    pairwise_slopes
+                        .sort_by(|a, b| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal));
                     let median_slope = pairwise_slopes[pairwise_slopes.len() / 2];
                     slopes.push(Array1::from_elem(1, median_slope));
                 }
@@ -339,9 +361,9 @@ impl Fit<Array2<Float>, Array1<Float>> for TheilSenRegressor<Untrained> {
             (slopes.len(), n_features),
             slopes.into_iter().flatten().collect(),
         )
-        .unwrap();
+        .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
 
-        let coef = spatial_median(&slopes_array, self.config.max_iter, self.config.tol);
+        let coef = spatial_median(&slopes_array, self.config.max_iter, self.config.tol)?;
 
         // Calculate intercept if needed
         let intercept = if self.config.fit_intercept {
@@ -349,7 +371,8 @@ impl Fit<Array2<Float>, Array1<Float>> for TheilSenRegressor<Untrained> {
             let predictions = x.dot(&coef);
             let residuals = y - &predictions;
             let mut sorted_residuals = residuals.to_vec();
-            sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_residuals
+                .sort_by(|a, b| compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal));
             sorted_residuals[sorted_residuals.len() / 2]
         } else {
             0.0
@@ -379,14 +402,22 @@ fn solve_least_squares(x: &Array2<Float>, y: &Array1<Float>) -> Result<Array1<Fl
 
 impl Predict<Array2<Float>, Array1<Float>> for TheilSenRegressor<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })?;
+        let intercept = self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })?;
 
-        if x.ncols() != self.n_features_in_.unwrap() {
+        let n_features_in = self.n_features_in_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: n_features_in not available".to_string())
+        })?;
+
+        if x.ncols() != n_features_in {
             return Err(SklearsError::InvalidInput(format!(
                 "X has {} features, but TheilSenRegressor is expecting {} features",
                 x.ncols(),
-                self.n_features_in_.unwrap()
+                n_features_in
             )));
         }
 
@@ -401,7 +432,7 @@ impl Score<Array2<Float>, Array1<Float>> for TheilSenRegressor<Trained> {
         let predictions = self.predict(x)?;
         let residuals = y - &predictions;
         let ss_res = residuals.mapv(|r| r * r).sum();
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean(y)?;
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
 
         Ok(1.0 - ss_res / ss_tot)
@@ -410,28 +441,40 @@ impl Score<Array2<Float>, Array1<Float>> for TheilSenRegressor<Trained> {
 
 impl TheilSenRegressor<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array1<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })
     }
 
     /// Get the intercept
-    pub fn intercept(&self) -> Option<Float> {
-        Some(self.intercept_.unwrap())
+    pub fn intercept(&self) -> Result<Float> {
+        self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })
     }
 
     /// Get the breakdown point
-    pub fn breakdown(&self) -> Float {
-        self.breakdown_.unwrap()
+    pub fn breakdown(&self) -> Result<Float> {
+        self.breakdown_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: breakdown not available".to_string())
+        })
     }
 
     /// Get the number of subpopulations used
-    pub fn n_subpopulation(&self) -> usize {
-        self.n_subpopulation_.unwrap()
+    pub fn n_subpopulation(&self) -> Result<usize> {
+        self.n_subpopulation_.ok_or_else(|| {
+            SklearsError::InvalidState(
+                "Model not fitted: n_subpopulation not available".to_string(),
+            )
+        })
     }
 
     /// Get the number of features seen during fit
-    pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+    pub fn n_features_in(&self) -> Result<usize> {
+        self.n_features_in_.ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: n_features_in not available".to_string())
+        })
     }
 }
 
@@ -454,7 +497,7 @@ mod tests {
             .unwrap();
 
         // Should find slope of 2 and intercept of 0
-        assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 0.1);
+        assert_abs_diff_eq!(model.coef().unwrap()[0], 2.0, epsilon = 0.1);
         assert_abs_diff_eq!(model.intercept().unwrap(), 0.0, epsilon = 0.1);
     }
 
@@ -479,7 +522,8 @@ mod tests {
             .unwrap();
 
         // Should be robust to outliers and find approximately slope of 2
-        assert!(model.coef()[0] > 1.5 && model.coef()[0] < 2.5);
+        let coef = model.coef().unwrap();
+        assert!(coef[0] > 1.5 && coef[0] < 2.5);
     }
 
     #[test]
@@ -507,8 +551,9 @@ mod tests {
             .unwrap();
 
         // Should find coefficients close to [1, 2]
-        assert_abs_diff_eq!(model.coef()[0], 1.0, epsilon = 0.5);
-        assert_abs_diff_eq!(model.coef()[1], 2.0, epsilon = 0.5);
+        let coef = model.coef().unwrap();
+        assert_abs_diff_eq!(coef[0], 1.0, epsilon = 0.5);
+        assert_abs_diff_eq!(coef[1], 2.0, epsilon = 0.5);
     }
 
     #[test]
@@ -521,7 +566,7 @@ mod tests {
             [100.0, 100.0], // outlier
         ];
 
-        let median = spatial_median(&points, 100, 1e-6);
+        let median = spatial_median(&points, 100, 1e-6).unwrap();
 
         // Spatial median should be less affected by the outlier than the mean
         assert!(median[0] < 20.0 && median[1] < 20.0);

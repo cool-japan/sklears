@@ -126,7 +126,7 @@ impl LossFunction for AbsoluteLoss {
     fn init_prediction(&self, y_true: &Array1<f64>) -> Result<f64> {
         // Use median for absolute loss
         let mut sorted = y_true.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median = if sorted.len() % 2 == 0 {
             (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
         } else {
@@ -308,7 +308,7 @@ impl LossFunction for QuantileLoss {
     fn init_prediction(&self, y_true: &Array1<f64>) -> Result<f64> {
         // Use the alpha-quantile as initial prediction
         let mut sorted = y_true.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let index = (self.alpha * (sorted.len() - 1) as f64).round() as usize;
         Ok(sorted[index.min(sorted.len() - 1)])
     }

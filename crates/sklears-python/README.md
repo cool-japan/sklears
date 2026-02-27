@@ -2,17 +2,17 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-python.svg)](https://crates.io/crates/sklears-python)
 [![Documentation](https://docs.rs/sklears-python/badge.svg)](https://docs.rs/sklears-python)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 Python bindings for the sklears machine learning library, providing a high-performance, scikit-learn compatible interface through PyO3.
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-rc.1` (February 2026). See the [workspace release notes](../../docs/releases/0.1.0-rc.1.md) for highlights and upgrade guidance.
 
 ## Features
 
 - **Drop-in replacement** for scikit-learn's most common algorithms
-- **14-20x performance improvements (validated)** over scikit-learn
+- **Pure Rust implementation** with ongoing performance optimization
 - **Full NumPy array compatibility** with zero-copy operations where possible
 - **Comprehensive error handling** with Python exceptions
 - **Memory-safe operations** with automatic reference counting
@@ -24,25 +24,48 @@ Python bindings for the sklears machine learning library, providing a high-perfo
 - `LinearRegression` - Ordinary least squares linear regression
 - `Ridge` - Ridge regression with L2 regularization
 - `Lasso` - Lasso regression with L1 regularization
+- `ElasticNet` - Elastic-net regularization
+- `BayesianRidge` - Bayesian ridge regression
+- `ARDRegression` - Automatic Relevance Determination regression
 - `LogisticRegression` - Logistic regression for classification
+
+### Ensemble Methods
+- `GradientBoostingClassifier` - Gradient boosting for classification
+- `GradientBoostingRegressor` - Gradient boosting for regression
+- `AdaBoostClassifier` - Adaptive boosting classifier
+- `VotingClassifier` - Voting ensemble classifier
+- `BaggingClassifier` - Bagging ensemble classifier
+
+### Neural Networks
+- `MLPClassifier` - Multi-layer perceptron classifier
+- `MLPRegressor` - Multi-layer perceptron regressor
+
+### Naive Bayes
+- `GaussianNB` - Gaussian Naive Bayes
+- `MultinomialNB` - Multinomial Naive Bayes
+- `BernoulliNB` - Bernoulli Naive Bayes
+- `ComplementNB` - Complement Naive Bayes
 
 ### Clustering
 - `KMeans` - K-Means clustering algorithm
 - `DBSCAN` - Density-based spatial clustering
 
-### Preprocessing
+### Preprocessing _(coming soon)_
 - `StandardScaler` - Standardize features by removing mean and scaling to unit variance
 - `MinMaxScaler` - Scale features to a given range
 - `LabelEncoder` - Encode target labels with value between 0 and n_classes-1
 
+### Tree Models _(coming soon)_
+- `RandomForestClassifier` - Random forest for classification
+- `DecisionTreeClassifier` - Decision tree for classification
+
 ### Model Selection
 - `train_test_split` - Split arrays into random train and test subsets
 - `KFold` - K-Fold cross-validator
-- `StratifiedKFold` - Stratified K-Fold cross-validator
-- `cross_val_score` - Evaluate metric(s) by cross-validation
-- `cross_val_predict` - Generate cross-validated estimates
+- `StratifiedKFold` _(coming soon)_ - Stratified K-Fold cross-validator
+- `cross_val_score` _(coming soon)_ - Evaluate metric(s) by cross-validation
 
-### Metrics
+### Metrics _(coming soon)_
 - `accuracy_score` - Classification accuracy
 - `mean_squared_error` - Mean squared error for regression
 - `mean_absolute_error` - Mean absolute error for regression
@@ -57,7 +80,7 @@ Python bindings for the sklears machine learning library, providing a high-perfo
 
 ### Prerequisites
 
-- Python 3.8 or later
+- Python 3.9 or later
 - NumPy
 - Rust 1.70 or later
 - PyO3 and Maturin for building
@@ -83,14 +106,14 @@ Python bindings for the sklears machine learning library, providing a high-perfo
 4. **Or build a wheel:**
    ```bash
    maturin build --release
-   pip install target/wheels/sklears_python-*.whl
+   pip install target/wheels/sklears-*.whl
    ```
 
 ## Quick Start
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 # Generate sample data
 X = np.random.randn(100, 4)
@@ -115,7 +138,7 @@ import time
 import numpy as np
 from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
-import sklears_python as skl
+import sklears as skl
 from sklearn.linear_model import LinearRegression as SklearnLR
 
 # Generate data
@@ -155,13 +178,14 @@ from sklearn.metrics import mean_squared_error
 
 ### After (sklears):
 ```python
-import sklears_python as skl
+import sklears as skl
 
-# All functions and classes are available in the main module
+# Available classes and functions
 model = skl.LinearRegression()
-scaler = skl.StandardScaler()
 X_train, X_test, y_train, y_test = skl.train_test_split(X, y)
-mse = skl.mean_squared_error(y_true, y_pred)
+
+# Note: StandardScaler, MinMaxScaler, LabelEncoder - coming soon
+# Note: mean_squared_error, r2_score, accuracy_score, etc. - coming soon
 ```
 
 ## Memory Management
@@ -178,7 +202,7 @@ The bindings are designed to be memory-efficient:
 All Rust errors are properly converted to Python exceptions:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 try:
@@ -194,7 +218,7 @@ except ValueError as e:
 Get information about your sklears installation:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 
 # Version information
 print(f"Version: {skl.get_version()}")
@@ -204,32 +228,7 @@ build_info = skl.get_build_info()
 for key, value in build_info.items():
     print(f"{key}: {value}")
 
-# Hardware capabilities
-hardware_info = skl.get_hardware_info()
-print("Hardware support:")
-for feature, supported in hardware_info.items():
-    print(f"  {feature}: {supported}")
-
-# Performance benchmarks
-benchmarks = skl.benchmark_basic_operations()
-print("Performance benchmarks:")
-for operation, time_ms in benchmarks.items():
-    print(f"  {operation}: {time_ms:.2f} ms")
-```
-
-## Configuration
-
-Set global configuration options:
-
-```python
-import sklears_python as skl
-
-# Set number of threads for parallel operations
-skl.set_config("n_jobs", "4")
-
-# Get current configuration
-config = skl.get_config()
-print(config)
+# Note: get_hardware_info() and benchmark_basic_operations() - coming soon
 ```
 
 ## Examples
@@ -246,7 +245,7 @@ Contributions are welcome! Please see the main sklears repository for contributi
 
 ## License
 
-This project is licensed under the MIT OR Apache-2.0 license.
+This project is licensed under the Apache-2.0 license.
 
 ## Acknowledgments
 

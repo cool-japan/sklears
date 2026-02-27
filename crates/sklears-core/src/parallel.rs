@@ -467,9 +467,10 @@ mod tests {
 
     #[test]
     fn test_parallel_matrix_multiply() {
-        let a = Array2::from_shape_vec((100, 50), (0..5000).map(|x| x as f64).collect()).unwrap();
-        let b =
-            Array2::from_shape_vec((50, 30), (0..1500).map(|x| x as f64 + 1.0).collect()).unwrap();
+        let a = Array2::from_shape_vec((100, 50), (0..5000).map(|x| x as f64).collect())
+            .expect("valid array shape");
+        let b = Array2::from_shape_vec((50, 30), (0..1500).map(|x| x as f64 + 1.0).collect())
+            .expect("valid array shape");
 
         let config = ParallelConfig {
             enabled: true,
@@ -494,9 +495,10 @@ mod tests {
 
     #[test]
     fn test_parallel_elementwise_ops() {
-        let a = Array2::from_shape_vec((100, 100), (0..10000).map(|x| x as f64).collect()).unwrap();
+        let a = Array2::from_shape_vec((100, 100), (0..10000).map(|x| x as f64).collect())
+            .expect("valid array shape");
         let b = Array2::from_shape_vec((100, 100), (0..10000).map(|x| x as f64 + 1.0).collect())
-            .unwrap();
+            .expect("expected valid value");
 
         let config = ParallelConfig {
             enabled: true,

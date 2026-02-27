@@ -237,30 +237,56 @@ impl SimdOps<f32> for SimdF32 {
     }
 
     fn simd_add(a: &[f32], b: &[f32], result: &mut [f32]) {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                unsafe { simd_add_f32_avx(a, b, result) };
+                return;
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         for ((a_val, b_val), r) in a.iter().zip(b).zip(result) {
             *r = a_val + b_val;
         }
     }
 
     fn simd_mul(a: &[f32], b: &[f32], result: &mut [f32]) {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                unsafe { simd_mul_f32_avx(a, b, result) };
+                return;
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         for ((a_val, b_val), r) in a.iter().zip(b).zip(result) {
             *r = a_val * b_val;
         }
     }
 
     fn simd_dot(a: &[f32], b: &[f32]) -> f32 {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                return unsafe { simd_dot_f32_avx(a, b) };
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         a.iter().zip(b).map(|(x, y)| x * y).sum()
     }
 
     fn simd_sum(values: &[f32]) -> f32 {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                return unsafe { simd_sum_f32_avx(values) };
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         values.iter().sum()
     }
 }
@@ -276,30 +302,56 @@ impl SimdOps<f64> for SimdF64 {
     }
 
     fn simd_add(a: &[f64], b: &[f64], result: &mut [f64]) {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                unsafe { simd_add_f64_avx(a, b, result) };
+                return;
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         for ((a_val, b_val), r) in a.iter().zip(b).zip(result) {
             *r = a_val + b_val;
         }
     }
 
     fn simd_mul(a: &[f64], b: &[f64], result: &mut [f64]) {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                unsafe { simd_mul_f64_avx(a, b, result) };
+                return;
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         for ((a_val, b_val), r) in a.iter().zip(b).zip(result) {
             *r = a_val * b_val;
         }
     }
 
     fn simd_dot(a: &[f64], b: &[f64]) -> f64 {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                return unsafe { simd_dot_f64_avx(a, b) };
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         a.iter().zip(b).map(|(x, y)| x * y).sum()
     }
 
     fn simd_sum(values: &[f64]) -> f64 {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if std::arch::is_x86_feature_detected!("avx") {
+                return unsafe { simd_sum_f64_avx(values) };
+            }
+        }
+
         // Fallback scalar implementation
-        // TODO: Replace with actual SIMD when scirs2-core::simd is available
         values.iter().sum()
     }
 }
@@ -469,6 +521,194 @@ where
     }
 }
 
+// SIMD implementation functions for f32
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_add_f32_avx(a: &[f32], b: &[f32], result: &mut [f32]) {
+    use std::arch::x86_64::*;
+    const LANES: usize = 8;
+    let len = a.len().min(b.len()).min(result.len());
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_vec = _mm256_loadu_ps(a.as_ptr().add(i));
+        let b_vec = _mm256_loadu_ps(b.as_ptr().add(i));
+        let sum = _mm256_add_ps(a_vec, b_vec);
+        _mm256_storeu_ps(result.as_mut_ptr().add(i), sum);
+        i += LANES;
+    }
+
+    for j in i..len {
+        result[j] = a[j] + b[j];
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_mul_f32_avx(a: &[f32], b: &[f32], result: &mut [f32]) {
+    use std::arch::x86_64::*;
+    const LANES: usize = 8;
+    let len = a.len().min(b.len()).min(result.len());
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_vec = _mm256_loadu_ps(a.as_ptr().add(i));
+        let b_vec = _mm256_loadu_ps(b.as_ptr().add(i));
+        let prod = _mm256_mul_ps(a_vec, b_vec);
+        _mm256_storeu_ps(result.as_mut_ptr().add(i), prod);
+        i += LANES;
+    }
+
+    for j in i..len {
+        result[j] = a[j] * b[j];
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_dot_f32_avx(a: &[f32], b: &[f32]) -> f32 {
+    use std::arch::x86_64::*;
+    const LANES: usize = 8;
+    let len = a.len().min(b.len());
+    let mut dot_vec = _mm256_setzero_ps();
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_vec = _mm256_loadu_ps(a.as_ptr().add(i));
+        let b_vec = _mm256_loadu_ps(b.as_ptr().add(i));
+        let prod = _mm256_mul_ps(a_vec, b_vec);
+        dot_vec = _mm256_add_ps(dot_vec, prod);
+        i += LANES;
+    }
+
+    let mut sum_array = [0.0f32; 8];
+    _mm256_storeu_ps(sum_array.as_mut_ptr(), dot_vec);
+    let mut dot = sum_array.iter().sum::<f32>();
+
+    for j in i..len {
+        dot += a[j] * b[j];
+    }
+    dot
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_sum_f32_avx(values: &[f32]) -> f32 {
+    use std::arch::x86_64::*;
+    const LANES: usize = 8;
+    let mut sum_vec = _mm256_setzero_ps();
+    let mut i = 0;
+
+    while i + LANES <= values.len() {
+        let vec = _mm256_loadu_ps(values.as_ptr().add(i));
+        sum_vec = _mm256_add_ps(sum_vec, vec);
+        i += LANES;
+    }
+
+    let mut sum_array = [0.0f32; 8];
+    _mm256_storeu_ps(sum_array.as_mut_ptr(), sum_vec);
+    let mut sum = sum_array.iter().sum::<f32>();
+
+    for j in i..values.len() {
+        sum += values[j];
+    }
+    sum
+}
+
+// SIMD implementation functions for f64
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_add_f64_avx(a: &[f64], b: &[f64], result: &mut [f64]) {
+    use std::arch::x86_64::*;
+    const LANES: usize = 4;
+    let len = a.len().min(b.len()).min(result.len());
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_vec = _mm256_loadu_pd(a.as_ptr().add(i));
+        let b_vec = _mm256_loadu_pd(b.as_ptr().add(i));
+        let sum = _mm256_add_pd(a_vec, b_vec);
+        _mm256_storeu_pd(result.as_mut_ptr().add(i), sum);
+        i += LANES;
+    }
+
+    for j in i..len {
+        result[j] = a[j] + b[j];
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_mul_f64_avx(a: &[f64], b: &[f64], result: &mut [f64]) {
+    use std::arch::x86_64::*;
+    const LANES: usize = 4;
+    let len = a.len().min(b.len()).min(result.len());
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_vec = _mm256_loadu_pd(a.as_ptr().add(i));
+        let b_vec = _mm256_loadu_pd(b.as_ptr().add(i));
+        let prod = _mm256_mul_pd(a_vec, b_vec);
+        _mm256_storeu_pd(result.as_mut_ptr().add(i), prod);
+        i += LANES;
+    }
+
+    for j in i..len {
+        result[j] = a[j] * b[j];
+    }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_dot_f64_avx(a: &[f64], b: &[f64]) -> f64 {
+    use std::arch::x86_64::*;
+    const LANES: usize = 4;
+    let len = a.len().min(b.len());
+    let mut dot_vec = _mm256_setzero_pd();
+    let mut i = 0;
+
+    while i + LANES <= len {
+        let a_vec = _mm256_loadu_pd(a.as_ptr().add(i));
+        let b_vec = _mm256_loadu_pd(b.as_ptr().add(i));
+        let prod = _mm256_mul_pd(a_vec, b_vec);
+        dot_vec = _mm256_add_pd(dot_vec, prod);
+        i += LANES;
+    }
+
+    let mut sum_array = [0.0; 4];
+    _mm256_storeu_pd(sum_array.as_mut_ptr(), dot_vec);
+    let mut dot = sum_array.iter().sum::<f64>();
+
+    for j in i..len {
+        dot += a[j] * b[j];
+    }
+    dot
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[target_feature(enable = "avx")]
+unsafe fn simd_sum_f64_avx(values: &[f64]) -> f64 {
+    use std::arch::x86_64::*;
+    const LANES: usize = 4;
+    let mut sum_vec = _mm256_setzero_pd();
+    let mut i = 0;
+
+    while i + LANES <= values.len() {
+        let vec = _mm256_loadu_pd(values.as_ptr().add(i));
+        sum_vec = _mm256_add_pd(sum_vec, vec);
+        i += LANES;
+    }
+
+    let mut sum_array = [0.0; 4];
+    _mm256_storeu_pd(sum_array.as_mut_ptr(), sum_vec);
+    let mut sum = sum_array.iter().sum::<f64>();
+
+    for j in i..values.len() {
+        sum += values[j];
+    }
+    sum
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -493,13 +733,13 @@ mod tests {
 
     #[test]
     fn test_numeric_conversion() {
-        let f32_val = 3.14159_f32;
+        let f32_val = std::f32::consts::PI;
         let f64_val: Option<f64> = f32_val.to_higher_precision();
         assert!(f64_val.is_some());
-        assert!((f64_val.unwrap() - 3.14159_f64).abs() < 1e-6);
+        assert!((f64_val.expect("expected valid value") - std::f64::consts::PI).abs() < 1e-6);
 
         let converted_back = f64::from_higher_precision(f32_val);
-        assert!((converted_back - 3.14159_f64).abs() < 1e-6);
+        assert!((converted_back - std::f64::consts::PI).abs() < 1e-6);
     }
 
     #[test]

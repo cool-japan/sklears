@@ -263,8 +263,8 @@ impl UsagePatternAnalyzer {
 
         // Calculate usage frequency (events per day)
         let time_span_days = if user_events.len() > 1 {
-            let first = user_events.first().unwrap().timestamp;
-            let last = user_events.last().unwrap().timestamp;
+            let first = user_events.first().expect("first should succeed").timestamp;
+            let last = user_events.last().expect("last should succeed").timestamp;
             ((last - first) as f64 / (24.0 * 3600.0)).max(1.0)
         } else {
             1.0
@@ -391,14 +391,14 @@ impl UsagePatternAnalyzer {
         let peak_hour = temporal_pattern.hourly_distribution
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(i, _)| i)
             .unwrap_or(0);
 
         let peak_day = temporal_pattern.weekly_distribution
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(i, _)| i)
             .unwrap_or(0);
 
@@ -490,7 +490,7 @@ impl UsagePatternAnalyzer {
     fn current_timestamp(&self) -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("expected valid value")
             .as_secs()
     }
 
@@ -766,7 +766,7 @@ impl PatternBasedRecommender {
         }
 
         // Sort by confidence and take top recommendations
-        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        recommendations.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
         recommendations.truncate(10);
 
         self.recommendation_cache.insert(cache_key, recommendations.clone());
@@ -856,10 +856,10 @@ mod tests {
                 duration_ms: Some(1000),
                 metadata: HashMap::new(),
             };
-            analyzer.record_usage(event).unwrap();
+            analyzer.record_usage(event).expect("record_usage should succeed");
         }
 
-        let pattern = analyzer.analyze_temporal_patterns("TestTrait").unwrap();
+        let pattern = analyzer.analyze_temporal_patterns("TestTrait").expect("analyze_temporal_patterns should succeed");
         assert_eq!(pattern.trait_name, "TestTrait");
         assert_eq!(pattern.hourly_distribution.len(), 24);
     }
@@ -894,7 +894,7 @@ mod tests {
         };
 
         // Should not detect anomaly without pattern history
-        let anomaly = analyzer.detect_anomaly(&event).unwrap();
+        let anomaly = analyzer.detect_anomaly(&event).expect("detect_anomaly should succeed");
         assert!(anomaly.is_none());
     }
 

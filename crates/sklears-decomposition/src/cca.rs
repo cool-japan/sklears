@@ -5,9 +5,8 @@
 //! two sets of variables such that the correlations between the projections of the
 //! variables onto these basis vectors are mutually maximized.
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::DMatrix;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -125,10 +124,12 @@ impl CanonicalCorrelationAnalysis {
     }
 
     /// Center the data by subtracting the mean
-    fn center_data(&self, data: &Array2<f64>) -> (Array2<f64>, Array1<f64>) {
-        let mean = data.mean_axis(Axis(0)).unwrap();
+    fn center_data(&self, data: &Array2<f64>) -> Result<(Array2<f64>, Array1<f64>)> {
+        let mean = data.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+        })?;
         let centered = data - &mean.clone().insert_axis(Axis(0));
-        (centered, mean)
+        Ok((centered, mean))
     }
 
     /// Compute covariance matrix
@@ -163,67 +164,51 @@ impl CanonicalCorrelationAnalysis {
         matrix
     }
 
-    /// Convert ndarray to nalgebra matrix
-    fn to_nalgebra(&self, arr: &Array2<f64>) -> Result<DMatrix<f64>> {
-        let data: Vec<f64> = arr.iter().cloned().collect();
-        Ok(DMatrix::from_row_slice(arr.nrows(), arr.ncols(), &data))
-    }
-
-    /// Convert nalgebra matrix to ndarray
-    #[allow(clippy::wrong_self_convention)]
-    fn from_nalgebra(&self, mat: &DMatrix<f64>) -> Result<Array2<f64>> {
-        let data: Vec<f64> = mat.iter().cloned().collect();
-        Array2::from_shape_vec((mat.nrows(), mat.ncols()), data).map_err(|_| {
-            SklearsError::NumericalError("Failed to convert nalgebra matrix".to_string())
-        })
-    }
-
-    /// Solve the CCA generalized eigenvalue problem
+    /// Solve the CCA generalized eigenvalue problem using scirs2-linalg
     fn solve_cca_eigenvalue_problem(
         &self,
         sxx: &Array2<f64>,
         syy: &Array2<f64>,
         sxy: &Array2<f64>,
     ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>)> {
-        // Convert to nalgebra for eigenvalue decomposition
-        let _sxx_na = self.to_nalgebra(sxx)?;
-        let _syy_na = self.to_nalgebra(syy)?;
-        let sxy_na = self.to_nalgebra(sxy)?;
-        let syx_na = sxy_na.transpose();
-
-        // Compute Cholesky decompositions for regularized covariance matrices
+        // Regularize covariance matrices for numerical stability
         let sxx_reg = self.regularize_matrix(sxx.clone());
         let syy_reg = self.regularize_matrix(syy.clone());
-        let sxx_reg_na = self.to_nalgebra(&sxx_reg)?;
-        let syy_reg_na = self.to_nalgebra(&syy_reg)?;
 
-        let sxx_chol = sxx_reg_na.cholesky().ok_or_else(|| {
+        // Compute Cholesky decompositions
+        let sxx_chol = sxx_reg.cholesky().map_err(|_| {
             SklearsError::NumericalError("Cholesky decomposition of Sxx failed".to_string())
         })?;
-        let syy_chol = syy_reg_na.cholesky().ok_or_else(|| {
+        let syy_chol = syy_reg.cholesky().map_err(|_| {
             SklearsError::NumericalError("Cholesky decomposition of Syy failed".to_string())
         })?;
 
-        // Compute the matrix for eigenvalue decomposition
-        // M = (Sxx^(-1/2))^T * Sxy * Syy^(-1) * Syx * Sxx^(-1/2)
-        let sxx_inv_sqrt = sxx_chol.l_dirty().clone().try_inverse().ok_or_else(|| {
-            SklearsError::NumericalError("Failed to invert Cholesky factor".to_string())
+        // Compute inverses using solve
+        let sxx_inv = sxx_reg.inv().map_err(|_| {
+            SklearsError::NumericalError("Failed to invert Sxx".to_string())
         })?;
-        let syy_inv = syy_chol.inverse();
+        let syy_inv = syy_reg.inv().map_err(|_| {
+            SklearsError::NumericalError("Failed to invert Syy".to_string())
+        })?;
 
-        let temp1 = sxx_inv_sqrt.transpose() * &sxy_na;
-        let temp2 = &temp1 * &syy_inv;
-        let temp3 = &temp2 * &syx_na;
-        let m = &temp3 * &sxx_inv_sqrt;
+        // Compute the matrix for eigenvalue decomposition
+        // M = Sxx^(-1) * Sxy * Syy^(-1) * Sxy^T
+        let temp1 = sxx_inv.dot(sxy);
+        let temp2 = temp1.dot(&syy_inv);
+        let m = temp2.dot(&sxy.t());
 
-        // Compute eigendecomposition
-        let eigen = m.symmetric_eigen();
-        let eigenvalues = eigen.eigenvalues;
-        let eigenvectors = eigen.eigenvectors;
+        // Compute eigendecomposition (symmetric matrix)
+        let (eigenvalues, eigenvectors) = m.eigh(UPLO::Lower).map_err(|_| {
+            SklearsError::NumericalError("Eigenvalue decomposition failed".to_string())
+        })?;
 
         // Sort by eigenvalues in descending order
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Take the top n_components
         let n_comp = self.n_components.min(eigenvalues.len());
@@ -233,27 +218,29 @@ impl CanonicalCorrelationAnalysis {
             .collect();
 
         // Compute canonical weights
-        let mut x_weights = DMatrix::zeros(sxx.ncols(), n_comp);
-        let mut y_weights = DMatrix::zeros(syy.ncols(), n_comp);
+        let mut x_weights = Array2::zeros((sxx.ncols(), n_comp));
+        let mut y_weights = Array2::zeros((syy.ncols(), n_comp));
 
         for (k, &idx) in indices[..n_comp].iter().enumerate() {
+            // Extract eigenvector
             let eigenvec = eigenvectors.column(idx);
+            let eigenvec_owned = eigenvec.to_owned();
 
-            // X weights: A_k = Sxx^(-1/2) * eigenvector
-            let x_weight = &sxx_inv_sqrt * eigenvec;
-            x_weights.set_column(k, &x_weight);
+            // X weights: already from eigenvector
+            for (i, val) in eigenvec_owned.iter().enumerate() {
+                x_weights[[i, k]] = *val;
+            }
 
-            // Y weights: B_k = Syy^(-1) * Syx * A_k
-            let y_weight = &syy_inv * &syx_na * &x_weight;
-            y_weights.set_column(k, &y_weight);
+            // Y weights: B_k = Syy^(-1) * Sxy^T * A_k
+            let temp = sxy.t().dot(&eigenvec_owned);
+            let y_weight = syy_inv.dot(&temp);
+            for (i, val) in y_weight.iter().enumerate() {
+                y_weights[[i, k]] = *val;
+            }
         }
 
-        // Convert back to ndarray
-        let x_weights_nd = self.from_nalgebra(&x_weights)?;
-        let y_weights_nd = self.from_nalgebra(&y_weights)?;
         let correlations = Array1::from_vec(selected_eigenvalues);
-
-        Ok((x_weights_nd, y_weights_nd, correlations))
+        Ok((x_weights, y_weights, correlations))
     }
 }
 
@@ -278,8 +265,8 @@ impl Fit<(Array2<f64>, Array2<f64>), ()> for CanonicalCorrelationAnalysis {
         let n_components = self.n_components.min(x.ncols().min(y.ncols()));
 
         // Center the data
-        let (x_centered, x_mean) = self.center_data(x);
-        let (y_centered, y_mean) = self.center_data(y);
+        let (x_centered, x_mean) = self.center_data(x)?;
+        let (y_centered, y_mean) = self.center_data(y)?;
 
         // Compute covariance matrices
         let sxx = self.compute_covariance(&x_centered, None)?;

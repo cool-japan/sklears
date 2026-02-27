@@ -7,6 +7,34 @@
 use crate::{math_utils::SpecialFunctions, UtilsError};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;
+use std::cmp::Ordering;
+
+/// Helper function to safely compare floats, treating NaN as greater than all other values
+#[inline]
+fn compare_floats<T: Float>(a: &T, b: &T) -> Ordering {
+    match a.partial_cmp(b) {
+        Some(ord) => ord,
+        None => {
+            if a.is_nan() && b.is_nan() {
+                Ordering::Equal
+            } else if a.is_nan() {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        }
+    }
+}
+
+/// Helper function to safely compute mean of an array
+#[inline]
+fn safe_mean<T>(arr: &Array1<T>) -> Result<T, UtilsError>
+where
+    T: Float + std::iter::Sum + scirs2_core::numeric::FromPrimitive,
+{
+    arr.mean()
+        .ok_or_else(|| UtilsError::InvalidParameter("Failed to compute mean of array".to_string()))
+}
 
 /// Statistical test results
 #[derive(Debug, Clone)]
@@ -78,7 +106,7 @@ impl StatisticalTests {
         }
 
         let n = data.len() as f64;
-        let sample_mean = data.mean().unwrap();
+        let sample_mean = safe_mean(data)?;
         let sample_std = Self::standard_deviation(data);
 
         if sample_std < f64::EPSILON {
@@ -113,8 +141,8 @@ impl StatisticalTests {
 
         let n1 = data1.len() as f64;
         let n2 = data2.len() as f64;
-        let mean1 = data1.mean().unwrap();
-        let mean2 = data2.mean().unwrap();
+        let mean1 = safe_mean(data1)?;
+        let mean2 = safe_mean(data2)?;
         let std1 = Self::standard_deviation(data1);
         let std2 = Self::standard_deviation(data2);
 
@@ -153,8 +181,8 @@ impl StatisticalTests {
 
         let n1 = data1.len() as f64;
         let n2 = data2.len() as f64;
-        let mean1 = data1.mean().unwrap();
-        let mean2 = data2.mean().unwrap();
+        let mean1 = safe_mean(data1)?;
+        let mean2 = safe_mean(data2)?;
         let var1 = Self::variance(data1);
         let var2 = Self::variance(data2);
 
@@ -226,11 +254,11 @@ impl StatisticalTests {
         }
 
         let n = data.len() as f64;
-        let mean = data.mean().unwrap();
+        let mean = safe_mean(data)?;
         let std = Self::standard_deviation(data);
 
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(compare_floats);
 
         let mut d_plus = 0.0;
         let mut d_minus = 0.0;
@@ -263,11 +291,11 @@ impl StatisticalTests {
         }
 
         let n = data.len() as f64;
-        let mean = data.mean().unwrap();
+        let mean = safe_mean(data)?;
         let std = Self::standard_deviation(data);
 
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(compare_floats);
 
         let mut ad_statistic = 0.0;
 
@@ -327,7 +355,8 @@ impl StatisticalTests {
             return 0.0;
         }
 
-        let mean = data.mean().unwrap();
+        // Compute mean manually to avoid Result handling in internal helper
+        let mean = data.iter().sum::<f64>() / data.len() as f64;
         let sum_squares = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>();
         sum_squares / (data.len() - 1) as f64
     }
@@ -398,7 +427,7 @@ impl ConfidenceIntervals {
         }
 
         let n = data.len() as f64;
-        let mean = data.mean().unwrap();
+        let mean = safe_mean(data)?;
         let std = StatisticalTests::standard_deviation(data);
         let se = std / n.sqrt();
 
@@ -560,8 +589,8 @@ impl CorrelationAnalysis {
         }
 
         let _n = x.len() as f64;
-        let mean_x = x.mean().unwrap();
-        let mean_y = y.mean().unwrap();
+        let mean_x = safe_mean(x)?;
+        let mean_y = safe_mean(y)?;
 
         let mut numerator = 0.0;
         let mut sum_sq_x = 0.0;
@@ -682,7 +711,7 @@ impl CorrelationAnalysis {
     fn compute_ranks(data: &Array1<f64>) -> Array1<f64> {
         let mut indexed_data: Vec<(usize, f64)> =
             data.iter().enumerate().map(|(i, &x)| (i, x)).collect();
-        indexed_data.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_data.sort_by(|a, b| compare_floats(&a.1, &b.1));
 
         let mut ranks = Array1::zeros(data.len());
 
@@ -726,7 +755,7 @@ impl DistributionFitting {
             return Err(UtilsError::EmptyInput);
         }
 
-        let mean = data.mean().unwrap();
+        let mean = safe_mean(data)?;
         let std = StatisticalTests::standard_deviation(data);
 
         Ok((mean, std))
@@ -745,7 +774,7 @@ impl DistributionFitting {
             ));
         }
 
-        let mean = data.mean().unwrap();
+        let mean = safe_mean(data)?;
         Ok(1.0 / mean) // Lambda parameter
     }
 

@@ -1118,7 +1118,9 @@ mod tests {
         let mut registry = TraitRegistry::new();
         registry.load_sklears_traits()?;
 
-        let estimator_trait = registry.get_trait("Estimator").unwrap();
+        let estimator_trait = registry
+            .get_trait("Estimator")
+            .expect("get_trait should succeed");
         assert_eq!(estimator_trait.name, "Estimator");
         assert_eq!(estimator_trait.path, "sklears_core::traits::Estimator");
 

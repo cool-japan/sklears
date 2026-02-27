@@ -19,9 +19,8 @@ use crate::neural_calibration::{
 use crate::streaming::{AdaptiveOnlineCalibrator, OnlineSigmoidCalibrator};
 use crate::temperature::TemperatureScalingCalibrator;
 
-#[allow(non_snake_case)]
 #[cfg(test)]
-mod tests {
+mod calibration_tests {
     use super::*;
     use scirs2_core::ndarray::array;
     use scirs2_core::Axis;
@@ -231,7 +230,7 @@ mod tests {
 
         // Calibrated probabilities should be valid
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 
@@ -294,8 +293,8 @@ mod tests {
         let ece = expected_calibration_error(&y, &class1_probas, &config).unwrap();
         let mce = maximum_calibration_error(&y, &class1_probas, &config).unwrap();
 
-        assert!(ece >= 0.0 && ece <= 1.0);
-        assert!(mce >= 0.0 && mce <= 1.0);
+        assert!((0.0..=1.0).contains(&ece));
+        assert!((0.0..=1.0).contains(&mce));
         assert!(mce >= ece); // MCE should be >= ECE
     }
 
@@ -565,7 +564,7 @@ mod tests {
                 assert!((sum - 1.0).abs() < 1e-6);
                 // Check that all probabilities are in valid range
                 for &prob in row.iter() {
-                    assert!(prob >= 0.0 && prob <= 1.0);
+                    assert!((0.0..=1.0).contains(&prob));
                 }
             }
         }
@@ -633,13 +632,14 @@ mod tests {
                 assert!((sum - 1.0).abs() < 1e-6);
                 // Check that all probabilities are in valid range
                 for &prob in row.iter() {
-                    assert!(prob >= 0.0 && prob <= 1.0);
+                    assert!((0.0..=1.0).contains(&prob));
                 }
             }
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn train_neural_calibration_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -882,6 +882,7 @@ fn train_incremental_update_calibrators(
     Ok(calibrators)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn train_calibration_aware_focal_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,
@@ -1212,6 +1213,7 @@ fn train_transfer_learning_calibrators(
     Ok(calibrators)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn train_differentiable_ece_calibrators(
     probabilities: &Array2<Float>,
     y: &Array1<i32>,

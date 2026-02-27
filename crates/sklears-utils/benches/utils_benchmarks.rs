@@ -3,7 +3,7 @@
 //! These benchmarks measure the performance of various utility functions
 //! including data generation, validation, and random sampling.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_utils::{
     array_utils::{label_counts, unique_labels},
@@ -14,6 +14,7 @@ use sklears_utils::{
     },
     validation::{check_array_2d, check_consistent_length, check_finite},
 };
+use std::hint::black_box;
 
 fn bench_data_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("Data Generation");
@@ -143,7 +144,12 @@ fn bench_validation_functions(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("check_array_2d", format!("{}x{}", n_samples, n_features)),
             &x,
-            |b, x| b.iter(|| black_box(check_array_2d(x).unwrap())),
+            |b, x| {
+                b.iter(|| {
+                    check_array_2d(x).unwrap();
+                    black_box(());
+                })
+            },
         );
 
         let y_float = y.mapv(|v| v as f64);
@@ -155,14 +161,22 @@ fn bench_validation_functions(c: &mut Criterion) {
             &(&x, &y_float),
             |b, (x, y)| {
                 let x_slice = x.row(0).to_owned();
-                b.iter(|| black_box(check_consistent_length(&[&x_slice, y]).unwrap()))
+                b.iter(|| {
+                    check_consistent_length(&[&x_slice, y]).unwrap();
+                    black_box(());
+                })
             },
         );
 
         group.bench_with_input(
             BenchmarkId::new("check_finite", format!("{}x{}", n_samples, n_features)),
             &x,
-            |b, x| b.iter(|| black_box(check_finite(x).unwrap())),
+            |b, x| {
+                b.iter(|| {
+                    check_finite(x).unwrap();
+                    black_box(());
+                })
+            },
         );
     }
 
@@ -176,8 +190,7 @@ fn bench_array_utilities(c: &mut Criterion) {
     let n_classes = 10;
 
     for &n_labels in &label_sizes {
-        let labels: Array1<i32> =
-            Array1::from_vec((0..n_labels).map(|i| (i % n_classes) as i32).collect());
+        let labels: Array1<i32> = Array1::from_vec((0..n_labels).map(|i| i % n_classes).collect());
 
         group.bench_with_input(
             BenchmarkId::new("unique_labels", n_labels),

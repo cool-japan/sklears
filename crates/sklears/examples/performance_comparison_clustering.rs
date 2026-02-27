@@ -77,7 +77,6 @@ fn benchmark_sklears_kmeans(X: &Array2<f64>, n_clusters: usize) -> (f64, f64) {
     (fit_time, predict_time)
 }
 #[allow(non_snake_case)]
-
 fn benchmark_sklears_dbscan(X: &Array2<f64>) -> f64 {
     println!("Benchmarking sklears DBSCAN...");
 

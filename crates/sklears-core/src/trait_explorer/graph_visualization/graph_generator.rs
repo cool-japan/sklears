@@ -1306,14 +1306,14 @@ mod tests {
     #[test]
     fn test_trait_graph_generation() {
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
         let implementations = vec!["TestImpl".to_string()];
 
         let graph = generator.generate_trait_graph(&trait_info, &implementations);
         assert!(graph.is_ok());
 
-        let graph = graph.unwrap();
+        let graph = graph.expect("expected valid value");
         assert!(!graph.nodes.is_empty());
         assert!(!graph.edges.is_empty());
         assert!(graph.validate().is_ok());
@@ -1322,21 +1322,21 @@ mod tests {
     #[test]
     fn test_full_graph_generation() {
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
         let traits = vec![&trait_info];
 
         let graph = generator.generate_full_graph(&traits);
         assert!(graph.is_ok());
 
-        let graph = graph.unwrap();
+        let graph = graph.expect("expected valid value");
         assert!(!graph.nodes.is_empty());
     }
 
     #[test]
     fn test_trait_complexity_calculation() {
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
         let complexity = generator.calculate_trait_complexity(&trait_info);
@@ -1358,10 +1358,10 @@ mod tests {
     #[test]
     fn test_node_creation() {
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
-        let node = generator.create_trait_node(&trait_info).unwrap();
+        let node = generator.create_trait_node(&trait_info).expect("create_trait_node should succeed");
         assert_eq!(node.id, "TestTrait");
         assert_eq!(node.node_type, TraitNodeType::Trait);
         assert!(node.visible);
@@ -1372,10 +1372,10 @@ mod tests {
         let mut config = GraphConfig::default();
         config.filter_config.max_complexity = 5.0;
 
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info();
 
-        let mut nodes = vec![generator.create_trait_node(&trait_info).unwrap()];
+        let mut nodes = vec![generator.create_trait_node(&trait_info).expect("create_trait_node should succeed")];
         let mut edges = Vec::new();
 
         // This should work since our test trait has low complexity
@@ -1386,7 +1386,7 @@ mod tests {
     #[test]
     fn test_memory_estimation() {
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
 
         let nodes = vec![TraitGraphNode::new_trait("test".to_string(), "Test".to_string())];
         let edges = vec![TraitGraphEdge::new_inheritance("a".to_string(), "b".to_string())];
@@ -1398,7 +1398,7 @@ mod tests {
     #[test]
     fn test_available_layouts() {
         let config = GraphConfig::default();
-        let generator = TraitGraphGenerator::new(config).unwrap();
+        let generator = TraitGraphGenerator::new(config).expect("expected valid value");
 
         let layouts = generator.get_available_layouts();
         assert!(layouts.contains(&"force_directed".to_string()));

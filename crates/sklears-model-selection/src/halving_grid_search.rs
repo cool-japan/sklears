@@ -66,10 +66,10 @@ pub struct HalvingGridSearchConfig {
 /// amounts of resources (typically training samples).
 ///
 /// # Example
-/// ```rust,ignore
+/// ```text
 /// use sklears_model_selection::{HalvingGridSearch, KFold, ParameterDistribution};
 /// use scirs2_core::ndarray::array;
-/// ///
+///
 /// let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 3.0], [2.0, 1.0]];
 /// let y = array![1.5, 2.5, 3.0, 1.8];
 ///
@@ -78,7 +78,7 @@ pub struct HalvingGridSearchConfig {
 /// param_distributions.insert("fit_intercept".to_string(),
 ///     ParameterDistribution::Choice(vec![true.into(), false.into()]));
 ///
-/// let search: HalvingGridSearch<scirs2_core::ndarray::Array2`<f64>`, scirs2_core::ndarray::Array1`<f64>`> = HalvingGridSearch::new(param_distributions)
+/// let search: HalvingGridSearch<Array2<f64>, Array1<f64>> = HalvingGridSearch::new(param_distributions)
 ///     .n_candidates(8)
 ///     .factor(2.0)
 ///     .cv(Box::new(KFold::new(3)))

@@ -3,13 +3,14 @@
 //! This module contains benchmarks comparing our feature selection implementations
 //! against reference implementations and measuring performance characteristics.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::traits::{Fit, Transform};
 use sklears_feature_selection::{
     ConvexFeatureSelector, LassoSelector, ParallelCorrelationComputer, ParallelFeatureRanker,
     ParallelVarianceComputer, RidgeSelector, SelectKBest, VarianceThreshold,
 };
+use std::hint::black_box;
 
 /// Generate synthetic data for benchmarking
 fn generate_benchmark_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<i32>) {

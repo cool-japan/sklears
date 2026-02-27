@@ -18,8 +18,8 @@ pub mod builder;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
 /// // Create from arrays
-/// let features = Array2::`<f64>`::zeros((100, 4));
-/// let targets = Array1::`<f64>`::zeros(100);
+/// let features = Array2::<f64>::zeros((100, 4));
+/// let targets = Array1::<f64>::zeros(100);
 /// let dataset = Dataset::new(features, targets);
 ///
 /// // Or generate synthetic data
@@ -32,8 +32,8 @@ pub mod builder;
 /// use sklears_core::dataset::Dataset;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
-/// let features = Array2::`<f64>`::ones((50, 3));
-/// let targets = Array1::`<f64>`::ones(50);
+/// let features = Array2::<f64>::ones((50, 3));
+/// let targets = Array1::<f64>::ones(50);
 ///
 /// let dataset = Dataset::builder()
 ///     .data(features)
@@ -95,7 +95,8 @@ mod tests {
     #[test]
     fn test_module_integration() {
         // Test that all modules work together
-        let synthetic_dataset = synthetic::make_regression(20, 3, 0.1).unwrap();
+        let synthetic_dataset =
+            synthetic::make_regression(20, 3, 0.1).expect("expected valid value");
 
         assert_eq!(synthetic_dataset.data.dim(), (20, 3));
         assert_eq!(synthetic_dataset.target.len(), 20);
@@ -113,39 +114,46 @@ mod tests {
 
     #[test]
     fn test_iris_dataset() {
-        let iris = synthetic::load_iris().unwrap();
+        let iris = synthetic::load_iris().expect("expected valid value");
 
         assert_eq!(iris.data.dim(), (6, 4));
         assert_eq!(iris.target.len(), 6);
         assert_eq!(iris.feature_names.len(), 4);
         assert!(iris.target_names.is_some());
-        assert_eq!(iris.target_names.as_ref().unwrap().len(), 3);
+        assert_eq!(
+            iris.target_names
+                .as_ref()
+                .expect("value should be present")
+                .len(),
+            3
+        );
     }
 
     #[test]
     fn test_blob_generation() {
-        let blobs = synthetic::make_blobs(30, 2, 3, 1.0).unwrap();
+        let blobs = synthetic::make_blobs(30, 2, 3, 1.0).expect("expected valid value");
 
         assert_eq!(blobs.data.dim(), (30, 2));
         assert_eq!(blobs.target.len(), 30);
 
         // Should have 3 different target values
         let mut unique_targets: Vec<_> = blobs.target.iter().cloned().collect();
-        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         unique_targets.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
         assert!(unique_targets.len() <= 3);
     }
 
     #[test]
     fn test_classification_generation() {
-        let classification = synthetic::make_classification(40, 3, 2.0).unwrap();
+        let classification =
+            synthetic::make_classification(40, 3, 2.0).expect("expected valid value");
 
         assert_eq!(classification.data.dim(), (40, 3));
         assert_eq!(classification.target.len(), 40);
 
         // Should be binary classification
         let mut unique_targets: Vec<_> = classification.target.iter().cloned().collect();
-        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         unique_targets.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
         assert!(unique_targets.len() <= 2);
     }
@@ -158,7 +166,14 @@ mod tests {
             .with_description("Test metadata".to_string());
 
         assert_eq!(dataset.feature_names.len(), 2);
-        assert_eq!(dataset.target_names.as_ref().unwrap().len(), 2);
+        assert_eq!(
+            dataset
+                .target_names
+                .as_ref()
+                .expect("value should be present")
+                .len(),
+            2
+        );
         assert_eq!(dataset.description, "Test metadata");
         assert_eq!(dataset.n_samples(), Some(5));
         assert_eq!(dataset.n_features(), Some(2));

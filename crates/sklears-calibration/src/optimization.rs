@@ -840,7 +840,7 @@ mod tests {
 
         let predictions = calibrator.predict_proba(&probabilities).unwrap();
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         let stats = calibrator.get_optimization_stats();
         assert!(stats.contains_key("final_loss"));
@@ -864,7 +864,7 @@ mod tests {
         calibrator.fit(&probabilities, &targets).unwrap();
 
         let predictions = calibrator.predict_proba(&probabilities).unwrap();
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -882,7 +882,7 @@ mod tests {
         calibrator.fit(&probabilities, &targets).unwrap();
 
         let predictions = calibrator.predict_proba(&probabilities).unwrap();
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -923,7 +923,7 @@ mod tests {
 
             let predictions = calibrator.predict_proba(&probabilities).unwrap();
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 
@@ -954,7 +954,7 @@ mod tests {
             calibrator.fit(&probabilities, &targets).unwrap();
 
             let predictions = calibrator.predict_proba(&probabilities).unwrap();
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 }

@@ -1111,7 +1111,9 @@ mod tests {
         let analyzer = DependencyAnalyzer::new();
         let trait_info = create_test_trait_info("TestTrait", vec!["SuperTrait".to_string()]);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
 
         assert_eq!(analysis.direct_dependencies.len(), 1);
         assert_eq!(analysis.direct_dependencies[0], "SuperTrait");
@@ -1132,7 +1134,9 @@ mod tests {
             vec![associated_type],
         );
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
 
         assert_eq!(analysis.direct_dependencies.len(), 3); // SuperTrait + Clone + Debug
         assert!(analysis
@@ -1147,7 +1151,9 @@ mod tests {
         let analyzer = DependencyAnalyzer::new();
         let trait_info = create_test_trait_info("IndependentTrait", vec![]);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
 
         assert!(analysis.direct_dependencies.is_empty());
         assert!(analysis.transitive_dependencies.is_empty());
@@ -1160,7 +1166,9 @@ mod tests {
         let analyzer = DependencyAnalyzer::new();
         let trait_info = create_test_trait_info("LowRiskTrait", vec!["SingleDep".to_string()]);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
 
         // Should be low risk with minimal dependencies
         assert_eq!(analysis.risk_assessment.risk_level, RiskLevel::Low);
@@ -1173,7 +1181,9 @@ mod tests {
         let many_deps: Vec<String> = (0..20).map(|i| format!("Dep{}", i)).collect();
         let trait_info = create_test_trait_info("HighRiskTrait", many_deps);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
 
         // Should have higher risk due to many dependencies
         assert!(analysis.risk_assessment.risk_score > 0.0);
@@ -1186,7 +1196,9 @@ mod tests {
         let trait_info =
             create_test_trait_info("TestTrait", vec!["Dep1".to_string(), "Dep2".to_string()]);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
 
         assert!(analysis.performance_analysis.estimated_compile_time > 0.0);
         assert!(analysis.performance_analysis.compile_memory_usage > 0.0);
@@ -1200,7 +1212,9 @@ mod tests {
         let many_deps: Vec<String> = (0..25).map(|i| format!("Dep{}", i)).collect();
         let trait_info = create_test_trait_info("ComplexTrait", many_deps);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
         let suggestions = analyzer.get_prioritized_suggestions(&analysis);
 
         assert!(!suggestions.is_empty());
@@ -1219,7 +1233,9 @@ mod tests {
         adjacency_list.insert("B".to_string(), vec!["C".to_string()]);
         adjacency_list.insert("C".to_string(), vec![]);
 
-        let sccs = analyzer.tarjan_scc(&adjacency_list).unwrap();
+        let sccs = analyzer
+            .tarjan_scc(&adjacency_list)
+            .expect("tarjan_scc should succeed");
 
         // Each node should be in its own SCC (no cycles)
         assert_eq!(sccs.len(), 3);
@@ -1236,16 +1252,27 @@ mod tests {
         adjacency_list.insert("B".to_string(), vec!["C".to_string()]);
         adjacency_list.insert("C".to_string(), vec![]);
 
-        let topo_order = analyzer.topological_sort(&adjacency_list).unwrap();
+        let topo_order = analyzer
+            .topological_sort(&adjacency_list)
+            .expect("topological_sort should succeed");
 
         assert!(topo_order.is_some());
-        let order = topo_order.unwrap();
+        let order = topo_order.expect("expected valid value");
         assert_eq!(order.len(), 3);
 
         // C should come before B, B should come before A
-        let c_pos = order.iter().position(|x| x == "C").unwrap();
-        let b_pos = order.iter().position(|x| x == "B").unwrap();
-        let a_pos = order.iter().position(|x| x == "A").unwrap();
+        let c_pos = order
+            .iter()
+            .position(|x| x == "C")
+            .expect("position should succeed");
+        let b_pos = order
+            .iter()
+            .position(|x| x == "B")
+            .expect("position should succeed");
+        let a_pos = order
+            .iter()
+            .position(|x| x == "A")
+            .expect("position should succeed");
 
         assert!(c_pos < b_pos);
         assert!(b_pos < a_pos);
@@ -1257,7 +1284,9 @@ mod tests {
         let trait_info = create_test_trait_info("CacheTestTrait", vec!["Dep1".to_string()]);
 
         // First analysis
-        let _analysis1 = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let _analysis1 = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
         let (cache_size, _) = analyzer.cache_stats();
         assert_eq!(cache_size, 0); // Cache is not actually updated in this implementation
 
@@ -1302,7 +1331,9 @@ mod tests {
         let trait_info =
             create_test_trait_info("GraphTest", vec!["Dep1".to_string(), "Dep2".to_string()]);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
         let graph = &analysis.dependency_graph;
 
         assert!(graph.adjacency_list.contains_key("GraphTest"));
@@ -1318,7 +1349,9 @@ mod tests {
         let analyzer = DependencyAnalyzer::new();
         let trait_info = create_test_trait_info("ImpactTest", vec!["Dep1".to_string()]);
 
-        let analysis = analyzer.analyze_dependencies(&trait_info).unwrap();
+        let analysis = analyzer
+            .analyze_dependencies(&trait_info)
+            .expect("analyze_dependencies should succeed");
         let impact = &analysis.impact_analysis;
 
         // All impact values should be normalized between 0 and 1

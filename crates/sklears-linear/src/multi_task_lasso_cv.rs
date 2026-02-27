@@ -17,6 +17,13 @@ use crate::lasso_cv::KFold;
 
 use crate::multi_task_lasso::MultiTaskLasso;
 
+/// Helper function to safely compute mean
+#[inline]
+fn safe_mean(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
+}
+
 /// Configuration for MultiTaskLassoCV
 #[derive(Debug, Clone)]
 pub struct MultiTaskLassoCVConfig {
@@ -288,9 +295,8 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskLassoCV {
                     let y_pred_task = y_pred.column(task);
 
                     // Calculate R² score
-                    let ss_tot = y_true_task
-                        .mapv(|v| (v - y_true_task.mean().unwrap()).powi(2))
-                        .sum();
+                    let y_mean = safe_mean(&y_true_task.to_owned())?;
+                    let ss_tot = y_true_task.mapv(|v| (v - y_mean).powi(2)).sum();
                     let ss_res = (&y_true_task - &y_pred_task).mapv(|v| v.powi(2)).sum();
                     let r2 = if ss_tot == 0.0 {
                         0.0
@@ -338,8 +344,8 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskLassoCV {
         let trained_model = best_model.fit(x, y)?;
 
         // Extract coefficients and intercept
-        let coef_ = trained_model.coef().clone();
-        let intercept_ = trained_model.intercept().clone();
+        let coef_ = trained_model.coef()?.clone();
+        let intercept_ = trained_model.intercept()?.clone();
 
         Ok(MultiTaskLassoCV {
             config: self.config,
@@ -361,16 +367,23 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskLassoCV<Trained> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
-        if n_features != self.n_features_.unwrap() {
+        let expected_features = self.n_features_.ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: n_features not initialized".to_string())
+        })?;
+
+        if n_features != expected_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
-                self.n_features_.unwrap(),
-                n_features
+                expected_features, n_features
             )));
         }
 
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: coefficients not available".to_string())
+        })?;
+        let intercept = self.intercept_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: intercept not available".to_string())
+        })?;
 
         // Compute predictions: Y = X @ W.T + intercept
         let mut predictions = x.dot(&coef.t());
@@ -387,33 +400,45 @@ impl Predict<Array2<Float>, Array2<Float>> for MultiTaskLassoCV<Trained> {
 
 impl MultiTaskLassoCV<Trained> {
     /// Get the best alpha value found
-    pub fn best_alpha(&self) -> Float {
-        self.alpha_.unwrap()
+    pub fn best_alpha(&self) -> Result<Float> {
+        self.alpha_.ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: best alpha not available".to_string())
+        })
     }
 
     /// Get the coefficients
-    pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array2<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: coefficients not available".to_string())
+        })
     }
 
     /// Get the intercept
-    pub fn intercept(&self) -> &Array1<Float> {
-        self.intercept_.as_ref().unwrap()
+    pub fn intercept(&self) -> Result<&Array1<Float>> {
+        self.intercept_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: intercept not available".to_string())
+        })
     }
 
     /// Get all cross-validation scores
-    pub fn cv_scores(&self) -> &HashMap<String, Vec<Float>> {
-        self.cv_scores_.as_ref().unwrap()
+    pub fn cv_scores(&self) -> Result<&HashMap<String, Vec<Float>>> {
+        self.cv_scores_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: CV scores not available".to_string())
+        })
     }
 
     /// Get the best cross-validation score
-    pub fn best_score(&self) -> Float {
-        self.best_score_.unwrap()
+    pub fn best_score(&self) -> Result<Float> {
+        self.best_score_.ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: best score not available".to_string())
+        })
     }
 
     /// Get the alpha values that were tried
-    pub fn alphas(&self) -> &Vec<Float> {
-        self.cv_alphas_.as_ref().unwrap()
+    pub fn alphas(&self) -> Result<&Vec<Float>> {
+        self.cv_alphas_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput("Model not fitted: alpha values not available".to_string())
+        })
     }
 }
 
@@ -453,15 +478,18 @@ mod tests {
         let trained = model.fit(&x, &y).unwrap();
 
         // Check that we found best alpha
-        assert!(trained.alphas().contains(&trained.best_alpha()));
+        assert!(trained
+            .alphas()
+            .unwrap()
+            .contains(&trained.best_alpha().unwrap()));
 
         // Check predictions shape
         let predictions = trained.predict(&x).unwrap();
         assert_eq!(predictions.shape(), &[6, 2]);
 
         // Check coefficients shape
-        assert_eq!(trained.coef().shape(), &[2, 2]); // 2 features, 2 tasks
-        assert_eq!(trained.intercept().len(), 2); // 2 tasks
+        assert_eq!(trained.coef().unwrap().shape(), &[2, 2]); // 2 features, 2 tasks
+        assert_eq!(trained.intercept().unwrap().len(), 2); // 2 tasks
     }
 
     #[test]
@@ -495,10 +523,10 @@ mod tests {
         let trained = model.fit(&x, &y).unwrap();
 
         // Should have generated 10 alphas
-        assert_eq!(trained.alphas().len(), 10);
+        assert_eq!(trained.alphas().unwrap().len(), 10);
 
         // Check coefficients shape
-        assert_eq!(trained.coef().shape(), &[3, 3]); // 3 features, 3 tasks
+        assert_eq!(trained.coef().unwrap().shape(), &[3, 3]); // 3 features, 3 tasks
     }
 
     #[test]
@@ -516,7 +544,7 @@ mod tests {
         let trained = model.fit(&x, &y).unwrap();
 
         // Intercept should be zeros when fit_intercept=false
-        let intercept = trained.intercept();
+        let intercept = trained.intercept().unwrap();
         assert!(intercept.iter().all(|&v| v.abs() < 1e-10));
 
         // Predictions should work

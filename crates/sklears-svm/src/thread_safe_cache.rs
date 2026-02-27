@@ -610,8 +610,10 @@ mod tests {
 
     #[test]
     fn test_sharded_cache() {
-        let mut config = ThreadSafeKernelCacheConfig::default();
-        config.num_shards = 4;
+        let config = ThreadSafeKernelCacheConfig {
+            num_shards: 4,
+            ..ThreadSafeKernelCacheConfig::default()
+        };
         let cache = ShardedKernelCache::new(config);
 
         let key = KernelCacheKey::new(0, 1, 12345);
@@ -639,8 +641,10 @@ mod tests {
 
     #[test]
     fn test_cache_eviction() {
-        let mut config = ThreadSafeKernelCacheConfig::default();
-        config.max_cache_size = 2;
+        let config = ThreadSafeKernelCacheConfig {
+            max_cache_size: 2,
+            ..ThreadSafeKernelCacheConfig::default()
+        };
         let cache = DashMapKernelCache::new(config);
 
         // Insert 3 items to trigger eviction

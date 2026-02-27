@@ -38,8 +38,8 @@ fn test_multi_task_lasso_integration() {
     assert_eq!(predictions.shape(), &[2, 2]);
 
     // Check coefficients shape
-    assert_eq!(fitted.coef().shape(), &[2, 2]);
-    assert_eq!(fitted.intercept().len(), 2);
+    assert_eq!(fitted.coef().unwrap().shape(), &[2, 2]);
+    assert_eq!(fitted.intercept().unwrap().len(), 2);
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn test_multi_task_elastic_net_integration() {
 
     for (i, model) in models.into_iter().enumerate() {
         let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef();
+        let coef = fitted.coef().unwrap();
 
         // Count non-zero coefficients
         let non_zero_count = coef.iter().filter(|&&v| v.abs() > 1e-6).count();

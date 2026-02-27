@@ -30,7 +30,7 @@ use crate::activation::Activation;
 use crate::utils::{initialize_weights, WeightInit};
 use crate::{NeuralResult, SklearsError};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, StandardNormal};
+use scirs2_core::random::{thread_rng, ChaCha8Rng, SeedableRng, StandardNormal};
 use sklears_core::{
     traits::{Estimator, Fit, Trained, Transform, Untrained},
     types::Float,
@@ -156,7 +156,11 @@ impl VAE<Untrained> {
     }
 
     /// Initialize the VAE weights
-    fn initialize_weights(&mut self, n_features: usize) -> NeuralResult<()> {
+    fn initialize_weights<R: scirs2_core::random::Rng>(
+        &mut self,
+        n_features: usize,
+        rng: &mut R,
+    ) -> NeuralResult<()> {
         let mut layer_sizes = vec![n_features];
         layer_sizes.extend(&self.config.encoder_layers);
 
@@ -165,8 +169,12 @@ impl VAE<Untrained> {
         let mut encoder_biases = Vec::new();
 
         for i in 0..layer_sizes.len() - 1 {
-            let weights =
-                initialize_weights(layer_sizes[i + 1], layer_sizes[i], &self.config.weight_init);
+            let weights = initialize_weights(
+                layer_sizes[i + 1],
+                layer_sizes[i],
+                &self.config.weight_init,
+                rng,
+            );
             let biases = Array1::zeros(layer_sizes[i + 1]);
 
             encoder_weights.push(weights);
@@ -179,6 +187,7 @@ impl VAE<Untrained> {
             self.config.latent_dim,
             last_encoder_size,
             &self.config.weight_init,
+            rng,
         ));
         self.mean_bias = Some(Array1::zeros(self.config.latent_dim));
 
@@ -186,6 +195,7 @@ impl VAE<Untrained> {
             self.config.latent_dim,
             last_encoder_size,
             &self.config.weight_init,
+            rng,
         ));
         self.logvar_bias = Some(Array1::zeros(self.config.latent_dim));
 
@@ -202,6 +212,7 @@ impl VAE<Untrained> {
                 decoder_layer_sizes[i + 1],
                 decoder_layer_sizes[i],
                 &self.config.weight_init,
+                rng,
             );
             let biases = Array1::zeros(decoder_layer_sizes[i + 1]);
 
@@ -339,7 +350,13 @@ impl Fit<Array2<Float>, ()> for VAE<Untrained> {
             ));
         }
 
-        self.initialize_weights(n_features)?;
+        // Initialize random number generator
+        let mut rng = match self.config.random_state {
+            Some(seed) => ChaCha8Rng::seed_from_u64(seed),
+            None => ChaCha8Rng::seed_from_u64(42),
+        };
+
+        self.initialize_weights(n_features, &mut rng)?;
 
         // Simple training loop (in practice, you'd want proper gradient computation)
         for epoch in 0..self.config.n_epochs {

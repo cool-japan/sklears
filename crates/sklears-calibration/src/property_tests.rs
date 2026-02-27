@@ -26,7 +26,7 @@ fn probability_array_strategy(size: usize) -> impl Strategy<Value = Array1<Float
 
 /// Strategy for generating binary target arrays
 fn binary_target_strategy(size: usize) -> impl Strategy<Value = Array1<i32>> {
-    prop::collection::vec(0i32..=1i32, size..=size).prop_map(|vec| Array1::from(vec))
+    prop::collection::vec(0i32..=1i32, size..=size).prop_map(Array1::from)
 }
 
 /// Strategy for generating feature matrices
@@ -46,7 +46,7 @@ fn feature_matrix_strategy(
 
 /// Strategy for generating multiclass target arrays
 fn multiclass_target_strategy(size: usize, n_classes: usize) -> impl Strategy<Value = Array1<i32>> {
-    prop::collection::vec(0i32..(n_classes as i32), size..=size).prop_map(|vec| Array1::from(vec))
+    prop::collection::vec(0i32..(n_classes as i32), size..=size).prop_map(Array1::from)
 }
 
 // Property test: Calibrated probabilities should sum to 1
@@ -82,7 +82,7 @@ proptest! {
         if let Ok(fitted_calibrator) = calibrator.fit(&probabilities, &targets) {
             if let Ok(calibrated) = fitted_calibrator.predict_proba(&probabilities) {
                 for &prob in calibrated.iter() {
-                    prop_assert!(prob >= 0.0 && prob <= 1.0, "Probability out of range: {}", prob);
+                    prop_assert!((0.0..=1.0).contains(&prob), "Probability out of range: {}", prob);
                 }
             }
         }
@@ -130,7 +130,7 @@ proptest! {
             if let Ok(result) = fitted.predict_proba(&probabilities) {
                 // All probabilities should be in [0, 1]
                 for &prob in result.iter() {
-                    prop_assert!(prob >= 0.0 && prob <= 1.0,
+                    prop_assert!((0.0..=1.0).contains(&prob),
                                "Probability out of range: {}", prob);
                 }
 
@@ -218,7 +218,7 @@ proptest! {
 
                         // All calibrated values should be valid probabilities
                         for &val in calibrated.iter() {
-                            prop_assert!(val >= 0.0 && val <= 1.0);
+                            prop_assert!((0.0..=1.0).contains(&val));
                         }
                     }
                 }
@@ -261,7 +261,7 @@ proptest! {
             if let Ok(calibrated) = fitted_calibrator.predict_proba(&probabilities) {
                 // Beta calibration should handle extreme values gracefully
                 for &val in calibrated.iter() {
-                    prop_assert!(val >= 0.0 && val <= 1.0, "Beta calibration produced invalid probability: {}", val);
+                    prop_assert!((0.0..=1.0).contains(&val), "Beta calibration produced invalid probability: {}", val);
                     prop_assert!(!val.is_nan() && !val.is_infinite(), "Beta calibration produced NaN or infinite value: {}", val);
                 }
             }
@@ -330,7 +330,7 @@ proptest! {
                 if let Ok(calibrated) = fitted_calibrator.predict_proba(&probabilities) {
                     // All calibrated values should be valid
                     for &val in calibrated.iter() {
-                        prop_assert!(val >= 0.0 && val <= 1.0);
+                        prop_assert!((0.0..=1.0).contains(&val));
                         prop_assert!(!val.is_nan() && !val.is_infinite());
                     }
                 }
@@ -369,7 +369,7 @@ proptest! {
                         prop_assert!((sum - 1.0).abs() < 1e-6, "Probabilities don't sum to 1");
 
                         for &prob in row.iter() {
-                            prop_assert!(prob >= 0.0 && prob <= 1.0, "Probability out of range: {}", prob);
+                            prop_assert!((0.0..=1.0).contains(&prob), "Probability out of range: {}", prob);
                             prop_assert!(!prob.is_nan() && !prob.is_infinite(), "Invalid probability value: {}", prob);
                         }
                     }

@@ -1,13 +1,15 @@
-///! Comprehensive benchmarks for sklears-clustering algorithms
-///!
-///! This benchmark suite compares performance across multiple clustering algorithms
-///! on various dataset sizes and characteristics to establish baseline performance metrics.
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+//! Comprehensive benchmarks for sklears-clustering algorithms
+//!
+//! This benchmark suite compares performance across multiple clustering algorithms
+//! on various dataset sizes and characteristics to establish baseline performance metrics.
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{thread_rng, Distribution, Rng};
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_clustering::prelude::*;
+use sklears_clustering::{KMeansConfig, MiniBatchKMeansConfig};
 use sklears_core::prelude::*;
+use std::hint::black_box;
 
 /// Generate synthetic clustered data with Gaussian blobs
 fn generate_clustered_data(n_samples: usize, n_features: usize, n_clusters: usize) -> Array2<f64> {
@@ -107,9 +109,8 @@ fn bench_dbscan_scaling(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(n_samples), &data, |b, data| {
             b.iter(|| {
                 let dbscan = DBSCAN::new().eps(1.0).min_samples(5);
-                let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
 
-                let _ = dbscan.fit(black_box(data), &dummy_labels);
+                let _ = dbscan.fit(black_box(data), &());
             });
         });
     }
@@ -129,9 +130,8 @@ fn bench_hierarchical_scaling(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(n_samples), &data, |b, data| {
             b.iter(|| {
                 let hierarchical = AgglomerativeClustering::new().n_clusters(5);
-                let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
 
-                let _ = hierarchical.fit(black_box(data), &dummy_labels);
+                let _ = hierarchical.fit(black_box(data), &());
             });
         });
     }
@@ -145,12 +145,11 @@ fn bench_gmm_scaling(c: &mut Criterion) {
 
     for n_samples in [100, 500, 1000, 2000] {
         let data = generate_clustered_data(n_samples, 10, 5);
-        let labels = vec![0; n_samples]; // Dummy labels for fit signature
 
         group.throughput(Throughput::Elements(n_samples as u64));
         group.bench_with_input(BenchmarkId::from_parameter(n_samples), &data, |b, data| {
             b.iter(|| {
-                let gmm = GaussianMixture::new()
+                let gmm: GaussianMixture<f64, f64> = GaussianMixture::new()
                     .n_components(5)
                     .covariance_type(CovarianceType::Full)
                     .max_iter(50);
@@ -174,12 +173,12 @@ fn bench_spectral_scaling(c: &mut Criterion) {
         group.throughput(Throughput::Elements(n_samples as u64));
         group.bench_with_input(BenchmarkId::from_parameter(n_samples), &data, |b, data| {
             b.iter(|| {
-                let spectral = SpectralClustering::new()
+                let spectral: SpectralClustering<f64, f64> = SpectralClustering::new()
                     .n_clusters(5)
-                    .affinity(Affinity::RBF { gamma: 1.0 });
+                    .affinity(Affinity::RBF);
                 let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
 
-                let _ = spectral.fit(black_box(data), &dummy_labels);
+                let _ = spectral.fit(black_box(&data.view()), &dummy_labels.view());
             });
         });
     }
@@ -252,9 +251,8 @@ fn bench_fuzzy_cmeans(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let fcm = FuzzyCMeans::new(5).fuzziness(fuzziness).max_iter(100);
-                    let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
 
-                    let _ = fcm.fit(black_box(data), &dummy_labels);
+                    let _ = fcm.fit(black_box(data), &());
                 });
             },
         );
@@ -286,8 +284,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
     group.bench_function("dbscan", |b| {
         b.iter(|| {
             let dbscan = DBSCAN::new().eps(1.0).min_samples(5);
-            let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
-            let _ = dbscan.fit(black_box(&data), &dummy_labels);
+            let _ = dbscan.fit(black_box(&data), &());
         });
     });
 
@@ -295,15 +292,15 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
     group.bench_function("hierarchical", |b| {
         b.iter(|| {
             let hierarchical = AgglomerativeClustering::new().n_clusters(5);
-            let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
-            let _ = hierarchical.fit(black_box(&data), &dummy_labels);
+            let _ = hierarchical.fit(black_box(&data), &());
         });
     });
 
     // GMM
     group.bench_function("gmm", |b| {
         b.iter(|| {
-            let gmm = GaussianMixture::new().n_components(5).max_iter(50);
+            let gmm: GaussianMixture<f64, f64> =
+                GaussianMixture::new().n_components(5).max_iter(50);
             let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
             let _ = gmm.fit(black_box(&data.view()), &dummy_labels.view());
         });
@@ -313,8 +310,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
     group.bench_function("fuzzy_cmeans", |b| {
         b.iter(|| {
             let fcm = FuzzyCMeans::new(5).max_iter(100);
-            let dummy_labels = scirs2_core::ndarray::Array1::zeros(data.nrows());
-            let _ = fcm.fit(black_box(&data), &dummy_labels);
+            let _ = fcm.fit(black_box(&data), &());
         });
     });
 

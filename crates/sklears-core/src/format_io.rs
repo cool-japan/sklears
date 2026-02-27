@@ -915,24 +915,25 @@ mod tests {
 
     #[test]
     fn test_csv_round_trip() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create temp directory");
         let file_path = dir.path().join("test.csv");
 
         // Create test data
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
 
         // Write CSV
         let options = CsvOptions::new().with_header(false);
         FormatWriter::csv()
             .with_options(options.clone())
             .write_file(&data, &file_path)
-            .unwrap();
+            .expect("expected valid value");
 
         // Read CSV
         let loaded = FormatReader::csv()
             .with_options(options)
             .read_file(&file_path)
-            .unwrap();
+            .expect("expected valid value");
 
         assert_eq!(loaded.shape(), data.shape());
         for (a, b) in loaded.iter().zip(data.iter()) {
@@ -942,17 +943,22 @@ mod tests {
 
     #[test]
     fn test_json_round_trip() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create temp directory");
         let file_path = dir.path().join("test.json");
 
         // Create test data
-        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
 
         // Write JSON
-        FormatWriter::json().write_file(&data, &file_path).unwrap();
+        FormatWriter::json()
+            .write_file(&data, &file_path)
+            .expect("write_file should succeed");
 
         // Read JSON
-        let loaded = FormatReader::json().read_file(&file_path).unwrap();
+        let loaded = FormatReader::json()
+            .read_file(&file_path)
+            .expect("read_file should succeed");
 
         assert_eq!(loaded.shape(), data.shape());
         for (a, b) in loaded.iter().zip(data.iter()) {
@@ -962,19 +968,20 @@ mod tests {
 
     #[test]
     fn test_binary_round_trip() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create temp directory");
         let file_path = dir.path().join("test.bin");
 
         // Create test data
-        let data = Array2::from_shape_vec((4, 3), (1..=12).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((4, 3), (1..=12).map(|x| x as f64).collect())
+            .expect("valid array shape");
 
         // Write binary
         FormatWriter::binary()
             .write_file(&data, &file_path)
-            .unwrap();
+            .expect("expected valid value");
 
         // Read binary
-        let loaded = FormatReader::auto_detect(&file_path).unwrap();
+        let loaded = FormatReader::auto_detect(&file_path).expect("expected valid value");
 
         assert_eq!(loaded.shape(), data.shape());
         for (a, b) in loaded.iter().zip(data.iter()) {
@@ -990,7 +997,7 @@ mod tests {
         let data = FormatReader::csv()
             .with_options(options)
             .read_bytes(csv_content.as_bytes())
-            .unwrap();
+            .expect("expected valid value");
 
         assert_eq!(data.shape(), &[2, 3]);
         assert_eq!(data[[0, 0]], 1.0);
@@ -1012,7 +1019,7 @@ mod tests {
 
         let data = FormatReader::json()
             .read_bytes(json_content.as_bytes())
-            .unwrap();
+            .expect("expected valid value");
 
         assert_eq!(data.shape(), &[3, 2]);
         assert_eq!(data[[0, 0]], 1.0);
@@ -1025,16 +1032,20 @@ mod tests {
 
         // In a real test, this would use an actual file
         // For now, just test the interface
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("failed to create temp directory");
         let temp_path = temp_dir.path().join("test.csv");
 
         // Create a dummy file
-        std::fs::write(&temp_path, "1,2,3\n4,5,6\n").unwrap();
+        std::fs::write(&temp_path, "1,2,3\n4,5,6\n").expect("failed to write file");
 
-        let chunk = reader.read_chunk(&temp_path).unwrap();
+        let chunk = reader
+            .read_chunk(&temp_path)
+            .expect("read_chunk should succeed");
         assert!(chunk.is_some());
 
-        let chunk = reader.read_chunk(&temp_path).unwrap();
+        let chunk = reader
+            .read_chunk(&temp_path)
+            .expect("read_chunk should succeed");
         assert!(chunk.is_none()); // End of file
     }
 

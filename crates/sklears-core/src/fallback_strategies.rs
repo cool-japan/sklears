@@ -589,13 +589,15 @@ mod tests {
         use crate::types::Array2;
         use conditional::matrix_ops::matmul;
 
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0]).unwrap();
+        let a =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
+        let b =
+            Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0]).expect("valid array shape");
 
         let result = matmul(&a, &b);
         assert!(result.is_ok());
 
-        let c = result.unwrap();
+        let c = result.expect("expected valid value");
         assert_eq!(c.shape(), &[2, 2]);
     }
 }

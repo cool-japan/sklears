@@ -722,7 +722,7 @@ mod tests {
             robust_accuracy(&y_true, &clean_preds, &adv_preds, &perturbations, 0.1).unwrap();
         // Should count examples that are either:
         // 1. Correctly classified on clean AND (within budget AND correct on adv) OR outside budget
-        assert!(robust_acc >= 0.0 && robust_acc <= 1.0);
+        assert!((0.0..=1.0).contains(&robust_acc));
     }
 
     #[test]

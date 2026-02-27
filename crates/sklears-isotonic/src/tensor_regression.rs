@@ -329,7 +329,9 @@ impl Predict<Array1<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
                     operation: "predict".to_string(),
                 })?;
 
-        let tensor_shape = self.tensor_shape_.as_ref().unwrap();
+        let tensor_shape = self.tensor_shape_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
 
         if tensor_data.len() != tensor_shape[0] {
             return Err(SklearsError::InvalidInput(format!(
@@ -353,7 +355,9 @@ impl Predict<Array2<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
                     operation: "predict".to_string(),
                 })?;
 
-        let tensor_shape = self.tensor_shape_.as_ref().unwrap();
+        let tensor_shape = self.tensor_shape_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
         let shape = tensor_data.shape();
 
         if shape.len() != tensor_shape.len() {

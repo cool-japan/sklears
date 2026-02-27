@@ -211,9 +211,9 @@ pub mod creation {
             return Ok(Array1::from_vec(vec![start]));
         }
 
-        let step = (stop - start) / T::from_usize(num - 1).unwrap();
+        let step = (stop - start) / T::from_usize(num - 1).unwrap_or_else(|| T::zero());
         let values: Vec<T> = (0..num)
-            .map(|i| start + step * T::from_usize(i).unwrap())
+            .map(|i| start + step * T::from_usize(i).unwrap_or_else(|| T::zero()))
             .collect();
 
         Ok(Array1::from_vec(values))
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_linspace() {
-        let result = creation::linspace(0.0, 10.0, 11).unwrap();
+        let result = creation::linspace(0.0, 10.0, 11).expect("expected valid value");
         assert_eq!(result.len(), 11);
         assert_abs_diff_eq!(result[0], 0.0);
         assert_abs_diff_eq!(result[10], 10.0);
@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn test_from_nested_vec() {
         let data = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
-        let array = creation::from_nested_vec(data).unwrap();
+        let array = creation::from_nested_vec(data).expect("expected valid value");
         assert_eq!(array.dim(), (2, 3));
         assert_eq!(array[[0, 0]], 1.0);
         assert_eq!(array[[1, 2]], 6.0);
@@ -394,11 +394,12 @@ mod tests {
 
     #[test]
     fn test_validation() {
-        let finite_array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let finite_array =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
         assert!(validation::check_finite(&finite_array).is_ok());
 
-        let infinite_array =
-            Array2::from_shape_vec((2, 2), vec![1.0, f64::INFINITY, 3.0, 4.0]).unwrap();
+        let infinite_array = Array2::from_shape_vec((2, 2), vec![1.0, f64::INFINITY, 3.0, 4.0])
+            .expect("valid array shape");
         assert!(validation::check_finite(&infinite_array).is_err());
 
         assert!(validation::check_not_empty(&finite_array).is_ok());
@@ -419,12 +420,12 @@ mod tests {
 
     #[test]
     fn test_probability_validation() {
-        let valid_probs =
-            Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.3, 0.5, 0.2, 0.3]).unwrap();
+        let valid_probs = Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.3, 0.5, 0.2, 0.3])
+            .expect("valid array shape");
         assert!(validation::check_probabilities(&valid_probs, 1e-6).is_ok());
 
-        let invalid_probs =
-            Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.4, 0.5, 0.2, 0.3]).unwrap();
+        let invalid_probs = Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.4, 0.5, 0.2, 0.3])
+            .expect("valid array shape");
         assert!(validation::check_probabilities(&invalid_probs, 1e-6).is_err());
     }
 }

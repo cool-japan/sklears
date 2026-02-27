@@ -81,7 +81,9 @@ impl ExoticHardware for TpuDevice {
                     let mut metrics = HashMap::new();
                     metrics.insert(
                         "systolic_array_utilization".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from_f64(98.5).unwrap()),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(98.5).expect("valid JSON operation"),
+                        ),
                     );
                     metrics
                 },

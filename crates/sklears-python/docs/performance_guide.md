@@ -37,19 +37,19 @@ Sklears provides significant performance improvements over scikit-learn through 
 First, understand what your system supports:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 
-# Check hardware features
-hw_info = skl.get_hardware_info()
-print("Hardware capabilities:")
-for feature, supported in hw_info.items():
-    print(f"  {feature}: {supported}")
+# NOTE: get_hardware_info() - Coming Soon (not yet available in this release)
+# NOTE: benchmark_basic_operations() - Coming Soon (not yet available)
 
-# Run performance benchmarks
-benchmarks = skl.benchmark_basic_operations()
-print("\nPerformance benchmarks:")
-for operation, time_ms in benchmarks.items():
-    print(f"  {operation}: {time_ms:.2f} ms")
+# Use available introspection instead:
+print(f"Sklears version: {skl.get_version()}")
+print(f"Build info: {skl.get_build_info()}")
+
+# Check CPU features via Python's platform module in the meantime:
+import platform
+print(f"Machine: {platform.machine()}")
+print(f"Processor: {platform.processor()}")
 ```
 
 ### CPU Optimization
@@ -63,13 +63,16 @@ Sklears automatically uses SIMD instructions when available:
 import os
 os.environ['RUST_LOG'] = 'debug'  # To see SIMD usage in logs
 
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 # Large matrices benefit most from SIMD
 X = np.random.randn(10000, 100)
-scaler = skl.StandardScaler()
-X_scaled = scaler.fit_transform(X)  # Uses AVX2/NEON if available
+# NOTE: StandardScaler - Coming Soon (not yet exposed)
+# Large model operations already use SIMD internally:
+model = skl.LinearRegression()
+y = np.random.randn(10000)
+model.fit(X, y)  # Uses AVX2/NEON internally if available
 ```
 
 #### Multi-threading
@@ -77,15 +80,13 @@ X_scaled = scaler.fit_transform(X)  # Uses AVX2/NEON if available
 Configure parallelism for your system:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 
-# Set number of threads (defaults to number of CPU cores)
-skl.set_config("n_jobs", "4")  # Use 4 threads
-skl.set_config("n_jobs", "-1")  # Use all available cores
-
-# Check current configuration
-config = skl.get_config()
-print(f"Parallel threads: {config['n_jobs']}")
+# NOTE: set_config() and get_config() - Coming Soon (not yet available)
+# Parallelism is managed automatically by the Rust backend.
+# Thread count can be set at the OS level with the RAYON_NUM_THREADS env var:
+import os
+os.environ['RAYON_NUM_THREADS'] = '4'  # Use 4 threads before importing sklears
 ```
 
 ### Memory Hierarchy Optimization
@@ -94,7 +95,7 @@ print(f"Parallel threads: {config['n_jobs']}")
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 # Use C-contiguous arrays for best performance
 X = np.random.randn(1000, 50)
@@ -113,7 +114,7 @@ Choose appropriate data types for your use case:
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 import time
 
 # Compare float32 vs float64 performance
@@ -144,7 +145,7 @@ print(f"Speedup: {time_f64 / time_f32:.2f}x")
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 # C-order (row-major) is preferred for most operations
 X_c = np.random.randn(1000, 50)  # C-order by default
@@ -180,7 +181,7 @@ X_aligned[:] = np.random.randn(10000, 100)
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 # Process data in optimal batch sizes
 def process_in_batches(X, y, batch_size=10000):
@@ -208,7 +209,7 @@ def process_in_batches(X, y, batch_size=10000):
 #### Choose the Right Solver
 
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 # For large datasets, consider different algorithms
@@ -251,7 +252,7 @@ best_alpha = alphas[np.argmax(scores)]
 #### K-Means Optimization
 
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 # Optimize K-Means parameters for performance
@@ -300,14 +301,16 @@ def chunked_kmeans(X, n_clusters, chunk_size=10000):
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 # Combine preprocessing steps for efficiency
 X = np.random.randn(10000, 100) * 10 + 5
 
-# Separate steps (less efficient)
-scaler = skl.StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# NOTE: StandardScaler - Coming Soon (not yet exposed in Sklears)
+# Use manual standardization for now:
+X_mean = X.mean(axis=0)
+X_std = X.std(axis=0) + 1e-8
+X_scaled = (X - X_mean) / X_std
 # ... more preprocessing steps
 
 # Combined preprocessing (more efficient)
@@ -332,18 +335,20 @@ X_processed, mean, std = preprocess_combined(X)
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
-# Use copy=False when possible to avoid memory duplication
+# NOTE: StandardScaler with copy=False - Coming Soon (not yet exposed)
+# Use numpy in-place operations as a workaround:
 X = np.random.randn(10000, 100)
 
-# This copies data (more memory)
-scaler_copy = skl.StandardScaler(copy=True)
-X_scaled_copy = scaler_copy.fit_transform(X)
+X_mean = X.mean(axis=0)
+X_std = X.std(axis=0) + 1e-8
 
-# This modifies in-place (less memory, if copy=False is supported)
-scaler_inplace = skl.StandardScaler(copy=False)
-X_scaled_inplace = scaler_inplace.fit_transform(X)
+# In-place standardization (avoids extra allocation)
+X -= X_mean
+X /= X_std
+# X is now standardized in-place
+X_scaled_inplace = X
 ```
 
 #### Memory Monitoring
@@ -375,7 +380,7 @@ print(f"After model fitting: {monitor_memory():.1f} MB")
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 def fit_model_streaming(data_generator, n_features):
     """Fit model on streaming data"""
@@ -411,7 +416,7 @@ model = fit_model_streaming(data_generator(), 50)
 ```python
 import time
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 
 def benchmark_function(func, *args, n_runs=5, **kwargs):
     """Benchmark a function with multiple runs"""
@@ -452,23 +457,24 @@ print(f"Mean time: {benchmark_result['mean_time']:.4f} ± {benchmark_result['std
 ```python
 import cProfile
 import pstats
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 def profile_code():
     """Profile sklears code to identify bottlenecks"""
     X = np.random.randn(10000, 100)
     y = np.random.randn(10000)
-    
+
     # Linear regression
     model = skl.LinearRegression()
     model.fit(X, y)
     predictions = model.predict(X)
-    
-    # Preprocessing
-    scaler = skl.StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
+
+    # NOTE: StandardScaler - Coming Soon; using numpy workaround
+    X_mean = X.mean(axis=0)
+    X_std = X.std(axis=0) + 1e-8
+    X_scaled = (X - X_mean) / X_std
+
     # Clustering
     kmeans = skl.KMeans(n_clusters=5)
     labels = kmeans.fit_predict(X)
@@ -490,7 +496,7 @@ stats.print_stats(10)  # Top 10 functions
 ```python
 import time
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 from sklearn.linear_model import LinearRegression as SklearnLR
 
 def compare_implementations(dataset_sizes):
@@ -544,12 +550,12 @@ comparison_results = compare_implementations(sizes)
 # Bad: Creates unnecessary copies
 X_bad = X.copy()
 X_bad = np.array(X_bad)
-scaler = skl.StandardScaler(copy=True)
-X_scaled = scaler.fit_transform(X_bad)
 
-# Good: Minimize copying
-scaler = skl.StandardScaler(copy=False)  # If supported
-X_scaled = scaler.fit_transform(X)
+# Good: Minimize copying - use in-place numpy operations
+# (NOTE: StandardScaler with copy=False - Coming Soon)
+X_mean = X.mean(axis=0)
+X_std = X.std(axis=0) + 1e-8
+X_scaled = (X - X_mean) / X_std  # single allocation
 ```
 
 #### 2. Wrong Data Types
@@ -621,25 +627,31 @@ Before optimizing, verify:
 5. **Measurement**: Proper benchmarking with multiple runs
 
 ```python
+import os
+import platform
+
 def performance_checklist(X, y=None):
     """Run through performance optimization checklist"""
     print("Performance Optimization Checklist:")
     print("=" * 40)
-    
+
     # Data checks
-    print(f"✓ Data is contiguous: {X.flags.c_contiguous}")
-    print(f"✓ Data type is numeric: {np.issubdtype(X.dtype, np.number)}")
-    print(f"✓ Data size is reasonable: {X.nbytes / 1024 / 1024:.1f} MB")
-    
-    # Hardware checks
-    hw_info = skl.get_hardware_info()
-    print(f"✓ SIMD available: {hw_info.get('avx2', False) or hw_info.get('neon', False)}")
-    print(f"✓ Multiple cores: {hw_info.get('num_cpus', 1) > 1}")
-    
-    # Configuration checks
-    config = skl.get_config()
-    print(f"✓ Parallel threads configured: {config.get('n_jobs', '1')}")
-    
+    print(f"  Data is contiguous: {X.flags.c_contiguous}")
+    print(f"  Data type is numeric: {np.issubdtype(X.dtype, np.number)}")
+    print(f"  Data size: {X.nbytes / 1024 / 1024:.1f} MB")
+
+    # NOTE: get_hardware_info() - Coming Soon (not yet available)
+    # Use platform info as a fallback:
+    cpu_count = os.cpu_count() or 1
+    print(f"  Machine arch: {platform.machine()}")
+    print(f"  CPU count: {cpu_count}")
+    print(f"  Multiple cores available: {cpu_count > 1}")
+
+    # NOTE: get_config() - Coming Soon (not yet available)
+    # Thread count via environment variable:
+    n_threads = os.environ.get('RAYON_NUM_THREADS', 'auto (all cores)')
+    print(f"  RAYON_NUM_THREADS: {n_threads}")
+
     print("\nRecommendations:")
     if not X.flags.c_contiguous:
         print("- Make data contiguous with np.ascontiguousarray()")

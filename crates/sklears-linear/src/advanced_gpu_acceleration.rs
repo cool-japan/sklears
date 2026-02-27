@@ -658,7 +658,7 @@ impl AdvancedGpuOps {
     pub fn get_memory_usage(&self) -> Vec<(usize, usize)> {
         self.memory_pools
             .iter()
-            .map(|pool| pool.lock().unwrap().memory_usage())
+            .filter_map(|pool| pool.lock().ok().map(|p| p.memory_usage()))
             .collect()
     }
 

@@ -371,7 +371,7 @@ fn analyze_performance(results: &[BenchmarkResults]) {
     for result in results {
         operations
             .entry(result.operation.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(result);
     }
 

@@ -5,17 +5,17 @@
 
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
 use numpy::{IntoPyArray, PyArray1, PyArray2};
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
-use sklears_core::error::{Result as SklearsResult, SklearsError};
-use sklears_core::traits::{Fit, Predict, PredictProba};
-use sklears_naive_bayes::{BernoulliNB, CategoricalNB, ComplementNB, GaussianNB, MultinomialNB};
+use scirs2_core::Array1;
+use sklears_core::traits::{Fit, Predict, PredictProba, Trained, Untrained};
+use sklears_naive_bayes::{BernoulliNB, ComplementNB, GaussianNB, MultinomialNB};
 
 /// Python wrapper for Gaussian Naive Bayes
 #[pyclass(name = "GaussianNB")]
 pub struct PyGaussianNB {
-    inner: Option<GaussianNB>,
-    trained: Option<sklears_naive_bayes::TrainedGaussianNB>,
+    inner: Option<GaussianNB<Untrained>>,
+    trained: Option<GaussianNB<Trained>>,
 }
 
 #[pymethods]
@@ -26,7 +26,7 @@ impl PyGaussianNB {
         let mut nb = GaussianNB::new().var_smoothing(var_smoothing);
 
         if let Some(prior_values) = priors {
-            let priors_array = ndarray::Array1::from_vec(prior_values);
+            let priors_array = Array1::from_vec(prior_values);
             nb = nb.priors(priors_array);
         }
 
@@ -37,13 +37,13 @@ impl PyGaussianNB {
     }
 
     /// Fit the Gaussian Naive Bayes classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
         // Convert y to integer vector for classification
         let y_int: Vec<i32> = y_array.iter().map(|&val| val as i32).collect();
-        let y_int_array = ndarray::Array1::from_vec(y_int);
+        let y_int_array = Array1::from_vec(y_int);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -62,7 +62,11 @@ impl PyGaussianNB {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -71,8 +75,8 @@ impl PyGaussianNB {
 
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
-                let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                let predictions_f64: Vec<f64> = predictions.iter().map(|&v| v as f64).collect();
+                Ok(PyArray1::from_vec(py, predictions_f64).unbind())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
@@ -82,8 +86,8 @@ impl PyGaussianNB {
     fn predict_proba<'py>(
         &self,
         py: Python<'py>,
-        x: &PyArray2<f64>,
-    ) -> PyResult<&'py PyArray2<f64>> {
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -91,7 +95,7 @@ impl PyGaussianNB {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py)),
+            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -111,8 +115,8 @@ impl PyGaussianNB {
 /// Python wrapper for Multinomial Naive Bayes
 #[pyclass(name = "MultinomialNB")]
 pub struct PyMultinomialNB {
-    inner: Option<MultinomialNB>,
-    trained: Option<sklears_naive_bayes::TrainedMultinomialNB>,
+    inner: Option<MultinomialNB<Untrained>>,
+    trained: Option<MultinomialNB<Trained>>,
 }
 
 #[pymethods]
@@ -123,7 +127,7 @@ impl PyMultinomialNB {
         let mut nb = MultinomialNB::new().alpha(alpha).fit_prior(fit_prior);
 
         if let Some(prior_values) = class_prior {
-            let priors_array = ndarray::Array1::from_vec(prior_values);
+            let priors_array = Array1::from_vec(prior_values);
             nb = nb.class_prior(priors_array);
         }
 
@@ -134,13 +138,13 @@ impl PyMultinomialNB {
     }
 
     /// Fit the Multinomial Naive Bayes classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
         // Convert y to integer vector for classification
         let y_int: Vec<i32> = y_array.iter().map(|&val| val as i32).collect();
-        let y_int_array = ndarray::Array1::from_vec(y_int);
+        let y_int_array = Array1::from_vec(y_int);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -159,7 +163,11 @@ impl PyMultinomialNB {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -168,8 +176,8 @@ impl PyMultinomialNB {
 
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
-                let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                let predictions_f64: Vec<f64> = predictions.iter().map(|&v| v as f64).collect();
+                Ok(PyArray1::from_vec(py, predictions_f64).unbind())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
@@ -179,8 +187,8 @@ impl PyMultinomialNB {
     fn predict_proba<'py>(
         &self,
         py: Python<'py>,
-        x: &PyArray2<f64>,
-    ) -> PyResult<&'py PyArray2<f64>> {
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -188,7 +196,7 @@ impl PyMultinomialNB {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py)),
+            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -208,8 +216,8 @@ impl PyMultinomialNB {
 /// Python wrapper for Bernoulli Naive Bayes
 #[pyclass(name = "BernoulliNB")]
 pub struct PyBernoulliNB {
-    inner: Option<BernoulliNB>,
-    trained: Option<sklears_naive_bayes::TrainedBernoulliNB>,
+    inner: Option<BernoulliNB<Untrained>>,
+    trained: Option<BernoulliNB<Trained>>,
 }
 
 #[pymethods]
@@ -224,11 +232,11 @@ impl PyBernoulliNB {
     ) -> PyResult<Self> {
         let mut nb = BernoulliNB::new()
             .alpha(alpha)
-            .binarize(binarize)
+            .binarize(Some(binarize))
             .fit_prior(fit_prior);
 
         if let Some(prior_values) = class_prior {
-            let priors_array = ndarray::Array1::from_vec(prior_values);
+            let priors_array = Array1::from_vec(prior_values);
             nb = nb.class_prior(priors_array);
         }
 
@@ -239,13 +247,13 @@ impl PyBernoulliNB {
     }
 
     /// Fit the Bernoulli Naive Bayes classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
         // Convert y to integer vector for classification
         let y_int: Vec<i32> = y_array.iter().map(|&val| val as i32).collect();
-        let y_int_array = ndarray::Array1::from_vec(y_int);
+        let y_int_array = Array1::from_vec(y_int);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -264,7 +272,11 @@ impl PyBernoulliNB {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -273,8 +285,8 @@ impl PyBernoulliNB {
 
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
-                let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                let predictions_f64: Vec<f64> = predictions.iter().map(|&v| v as f64).collect();
+                Ok(PyArray1::from_vec(py, predictions_f64).unbind())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }
@@ -284,8 +296,8 @@ impl PyBernoulliNB {
     fn predict_proba<'py>(
         &self,
         py: Python<'py>,
-        x: &PyArray2<f64>,
-    ) -> PyResult<&'py PyArray2<f64>> {
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -293,7 +305,7 @@ impl PyBernoulliNB {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py)),
+            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -313,8 +325,8 @@ impl PyBernoulliNB {
 /// Python wrapper for Complement Naive Bayes
 #[pyclass(name = "ComplementNB")]
 pub struct PyComplementNB {
-    inner: Option<ComplementNB>,
-    trained: Option<sklears_naive_bayes::TrainedComplementNB>,
+    inner: Option<ComplementNB<Untrained>>,
+    trained: Option<ComplementNB<Trained>>,
 }
 
 #[pymethods]
@@ -333,7 +345,7 @@ impl PyComplementNB {
             .norm(norm);
 
         if let Some(prior_values) = class_prior {
-            let priors_array = ndarray::Array1::from_vec(prior_values);
+            let priors_array = Array1::from_vec(prior_values);
             nb = nb.class_prior(priors_array);
         }
 
@@ -344,13 +356,13 @@ impl PyComplementNB {
     }
 
     /// Fit the Complement Naive Bayes classifier
-    fn fit(&mut self, x: &PyArray2<f64>, y: &PyArray1<f64>) -> PyResult<()> {
+    fn fit(&mut self, x: &Bound<'_, PyArray2<f64>>, y: &Bound<'_, PyArray1<f64>>) -> PyResult<()> {
         let x_array = numpy_to_ndarray2(x)?;
         let y_array = numpy_to_ndarray1(y)?;
 
         // Convert y to integer vector for classification
         let y_int: Vec<i32> = y_array.iter().map(|&val| val as i32).collect();
-        let y_int_array = ndarray::Array1::from_vec(y_int);
+        let y_int_array = Array1::from_vec(y_int);
 
         let model = self.inner.take().ok_or_else(|| {
             PyRuntimeError::new_err("Model has already been fitted or was not initialized")
@@ -369,7 +381,11 @@ impl PyComplementNB {
     }
 
     /// Make predictions using the fitted model
-    fn predict<'py>(&self, py: Python<'py>, x: &PyArray2<f64>) -> PyResult<&'py PyArray1<f64>> {
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        x: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<Py<PyArray1<f64>>> {
         let trained_model = self.trained.as_ref().ok_or_else(|| {
             PyRuntimeError::new_err("Model must be fitted before making predictions")
         })?;
@@ -378,8 +394,8 @@ impl PyComplementNB {
 
         match trained_model.predict(&x_array) {
             Ok(predictions) => {
-                let predictions_f64: Vec<f64> = predictions.iter().map(|&x| x as f64).collect();
-                Ok(PyArray1::from_vec(py, predictions_f64))
+                let predictions_f64: Vec<f64> = predictions.iter().map(|&v| v as f64).collect();
+                Ok(PyArray1::from_vec(py, predictions_f64).unbind())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }

@@ -258,7 +258,10 @@ impl ArrowDataset {
 
         // For simplicity, use the first batch
         // In production, you'd want to concatenate all batches
-        let batch = batches.into_iter().next().unwrap();
+        let batch = batches
+            .into_iter()
+            .next()
+            .expect("iterator should have at least one element");
 
         Self::new(batch, target_column, feature_columns)
             .map(|dataset| dataset.with_description("Dataset loaded from CSV file"))
@@ -1155,7 +1158,8 @@ mod tests {
         let feature2 = Arc::new(Float64Array::from(vec![4.0, 5.0, 6.0]));
         let target = Arc::new(Float64Array::from(vec![7.0, 8.0, 9.0]));
 
-        RecordBatch::try_new(schema, vec![feature1, feature2, target]).unwrap()
+        RecordBatch::try_new(schema, vec![feature1, feature2, target])
+            .expect("valid RecordBatch construction")
     }
 
     #[test]
@@ -1166,7 +1170,7 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         assert_eq!(dataset.num_rows(), 3);
         assert_eq!(dataset.num_features(), 2);
@@ -1182,9 +1186,11 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
-        let dataset = arrow_dataset.to_dataset().unwrap();
+        let dataset = arrow_dataset
+            .to_dataset()
+            .expect("to_dataset should succeed");
 
         assert_eq!(dataset.data.shape(), &[3, 2]);
         assert_eq!(dataset.target.len(), 3);
@@ -1207,12 +1213,12 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
-        let sliced = dataset.slice(1, 2).unwrap();
+        let sliced = dataset.slice(1, 2).expect("slice should succeed");
         assert_eq!(sliced.num_rows(), 2);
 
-        let sliced_dataset = sliced.to_dataset().unwrap();
+        let sliced_dataset = sliced.to_dataset().expect("to_dataset should succeed");
         assert_eq!(sliced_dataset.data[[0, 0]], 2.0); // Second row of original
         assert_eq!(sliced_dataset.target[0], 8.0);
     }
@@ -1225,12 +1231,14 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
-        let filtered = dataset.filter(&[true, false, true]).unwrap();
+        let filtered = dataset
+            .filter(&[true, false, true])
+            .expect("filter should succeed");
         assert_eq!(filtered.num_rows(), 2);
 
-        let filtered_dataset = filtered.to_dataset().unwrap();
+        let filtered_dataset = filtered.to_dataset().expect("to_dataset should succeed");
         assert_eq!(filtered_dataset.data[[0, 0]], 1.0); // First row
         assert_eq!(filtered_dataset.data[[1, 0]], 3.0); // Third row
         assert_eq!(filtered_dataset.target[0], 7.0);
@@ -1241,7 +1249,8 @@ mod tests {
     fn test_dataset_to_arrow_conversion() {
         use scirs2_core::ndarray::Array;
 
-        let features = Array::from_shape_vec((2, 2), vec![1.0, 3.0, 2.0, 4.0]).unwrap();
+        let features =
+            Array::from_shape_vec((2, 2), vec![1.0, 3.0, 2.0, 4.0]).expect("valid array shape");
         let targets = Array::from_vec(vec![5.0, 6.0]);
 
         let dataset = Dataset::new(features, targets)
@@ -1263,9 +1272,9 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
-        let stats = dataset.describe().unwrap();
+        let stats = dataset.describe().expect("describe should succeed");
         assert_eq!(stats.len(), 3); // 2 features + 1 target
 
         let feature1_stats = &stats[0];
@@ -1284,7 +1293,7 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         let aggregated = dataset
             .aggregate(
@@ -1294,7 +1303,7 @@ mod tests {
                     ("feature2", AggregationType::Sum),
                 ],
             )
-            .unwrap();
+            .expect("expected valid value");
 
         assert_eq!(aggregated.num_rows(), 1);
         let schema = aggregated.batch.schema();
@@ -1311,19 +1320,22 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         let enhanced = dataset
             .with_computed_columns(vec![("feature1_squared", |batch: &RecordBatch| {
-                let feature1 = batch.column_by_name("feature1").unwrap();
-                let float_array = feature1.as_any().downcast_ref::<Float64Array>().unwrap();
+                let feature1 = batch.column_by_name("feature1").expect("column exists");
+                let float_array = feature1
+                    .as_any()
+                    .downcast_ref::<Float64Array>()
+                    .expect("valid downcast");
                 let squared_values: Vec<f64> = float_array
                     .iter()
                     .map(|opt_val| opt_val.map(|v| v * v).unwrap_or(0.0))
                     .collect();
                 Ok(Arc::new(Float64Array::from(squared_values)) as Arc<dyn Array>)
             })])
-            .unwrap();
+            .expect("expected valid value");
 
         let enhanced_schema = enhanced.batch.schema();
         let enhanced_field_names: Vec<&str> = enhanced_schema
@@ -1351,13 +1363,16 @@ mod tests {
             100.0, 200.0, 300.0, 400.0, 500.0, 600.0,
         ]));
 
-        let batch = RecordBatch::try_new(schema, vec![timestamp, value, target]).unwrap();
+        let batch = RecordBatch::try_new(schema, vec![timestamp, value, target])
+            .expect("valid RecordBatch construction");
 
         let dataset =
             ArrowDataset::new(batch, "target".to_string(), Some(vec!["value".to_string()]))
-                .unwrap();
+                .expect("expected valid value");
 
-        let windows = dataset.create_time_windows("timestamp", 3, 2).unwrap();
+        let windows = dataset
+            .create_time_windows("timestamp", 3, 2)
+            .expect("create_time_windows should succeed");
 
         assert_eq!(windows.len(), 2); // (6-3)/2 + 1 = 2 windows
         assert_eq!(windows[0].num_rows(), 3);
@@ -1381,7 +1396,7 @@ mod tests {
                 Arc::new(Float64Array::from(vec![100.0, 200.0, 300.0])),
             ],
         )
-        .unwrap();
+        .expect("expected valid value");
 
         // Create right dataset
         let right_schema = Arc::new(Schema::new(vec![
@@ -1396,25 +1411,25 @@ mod tests {
                 Arc::new(Float64Array::from(vec![40.0, 50.0, 60.0])),
             ],
         )
-        .unwrap();
+        .expect("expected valid value");
 
         let left_dataset = ArrowDataset::new(
             left_batch,
             "target".to_string(),
             Some(vec!["feature1".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         let right_dataset = ArrowDataset::new(
             right_batch,
             "feature2".to_string(),
             Some(vec!["feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         let joined = left_dataset
             .join(&right_dataset, &["id".to_string()], JoinType::Inner)
-            .unwrap();
+            .expect("expected valid value");
 
         let joined_schema = joined.batch.schema();
         let joined_field_names: Vec<&str> = joined_schema
@@ -1437,7 +1452,7 @@ mod tests {
             .feature_columns(vec!["feature1".to_string(), "feature2".to_string()])
             .description("Test dataset built with builder pattern")
             .build()
-            .unwrap();
+            .expect("expected valid value");
 
         assert_eq!(dataset.num_rows(), 3);
         assert_eq!(dataset.num_features(), 2);
@@ -1453,13 +1468,15 @@ mod tests {
             .target_column("y".to_string())
             .feature_columns(vec!["x".to_string()])
             .build()
-            .unwrap();
+            .expect("expected valid value");
 
         let temp_dir = std::env::temp_dir();
         let base_path = temp_dir.join("test_arrow_formats");
 
         // Test saving to multiple formats
-        dataset.save_to_formats(&base_path).unwrap();
+        dataset
+            .save_to_formats(&base_path)
+            .expect("save_to_formats should succeed");
 
         // Verify files were created
         assert!(base_path.with_extension("arrow").exists());
@@ -1472,7 +1489,7 @@ mod tests {
             "y".to_string(),
             Some(vec!["x".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         assert_eq!(loaded_dataset.num_rows(), 3);
         assert_eq!(loaded_dataset.num_features(), 1);
@@ -1494,10 +1511,10 @@ mod tests {
             .target_column("target".to_string())
             .feature_columns(vec!["feature1".to_string(), "feature2".to_string()])
             .build()
-            .unwrap();
+            .expect("expected valid value");
 
         // Convert to polars
-        let polars_df = arrow_dataset.to_polars().unwrap();
+        let polars_df = arrow_dataset.to_polars().expect("to_polars should succeed");
         assert_eq!(polars_df.height(), 3);
         assert_eq!(polars_df.width(), 3);
 
@@ -1507,7 +1524,7 @@ mod tests {
             "target".to_string(),
             Some(vec!["feature1".to_string(), "feature2".to_string()]),
         )
-        .unwrap();
+        .expect("expected valid value");
 
         assert_eq!(arrow_dataset2.num_rows(), 3);
         assert_eq!(arrow_dataset2.num_features(), 2);

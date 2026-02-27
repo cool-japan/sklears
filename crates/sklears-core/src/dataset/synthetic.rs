@@ -282,23 +282,37 @@ pub fn make_classification(
 
 #[allow(non_snake_case)]
 #[cfg(test)]
+fn variance(data: &scirs2_core::ndarray::Array1<f64>) -> f64 {
+    let mean = data.mean().unwrap_or_default();
+    let sum_sq_diff: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum();
+    sum_sq_diff / (data.len() as f64 - 1.0)
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_load_iris() {
-        let iris = load_iris().unwrap();
+        let iris = load_iris().expect("expected valid value");
 
         assert_eq!(iris.data.dim(), (6, 4));
         assert_eq!(iris.target.len(), 6);
         assert_eq!(iris.feature_names.len(), 4);
-        assert_eq!(iris.target_names.as_ref().unwrap().len(), 3);
+        assert_eq!(
+            iris.target_names
+                .as_ref()
+                .expect("value should be present")
+                .len(),
+            3
+        );
         assert!(iris.description.contains("Iris"));
     }
 
     #[test]
     fn test_make_regression() {
-        let dataset = make_regression(50, 3, 0.1).unwrap();
+        let dataset = make_regression(50, 3, 0.1).expect("expected valid value");
 
         assert_eq!(dataset.data.dim(), (50, 3));
         assert_eq!(dataset.target.len(), 50);
@@ -309,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_make_blobs() {
-        let dataset = make_blobs(60, 2, 3, 1.0).unwrap();
+        let dataset = make_blobs(60, 2, 3, 1.0).expect("expected valid value");
 
         assert_eq!(dataset.data.dim(), (60, 2));
         assert_eq!(dataset.target.len(), 60);
@@ -317,14 +331,14 @@ mod tests {
 
         // Check that we have the expected number of classes (0, 1, 2)
         let mut unique_targets = dataset.target.iter().cloned().collect::<Vec<_>>();
-        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         unique_targets.dedup();
         assert_eq!(unique_targets.len(), 3);
     }
 
     #[test]
     fn test_make_classification() {
-        let dataset = make_classification(100, 2, 3.0).unwrap();
+        let dataset = make_classification(100, 2, 3.0).expect("expected valid value");
 
         assert_eq!(dataset.data.dim(), (100, 2));
         assert_eq!(dataset.target.len(), 100);
@@ -332,7 +346,7 @@ mod tests {
 
         // Should be binary classification (only values 0.0 and 1.0)
         let mut unique_targets: Vec<_> = dataset.target.iter().cloned().collect();
-        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_targets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         unique_targets.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
         assert!(unique_targets.len() <= 2);
     }
@@ -340,8 +354,8 @@ mod tests {
     #[test]
     fn test_regression_noise_effect() {
         // Test just basic functionality - noise parameter affects variance
-        let low_noise = make_regression(50, 2, 0.0).unwrap(); // No noise
-        let high_noise = make_regression(50, 2, 1.0).unwrap(); // Some noise
+        let low_noise = make_regression(50, 2, 0.0).expect("expected valid value"); // No noise
+        let high_noise = make_regression(50, 2, 1.0).expect("expected valid value"); // Some noise
 
         // Both should have the same structure
         assert_eq!(low_noise.data.dim(), high_noise.data.dim());
@@ -349,8 +363,8 @@ mod tests {
 
         // Test that the function works with different noise levels
         // (this is more about API correctness than statistical properties)
-        let zero_noise = make_regression(10, 1, 0.0).unwrap();
-        let some_noise = make_regression(10, 1, 0.5).unwrap();
+        let zero_noise = make_regression(10, 1, 0.0).expect("expected valid value");
+        let some_noise = make_regression(10, 1, 0.5).expect("expected valid value");
 
         // Just verify both work without errors
         assert_eq!(zero_noise.data.dim().0, 10);
@@ -358,12 +372,4 @@ mod tests {
         assert!(zero_noise.description.contains("regression"));
         assert!(some_noise.description.contains("regression"));
     }
-}
-
-#[allow(non_snake_case)]
-#[cfg(test)]
-fn variance(data: &scirs2_core::ndarray::Array1<f64>) -> f64 {
-    let mean = data.mean().unwrap();
-    let sum_sq_diff: f64 = data.iter().map(|&x| (x - mean).powi(2)).sum();
-    sum_sq_diff / (data.len() as f64 - 1.0)
 }

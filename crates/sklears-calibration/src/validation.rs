@@ -787,7 +787,7 @@ mod tests {
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
         let coverage = compute_coverage_probability(&predictions, &targets, 0.95).unwrap();
-        assert!(coverage >= 0.0 && coverage <= 1.0);
+        assert!((0.0..=1.0).contains(&coverage));
     }
 
     #[test]

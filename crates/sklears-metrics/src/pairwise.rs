@@ -1327,7 +1327,7 @@ pub fn normalized_compression_distance(x: &[u8], y: &[u8]) -> MetricsResult<f64>
 ///
 /// # Returns
 ///
-/// Symmetric distance matrix where entry (i,j) is NCD(sequences[i], sequences[j])
+/// Symmetric distance matrix where entry (i,j) is NCD(sequences\[i\], sequences\[j\])
 pub fn normalized_compression_distance_matrix(sequences: &[&[u8]]) -> MetricsResult<Array2<f64>> {
     let n = sequences.len();
 

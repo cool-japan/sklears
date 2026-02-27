@@ -83,13 +83,13 @@ pub fn pyarray_to_core_array2(py_array: &PyReadonlyArray2<f64>) -> PyResult<Arra
 }
 
 /// Convert an ndarray Array1 into a Python-owned NumPy array object
-pub fn core_array1_to_py(py: Python<'_>, array: &Array1<f64>) -> Py<PyArray1<f64>> {
+pub fn core_array1_to_py<'py>(py: Python<'py>, array: &Array1<f64>) -> Py<PyArray1<f64>> {
     let numpy_array = numpy::ndarray::Array1::from_vec(array.to_vec());
     PyArray1::from_owned_array(py, numpy_array).into()
 }
 
 /// Convert an ndarray Array2 into a Python-owned NumPy array object
-pub fn core_array2_to_py(py: Python<'_>, array: &Array2<f64>) -> PyResult<Py<PyArray2<f64>>> {
+pub fn core_array2_to_py<'py>(py: Python<'py>, array: &Array2<f64>) -> PyResult<Py<PyArray2<f64>>> {
     let (rows, cols) = array.dim();
     let data: Vec<f64> = array.iter().cloned().collect();
     let numpy_array = numpy::ndarray::Array2::from_shape_vec((rows, cols), data)

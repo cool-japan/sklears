@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::random::thread_rng;
 use sklears_simd::activation::{relu, sigmoid, tanh_activation};
 use sklears_simd::benchmark_framework::{
@@ -7,6 +7,7 @@ use sklears_simd::benchmark_framework::{
 use sklears_simd::distance::{cosine_distance, euclidean_distance, manhattan_distance};
 use sklears_simd::kernels::{linear_kernel, polynomial_kernel, rbf_kernel};
 use sklears_simd::matrix::{matrix_multiply_f32_simd, transpose_simd};
+use std::hint::black_box;
 // use sklears_simd::optimization::{gradient_descent_step, momentum_update, soft_threshold};
 // use sklears_simd::reduction::{parallel_max, parallel_min, parallel_sum};
 use sklears_simd::vector::{dot_product, mean, norm_l2};
@@ -14,10 +15,6 @@ use sklears_simd::vector::{dot_product, mean, norm_l2};
 fn generate_random_vector(size: usize) -> Vec<f32> {
     let mut rng = thread_rng();
     (0..size).map(|_| rng.random_range(-1.0..1.0)).collect()
-}
-
-fn generate_random_matrix(rows: usize, cols: usize) -> Vec<Vec<f32>> {
-    (0..rows).map(|_| generate_random_vector(cols)).collect()
 }
 
 /// Comprehensive cross-platform benchmarks using the new framework

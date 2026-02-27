@@ -131,7 +131,7 @@ impl KernelCache {
 pub struct SmoSolver<K: Kernel> {
     config: SmoConfig,
     kernel: K,
-    // Training data
+    // Training data (stored as owned data for now, views in solve)
     x: Array2<Float>,
     y: Array1<Float>,
     // Algorithm state
@@ -194,9 +194,18 @@ impl<K: Kernel> SmoSolver<K> {
             ));
         }
 
-        // Initialize solver state
-        self.x = x.clone();
-        self.y = y.clone();
+        // Initialize solver state - avoid unnecessary clones by reusing storage when possible
+        if self.x.dim() == x.dim() {
+            self.x.assign(x); // In-place copy, no allocation
+        } else {
+            self.x = x.clone(); // Need to reallocate
+        }
+
+        if self.y.dim() == y.dim() {
+            self.y.assign(y); // In-place copy, no allocation
+        } else {
+            self.y = y.clone(); // Need to reallocate
+        }
 
         // Handle warm start
         if let Some(alpha_init) = warm_start_alpha {
@@ -248,11 +257,15 @@ impl<K: Kernel> SmoSolver<K> {
         self.objective_values.clear();
         self.convergence_history.clear();
 
-        let mut n_iter = 0;
+        let mut n_iter = 0; // Count of successful updates
+        let mut loop_iter = 0; // Total loop iterations
         let mut converged = false;
+        let mut no_change_count = 0; // Count consecutive iterations with no updates
 
         // Main SMO loop
-        while n_iter < self.config.max_iter {
+        while n_iter < self.config.max_iter && loop_iter < self.config.max_iter * 10 {
+            loop_iter += 1;
+
             let (i, j) = match self.select_working_set() {
                 Some(pair) => pair,
                 None => {
@@ -263,21 +276,29 @@ impl<K: Kernel> SmoSolver<K> {
 
             if self.take_step(i, j)? {
                 n_iter += 1;
+                no_change_count = 0; // Reset counter on successful update
 
                 // Compute and store objective value
                 if n_iter % 5 == 0 {
                     let obj_val = self.compute_objective();
                     self.objective_values.push(obj_val);
                 }
+            } else {
+                no_change_count += 1;
+                // If we've had too many consecutive iterations without updates, stop
+                if no_change_count > 100 {
+                    converged = true;
+                    break;
+                }
             }
 
             // Apply shrinking periodically
-            if self.config.shrinking && n_iter % 100 == 0 {
+            if self.config.shrinking && n_iter > 0 && n_iter % 100 == 0 {
                 self.apply_shrinking();
             }
 
             // Check convergence periodically
-            if n_iter % self.config.convergence_check_interval == 0 {
+            if n_iter > 0 && n_iter % self.config.convergence_check_interval == 0 {
                 let convergence_measure = self.compute_convergence_measure();
                 self.convergence_history.push(convergence_measure);
 
@@ -330,46 +351,140 @@ impl<K: Kernel> SmoSolver<K> {
         }
     }
 
-    /// First-order working set selection
+    /// First-order working set selection (WSS1 - Maximal Violating Pair)
+    /// O(n) complexity using maximal violating pair heuristic
     fn select_working_set_first_order(&self) -> Option<(usize, usize)> {
-        let mut violating_pairs = Vec::new();
+        let mut i_up = None;
+        let mut i_low = None;
+        let mut g_min_up = Float::INFINITY; // Minimum gradient in I_up (most violation)
+        let mut g_max_low = Float::NEG_INFINITY; // Maximum gradient in I_low (most violation)
 
-        for &i in &self.active_set {
-            if self.violates_kkt(i) {
-                for &j in &self.active_set {
-                    if i != j && self.violates_kkt(j) {
-                        let error_i = (self.f[i] * self.y[i] - 1.0).abs();
-                        let error_j = (self.f[j] * self.y[j] - 1.0).abs();
-                        violating_pairs.push((i, j, error_i + error_j));
-                    }
+        for &t in &self.active_set {
+            let alpha_t = self.alpha[t];
+            let y_t = self.y[t];
+            let f_t = self.f[t];
+            let g_t = y_t * f_t; // Gradient: y_i * f_i
+
+            // I_up: samples that can increase their alpha (violate upper bound when g_t < 1)
+            // For y_i = +1: alpha_i < C
+            // For y_i = -1: alpha_i > 0
+            if (y_t > 0.0 && alpha_t < self.config.c - self.config.tol)
+                || (y_t < 0.0 && alpha_t > self.config.tol)
+            {
+                // Find most violating sample (minimum gradient)
+                if g_t < g_min_up {
+                    g_min_up = g_t;
+                    i_up = Some(t);
+                }
+            }
+
+            // I_low: samples that can decrease their alpha (violate lower bound when g_t > 1)
+            // For y_i = -1: alpha_i < C
+            // For y_i = +1: alpha_i > 0
+            if (y_t < 0.0 && alpha_t < self.config.c - self.config.tol)
+                || (y_t > 0.0 && alpha_t > self.config.tol)
+            {
+                // Find most violating sample (maximum gradient)
+                if g_t > g_max_low {
+                    g_max_low = g_t;
+                    i_low = Some(t);
                 }
             }
         }
 
-        violating_pairs.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
-        violating_pairs.first().map(|(i, j, _)| (*i, *j))
+        // Check if we found a violating pair
+        match (i_up, i_low) {
+            (Some(i), Some(j)) => {
+                // Continue optimization when optimality gap > tolerance
+                // OR when we're at initialization (both have same gradient but violate KKT)
+                let gap = g_max_low - g_min_up;
+                if gap > self.config.tol
+                    || (gap.abs() <= self.config.tol && g_min_up < 1.0 - self.config.tol)
+                {
+                    Some((i, j))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Second-order working set selection (maximum objective decrease)
+    /// Optimized to use WSS1 approach with second-order refinement
     fn select_working_set_second_order(&self) -> Option<(usize, usize)> {
-        let mut best_pair = None;
-        let mut best_decrease = 0.0;
+        // First find i_up using maximal violating pair heuristic (O(n))
+        let mut i_up = None;
+        let mut g_min_up = Float::INFINITY;
 
-        for &i in &self.active_set {
-            if self.violates_kkt(i) {
-                for &j in &self.active_set {
-                    if i != j && self.violates_kkt(j) {
-                        let decrease = self.estimate_objective_decrease(i, j);
-                        if decrease > best_decrease {
-                            best_decrease = decrease;
-                            best_pair = Some((i, j));
-                        }
-                    }
-                }
+        for &t in &self.active_set {
+            let alpha_t = self.alpha[t];
+            let y_t = self.y[t];
+            let f_t = self.f[t];
+            let g_t = y_t * f_t;
+
+            // Check if in I_up set and find minimum gradient (most violating)
+            if ((y_t > 0.0 && alpha_t < self.config.c - self.config.tol)
+                || (y_t < 0.0 && alpha_t > self.config.tol))
+                && g_t < g_min_up
+            {
+                g_min_up = g_t;
+                i_up = Some(t);
             }
         }
 
-        best_pair
+        let i = i_up?;
+
+        // Now find j that maximizes objective decrease (O(n))
+        let mut best_j = None;
+        let mut best_decrease = -1e-10; // Negative to allow selection at initialization when all decreases are 0
+
+        let k_ii = self.get_kernel_value(i, i);
+        let g_i = g_min_up;
+
+        for &j in &self.active_set {
+            if i == j {
+                continue;
+            }
+
+            let alpha_j = self.alpha[j];
+            let y_j = self.y[j];
+            let f_j = self.f[j];
+            let g_j = y_j * f_j;
+
+            // Check if j is in I_low
+            if !((y_j < 0.0 && alpha_j < self.config.c - self.config.tol)
+                || (y_j > 0.0 && alpha_j > self.config.tol))
+            {
+                continue;
+            }
+
+            // Compute second-order information
+            let k_jj = self.get_kernel_value(j, j);
+            let k_ij = self.get_kernel_value(i, j);
+            let eta = k_ii + k_jj - 2.0 * k_ij;
+
+            if eta <= 0.0 {
+                continue; // Skip degenerate cases
+            }
+
+            // Estimate objective decrease
+            let grad_diff = g_j - g_i; // Correct gradient difference
+            let decrease = (grad_diff * grad_diff) / eta;
+
+            if decrease > best_decrease {
+                best_decrease = decrease;
+                best_j = Some(j);
+            }
+        }
+
+        // If no j found with positive decrease, fall back to first-order selection
+        // This can happen at initialization when all pairs have the same gradient
+        if best_j.is_none() {
+            self.select_working_set_first_order()
+        } else {
+            best_j.map(|j| (i, j))
+        }
     }
 
     /// Estimate objective function decrease for pair (i, j)
@@ -571,7 +686,14 @@ impl<K: Kernel> SmoSolver<K> {
             let alpha_i = self.alpha[i];
             if alpha_i > 1e-10 && alpha_i < self.config.c - 1e-10 {
                 // Free support vector: 0 < alpha < C
-                bias_sum += self.y[i] - self.f[i];
+                // For margin support vectors: y[i] * (sum(alpha[j] * y[j] * K(x[i], x[j])) + b) = 1
+                // Since f[i] = sum(alpha[j] * y[j] * K(x[i], x[j])) - y[i], we have:
+                // sum(alpha[j] * y[j] * K(x[i], x[j])) = f[i] + y[i]
+                // Therefore: y[i] * (f[i] + y[i] + b) = 1
+                //           y[i] * f[i] + 1 + y[i] * b = 1  (since y[i]^2 = 1)
+                //           y[i] * (f[i] + b) = 0
+                //           b = -f[i]
+                bias_sum += -self.f[i];
                 n_free += 1;
             }
         }
@@ -582,7 +704,7 @@ impl<K: Kernel> SmoSolver<K> {
             // Use all support vectors
             bias_sum = 0.0;
             for &i in support_indices {
-                bias_sum += self.y[i] - self.f[i];
+                bias_sum += -self.f[i];
             }
             self.b = bias_sum / support_indices.len() as Float;
         }
@@ -596,10 +718,8 @@ impl<K: Kernel> SmoSolver<K> {
         if let Some(value) = cache.get(i, j) {
             value
         } else {
-            let value = self.kernel.compute(
-                self.x.row(i).to_owned().view(),
-                self.x.row(j).to_owned().view(),
-            );
+            // Use views directly without allocating - major performance improvement
+            let value = self.kernel.compute(self.x.row(i), self.x.row(j));
             cache.insert(i, j, value);
             value
         }

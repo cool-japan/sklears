@@ -3,6 +3,8 @@
 //! These benchmarks compare the performance of sklears semi-supervised methods
 //! against their scikit-learn equivalents where applicable.
 
+#![allow(non_snake_case)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray_ext::{Array1, Array2};
 use scirs2_core::random::Random;

@@ -188,7 +188,7 @@ fn benchmark_sklears_ngrams(documents: &Vec<String>) -> f64 {
     ngram_time
 }
 
-fn benchmark_sklears_text_similarity(documents: &Vec<String>) -> f64 {
+fn benchmark_sklears_text_similarity(documents: &[String]) -> f64 {
     println!("Benchmarking sklears Text Similarity...");
 
     let similarity = TextSimilarity::new();

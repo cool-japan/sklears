@@ -1,10 +1,11 @@
 //! Quick benchmark to verify SIMD integration performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::thread_rng;
 use sklears_core::traits::{Fit, Predict};
 use sklears_neighbors::{Distance, KNeighborsClassifier};
+use std::hint::black_box;
 
 fn generate_test_data() -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();

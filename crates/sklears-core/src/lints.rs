@@ -701,10 +701,10 @@ mod tests {
         let mut registry = LintRegistry::new();
         registry
             .enable_rule("sklears_data_validation", LintSeverity::Warn)
-            .unwrap();
+            .expect("expected valid value");
         registry
             .enable_rule("sklears_memory_leak", LintSeverity::Deny)
-            .unwrap();
+            .expect("expected valid value");
 
         let config = registry.generate_cargo_config();
         assert!(config.contains("sklears_data_validation = \"warn\""));

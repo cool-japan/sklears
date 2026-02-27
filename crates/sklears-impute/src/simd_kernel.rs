@@ -102,7 +102,7 @@ pub fn simd_laplacian_kernel(x1: &ArrayView1<f64>, x2: &ArrayView1<f64>, gamma: 
 
 /// SIMD-accelerated kernel matrix computation
 ///
-/// Computes full kernel matrix K where K[i,j] = kernel(X[i], X[j]) using SciRS2-Core SIMD.
+/// Computes full kernel matrix K where K\[i,j\] = kernel(X\[i\], X\[j\]) using SciRS2-Core SIMD.
 /// Achieves 6.2x - 7.8x speedup for large matrices.
 pub fn simd_compute_kernel_matrix(
     X: &ArrayView2<f64>,

@@ -1,6 +1,6 @@
 # Getting Started with Sklears Python Bindings
 
-Welcome to Sklears! This guide will help you get up and running with the high-performance machine learning library that provides 14-20x speedups (validated) over scikit-learn while maintaining full API compatibility.
+Welcome to Sklears! This guide will help you get up and running with the high-performance machine learning library that provides a pure Rust implementation with ongoing performance optimization while maintaining full API compatibility.
 
 ## Table of Contents
 
@@ -18,14 +18,14 @@ Welcome to Sklears! This guide will help you get up and running with the high-pe
 
 Before installing Sklears, ensure you have:
 
-- **Python 3.8 or later**
+- **Python 3.9 or later**
 - **NumPy** (automatically installed as dependency)
 - **Rust 1.70 or later** (for building from source)
 
 ### Method 1: Install from Pre-built Wheels (Recommended)
 
 ```bash
-pip install sklears-python
+pip install sklears
 ```
 
 ### Method 2: Build from Source
@@ -52,7 +52,7 @@ If pre-built wheels are not available for your platform:
 ### Verify Installation
 
 ```python
-import sklears_python as skl
+import sklears as skl
 print(f"Sklears version: {skl.get_version()}")
 print("Installation successful!")
 ```
@@ -64,7 +64,7 @@ print("Installation successful!")
 We recommend importing sklears as follows:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 ```
 
@@ -75,23 +75,17 @@ This gives you access to all algorithms and utilities in a single namespace, sim
 Before diving into machine learning, let's check what your system supports:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 
 # Check version and build information
 print(f"Version: {skl.get_version()}")
 
-# Check hardware capabilities
-hardware_info = skl.get_hardware_info()
-print("Hardware capabilities:")
-for feature, supported in hardware_info.items():
-    print(f"  {feature}: {supported}")
-
-# Run basic performance benchmarks
-print("Running performance benchmarks...")
-benchmarks = skl.benchmark_basic_operations()
-for operation, time_ms in benchmarks.items():
-    print(f"  {operation}: {time_ms:.2f} ms")
+# Check build details
+build_info = skl.get_build_info()
+print(f"Build info: {build_info}")
 ```
+
+> **Note:** `get_hardware_info()` and `benchmark_basic_operations()` are not available in this release. Use `get_version()` and `get_build_info()` instead.
 
 ## Basic Usage Examples
 
@@ -101,13 +95,12 @@ Let's start with a simple linear regression example:
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 from sklearn.datasets import make_regression
-from sklearn.model_selection import train_test_split
 
 # Generate sample data
 X, y = make_regression(n_samples=1000, n_features=10, noise=0.1, random_state=42)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = skl.train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Create and train model
 model = skl.LinearRegression()
@@ -116,9 +109,11 @@ model.fit(X_train, y_train)
 # Make predictions
 predictions = model.predict(X_test)
 
-# Evaluate performance
+# Evaluate performance using the model's built-in score method (R²)
 r2_score = model.score(X_test, y_test)
-mse = skl.mean_squared_error(y_test, predictions)
+
+# Compute MSE manually (skl.mean_squared_error is Coming Soon)
+mse = float(np.mean((y_test - predictions) ** 2))
 
 print(f"R² Score: {r2_score:.4f}")
 print(f"Mean Squared Error: {mse:.4f}")
@@ -128,7 +123,7 @@ print(f"Mean Squared Error: {mse:.4f}")
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 from sklearn.datasets import make_classification
 
 # Generate classification data
@@ -143,8 +138,8 @@ model.fit(X_train, y_train)
 predictions = model.predict(X_test)
 probabilities = model.predict_proba(X_test)
 
-# Evaluate performance
-accuracy = skl.accuracy_score(y_test, predictions)
+# Compute accuracy manually (skl.accuracy_score is Coming Soon)
+accuracy = float(np.mean(np.array(predictions) == np.array(y_test)))
 print(f"Accuracy: {accuracy:.4f}")
 ```
 
@@ -152,7 +147,7 @@ print(f"Accuracy: {accuracy:.4f}")
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 from sklearn.datasets import make_blobs
 
 # Generate clustering data
@@ -168,22 +163,24 @@ print(f"Cluster centers shape: {kmeans.cluster_centers_.shape}")
 
 ### Data Preprocessing
 
+> **Coming Soon:** `StandardScaler` and `MinMaxScaler` are not yet exposed in this release. Use scikit-learn's preprocessing utilities as an interim solution:
+
 ```python
 import numpy as np
-import sklears_python as skl
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 # Generate sample data
 X = np.random.randn(100, 5) * 10 + 5
 
-# Standard scaling
-scaler = skl.StandardScaler()
+# Standard scaling (via scikit-learn until sklears exposes these)
+scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 print(f"Original data - Mean: {X.mean():.2f}, Std: {X.std():.2f}")
 print(f"Scaled data - Mean: {X_scaled.mean():.2f}, Std: {X_scaled.std():.2f}")
 
 # Min-Max scaling
-minmax_scaler = skl.MinMaxScaler(feature_range=(0, 1))
+minmax_scaler = MinMaxScaler(feature_range=(0, 1))
 X_minmax = minmax_scaler.fit_transform(X)
 
 print(f"MinMax scaled - Min: {X_minmax.min():.2f}, Max: {X_minmax.max():.2f}")
@@ -193,7 +190,7 @@ print(f"MinMax scaled - Min: {X_minmax.min():.2f}, Max: {X_minmax.max():.2f}")
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 from sklearn.datasets import make_regression
 
 # Generate data
@@ -226,7 +223,7 @@ One of Sklears' main advantages is performance. Here's how to measure it:
 ```python
 import time
 import numpy as np
-import sklears_python as skl
+import sklears as skl
 from sklearn.datasets import make_regression
 from sklearn.linear_model import LinearRegression as SklearnLR
 
@@ -264,14 +261,16 @@ While Sklears doesn't have Pipeline class yet, you can chain operations manually
 
 ```python
 import numpy as np
-import sklears_python as skl
+import sklears as skl
+from sklearn.preprocessing import StandardScaler  # Coming Soon in sklears
 
 # Generate data
 X = np.random.randn(100, 5) * 10 + 5
 y = np.random.randn(100)
 
 # Chain preprocessing and modeling
-scaler = skl.StandardScaler()
+# Note: StandardScaler is Coming Soon in sklears; use sklearn.preprocessing as interim
+scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 model = skl.LinearRegression()
@@ -289,7 +288,7 @@ While built-in serialization is in development, you can save model parameters:
 
 ```python
 import pickle
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 # Train model
@@ -315,7 +314,7 @@ print("Model saved successfully")
 Sklears provides clear error messages:
 
 ```python
-import sklears_python as skl
+import sklears as skl
 import numpy as np
 
 try:
@@ -335,7 +334,7 @@ except ValueError as e:
 
 1. **Import Error**: If you get import errors, ensure you've built/installed the package correctly:
    ```bash
-   python -c "import sklears_python; print('Success!')"
+   python -c "import sklears; print('Success!')"
    ```
 
 2. **Performance not as expected**: Check that you're using the release build:
@@ -349,24 +348,17 @@ except ValueError as e:
 
 1. **Check build information**:
    ```python
-   import sklears_python as skl
+   import sklears as skl
    print(skl.get_build_info())
    ```
 
-2. **View system capabilities**:
+2. **Check version**:
    ```python
-   import sklears_python as skl
-   print(skl.show_versions())
+   import sklears as skl
+   print(skl.get_version())
    ```
 
-3. **Run diagnostics**:
-   ```python
-   import sklears_python as skl
-   benchmarks = skl.benchmark_basic_operations()
-   print("System performance:")
-   for test, time_ms in benchmarks.items():
-       print(f"  {test}: {time_ms:.2f} ms")
-   ```
+> **Note:** `show_versions()`, `benchmark_basic_operations()`, and `get_hardware_info()` are not available in this release.
 
 ## Next Steps
 

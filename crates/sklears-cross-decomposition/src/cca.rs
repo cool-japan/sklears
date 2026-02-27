@@ -8,6 +8,14 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+// Helper functions for safe operations
+#[inline]
+fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
 /// Canonical Correlation Analysis (CCA)
 ///
 /// CCA finds linear relationships between two multivariate datasets by finding
@@ -149,8 +157,8 @@ impl Fit<Array2<Float>, Array2<Float>> for CCA<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = safe_mean_axis(x, Axis(0))?;
+        let y_mean = safe_mean_axis(y, Axis(0))?;
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y - &y_mean.view().insert_axis(Axis(0));
@@ -290,9 +298,24 @@ impl Fit<Array2<Float>, Array2<Float>> for CCA<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for CCA<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let x_rotations = self.x_rotations_.as_ref().unwrap();
+        let x_mean = self
+            .x_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_mean".to_string(),
+            })?;
+        let x_std = self
+            .x_std_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_std".to_string(),
+            })?;
+        let x_rotations = self
+            .x_rotations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_rotations".to_string(),
+            })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -313,9 +336,24 @@ impl Transform<Array2<Float>, Array2<Float>> for CCA<Trained> {
 impl CCA<Trained> {
     /// Transform Y to canonical variates
     pub fn transform_y(&self, y: &Array2<Float>) -> Result<Array2<Float>> {
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
-        let y_rotations = self.y_rotations_.as_ref().unwrap();
+        let y_mean = self
+            .y_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_mean".to_string(),
+            })?;
+        let y_std = self
+            .y_std_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_std".to_string(),
+            })?;
+        let y_rotations = self
+            .y_rotations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_rotations".to_string(),
+            })?;
 
         // Center and scale Y
         let mut y_scaled = y - &y_mean.view().insert_axis(Axis(0));
@@ -333,38 +371,66 @@ impl CCA<Trained> {
     }
 
     /// Get the X weights
-    pub fn x_weights(&self) -> &Array2<Float> {
-        self.x_weights_.as_ref().unwrap()
+    pub fn x_weights(&self) -> Result<&Array2<Float>> {
+        self.x_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_weights".to_string(),
+            })
     }
 
     /// Get the Y weights
-    pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+    pub fn y_weights(&self) -> Result<&Array2<Float>> {
+        self.y_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_weights".to_string(),
+            })
     }
 
     /// Get the X loadings
-    pub fn x_loadings(&self) -> &Array2<Float> {
-        self.x_loadings_.as_ref().unwrap()
+    pub fn x_loadings(&self) -> Result<&Array2<Float>> {
+        self.x_loadings_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_loadings".to_string(),
+            })
     }
 
     /// Get the Y loadings
-    pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+    pub fn y_loadings(&self) -> Result<&Array2<Float>> {
+        self.y_loadings_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_loadings".to_string(),
+            })
     }
 
     /// Get the X scores
-    pub fn x_scores(&self) -> &Array2<Float> {
-        self.x_scores_.as_ref().unwrap()
+    pub fn x_scores(&self) -> Result<&Array2<Float>> {
+        self.x_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_scores".to_string(),
+            })
     }
 
-    /// Get the Y scores  
-    pub fn y_scores(&self) -> &Array2<Float> {
-        self.y_scores_.as_ref().unwrap()
+    /// Get the Y scores
+    pub fn y_scores(&self) -> Result<&Array2<Float>> {
+        self.y_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_scores".to_string(),
+            })
     }
 
     /// Get the canonical correlations
-    pub fn canonical_correlations(&self) -> &Array1<Float> {
-        self.canonical_correlations_.as_ref().unwrap()
+    pub fn canonical_correlations(&self) -> Result<&Array1<Float>> {
+        self.canonical_correlations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "canonical_correlations".to_string(),
+            })
     }
 }
 
@@ -524,8 +590,8 @@ impl Fit<Array2<Float>, Array2<Float>> for RidgeCCA<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = safe_mean_axis(x, Axis(0))?;
+        let y_mean = safe_mean_axis(y, Axis(0))?;
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y - &y_mean.view().insert_axis(Axis(0));
@@ -741,9 +807,24 @@ impl RidgeCCA<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for RidgeCCA<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let x_rotations = self.x_rotations_.as_ref().unwrap();
+        let x_mean = self
+            .x_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_mean".to_string(),
+            })?;
+        let x_std = self
+            .x_std_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_std".to_string(),
+            })?;
+        let x_rotations = self
+            .x_rotations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_rotations".to_string(),
+            })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -764,9 +845,24 @@ impl Transform<Array2<Float>, Array2<Float>> for RidgeCCA<Trained> {
 impl RidgeCCA<Trained> {
     /// Transform Y to canonical variates
     pub fn transform_y(&self, y: &Array2<Float>) -> Result<Array2<Float>> {
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
-        let y_rotations = self.y_rotations_.as_ref().unwrap();
+        let y_mean = self
+            .y_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_mean".to_string(),
+            })?;
+        let y_std = self
+            .y_std_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_std".to_string(),
+            })?;
+        let y_rotations = self
+            .y_rotations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_rotations".to_string(),
+            })?;
 
         // Center and scale Y
         let mut y_scaled = y - &y_mean.view().insert_axis(Axis(0));
@@ -784,38 +880,66 @@ impl RidgeCCA<Trained> {
     }
 
     /// Get the canonical correlations
-    pub fn canonical_correlations(&self) -> &Array1<Float> {
-        self.canonical_correlations_.as_ref().unwrap()
+    pub fn canonical_correlations(&self) -> Result<&Array1<Float>> {
+        self.canonical_correlations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "canonical_correlations".to_string(),
+            })
     }
 
     /// Get the X weights
-    pub fn x_weights(&self) -> &Array2<Float> {
-        self.x_weights_.as_ref().unwrap()
+    pub fn x_weights(&self) -> Result<&Array2<Float>> {
+        self.x_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_weights".to_string(),
+            })
     }
 
     /// Get the Y weights
-    pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+    pub fn y_weights(&self) -> Result<&Array2<Float>> {
+        self.y_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_weights".to_string(),
+            })
     }
 
     /// Get the X loadings
-    pub fn x_loadings(&self) -> &Array2<Float> {
-        self.x_loadings_.as_ref().unwrap()
+    pub fn x_loadings(&self) -> Result<&Array2<Float>> {
+        self.x_loadings_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_loadings".to_string(),
+            })
     }
 
     /// Get the Y loadings
-    pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+    pub fn y_loadings(&self) -> Result<&Array2<Float>> {
+        self.y_loadings_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_loadings".to_string(),
+            })
     }
 
     /// Get the X scores
-    pub fn x_scores(&self) -> &Array2<Float> {
-        self.x_scores_.as_ref().unwrap()
+    pub fn x_scores(&self) -> Result<&Array2<Float>> {
+        self.x_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_scores".to_string(),
+            })
     }
 
-    /// Get the Y scores  
-    pub fn y_scores(&self) -> &Array2<Float> {
-        self.y_scores_.as_ref().unwrap()
+    /// Get the Y scores
+    pub fn y_scores(&self) -> Result<&Array2<Float>> {
+        self.y_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_scores".to_string(),
+            })
     }
 }
 
@@ -975,8 +1099,8 @@ impl Fit<Array2<Float>, Array2<Float>> for SparseCCA<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = safe_mean_axis(x, Axis(0))?;
+        let y_mean = safe_mean_axis(y, Axis(0))?;
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y - &y_mean.view().insert_axis(Axis(0));
@@ -1137,9 +1261,24 @@ impl SparseCCA<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for SparseCCA<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let x_rotations = self.x_rotations_.as_ref().unwrap();
+        let x_mean = self
+            .x_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_mean".to_string(),
+            })?;
+        let x_std = self
+            .x_std_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_std".to_string(),
+            })?;
+        let x_rotations = self
+            .x_rotations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform - x_rotations".to_string(),
+            })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -1160,9 +1299,24 @@ impl Transform<Array2<Float>, Array2<Float>> for SparseCCA<Trained> {
 impl SparseCCA<Trained> {
     /// Transform Y to canonical variates
     pub fn transform_y(&self, y: &Array2<Float>) -> Result<Array2<Float>> {
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
-        let y_rotations = self.y_rotations_.as_ref().unwrap();
+        let y_mean = self
+            .y_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_mean".to_string(),
+            })?;
+        let y_std = self
+            .y_std_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_std".to_string(),
+            })?;
+        let y_rotations = self
+            .y_rotations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "transform_y - y_rotations".to_string(),
+            })?;
 
         // Center and scale Y
         let mut y_scaled = y - &y_mean.view().insert_axis(Axis(0));
@@ -1180,50 +1334,88 @@ impl SparseCCA<Trained> {
     }
 
     /// Get the canonical correlations
-    pub fn canonical_correlations(&self) -> &Array1<Float> {
-        self.canonical_correlations_.as_ref().unwrap()
+    pub fn canonical_correlations(&self) -> Result<&Array1<Float>> {
+        self.canonical_correlations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "canonical_correlations".to_string(),
+            })
     }
 
     /// Get the X weights (with sparsity)
-    pub fn x_weights(&self) -> &Array2<Float> {
-        self.x_weights_.as_ref().unwrap()
+    pub fn x_weights(&self) -> Result<&Array2<Float>> {
+        self.x_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_weights".to_string(),
+            })
     }
 
     /// Get the Y weights (with sparsity)
-    pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+    pub fn y_weights(&self) -> Result<&Array2<Float>> {
+        self.y_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_weights".to_string(),
+            })
     }
 
     /// Get the X loadings
-    pub fn x_loadings(&self) -> &Array2<Float> {
-        self.x_loadings_.as_ref().unwrap()
+    pub fn x_loadings(&self) -> Result<&Array2<Float>> {
+        self.x_loadings_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_loadings".to_string(),
+            })
     }
 
     /// Get the Y loadings
-    pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+    pub fn y_loadings(&self) -> Result<&Array2<Float>> {
+        self.y_loadings_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_loadings".to_string(),
+            })
     }
 
     /// Get the X scores
-    pub fn x_scores(&self) -> &Array2<Float> {
-        self.x_scores_.as_ref().unwrap()
+    pub fn x_scores(&self) -> Result<&Array2<Float>> {
+        self.x_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_scores".to_string(),
+            })
     }
 
-    /// Get the Y scores  
-    pub fn y_scores(&self) -> &Array2<Float> {
-        self.y_scores_.as_ref().unwrap()
+    /// Get the Y scores
+    pub fn y_scores(&self) -> Result<&Array2<Float>> {
+        self.y_scores_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_scores".to_string(),
+            })
     }
 
     /// Count the number of non-zero weights in X
-    pub fn x_sparsity(&self) -> usize {
-        let x_weights = self.x_weights_.as_ref().unwrap();
-        x_weights.iter().filter(|&&x| x.abs() > 1e-10).count()
+    pub fn x_sparsity(&self) -> Result<usize> {
+        let x_weights = self
+            .x_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_sparsity".to_string(),
+            })?;
+        Ok(x_weights.iter().filter(|&&x| x.abs() > 1e-10).count())
     }
 
     /// Count the number of non-zero weights in Y
-    pub fn y_sparsity(&self) -> usize {
-        let y_weights = self.y_weights_.as_ref().unwrap();
-        y_weights.iter().filter(|&&x| x.abs() > 1e-10).count()
+    pub fn y_sparsity(&self) -> Result<usize> {
+        let y_weights = self
+            .y_weights_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_sparsity".to_string(),
+            })?;
+        Ok(y_weights.iter().filter(|&&x| x.abs() > 1e-10).count())
     }
 }
 
@@ -1288,7 +1480,7 @@ mod tests {
         assert_eq!(y_canonical.shape(), &[4, 1]);
 
         // Check that canonical correlations are computed
-        let correlations = fitted.canonical_correlations();
+        let correlations = fitted.canonical_correlations().unwrap();
         assert_eq!(correlations.len(), 1);
         assert!(correlations[0] >= -1.0 && correlations[0] <= 1.0);
     }
@@ -1315,7 +1507,7 @@ mod tests {
         assert_eq!(y_canonical.shape(), &[4, 2]);
 
         // Check canonical correlations
-        let correlations = fitted.canonical_correlations();
+        let correlations = fitted.canonical_correlations().unwrap();
         assert_eq!(correlations.len(), 2);
         for &corr in correlations.iter() {
             assert!(corr >= -1.0 && corr <= 1.0);
@@ -1345,12 +1537,12 @@ mod tests {
         // Low regularization
         let ridge_cca_low = RidgeCCA::new(1, 0.001, 0.001);
         let fitted_low = ridge_cca_low.fit(&x, &y).unwrap();
-        let corr_low = fitted_low.canonical_correlations()[0];
+        let corr_low = fitted_low.canonical_correlations().unwrap()[0];
 
         // High regularization
         let ridge_cca_high = RidgeCCA::new(1, 1.0, 1.0);
         let fitted_high = ridge_cca_high.fit(&x, &y).unwrap();
-        let corr_high = fitted_high.canonical_correlations()[0];
+        let corr_high = fitted_high.canonical_correlations().unwrap()[0];
 
         // Both should be valid correlations
         assert!(corr_low >= -1.0 && corr_low <= 1.0);
@@ -1413,10 +1605,11 @@ mod tests {
             // Test RidgeCCA
             if let Ok(fitted_ridge) = RidgeCCA::new(n_components, 0.1, 0.1).fit(&x, &y) {
                 // Test regularized CCA properties
-                let correlations = fitted_ridge.canonical_correlations();
-                for &corr in correlations.iter() {
-                    prop_assert!(corr >= -1.0 - 1e-10);
-                    prop_assert!(corr <= 1.0 + 1e-10);
+                if let Ok(correlations) = fitted_ridge.canonical_correlations() {
+                    for &corr in correlations.iter() {
+                        prop_assert!(corr >= -1.0 - 1e-10);
+                        prop_assert!(corr <= 1.0 + 1e-10);
+                    }
                 }
             }
         }
@@ -1515,8 +1708,8 @@ mod tests {
             let ridge_high = RidgeCCA::new(1, reg_high, reg_high);
 
             if let (Ok(fitted_low), Ok(fitted_high)) = (ridge_low.fit(&x, &y), ridge_high.fit(&x, &y)) {
-                let corr_low = fitted_low.canonical_correlations()[0];
-                let corr_high = fitted_high.canonical_correlations()[0];
+                let corr_low = fitted_low.canonical_correlations().unwrap()[0];
+                let corr_high = fitted_high.canonical_correlations().unwrap()[0];
 
                 // Both should be valid correlations
                 prop_assert!(corr_low >= -1.0 && corr_low <= 1.0);
@@ -1567,16 +1760,17 @@ mod tests {
                 }
 
                 // Check that weights are reasonable
-                let x_weights = fitted.x_weights();
-                let y_weights = fitted.y_weights();
-
-                for val in x_weights.iter() {
-                    prop_assert!(val.is_finite());
-                    prop_assert!(val.abs() < 1000.0);  // Shouldn't be too large
+                if let Ok(x_weights) = fitted.x_weights() {
+                    for val in x_weights.iter() {
+                        prop_assert!(val.is_finite());
+                        prop_assert!(val.abs() < 1000.0);  // Shouldn't be too large
+                    }
                 }
-                for val in y_weights.iter() {
-                    prop_assert!(val.is_finite());
-                    prop_assert!(val.abs() < 1000.0);
+                if let Ok(y_weights) = fitted.y_weights() {
+                    for val in y_weights.iter() {
+                        prop_assert!(val.is_finite());
+                        prop_assert!(val.abs() < 1000.0);
+                    }
                 }
             }
         }
@@ -1599,7 +1793,7 @@ mod tests {
         assert_eq!(y_canonical.shape(), &[4, 1]);
 
         // Check that canonical correlations are computed
-        let correlations = fitted.canonical_correlations();
+        let correlations = fitted.canonical_correlations().unwrap();
         assert_eq!(correlations.len(), 1);
         assert!(correlations[0] >= -1.0 && correlations[0] <= 1.0);
     }
@@ -1620,16 +1814,16 @@ mod tests {
         let fitted = sparse_cca.fit(&x, &y).unwrap();
 
         // Check sparsity
-        let x_sparsity = fitted.x_sparsity();
-        let y_sparsity = fitted.y_sparsity();
+        let x_sparsity = fitted.x_sparsity().unwrap();
+        let y_sparsity = fitted.y_sparsity().unwrap();
 
         // With high regularization, we should have fewer non-zero weights
         assert!(x_sparsity <= 4); // Should be less than total features
         assert!(y_sparsity <= 2); // Should be less than total features
 
         // Weights should be finite
-        let x_weights = fitted.x_weights();
-        let y_weights = fitted.y_weights();
+        let x_weights = fitted.x_weights().unwrap();
+        let y_weights = fitted.y_weights().unwrap();
 
         for val in x_weights.iter() {
             assert!(val.is_finite());
@@ -1653,14 +1847,14 @@ mod tests {
         // Low regularization
         let sparse_cca_low = SparseCCA::new(1, 0.01, 0.01);
         let fitted_low = sparse_cca_low.fit(&x, &y).unwrap();
-        let sparsity_low_x = fitted_low.x_sparsity();
-        let sparsity_low_y = fitted_low.y_sparsity();
+        let sparsity_low_x = fitted_low.x_sparsity().unwrap();
+        let sparsity_low_y = fitted_low.y_sparsity().unwrap();
 
         // High regularization
         let sparse_cca_high = SparseCCA::new(1, 0.5, 0.5);
         let fitted_high = sparse_cca_high.fit(&x, &y).unwrap();
-        let sparsity_high_x = fitted_high.x_sparsity();
-        let sparsity_high_y = fitted_high.y_sparsity();
+        let sparsity_high_x = fitted_high.x_sparsity().unwrap();
+        let sparsity_high_y = fitted_high.y_sparsity().unwrap();
 
         // High regularization should produce more sparsity (fewer non-zero weights)
         assert!(sparsity_high_x <= sparsity_low_x);
@@ -1689,7 +1883,7 @@ mod tests {
         assert_eq!(y_canonical.shape(), &[5, 2]);
 
         // Check canonical correlations
-        let correlations = fitted.canonical_correlations();
+        let correlations = fitted.canonical_correlations().unwrap();
         assert_eq!(correlations.len(), 2);
         for &corr in correlations.iter() {
             assert!(corr >= -1.0 && corr <= 1.0);

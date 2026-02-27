@@ -222,7 +222,7 @@ pub mod generators {
         ) -> impl Strategy<Value = Array2<Float>> {
             (1..=max_samples, 1..=max_features).prop_flat_map(|(n_samples, n_features)| {
                 prop::collection::vec(-10.0..10.0, n_samples * n_features).prop_map(move |data| {
-                    Array::from_shape_vec((n_samples, n_features), data).unwrap()
+                    Array::from_shape_vec((n_samples, n_features), data).expect("valid array shape")
                 })
             })
         }
@@ -1234,7 +1234,7 @@ pub mod contract_testing {
 
             // Verify the number of unique clusters
             let mut unique_labels: Vec<Float> = labels.to_vec();
-            unique_labels.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            unique_labels.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             unique_labels.dedup();
 
             if unique_labels.len() > self.expected_n_clusters {
@@ -1460,7 +1460,7 @@ mod tests {
         let result = generators::make_regression_data(100, 5, 0.1, Some(42));
         assert!(result.is_ok());
 
-        let (x, y) = result.unwrap();
+        let (x, y) = result.expect("expected valid value");
         assert_eq!(x.shape(), &[100, 5]);
         assert_eq!(y.len(), 100);
     }
@@ -1470,7 +1470,7 @@ mod tests {
         let result = generators::make_classification_data(150, 4, 3, 1.0, Some(42));
         assert!(result.is_ok());
 
-        let (x, y) = result.unwrap();
+        let (x, y) = result.expect("expected valid value");
         assert_eq!(x.shape(), &[150, 4]);
         assert_eq!(y.len(), 150);
 
@@ -1484,19 +1484,19 @@ mod tests {
     fn test_edge_case_data() {
         use generators::EdgeCase;
 
-        let (x, y) = generators::make_edge_case_data(EdgeCase::SingleSample).unwrap();
+        let (x, y) = generators::make_edge_case_data(EdgeCase::SingleSample).expect("expected valid value");
         assert_eq!(x.shape(), &[1, 3]);
         assert_eq!(y.len(), 1);
 
-        let (x, y) = generators::make_edge_case_data(EdgeCase::SingleFeature).unwrap();
+        let (x, y) = generators::make_edge_case_data(EdgeCase::SingleFeature).expect("expected valid value");
         assert_eq!(x.shape(), &[5, 1]);
         assert_eq!(y.len(), 5);
     }
 
     #[test]
     fn test_array_assertions() {
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![1.1, 2.1, 3.1, 4.1]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
+        let b = Array2::from_shape_vec((2, 2), vec![1.1, 2.1, 3.1, 4.1]).expect("valid array shape");
 
         assert!(assertions::assert_arrays_close(&a, &b, 0.2).is_ok());
         assert!(assertions::assert_arrays_close(&a, &b, 0.05).is_err());
@@ -1504,11 +1504,11 @@ mod tests {
 
     #[test]
     fn test_probability_assertions() {
-        let probs = Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.3, 0.2, 0.5, 0.3]).unwrap();
+        let probs = Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.3, 0.2, 0.5, 0.3]).expect("valid array shape");
         assert!(assertions::assert_probabilities_valid(&probs, 1e-6).is_ok());
 
         let invalid_probs =
-            Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.4, 0.2, 0.5, 0.3]).unwrap();
+            Array2::from_shape_vec((2, 3), vec![0.3, 0.4, 0.4, 0.2, 0.5, 0.3]).expect("valid array shape");
         assert!(assertions::assert_probabilities_valid(&invalid_probs, 1e-6).is_err());
     }
 

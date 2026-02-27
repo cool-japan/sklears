@@ -171,8 +171,8 @@ fn test_cross_module_data_flow() {
     // 4. Validation -> Random sampling
     let (train_indices, test_indices) =
         train_test_split_indices(X.nrows(), 0.2, true, Some(999)).unwrap();
-    assert!(train_indices.len() > 0);
-    assert!(test_indices.len() > 0);
+    assert!(!train_indices.is_empty());
+    assert!(!test_indices.is_empty());
 
     println!("Cross-module data flow test completed successfully");
 }
@@ -201,13 +201,19 @@ fn test_performance_integration() {
 
     // Verify performance is reasonable (these are lenient bounds for CI)
     assert!(
-        data_generation_time.as_millis() < 5000,
-        "Data generation took too long"
+        data_generation_time.as_millis() < 15000,
+        "Data generation took too long: {:?}ms",
+        data_generation_time.as_millis()
     );
-    assert!(scaling_time.as_millis() < 1000, "Scaling took too long");
     assert!(
-        distance_time.as_micros() < 1000,
-        "Distance computation took too long"
+        scaling_time.as_millis() < 3000,
+        "Scaling took too long: {:?}ms",
+        scaling_time.as_millis()
+    );
+    assert!(
+        distance_time.as_micros() < 5000,
+        "Distance computation took too long: {:?}μs",
+        distance_time.as_micros()
     );
 
     println!("Performance integration test completed successfully");

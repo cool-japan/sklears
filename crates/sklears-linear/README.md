@@ -2,10 +2,10 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-linear.svg)](https://crates.io/crates/sklears-linear)
 [![Documentation](https://docs.rs/sklears-linear/badge.svg)](https://docs.rs/sklears-linear)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-High-performance linear models for Rust with 14-20x speedup (validated) over scikit-learn, featuring advanced solvers, numerical stability, and GPU acceleration.
+High-performance linear models for Rust with pure Rust implementation and ongoing performance optimization, featuring advanced solvers, numerical stability, and GPU acceleration.
 
 > **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
 
@@ -243,9 +243,7 @@ We welcome contributions! See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## License
 
-Licensed under either of:
-- Apache License, Version 2.0
-- MIT license
+Licensed under the Apache License, Version 2.0.
 
 ## Citation
 

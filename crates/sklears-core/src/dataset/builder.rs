@@ -40,8 +40,8 @@ pub struct HasTarget;
 /// use sklears_core::dataset::Dataset;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
-/// let features = Array2::`<f64>`::zeros((100, 4));
-/// let targets = Array1::`<f64>`::zeros(100);
+/// let features = Array2::<f64>::zeros((100, 4));
+/// let targets = Array1::<f64>::zeros(100);
 ///
 /// let dataset = Dataset::builder()
 ///     .data(features)
@@ -200,8 +200,8 @@ impl<X, Y> DatasetBuilder<X, Y, HasData, HasTarget> {
     /// A completed Dataset instance
     pub fn build(self) -> Dataset<X, Y> {
         Dataset {
-            data: self.data.unwrap(),     // Safe: HasData state guarantees this exists
-            target: self.target.unwrap(), // Safe: HasTarget state guarantees this exists
+            data: self.data.expect("expected valid value"), // Safe: HasData state guarantees this exists
+            target: self.target.expect("expected valid value"), // Safe: HasTarget state guarantees this exists
             feature_names: self.feature_names,
             target_names: self.target_names,
             description: self.description,
@@ -271,7 +271,14 @@ mod tests {
 
         assert_eq!(dataset.feature_names.len(), 2);
         assert!(dataset.target_names.is_some());
-        assert_eq!(dataset.target_names.as_ref().unwrap().len(), 2);
+        assert_eq!(
+            dataset
+                .target_names
+                .as_ref()
+                .expect("value should be present")
+                .len(),
+            2
+        );
         assert_eq!(dataset.description, "Complete dataset example");
     }
 }

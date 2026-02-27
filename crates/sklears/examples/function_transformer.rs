@@ -8,7 +8,7 @@
 // use sklears_core::{error::Result, traits::Transform, types::Float};
 // use sklears_preprocessing::{transforms, FunctionTransformer};
 
-/// Dummy type for when no inverse function is provided
+// Dummy type for when no inverse function is provided
 // type NoInverse = fn(&Array2<Float>) -> Result<Array2<Float>>;
 
 fn main() {

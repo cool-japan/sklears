@@ -16,6 +16,32 @@ use sklears_core::{
     types::Float,
 };
 
+/// Helper function to safely compute mean of an Array1
+#[inline]
+fn safe_mean_1d(arr: &Array1<Float>) -> Result<Float> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean of array".to_string()))
+}
+
+/// Helper function to safely compute mean along axis
+#[inline]
+fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
+/// Helper function to safely create Normal distribution
+#[inline]
+fn safe_normal(mean: f64, std_dev: f64) -> Result<Normal<f64>> {
+    Normal::new(mean, std_dev).map_err(|e| {
+        SklearsError::InvalidInput(format!(
+            "Invalid Normal distribution parameters: mean={}, std_dev={}, error: {}",
+            mean, std_dev, e
+        ))
+    })
+}
+
 /// Helper function to calculate determinant of a matrix using LU decomposition
 fn matrix_determinant(matrix: &Array2<f64>) -> Result<f64> {
     if matrix.nrows() != matrix.ncols() {
@@ -306,8 +332,8 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianRidge<Untrained> {
 
         // Center data if fitting intercept
         let (x_centered, y_centered, x_mean, y_mean) = if self.config.fit_intercept {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
-            let y_mean = y.mean().unwrap();
+            let x_mean = safe_mean_axis(x, Axis(0))?;
+            let y_mean = safe_mean_1d(y)?;
             let x_centered = x - &x_mean;
             let y_centered = y - y_mean;
             (x_centered, y_centered, Some(x_mean), Some(y_mean))
@@ -404,8 +430,16 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianRidge<Untrained> {
 
         // Compute intercept if needed
         let intercept = if self.config.fit_intercept {
-            let x_mean = x_mean.unwrap();
-            let y_mean = y_mean.unwrap();
+            let x_mean = x_mean.ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "X mean should be available when fit_intercept is true".to_string(),
+                )
+            })?;
+            let y_mean = y_mean.ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "Y mean should be available when fit_intercept is true".to_string(),
+                )
+            })?;
             Some(y_mean - x_mean.dot(&coef))
         } else {
             None
@@ -441,8 +475,8 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
 
         // Center data if fitting intercept
         let (x_centered, y_centered, x_mean, y_mean) = if self.config.fit_intercept {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
-            let y_mean = y.mean().unwrap();
+            let x_mean = safe_mean_axis(x, Axis(0))?;
+            let y_mean = safe_mean_1d(y)?;
             let x_centered = x - &x_mean;
             let y_centered = y - y_mean;
             (x_centered, y_centered, Some(x_mean), Some(y_mean))
@@ -585,8 +619,16 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
 
         // Compute intercept if needed
         let intercept = if self.config.fit_intercept {
-            let x_mean = x_mean.unwrap();
-            let y_mean = y_mean.unwrap();
+            let x_mean = x_mean.ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "X mean should be available when fit_intercept is true".to_string(),
+                )
+            })?;
+            let y_mean = y_mean.ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "Y mean should be available when fit_intercept is true".to_string(),
+                )
+            })?;
             Some(y_mean - x_mean.dot(&coef))
         } else {
             None
@@ -614,8 +656,10 @@ impl Fit<Array2<Float>, Array1<Float>> for ARDRegression<Untrained> {
 // Implement methods for trained models
 impl BayesianRidge<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().expect("Model is trained")
+    pub fn coef(&self) -> Result<&Array1<Float>> {
+        self.coef_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "coef".to_string(),
+        })
     }
 
     /// Get the intercept
@@ -624,18 +668,24 @@ impl BayesianRidge<Trained> {
     }
 
     /// Get the precision of weights
-    pub fn alpha(&self) -> Float {
-        self.alpha_.expect("Model is trained")
+    pub fn alpha(&self) -> Result<Float> {
+        self.alpha_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "alpha".to_string(),
+        })
     }
 
     /// Get the precision of noise
-    pub fn lambda(&self) -> Float {
-        self.lambda_.expect("Model is trained")
+    pub fn lambda(&self) -> Result<Float> {
+        self.lambda_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "lambda".to_string(),
+        })
     }
 
     /// Get the posterior covariance matrix
-    pub fn sigma(&self) -> &Array2<Float> {
-        self.sigma_.as_ref().expect("Model is trained")
+    pub fn sigma(&self) -> Result<&Array2<Float>> {
+        self.sigma_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "sigma".to_string(),
+        })
     }
 
     /// Get the log marginal likelihood scores
@@ -646,8 +696,10 @@ impl BayesianRidge<Trained> {
 
 impl ARDRegression<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().expect("Model is trained")
+    pub fn coef(&self) -> Result<&Array1<Float>> {
+        self.coef_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "coef".to_string(),
+        })
     }
 
     /// Get the intercept
@@ -656,33 +708,39 @@ impl ARDRegression<Trained> {
     }
 
     /// Get the per-feature precision values
-    pub fn alpha(&self) -> &Array1<Float> {
-        self.alpha_.as_ref().expect("Model is trained")
+    pub fn alpha(&self) -> Result<&Array1<Float>> {
+        self.alpha_.as_ref().ok_or_else(|| SklearsError::NotFitted {
+            operation: "alpha".to_string(),
+        })
     }
 
     /// Get the precision of noise
-    pub fn lambda(&self) -> Float {
-        self.lambda_.expect("Model is trained")
+    pub fn lambda(&self) -> Result<Float> {
+        self.lambda_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "lambda".to_string(),
+        })
     }
 
     /// Get indices of relevant features (low alpha)
-    pub fn relevant_features(&self) -> Vec<usize> {
-        let alpha = self.alpha_.as_ref().expect("Model is trained");
-        alpha
+    pub fn relevant_features(&self) -> Result<Vec<usize>> {
+        let alpha = self.alpha()?;
+        Ok(alpha
             .iter()
             .enumerate()
             .filter(|(_, &a)| a < self.config.threshold_alpha)
             .map(|(i, _)| i)
-            .collect()
+            .collect())
     }
 }
 
 impl Predict<Array2<Float>, Array1<Float>> for BayesianRidge<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
         validate::check_n_features(x, n_features)?;
 
-        let coef = self.coef_.as_ref().expect("Model is trained");
+        let coef = self.coef()?;
         let mut predictions = x.dot(coef);
 
         if let Some(intercept) = self.intercept_ {
@@ -695,10 +753,12 @@ impl Predict<Array2<Float>, Array1<Float>> for BayesianRidge<Trained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for ARDRegression<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
         validate::check_n_features(x, n_features)?;
 
-        let coef = self.coef_.as_ref().expect("Model is trained");
+        let coef = self.coef()?;
         let mut predictions = x.dot(coef);
 
         if let Some(intercept) = self.intercept_ {
@@ -716,7 +776,7 @@ impl Score<Array2<Float>, Array1<Float>> for BayesianRidge<Trained> {
         let predictions = self.predict(x)?;
 
         // Compute R² score
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean_1d(y)?;
         let ss_tot = y.iter().map(|&yi| (yi - y_mean).powi(2)).sum::<Float>();
 
         let ss_res = predictions
@@ -736,7 +796,7 @@ impl Score<Array2<Float>, Array1<Float>> for ARDRegression<Trained> {
         let predictions = self.predict(x)?;
 
         // Compute R² score
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean_1d(y)?;
         let ss_tot = y.iter().map(|&yi| (yi - y_mean).powi(2)).sum::<Float>();
 
         let ss_res = predictions
@@ -889,13 +949,21 @@ impl Default for VariationalBayesianRegression<Untrained> {
 
 impl VariationalBayesianRegression<Trained> {
     /// Get the posterior mean of coefficients
-    pub fn coef_mean(&self) -> &Array1<Float> {
-        self.coef_mean_.as_ref().unwrap()
+    pub fn coef_mean(&self) -> Result<&Array1<Float>> {
+        self.coef_mean_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "coef_mean".to_string(),
+            })
     }
 
     /// Get the posterior covariance of coefficients
-    pub fn coef_cov(&self) -> &Array2<Float> {
-        self.coef_cov_.as_ref().unwrap()
+    pub fn coef_cov(&self) -> Result<&Array2<Float>> {
+        self.coef_cov_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "coef_cov".to_string(),
+            })
     }
 
     /// Get the intercept
@@ -904,13 +972,17 @@ impl VariationalBayesianRegression<Trained> {
     }
 
     /// Get the posterior precision of weights
-    pub fn alpha(&self) -> Float {
-        self.alpha_.unwrap()
+    pub fn alpha(&self) -> Result<Float> {
+        self.alpha_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "alpha".to_string(),
+        })
     }
 
     /// Get the posterior precision of noise
-    pub fn beta(&self) -> Float {
-        self.beta_.unwrap()
+    pub fn beta(&self) -> Result<Float> {
+        self.beta_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "beta".to_string(),
+        })
     }
 
     /// Get the ELBO history
@@ -919,8 +991,10 @@ impl VariationalBayesianRegression<Trained> {
     }
 
     /// Get number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "n_iter".to_string(),
+        })
     }
 
     /// Predict with uncertainty quantification
@@ -928,12 +1002,14 @@ impl VariationalBayesianRegression<Trained> {
         &self,
         x: &Array2<Float>,
     ) -> Result<(Array1<Float>, Array1<Float>)> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict_with_uncertainty".to_string(),
+        })?;
         validate::check_n_features(x, n_features)?;
 
-        let coef_mean = self.coef_mean();
-        let coef_cov = self.coef_cov();
-        let beta = self.beta();
+        let coef_mean = self.coef_mean()?;
+        let coef_cov = self.coef_cov()?;
+        let beta = self.beta()?;
 
         // Mean prediction
         let mut y_mean = x.dot(coef_mean);
@@ -962,12 +1038,14 @@ impl VariationalBayesianRegression<Trained> {
         n_samples: usize,
         rng: &mut impl Rng,
     ) -> Result<Array2<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "sample_predictions".to_string(),
+        })?;
         validate::check_n_features(x, n_features)?;
 
-        let coef_mean = self.coef_mean();
-        let coef_cov = self.coef_cov();
-        let beta = self.beta();
+        let coef_mean = self.coef_mean()?;
+        let coef_cov = self.coef_cov()?;
+        let beta = self.beta()?;
 
         // Sample coefficients from posterior
         let mut samples = Array2::zeros((n_samples, x.nrows()));
@@ -984,8 +1062,9 @@ impl VariationalBayesianRegression<Trained> {
 
             // Add noise
             let noise_std = (1.0 / beta).sqrt();
+            let noise_dist = safe_normal(0.0, noise_std)?;
             for j in 0..y_pred.len() {
-                let noise = Normal::new(0.0, noise_std).unwrap().sample(rng);
+                let noise = noise_dist.sample(rng);
                 y_pred[j] += noise;
             }
 
@@ -1031,8 +1110,8 @@ impl Fit<Array2<Float>, Array1<Float>> for VariationalBayesianRegression<Untrain
 
         // Center data if fitting intercept
         let (x_centered, y_centered, x_mean, y_mean) = if self.config.fit_intercept {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
-            let y_mean = y.mean().unwrap();
+            let x_mean = safe_mean_axis(x, Axis(0))?;
+            let y_mean = safe_mean_1d(y)?;
             let x_centered = x - &x_mean.view().insert_axis(Axis(0));
             let y_centered = y - y_mean;
             (x_centered, y_centered, Some(x_mean), Some(y_mean))
@@ -1114,7 +1193,17 @@ impl Fit<Array2<Float>, Array1<Float>> for VariationalBayesianRegression<Untrain
 
         // Compute intercept
         let intercept = if self.config.fit_intercept {
-            y_mean.unwrap() - mu_n.dot(&x_mean.unwrap())
+            let x_mean_val = x_mean.ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "X mean should be available when fit_intercept is true".to_string(),
+                )
+            })?;
+            let y_mean_val = y_mean.ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "Y mean should be available when fit_intercept is true".to_string(),
+                )
+            })?;
+            y_mean_val - mu_n.dot(&x_mean_val)
         } else {
             0.0
         };
@@ -1144,10 +1233,12 @@ impl Fit<Array2<Float>, Array1<Float>> for VariationalBayesianRegression<Untrain
 
 impl Predict<Array2<Float>, Array1<Float>> for VariationalBayesianRegression<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "predict".to_string(),
+        })?;
         validate::check_n_features(x, n_features)?;
 
-        let coef = self.coef_mean();
+        let coef = self.coef_mean()?;
         let mut predictions = x.dot(coef);
 
         if self.config.fit_intercept {
@@ -1165,7 +1256,7 @@ impl Score<Array2<Float>, Array1<Float>> for VariationalBayesianRegression<Train
         let predictions = self.predict(x)?;
 
         // Compute R² score
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean_1d(y)?;
         let ss_tot = y.iter().map(|&yi| (yi - y_mean).powi(2)).sum::<Float>();
 
         let ss_res = predictions
@@ -1344,7 +1435,7 @@ fn sample_multivariate_normal(
 
     // Sample from standard normal
     let mut z = Array1::zeros(n);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = safe_normal(0.0, 1.0)?;
     for i in 0..n {
         z[i] = normal.sample(rng);
     }
@@ -1411,7 +1502,7 @@ mod tests {
 
         let model = BayesianRidge::new().fit(&x, &y).unwrap();
 
-        let coef = model.coef();
+        let coef = model.coef().unwrap();
         assert_abs_diff_eq!(coef[0], 0.0, epsilon = 0.1);
         assert_abs_diff_eq!(coef[1], 1.0, epsilon = 0.1);
 
@@ -1434,8 +1525,8 @@ mod tests {
 
         let model = ARDRegression::new().fit(&x, &y).unwrap();
 
-        let coef = model.coef();
-        let alpha = model.alpha();
+        let coef = model.coef().unwrap();
+        let alpha = model.alpha().unwrap();
 
         // First coefficient should be close to 2
         assert_abs_diff_eq!(coef[0], 2.0, epsilon = 0.1);
@@ -1445,7 +1536,7 @@ mod tests {
         assert!(alpha[2] > alpha[0] * 100.0);
 
         // Check relevant features
-        let relevant = model.relevant_features();
+        let relevant = model.relevant_features().unwrap();
         assert!(relevant.contains(&0));
     }
 
@@ -1461,7 +1552,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let coef_mean = model.coef_mean();
+        let coef_mean = model.coef_mean().unwrap();
         assert_abs_diff_eq!(coef_mean[0], 0.0, epsilon = 0.2);
         assert_abs_diff_eq!(coef_mean[1], 1.0, epsilon = 0.2);
 
@@ -1495,7 +1586,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let coef_mean = model.coef_mean();
+        let coef_mean = model.coef_mean().unwrap();
         assert_abs_diff_eq!(coef_mean[0], 2.0, epsilon = 0.1);
         assert_abs_diff_eq!(model.intercept(), 0.0, epsilon = 1e-10);
     }
@@ -1547,8 +1638,8 @@ mod tests {
             .unwrap();
 
         // Models with different priors should give different results
-        let coef1 = model1.coef_mean();
-        let coef2 = model2.coef_mean();
+        let coef1 = model1.coef_mean().unwrap();
+        let coef2 = model2.coef_mean().unwrap();
 
         // Results should be different but both reasonable
         assert!(coef1

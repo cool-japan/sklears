@@ -227,7 +227,7 @@ mod tests {
         // Calibrated probabilities should be valid
         for &prob in calibrated.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} out of bounds",
                 prob
             );
@@ -296,7 +296,7 @@ mod tests {
 
         // Should handle empty bins gracefully
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

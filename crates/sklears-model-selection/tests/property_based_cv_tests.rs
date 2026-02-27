@@ -9,7 +9,6 @@ use sklears_model_selection::{CrossValidator, KFold};
 /// 2. All indices are used exactly once when combining all folds
 /// 3. Each fold produces valid train/test splits
 /// 4. Fold sizes are reasonably balanced (for standard CV methods)
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod property_tests {

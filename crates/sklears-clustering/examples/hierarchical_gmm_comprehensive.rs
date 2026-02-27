@@ -70,10 +70,10 @@ fn example_hierarchical_clustering() {
             println!("Agglomerative Clustering: Successfully fitted");
 
             // Count samples per cluster
-            let mut cluster_counts = vec![0; 4];
+            let mut cluster_counts = [0usize; 4];
             for &label in labels.iter() {
-                if (label as usize) < 4 {
-                    cluster_counts[label as usize] += 1;
+                if label < 4 {
+                    cluster_counts[label] += 1;
                 }
             }
 
@@ -126,7 +126,7 @@ fn example_basic_gmm() {
 
                     // Get hard cluster assignments (argmax of probabilities)
                     println!("\nCluster assignments:");
-                    let mut cluster_counts = vec![0; 3];
+                    let mut cluster_counts = [0usize; 3];
                     for i in 0..probas.nrows() {
                         let mut max_prob = 0.0;
                         let mut max_idx = 0;
@@ -278,10 +278,10 @@ fn example_algorithm_comparison() {
     match hierarchical.fit(&data, &()) {
         Ok(fitted) => {
             let labels = fitted.labels();
-            let mut cluster_counts = vec![0; 3];
+            let mut cluster_counts = [0usize; 3];
             for &label in labels.iter() {
-                if (label as usize) < 3 {
-                    cluster_counts[label as usize] += 1;
+                if label < 3 {
+                    cluster_counts[label] += 1;
                 }
             }
             println!("  Hierarchical: Cluster sizes = {:?}", cluster_counts);
@@ -298,7 +298,7 @@ fn example_algorithm_comparison() {
     match gmm.fit(&data.view(), &dummy_labels.view()) {
         Ok(fitted) => {
             if let Ok(probas) = fitted.predict_proba(&data.view()) {
-                let mut cluster_counts = vec![0; 3];
+                let mut cluster_counts = [0usize; 3];
                 for i in 0..probas.nrows() {
                     let mut max_prob = 0.0;
                     let mut max_idx = 0;

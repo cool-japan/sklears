@@ -4,7 +4,7 @@
 
 Create a production-ready machine learning library in Rust that:
 - Maintains API compatibility with scikit-learn for easy migration
-- Achieves 14-20x performance improvements (validated) through Rust optimizations
+- Provides pure Rust implementation with ongoing performance optimization
 - Provides memory safety and type safety guarantees
 - Enables deployment without Python runtime dependencies
 - Leverages SciRS2's scientific computing capabilities
@@ -56,7 +56,7 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 - **Test Suite**: 11,160 tests (11,159 passing, 99.99% success rate)
 - **Code Quality**: 100% warning-free compilation
-- **Performance**: 14-20x faster than Python/NumPy (validated)
+- **Performance**: Pure Rust implementation with ongoing performance optimization
 - **Dependencies**: Pure Rust stack (OxiBLAS v0.1.2, Oxicode v0.1.1)
 - **Build Status**: ✅ 35/35 crates building successfully
 
@@ -86,7 +86,7 @@ All major scikit-learn modules are implemented with production-ready quality:
 - Fitted models have same attributes (with trailing `_`)
 
 ### Performance Targets
-- Maintain 14-20x speedup over Python implementations
+- Continuous performance optimization of Rust implementations
 - SIMD optimizations where applicable
 - GPU acceleration for large-scale operations
 - Parallel processing with Rayon

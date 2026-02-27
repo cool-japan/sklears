@@ -189,5 +189,5 @@ fn rand_normal() -> f64 {
     let z = ((-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()).abs();
 
     // Clamp to reasonable range
-    z.min(3.0).max(-3.0)
+    z.clamp(-3.0, 3.0)
 }

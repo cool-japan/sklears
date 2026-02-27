@@ -44,7 +44,7 @@ mod clustering_completeness {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(8);
+            let n_clusters = (n_samples / 4).clamp(2, 8);
             let config = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
@@ -104,7 +104,7 @@ mod clustering_completeness {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(8);
+            let n_clusters = (n_samples / 4).clamp(2, 8);
             let agg = AgglomerativeClustering::new()
                 .n_clusters(n_clusters);
 
@@ -159,7 +159,7 @@ mod clustering_stability {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(6);
+            let n_clusters = (n_samples / 4).clamp(2, 6);
             let config1 = KMeansConfig {
                 n_clusters,
                 random_seed: Some(12345),
@@ -190,7 +190,7 @@ mod clustering_stability {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 5).max(2).min(4);
+            let n_clusters = (n_samples / 5).clamp(2, 4);
             let spectral1 = SpectralClustering::<Array2<f64>, Array1<f64>>::new()
                 .n_clusters(n_clusters)
                 .random_state(42);
@@ -258,7 +258,7 @@ mod clustering_invariance {
                 }
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(6);
+            let n_clusters = (n_samples / 4).clamp(2, 6);
             let config1 = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
@@ -326,7 +326,7 @@ mod clustering_consistency {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(8);
+            let n_clusters = (n_samples / 4).clamp(2, 8);
             let config = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
@@ -351,7 +351,7 @@ mod clustering_consistency {
                 return Ok(());
             }
 
-            let n_components = (n_samples / 6).max(2).min(4);
+            let n_components = (n_samples / 6).clamp(2, 4);
             let gmm: GaussianMixture<(), ()> = GaussianMixture::new()
                 .n_components(n_components)
                 .random_state(42);
@@ -387,7 +387,7 @@ mod validation_properties {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(6);
+            let n_clusters = (n_samples / 4).clamp(2, 6);
             let config = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
@@ -399,7 +399,7 @@ mod validation_properties {
             if let Ok(fitted) = kmeans.fit(&data, &y_dummy) {
                 if let Ok(labels) = fitted.predict(&data) {
                     let validator = ClusteringValidator::euclidean();
-                    let labels_i32: Vec<i32> = labels.iter().map(|&x| x).collect();
+                    let labels_i32: Vec<i32> = labels.to_vec();
                     if let Ok(silhouette_result) = validator.silhouette_analysis(&data, &labels_i32) {
                         // Silhouette score should be between -1 and 1
                         prop_assert!(silhouette_result.mean_silhouette >= -1.0);
@@ -422,7 +422,7 @@ mod validation_properties {
                 return Ok(());
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(6);
+            let n_clusters = (n_samples / 4).clamp(2, 6);
             let config = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
@@ -434,7 +434,7 @@ mod validation_properties {
             if let Ok(fitted) = kmeans.fit(&data, &y_dummy) {
                 if let Ok(labels) = fitted.predict(&data) {
                     let validator = ClusteringValidator::euclidean();
-                    let labels_i32: Vec<i32> = labels.iter().map(|&x| x).collect();
+                    let labels_i32: Vec<i32> = labels.to_vec();
                     if let Ok(db_index) = validator.davies_bouldin_index(&data, &labels_i32) {
                         // Davies-Bouldin index should be non-negative
                         prop_assert!(db_index >= 0.0);
@@ -470,7 +470,7 @@ mod robustness_tests {
                 }
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(6);
+            let n_clusters = (n_samples / 4).clamp(2, 6);
             let config = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),
@@ -507,7 +507,7 @@ mod robustness_tests {
                 }
             }
 
-            let n_clusters = (n_samples / 4).max(2).min(6);
+            let n_clusters = (n_samples / 4).clamp(2, 6);
             let config = KMeansConfig {
                 n_clusters,
                 random_seed: Some(42),

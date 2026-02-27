@@ -320,9 +320,25 @@ impl SparseLasso<Untrained> {
 }
 
 impl SparseLasso<Trained> {
+    /// Helper method to get coefficients safely
+    fn get_coefficients(&self) -> Result<&Array1<Float>> {
+        self.coefficients_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "get_value".to_string(),
+            })
+    }
+
+    /// Helper method to get n_features safely
+    fn get_n_features(&self) -> Result<usize> {
+        self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "get_value".to_string(),
+        })
+    }
+
     /// Get the fitted coefficients
-    pub fn coefficients(&self) -> &Array1<Float> {
-        self.coefficients_.as_ref().expect("Model is trained")
+    pub fn coefficients(&self) -> Result<&Array1<Float>> {
+        self.get_coefficients()
     }
 
     /// Get the fitted intercept (if fit_intercept=true)
@@ -336,27 +352,27 @@ impl SparseLasso<Trained> {
     }
 
     /// Get number of features
-    pub fn n_features(&self) -> usize {
-        self.n_features_.expect("Model is trained")
+    pub fn n_features(&self) -> Result<usize> {
+        self.get_n_features()
     }
 
     /// Get number of non-zero coefficients
-    pub fn n_nonzero_coefficients(&self) -> usize {
-        let coeffs = self.coefficients();
-        coeffs
+    pub fn n_nonzero_coefficients(&self) -> Result<usize> {
+        let coeffs = self.get_coefficients()?;
+        Ok(coeffs
             .iter()
             .filter(|&&c| c.abs() > self.config.sparsity_threshold)
-            .count()
+            .count())
     }
 
     /// Get sparsity ratio of the fitted coefficients
-    pub fn coefficient_sparsity(&self) -> f64 {
-        let coeffs = self.coefficients();
-        let nnz = self.n_nonzero_coefficients();
+    pub fn coefficient_sparsity(&self) -> Result<f64> {
+        let coeffs = self.get_coefficients()?;
+        let nnz = self.n_nonzero_coefficients()?;
         if !coeffs.is_empty() {
-            1.0 - (nnz as f64 / coeffs.len() as f64)
+            Ok(1.0 - (nnz as f64 / coeffs.len() as f64))
         } else {
-            0.0
+            Ok(0.0)
         }
     }
 }
@@ -364,7 +380,7 @@ impl SparseLasso<Trained> {
 /// Prediction for dense inputs
 impl Predict<Array2<Float>, Array1<Float>> for SparseLasso<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.get_n_features()?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -373,7 +389,7 @@ impl Predict<Array2<Float>, Array1<Float>> for SparseLasso<Trained> {
             )));
         }
 
-        let coeffs = self.coefficients_.as_ref().expect("Model is trained");
+        let coeffs = self.get_coefficients()?;
         let mut predictions = x.dot(coeffs);
 
         if let Some(intercept) = self.intercept_ {
@@ -388,7 +404,7 @@ impl Predict<Array2<Float>, Array1<Float>> for SparseLasso<Trained> {
 #[cfg(feature = "sparse")]
 impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseLasso<Trained> {
     fn predict(&self, x: &SparseMatrixCSR<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.get_n_features()?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -397,7 +413,7 @@ impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseLasso<Trained> {
             )));
         }
 
-        let coeffs = self.coefficients_.as_ref().expect("Model is trained");
+        let coeffs = self.get_coefficients()?;
         let mut predictions = x.matvec(coeffs)?;
 
         if let Some(intercept) = self.intercept_ {
@@ -720,9 +736,25 @@ impl SparseElasticNet<Untrained> {
 }
 
 impl SparseElasticNet<Trained> {
+    /// Helper method to get coefficients safely
+    fn get_coefficients(&self) -> Result<&Array1<Float>> {
+        self.coefficients_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "get_value".to_string(),
+            })
+    }
+
+    /// Helper method to get n_features safely
+    fn get_n_features(&self) -> Result<usize> {
+        self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "get_value".to_string(),
+        })
+    }
+
     /// Get the fitted coefficients
-    pub fn coefficients(&self) -> &Array1<Float> {
-        self.coefficients_.as_ref().expect("Model is trained")
+    pub fn coefficients(&self) -> Result<&Array1<Float>> {
+        self.get_coefficients()
     }
 
     /// Get the fitted intercept (if fit_intercept=true)
@@ -736,27 +768,27 @@ impl SparseElasticNet<Trained> {
     }
 
     /// Get number of features
-    pub fn n_features(&self) -> usize {
-        self.n_features_.expect("Model is trained")
+    pub fn n_features(&self) -> Result<usize> {
+        self.get_n_features()
     }
 
     /// Get number of non-zero coefficients
-    pub fn n_nonzero_coefficients(&self) -> usize {
-        let coeffs = self.coefficients();
-        coeffs
+    pub fn n_nonzero_coefficients(&self) -> Result<usize> {
+        let coeffs = self.get_coefficients()?;
+        Ok(coeffs
             .iter()
             .filter(|&&c| c.abs() > self.config.sparsity_threshold)
-            .count()
+            .count())
     }
 
     /// Get sparsity ratio of the fitted coefficients
-    pub fn coefficient_sparsity(&self) -> f64 {
-        let coeffs = self.coefficients();
-        let nnz = self.n_nonzero_coefficients();
+    pub fn coefficient_sparsity(&self) -> Result<f64> {
+        let coeffs = self.get_coefficients()?;
+        let nnz = self.n_nonzero_coefficients()?;
         if !coeffs.is_empty() {
-            1.0 - (nnz as f64 / coeffs.len() as f64)
+            Ok(1.0 - (nnz as f64 / coeffs.len() as f64))
         } else {
-            0.0
+            Ok(0.0)
         }
     }
 }
@@ -764,7 +796,7 @@ impl SparseElasticNet<Trained> {
 /// Prediction for dense inputs
 impl Predict<Array2<Float>, Array1<Float>> for SparseElasticNet<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.get_n_features()?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -773,7 +805,7 @@ impl Predict<Array2<Float>, Array1<Float>> for SparseElasticNet<Trained> {
             )));
         }
 
-        let coeffs = self.coefficients_.as_ref().expect("Model is trained");
+        let coeffs = self.get_coefficients()?;
         let mut predictions = x.dot(coeffs);
 
         if let Some(intercept) = self.intercept_ {
@@ -788,7 +820,7 @@ impl Predict<Array2<Float>, Array1<Float>> for SparseElasticNet<Trained> {
 #[cfg(feature = "sparse")]
 impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseElasticNet<Trained> {
     fn predict(&self, x: &SparseMatrixCSR<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.get_n_features()?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -797,7 +829,7 @@ impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseElasticNet<Trained
             )));
         }
 
-        let coeffs = self.coefficients_.as_ref().expect("Model is trained");
+        let coeffs = self.get_coefficients()?;
         let mut predictions = x.matvec(coeffs)?;
 
         if let Some(intercept) = self.intercept_ {
@@ -824,7 +856,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let coeffs = model.coefficients();
+        let coeffs = model.coefficients().unwrap();
         assert_eq!(coeffs.len(), 2);
 
         // Test prediction
@@ -832,8 +864,8 @@ mod tests {
         assert_eq!(y_pred.len(), 4);
 
         // Check sparsity
-        let sparsity = model.coefficient_sparsity();
-        assert!(sparsity >= 0.0 && sparsity <= 1.0);
+        let sparsity = model.coefficient_sparsity().unwrap();
+        assert!((0.0..=1.0).contains(&sparsity));
     }
 
     #[test]
@@ -853,8 +885,8 @@ mod tests {
         let model = SparseLasso::new(0.1).fit(&x_sparse, &y).unwrap();
 
         assert!(model.is_sparse_fitted());
-        assert_eq!(model.n_features(), 2);
-        assert!(model.n_nonzero_coefficients() <= 2);
+        assert_eq!(model.n_features().unwrap(), 2);
+        assert!(model.n_nonzero_coefficients().unwrap() <= 2);
 
         // Test sparse prediction
         let y_pred = model.predict(&x_sparse).unwrap();
@@ -871,7 +903,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let coeffs = model.coefficients();
+        let coeffs = model.coefficients().unwrap();
         assert_eq!(coeffs.len(), 2);
 
         // ElasticNet should find a solution
@@ -886,13 +918,17 @@ mod tests {
         let valid_config = SparseElasticNetConfig::default();
         assert!(valid_config.validate().is_ok());
 
-        let mut invalid_config = SparseElasticNetConfig::default();
-        invalid_config.l1_ratio = 1.5;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_l1 = SparseElasticNetConfig {
+            l1_ratio: 1.5,
+            ..SparseElasticNetConfig::default()
+        };
+        assert!(invalid_config_l1.validate().is_err());
 
-        let mut invalid_config = SparseElasticNetConfig::default();
-        invalid_config.alpha = -1.0;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_alpha = SparseElasticNetConfig {
+            alpha: -1.0,
+            ..SparseElasticNetConfig::default()
+        };
+        assert!(invalid_config_alpha.validate().is_err());
     }
 
     #[test]
@@ -911,10 +947,10 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let coeffs = model.coefficients();
+        let coeffs = model.coefficients().unwrap();
 
         // Should have induced sparsity (some coefficients should be zero or very small)
-        let nnz = model.n_nonzero_coefficients();
+        let nnz = model.n_nonzero_coefficients().unwrap();
         assert!(nnz < coeffs.len(), "Lasso should induce sparsity");
 
         // The second feature should be zero or very small (it was always zero in data)
@@ -936,8 +972,8 @@ mod tests {
         let ridge_model = SparseElasticNet::new(0.1, 0.0).fit(&x, &y).unwrap();
 
         // Both should converge to reasonable solutions
-        assert!(lasso_model.coefficients()[0].abs() > 1e-6);
-        assert!(ridge_model.coefficients()[0].abs() > 1e-6);
+        assert!(lasso_model.coefficients().unwrap()[0].abs() > 1e-6);
+        assert!(ridge_model.coefficients().unwrap()[0].abs() > 1e-6);
     }
 }
 

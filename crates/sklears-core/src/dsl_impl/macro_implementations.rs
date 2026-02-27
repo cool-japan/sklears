@@ -29,7 +29,7 @@ use proc_macro2::TokenStream;
 /// ml_pipeline! {
 ///     name: "text_classification_pipeline",
 ///     input: DataFrame,
-///     output: `Vec<String>`,
+///     output: Vec<String>,
 ///     stages: [
 ///         preprocess {
 ///             tokenize,

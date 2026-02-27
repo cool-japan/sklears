@@ -417,7 +417,9 @@ impl AdaBoostClassifier<Untrained> {
             for i in 0..n_samples {
                 total_weight += sample_weights[i];
                 // Find the true class index
-                let true_class_idx = classes.iter().position(|&c| c == y[i]).unwrap();
+                let true_class_idx = classes.iter().position(|&c| c == y[i]).ok_or_else(|| {
+                    SklearsError::InvalidInput(format!("Class {} not found in classes array", y[i]))
+                })?;
                 // Error is 1 - probability of true class
                 weighted_error += sample_weights[i] * (1.0 - class_probs[[i, true_class_idx]]);
             }
@@ -574,7 +576,9 @@ impl AdaBoostClassifier<Untrained> {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| {
+                    a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = classes[max_idx];
@@ -971,7 +975,9 @@ impl AdaBoostClassifier<Untrained> {
                 .map(|(i, &margin)| (i, margin))
                 .collect();
 
-            margin_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            margin_indices.sort_by(|a, b| {
+                a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             // Select bottom percentage of samples by margin
             let corrective_ratio = 0.5; // Focus on worst 50% of samples
@@ -1466,7 +1472,9 @@ impl TrainedAdaBoostClassifier {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| {
+                    a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = self.classes[max_idx];

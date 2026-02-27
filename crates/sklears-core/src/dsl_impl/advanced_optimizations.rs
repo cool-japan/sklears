@@ -575,7 +575,9 @@ mod tests {
         let mut optimizer = AdvancedPipelineOptimizer::new();
         let pipeline = "transform -> scale -> classify";
 
-        let result = optimizer.optimize_pipeline(pipeline).unwrap();
+        let result = optimizer
+            .optimize_pipeline(pipeline)
+            .expect("optimize_pipeline should succeed");
 
         assert!(result.estimated_speedup > 1.0);
         assert!(!result.applied_optimizations.is_empty());
@@ -587,7 +589,9 @@ mod tests {
         let optimizer = AdvancedPipelineOptimizer::new();
         let pipeline = "op1 -> op2 -> op3";
 
-        let (optimized, pass) = optimizer.apply_operator_fusion(pipeline).unwrap();
+        let (optimized, pass) = optimizer
+            .apply_operator_fusion(pipeline)
+            .expect("apply_operator_fusion should succeed");
 
         assert!(optimized.contains("FUSED"));
         assert_eq!(pass.name, "Operator Fusion");
@@ -610,8 +614,12 @@ mod tests {
         let mut optimizer = AdvancedPipelineOptimizer::new();
         let pipeline = "test pipeline";
 
-        let result1 = optimizer.optimize_pipeline(pipeline).unwrap();
-        let result2 = optimizer.optimize_pipeline(pipeline).unwrap();
+        let result1 = optimizer
+            .optimize_pipeline(pipeline)
+            .expect("optimize_pipeline should succeed");
+        let result2 = optimizer
+            .optimize_pipeline(pipeline)
+            .expect("optimize_pipeline should succeed");
 
         assert_eq!(result1.optimized_pipeline, result2.optimized_pipeline);
         let (cache_entries, _) = optimizer.cache_stats();
@@ -620,11 +628,15 @@ mod tests {
 
     #[test]
     fn test_platform_specific_optimization() {
-        let mut config = OptimizerConfig::default();
-        config.target_platform = ExecutionPlatform::GPU;
+        let config = OptimizerConfig {
+            target_platform: ExecutionPlatform::GPU,
+            ..Default::default()
+        };
 
         let mut optimizer = AdvancedPipelineOptimizer::with_config(config);
-        let result = optimizer.optimize_pipeline("gpu pipeline").unwrap();
+        let result = optimizer
+            .optimize_pipeline("gpu pipeline")
+            .expect("optimize_pipeline should succeed");
 
         assert!(result
             .metadata
@@ -635,8 +647,10 @@ mod tests {
 
     #[test]
     fn test_memory_budget_optimization() {
-        let mut config = OptimizerConfig::default();
-        config.memory_budget = Some(512 * 1024 * 1024); // 512MB
+        let config = OptimizerConfig {
+            memory_budget: Some(512 * 1024 * 1024), // 512MB
+            ..Default::default()
+        };
 
         let optimizer = AdvancedPipelineOptimizer::with_config(config);
         assert_eq!(optimizer.config.memory_budget, Some(512 * 1024 * 1024));
@@ -658,7 +672,9 @@ mod tests {
     #[test]
     fn test_cache_clearing() {
         let mut optimizer = AdvancedPipelineOptimizer::new();
-        optimizer.optimize_pipeline("test").unwrap();
+        optimizer
+            .optimize_pipeline("test")
+            .expect("optimize_pipeline should succeed");
 
         let (count_before, _) = optimizer.cache_stats();
         assert_eq!(count_before, 1);
@@ -673,7 +689,9 @@ mod tests {
         let optimizer = AdvancedPipelineOptimizer::new();
         let pipeline = "parallel_operation";
 
-        let (optimized, pass) = optimizer.apply_auto_parallelization(pipeline).unwrap();
+        let (optimized, pass) = optimizer
+            .apply_auto_parallelization(pipeline)
+            .expect("apply_auto_parallelization should succeed");
 
         assert!(optimized.contains("PARALLEL"));
         assert_eq!(pass.name, "Auto Parallelization");

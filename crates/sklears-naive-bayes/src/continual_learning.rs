@@ -786,11 +786,9 @@ where
                     .unwrap_or_else(|| T::one() / NumCast::from(2.0).unwrap_or_else(T::one))
                     * (diff * diff / var
                         + Float::ln(var)
-                        + Float::ln(
-                            NumCast::from(2.0 * std::f64::consts::PI).unwrap_or_else(|| {
-                                NumCast::from(std::f64::consts::TAU).unwrap_or_else(T::one)
-                            }),
-                        ));
+                        + Float::ln(NumCast::from(2.0 * std::f64::consts::PI).unwrap_or_else(
+                            || NumCast::from(std::f64::consts::TAU).unwrap_or_else(T::one),
+                        )));
                 log_prob = log_prob + gaussian_ll;
             }
 

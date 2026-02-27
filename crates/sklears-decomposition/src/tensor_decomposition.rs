@@ -5,11 +5,10 @@
 //! - Tucker decomposition for multilinear algebra applications
 //! - Higher-order SVD for tensor dimensionality reduction
 
-// TODO: Replace with scirs2-linalg
-// use nalgebra::{DMatrix, DVector};
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::{Rng, thread_rng, Random};
+use scirs2_linalg::compat::{svd, ArrayLinalgExt};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::traits::Fit;
@@ -521,42 +520,30 @@ impl CPDecomposition<Untrained> {
 
     /// Solve linear system using pseudoinverse
     fn solve_linear_system(&self, a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>> {
-        // Convert to nalgebra for SVD
-        // Collect values manually to ensure we can handle any array layout
-        let a_vec: Vec<f64> = a.iter().cloned().collect();
-        let b_vec: Vec<f64> = b.iter().cloned().collect();
-        let a_na = DMatrix::from_row_slice(a.nrows(), a.ncols(), &a_vec);
-        let b_na = DMatrix::from_row_slice(b.nrows(), b.ncols(), &b_vec);
+        // Compute pseudoinverse using SVD from scirs2-linalg
+        let (u, s, vt) = svd(&a.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })?;
 
-        // Compute pseudoinverse using SVD
-        let svd = a_na.svd(true);
         let tolerance = 1e-12;
 
-        let u = svd
-            .u
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let v_t = svd
-            .v_t
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let singular_values = svd.singular_values;
-
-        // Compute pseudoinverse
-        let mut s_inv = nalgebra::DMatrix::zeros(singular_values.len(), singular_values.len());
-        for i in 0..singular_values.len() {
-            if singular_values[i] > tolerance {
-                s_inv[(i, i)] = 1.0 / singular_values[i];
+        // Create diagonal inverse matrix S^+
+        let k = s.len();
+        let mut s_inv = Array2::zeros((k, k));
+        for i in 0..k {
+            if s[i] > tolerance {
+                s_inv[[i, i]] = 1.0 / s[i];
             }
         }
 
-        let a_pinv = v_t.transpose() * s_inv * u.transpose();
-        let result_na = a_pinv * b_na;
+        // Compute pseudoinverse: A^+ = V * S^+ * U^T
+        let vt_t = vt.t();
+        let u_t = u.t();
+        let temp = s_inv.dot(&u_t);
+        let a_pinv = vt_t.dot(&temp);
 
-        // Convert back to ndarray
-        let result_vec: Vec<f64> = result_na.iter().cloned().collect();
-        let result = Array2::from_shape_vec((result_na.nrows(), result_na.ncols()), result_vec)
-            .map_err(|_| {
-                SklearsError::NumericalError("Failed to create result array".to_string())
-            })?;
+        // Compute result: A^+ * b
+        let result = a_pinv.dot(b);
 
         Ok(result)
     }
@@ -905,32 +892,13 @@ impl TuckerDecomposition<Untrained> {
 
     /// Compute SVD of a matrix
     fn compute_svd(&self, matrix: &Array2<f64>) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>)> {
-        // Convert to nalgebra for SVD
-        let matrix_vec: Vec<f64> = matrix.iter().cloned().collect();
-        let na_matrix = DMatrix::from_row_slice(matrix.nrows(), matrix.ncols(), &matrix_vec);
-        let svd = na_matrix.svd(true);
+        // Use scirs2-linalg SVD - returns (U, S, V^T)
+        let (u, s, vt) = svd(&matrix.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })?;
 
-        let u = svd
-            .u
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let v_t = svd
-            .v_t
-            .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-        let s = svd.singular_values;
-
-        // Convert back to ndarray
-        let u_vec: Vec<f64> = u.iter().cloned().collect();
-        let u_nd = Array2::from_shape_vec((u.nrows(), u.ncols()), u_vec)
-            .map_err(|_| SklearsError::NumericalError("Failed to create U matrix".to_string()))?;
-
-        let v_vec: Vec<f64> = v_t.iter().cloned().collect();
-        let v_nd = Array2::from_shape_vec((v_t.nrows(), v_t.ncols()), v_vec)
-            .map_err(|_| SklearsError::NumericalError("Failed to create V matrix".to_string()))?;
-
-        let s_vec: Vec<f64> = s.iter().cloned().collect();
-        let s_nd = Array1::from_vec(s_vec);
-
-        Ok((u_nd, v_nd.t().to_owned(), s_nd))
+        // This function expects (U, V^T, S) order
+        Ok((u, vt, s))
     }
 
     /// Compute core tensor
@@ -1055,62 +1023,45 @@ impl TuckerDecomposition<Untrained> {
 
     /// Solve linear system for Tucker decomposition
     fn solve_linear_system_tucker(&self, a: &Array2<f64>, b: &Array2<f64>) -> Result<Array2<f64>> {
-        // Convert arrays to contiguous standard layout
-        let a_std = if a.is_standard_layout() {
-            a.to_owned()
-        } else {
-            a.as_standard_layout().to_owned()
-        };
-
-        let b_std = if b.is_standard_layout() {
-            b.to_owned()
-        } else {
-            b.as_standard_layout().to_owned()
-        };
-
-        // Convert to nalgebra for solving - should work now since arrays are in standard layout
-        let a_slice = a_std.as_slice().ok_or_else(|| {
-            SklearsError::NumericalError("Failed to get array slice for matrix A".to_string())
-        })?;
-        let b_slice = b_std.as_slice().ok_or_else(|| {
-            SklearsError::NumericalError("Failed to get array slice for matrix B".to_string())
-        })?;
-        let a_na = DMatrix::from_row_slice(a.nrows(), a.ncols(), a_slice);
-        let b_na = DMatrix::from_row_slice(b.nrows(), b.ncols(), b_slice);
-
-        // Solve using Cholesky decomposition if possible, otherwise use SVD
-        let result_na = if let Some(chol) = a_na.clone().cholesky() {
-            chol.solve(&b_na)
-        } else {
-            // Use pseudoinverse
-            let svd = a_na.svd(true);
-            let tolerance = 1e-12;
-
-            let u = svd
-                .u
-                .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-            let v_t = svd
-                .v_t
-                .ok_or_else(|| SklearsError::NumericalError("SVD failed".to_string()))?;
-            let singular_values = svd.singular_values;
-
-            let mut s_inv = nalgebra::DMatrix::zeros(singular_values.len(), singular_values.len());
-            for i in 0..singular_values.len() {
-                if singular_values[i] > tolerance {
-                    s_inv[(i, i)] = 1.0 / singular_values[i];
+        // Try Cholesky decomposition first (for positive definite matrices)
+        if let Ok(chol) = a.cholesky() {
+            // Solve each column of b separately
+            let mut result = Array2::zeros((a.ncols(), b.ncols()));
+            for (j, col) in b.axis_iter(scirs2_core::ndarray::Axis(1)).enumerate() {
+                let sol = chol.solve(&col.to_owned()).map_err(|e| {
+                    SklearsError::NumericalError(format!("Cholesky solve failed: {}", e))
+                })?;
+                for (i, &val) in sol.iter().enumerate() {
+                    result[[i, j]] = val;
                 }
             }
+            return Ok(result);
+        }
 
-            let a_pinv = v_t.transpose() * s_inv * u.transpose();
-            a_pinv * b_na
-        };
+        // Fallback to pseudoinverse using SVD
+        let (u, s, vt) = svd(&a.view(), true).map_err(|e| {
+            SklearsError::NumericalError(format!("SVD failed: {}", e))
+        })?;
 
-        // Convert back to ndarray
-        let result_vec: Vec<f64> = result_na.iter().cloned().collect();
-        let result = Array2::from_shape_vec((result_na.nrows(), result_na.ncols()), result_vec)
-            .map_err(|_| {
-                SklearsError::NumericalError("Failed to create result array".to_string())
-            })?;
+        let tolerance = 1e-12;
+
+        // Create diagonal inverse matrix S^+
+        let k = s.len();
+        let mut s_inv = Array2::zeros((k, k));
+        for i in 0..k {
+            if s[i] > tolerance {
+                s_inv[[i, i]] = 1.0 / s[i];
+            }
+        }
+
+        // Compute pseudoinverse: A^+ = V * S^+ * U^T
+        let vt_t = vt.t();
+        let u_t = u.t();
+        let temp = s_inv.dot(&u_t);
+        let a_pinv = vt_t.dot(&temp);
+
+        // Compute result: A^+ * b
+        let result = a_pinv.dot(b);
 
         Ok(result)
     }

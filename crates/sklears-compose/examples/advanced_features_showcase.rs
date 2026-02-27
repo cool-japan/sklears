@@ -352,28 +352,26 @@ fn demonstrate_error_handling() -> SklResult<()> {
     };
 
     println!("🔍 Configuration Error Analysis:");
-    match &config_error {
-        PipelineError::ConfigurationError {
-            message,
-            suggestions,
-            context,
-        } => {
-            println!("   • Error: {}", message);
-            println!("   • Component: {}", context.component_name);
-            println!("   • Stage: {}", context.pipeline_stage);
-            if let Some(shape) = context.input_shape {
-                println!("   • Data shape: {}x{}", shape.0, shape.1);
-            }
-            println!("   • Suggestions ({}):", suggestions.len());
-            for (i, suggestion) in suggestions.iter().enumerate() {
-                println!("      {}. {}", i + 1, suggestion);
-            }
-            println!("   • Parameters:");
-            for (key, value) in &context.parameters {
-                println!("      - {}: {}", key, value);
-            }
+    if let PipelineError::ConfigurationError {
+        message,
+        suggestions,
+        context,
+    } = &config_error
+    {
+        println!("   • Error: {}", message);
+        println!("   • Component: {}", context.component_name);
+        println!("   • Stage: {}", context.pipeline_stage);
+        if let Some(shape) = context.input_shape {
+            println!("   • Data shape: {}x{}", shape.0, shape.1);
         }
-        _ => {}
+        println!("   • Suggestions ({}):", suggestions.len());
+        for (i, suggestion) in suggestions.iter().enumerate() {
+            println!("      {}. {}", i + 1, suggestion);
+        }
+        println!("   • Parameters:");
+        for (key, value) in &context.parameters {
+            println!("      - {}: {}", key, value);
+        }
     }
 
     // Demonstrate error recovery strategies

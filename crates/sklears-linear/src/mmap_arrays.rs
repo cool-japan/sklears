@@ -682,8 +682,10 @@ mod tests {
 
         MmapUtils::array_to_mmap_file(&data, &file_path).unwrap();
 
-        let mut config = MmapConfig::default();
-        config.chunk_size = 500; // Process 50 rows at a time (500 elements / 10 cols)
+        let config = MmapConfig {
+            chunk_size: 500, // Process 50 rows at a time (500 elements / 10 cols)
+            ..MmapConfig::default()
+        };
 
         let mmap_matrix = MmapMatrix::from_file(&file_path, rows, cols, config).unwrap();
 
@@ -737,11 +739,11 @@ mod tests {
 
         // Test setting values
         mmap_matrix.set(0, 0, 42.0).unwrap();
-        mmap_matrix.set(1, 2, 3.14).unwrap();
+        mmap_matrix.set(1, 2, 3.15).unwrap();
 
         // Test getting values
         assert_eq!(mmap_matrix.get(0, 0).unwrap(), 42.0);
-        assert_eq!(mmap_matrix.get(1, 2).unwrap(), 3.14);
+        assert_eq!(mmap_matrix.get(1, 2).unwrap(), 3.15);
 
         // Test flushing
         mmap_matrix.flush().unwrap();

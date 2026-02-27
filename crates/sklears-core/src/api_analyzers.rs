@@ -1211,7 +1211,10 @@ impl ApiVisualizationEngine {
 
     /// Generate trait hierarchy visualization
     fn generate_trait_hierarchy_viz(&self, api_ref: &ApiReference) -> Result<ApiVisualization> {
-        let template = self.visualization_templates.get("trait-hierarchy").unwrap();
+        let template = self
+            .visualization_templates
+            .get("trait-hierarchy")
+            .expect("key should exist");
 
         Ok(ApiVisualization {
             title: template.name.clone(),
@@ -1239,7 +1242,7 @@ impl ApiVisualizationEngine {
         let template = self
             .visualization_templates
             .get("type-relationships")
-            .unwrap();
+            .expect("expected valid value");
 
         Ok(ApiVisualization {
             title: template.name.clone(),
@@ -1264,7 +1267,10 @@ impl ApiVisualizationEngine {
 
     /// Generate example flow visualization
     fn generate_example_flow_viz(&self, api_ref: &ApiReference) -> Result<ApiVisualization> {
-        let template = self.visualization_templates.get("example-flow").unwrap();
+        let template = self
+            .visualization_templates
+            .get("example-flow")
+            .expect("key should exist");
 
         Ok(ApiVisualization {
             title: template.name.clone(),
@@ -1326,7 +1332,9 @@ mod tests {
             dependencies: Vec::new(),
         };
 
-        let traits = analyzer.analyze_traits(&crate_info).unwrap();
+        let traits = analyzer
+            .analyze_traits(&crate_info)
+            .expect("analyze_traits should succeed");
         assert!(!traits.is_empty());
         assert!(traits.iter().any(|t| t.name == "Estimator"));
         assert!(traits.iter().any(|t| t.name == "Fit"));
@@ -1344,7 +1352,9 @@ mod tests {
             dependencies: Vec::new(),
         };
 
-        let types = extractor.extract_types(&crate_info).unwrap();
+        let types = extractor
+            .extract_types(&crate_info)
+            .expect("extract_types should succeed");
         assert!(!types.is_empty());
         assert!(types.iter().any(|t| t.name == "SklearsError"));
     }
@@ -1361,7 +1371,9 @@ mod tests {
             expected_output: Some("Hello, world!".to_string()),
         };
 
-        let validated = validator.validate_example(&example).unwrap();
+        let validated = validator
+            .validate_example(&example)
+            .expect("validate_example should succeed");
         assert_eq!(validated.title, example.title);
     }
 
@@ -1404,7 +1416,9 @@ mod tests {
             trait_impls: vec!["TestTrait".to_string()],
         }];
 
-        let refs = builder.build_cross_references(&traits, &types).unwrap();
+        let refs = builder
+            .build_cross_references(&traits, &types)
+            .expect("build_cross_references should succeed");
         assert!(!refs.is_empty());
         assert!(refs.contains_key("TestTrait"));
         assert!(refs.contains_key("TestType"));
@@ -1439,7 +1453,9 @@ mod tests {
             metadata: crate::api_data_structures::ApiMetadata::default(),
         };
 
-        let visualizations = engine.generate_visualizations(&api_ref).unwrap();
+        let visualizations = engine
+            .generate_visualizations(&api_ref)
+            .expect("generate_visualizations should succeed");
         assert!(!visualizations.is_empty());
     }
 }

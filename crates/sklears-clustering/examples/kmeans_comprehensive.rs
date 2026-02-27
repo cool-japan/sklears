@@ -85,7 +85,7 @@ fn example_basic_kmeans() {
                     println!("Predicted labels (first 20): {:?}", labels_preview);
 
                     // Count samples per cluster
-                    let mut cluster_counts = vec![0; 3];
+                    let mut cluster_counts = [0usize; 3];
                     for &label in labels.iter() {
                         if label >= 0 && (label as usize) < 3 {
                             cluster_counts[label as usize] += 1;
@@ -171,7 +171,7 @@ fn example_minibatch_kmeans() {
             match fitted.predict(&data) {
                 Ok(labels) => {
                     // Count samples per cluster
-                    let mut cluster_counts = vec![0; 5];
+                    let mut cluster_counts = [0usize; 5];
                     for &label in labels.iter() {
                         if label >= 0 && (label as usize) < 5 {
                             cluster_counts[label as usize] += 1;

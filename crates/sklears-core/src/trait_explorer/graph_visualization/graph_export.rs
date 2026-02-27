@@ -454,15 +454,15 @@ impl GraphExporter {
             node_obj.insert("id".to_string(), serde_json::Value::String(node.id.clone()));
             node_obj.insert("label".to_string(), serde_json::Value::String(node.label.clone()));
             node_obj.insert("type".to_string(), serde_json::Value::String(node.node_type.display_name().to_string()));
-            node_obj.insert("size".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(node.size).unwrap()));
+            node_obj.insert("size".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(node.size).expect("valid JSON operation")));
 
             if let Some(ref color) = node.color {
                 node_obj.insert("color".to_string(), serde_json::Value::String(color.clone()));
             }
 
             if let Some((x, y)) = node.position_2d {
-                node_obj.insert("x".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(x).unwrap()));
-                node_obj.insert("y".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(y).unwrap()));
+                node_obj.insert("x".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(x).expect("valid JSON operation")));
+                node_obj.insert("y".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(y).expect("valid JSON operation")));
             }
 
             serde_json::Value::Object(node_obj)
@@ -474,7 +474,7 @@ impl GraphExporter {
             edge_obj.insert("source".to_string(), serde_json::Value::String(edge.from.clone()));
             edge_obj.insert("target".to_string(), serde_json::Value::String(edge.to.clone()));
             edge_obj.insert("type".to_string(), serde_json::Value::String(edge.edge_type.display_name().to_string()));
-            edge_obj.insert("weight".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(edge.weight).unwrap()));
+            edge_obj.insert("weight".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(edge.weight).expect("valid JSON operation")));
 
             if let Some(ref label) = edge.label {
                 edge_obj.insert("label".to_string(), serde_json::Value::String(label.clone()));
@@ -1093,7 +1093,7 @@ mod tests {
         let json_result = exporter.to_json(&graph);
         assert!(json_result.is_ok());
 
-        let json_str = json_result.unwrap();
+        let json_str = json_result.expect("expected valid value");
         assert!(json_str.contains("Trait1"));
         assert!(json_str.contains("Impl1"));
     }
@@ -1107,7 +1107,7 @@ mod tests {
         let dot_result = exporter.to_dot(&graph);
         assert!(dot_result.is_ok());
 
-        let dot_str = dot_result.unwrap();
+        let dot_str = dot_result.expect("expected valid value");
         assert!(dot_str.contains("digraph TraitGraph"));
         assert!(dot_str.contains("Trait1"));
         assert!(dot_str.contains("Impl1"));
@@ -1122,7 +1122,7 @@ mod tests {
         let csv_result = exporter.to_csv(&graph);
         assert!(csv_result.is_ok());
 
-        let csv_str = csv_result.unwrap();
+        let csv_str = csv_result.expect("expected valid value");
         assert!(csv_str.contains("Source,Target,Type,Weight,Label,Directed"));
         assert!(csv_str.contains("Trait1,Impl1"));
     }
@@ -1136,7 +1136,7 @@ mod tests {
         let svg_result = exporter.to_svg(&graph);
         assert!(svg_result.is_ok());
 
-        let svg_str = svg_result.unwrap();
+        let svg_str = svg_result.expect("expected valid value");
         assert!(svg_str.contains("<svg"));
         assert!(svg_str.contains("</svg>"));
     }
@@ -1150,7 +1150,7 @@ mod tests {
         let html_result = exporter.to_interactive_html(&graph);
         assert!(html_result.is_ok());
 
-        let html_str = html_result.unwrap();
+        let html_str = html_result.expect("expected valid value");
         assert!(html_str.contains("<!DOCTYPE html>"));
         assert!(html_str.contains("d3.js"));
     }
@@ -1164,7 +1164,7 @@ mod tests {
         let graphml_result = exporter.to_graphml(&graph);
         assert!(graphml_result.is_ok());
 
-        let graphml_str = graphml_result.unwrap();
+        let graphml_str = graphml_result.expect("expected valid value");
         assert!(graphml_str.contains("<?xml version"));
         assert!(graphml_str.contains("<graphml"));
     }

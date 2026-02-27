@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_calibration::{CalibratedClassifierCV, CalibrationMethod};
 use sklears_core::traits::Fit;
 
@@ -179,9 +179,9 @@ fn generate_noisy_data(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
         // Class-dependent features with high overlap
         let mean_shift = if true_class == 0 { -0.5 } else { 0.5 };
 
-        x[[i, 0]] = mean_shift + rng.sample(&normal) * 1.5;
-        x[[i, 1]] = mean_shift * 0.5 + rng.sample(&normal) * 1.5;
-        x[[i, 2]] = rng.sample(&normal) * 2.0; // Pure noise feature
+        x[[i, 0]] = mean_shift + normal.sample(&mut rng) * 1.5;
+        x[[i, 1]] = mean_shift * 0.5 + normal.sample(&mut rng) * 1.5;
+        x[[i, 2]] = normal.sample(&mut rng) * 2.0; // Pure noise feature
     }
 
     (x, y)

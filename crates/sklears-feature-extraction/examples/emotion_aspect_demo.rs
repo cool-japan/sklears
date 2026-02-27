@@ -98,7 +98,7 @@ fn main() {
         "atmosphere".to_string(),
     ]);
 
-    let reviews = vec![
+    let reviews = [
         "The food was absolutely delicious, but the service was terrible.",
         "Great atmosphere and excellent service, though a bit pricey.",
         "The price is reasonable and the food is amazing!",

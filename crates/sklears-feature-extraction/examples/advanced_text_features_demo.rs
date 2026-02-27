@@ -236,21 +236,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Basic count vectorization
     let timer = std::time::Instant::now();
     let mut cv = CountVectorizer::new().min_df(1);
-    if let Ok(_) = cv.fit_transform(&documents) {
+    if cv.fit_transform(&documents).is_ok() {
         results.push(("Count Vectorizer", timer.elapsed()));
     }
 
     // TF-IDF vectorization
     let timer = std::time::Instant::now();
     let mut tfidf = TfidfVectorizer::new().min_df(1);
-    if let Ok(_) = tfidf.fit_transform(&documents) {
+    if tfidf.fit_transform(&documents).is_ok() {
         results.push(("TF-IDF Vectorizer", timer.elapsed()));
     }
 
     // Sentiment analysis
     let timer = std::time::Instant::now();
     let sentiment = SentimentAnalyzer::new();
-    if let Ok(_) = sentiment.extract_features(&documents) {
+    if sentiment.extract_features(&documents).is_ok() {
         results.push(("Sentiment Analysis", timer.elapsed()));
     }
 

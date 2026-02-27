@@ -3,7 +3,9 @@
 //! This module contains benchmarks comparing our calibration implementations
 //! against reference performance expectations and theoretical bounds.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+#![allow(dead_code)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
@@ -23,6 +25,7 @@ use sklears_calibration::{
     CalibrationEstimator,
 };
 use sklears_core::types::Float;
+use std::hint::black_box;
 
 /// Generate synthetic calibration data
 fn generate_calibration_data(n_samples: usize, noise_level: Float) -> (Array1<Float>, Array1<i32>) {
@@ -33,14 +36,18 @@ fn generate_calibration_data(n_samples: usize, noise_level: Float) -> (Array1<Fl
 
     for i in 0..n_samples {
         // Generate base probability
-        let base_prob = rng.gen::<Float>();
+        let base_prob = rng.random::<Float>();
 
         // Add calibration bias (makes data miscalibrated)
-        let biased_prob = (base_prob + noise_level * rng.gen::<Float>()).clamp(0.01, 0.99);
+        let biased_prob = (base_prob + noise_level * rng.random::<Float>()).clamp(0.01, 0.99);
         probabilities[i] = biased_prob;
 
         // Generate target based on true probability
-        targets[i] = if rng.gen::<Float>() < base_prob { 1 } else { 0 };
+        targets[i] = if rng.random::<Float>() < base_prob {
+            1
+        } else {
+            0
+        };
     }
 
     (probabilities, targets)
@@ -56,8 +63,8 @@ fn generate_multiclass_data(n_samples: usize, n_classes: usize) -> (Array2<Float
     for i in 0..n_samples {
         // Generate raw logits
         let mut logits = vec![0.0; n_classes];
-        for j in 0..n_classes {
-            logits[j] = rng.gen_range(-2.0..2.0);
+        for logit in logits.iter_mut() {
+            *logit = rng.random_range(-2.0..2.0);
         }
 
         // Softmax to get probabilities
@@ -69,7 +76,7 @@ fn generate_multiclass_data(n_samples: usize, n_classes: usize) -> (Array2<Float
         }
 
         // Generate target
-        targets[i] = rng.gen_range(0..n_classes) as i32;
+        targets[i] = rng.random_range(0..n_classes) as i32;
     }
 
     (probabilities, targets)

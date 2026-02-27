@@ -335,14 +335,14 @@ pub(crate) mod testing {
 
         fn can_transition_to(&self, new_state: algorithm_internals::InternalState) -> bool {
             use algorithm_internals::InternalState::*;
-            match (self.state, new_state) {
-                (Uninitialized, Configured) => true,
-                (Configured, Fitting) => true,
-                (Fitting, Fitted) => true,
-                (Fitting, Error) => true,
-                (_, Error) => true,
-                _ => false,
-            }
+            matches!(
+                (self.state, new_state),
+                (Uninitialized, Configured)
+                    | (Configured, Fitting)
+                    | (Fitting, Fitted)
+                    | (Fitting, Error)
+                    | (_, Error)
+            )
         }
     }
 }
@@ -435,10 +435,10 @@ mod tests {
         let mut pool = memory::InternalMemoryPool::new(1024);
 
         // Test allocation
-        let handle1 = pool.try_allocate(512).unwrap();
+        let handle1 = pool.try_allocate(512).expect("try_allocate should succeed");
         assert_eq!(handle1.size, 512);
 
-        let handle2 = pool.try_allocate(256).unwrap();
+        let handle2 = pool.try_allocate(256).expect("try_allocate should succeed");
         assert_eq!(handle2.size, 256);
 
         // Test overflow
@@ -446,7 +446,7 @@ mod tests {
 
         // Test deallocation
         pool.deallocate(handle1);
-        let handle3 = pool.try_allocate(512).unwrap();
+        let handle3 = pool.try_allocate(512).expect("try_allocate should succeed");
         assert_eq!(handle3.size, 512);
 
         // Check stats

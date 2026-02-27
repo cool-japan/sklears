@@ -260,7 +260,7 @@ mod tests {
         // Calibrated probabilities should be valid
         for &prob in calibrated.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability {} out of bounds",
                 prob
             );
@@ -339,7 +339,7 @@ mod tests {
         assert!(weights.len() == calibrator.n_models());
 
         for &weight in weights {
-            assert!(weight >= 0.0 && weight <= 1.0);
+            assert!((0.0..=1.0).contains(&weight));
         }
 
         let weight_sum: Float = weights.iter().sum();

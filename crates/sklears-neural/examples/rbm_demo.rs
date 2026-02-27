@@ -152,11 +152,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         weight_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
         print!("   Top connections: ");
-        for j in 0..5.min(weight_indices.len()) {
+        for &(feat_idx, _weight_abs) in weight_indices.iter().take(5) {
             print!(
                 "feat{}: {:.2}, ",
-                weight_indices[j].0,
-                fitted_digit_rbm.weights()[[weight_indices[j].0, i]]
+                feat_idx,
+                fitted_digit_rbm.weights()[[feat_idx, i]]
             );
         }
         println!();

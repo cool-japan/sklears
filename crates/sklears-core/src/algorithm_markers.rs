@@ -498,12 +498,15 @@ mod tests {
     #[test]
     fn test_marker_traits() {
         fn is_supervised<T: SupervisedLearning>() -> bool {
+            let _ = std::marker::PhantomData::<T>;
             true
         }
         fn is_regression<T: Regression>() -> bool {
+            let _ = std::marker::PhantomData::<T>;
             true
         }
         fn is_parametric<T: Parametric>() -> bool {
+            let _ = std::marker::PhantomData::<T>;
             true
         }
 
@@ -597,9 +600,11 @@ mod tests {
     #[test]
     fn test_composite_traits() {
         fn is_robust<T: Robust>() -> bool {
+            let _ = std::marker::PhantomData::<T>;
             true
         }
         fn is_big_data<T: BigData>() -> bool {
+            let _ = std::marker::PhantomData::<T>;
             true
         }
 

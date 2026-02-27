@@ -575,21 +575,21 @@ mod tests {
 
     #[test]
     fn test_complete_graph_generation() {
-        let framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
         let graph = framework.generate_complete_graph(&trait_info, &implementations);
         assert!(graph.is_ok());
 
-        let graph = graph.unwrap();
+        let graph = graph.expect("expected valid value");
         assert!(!graph.nodes.is_empty());
         assert!(!graph.edges.is_empty());
     }
 
     #[test]
     fn test_ecosystem_graph_generation() {
-        let framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let trait1 = create_test_trait_info("Trait1");
         let trait2 = create_test_trait_info("Trait2");
         let traits = vec![&trait1, &trait2];
@@ -597,23 +597,23 @@ mod tests {
         let graph = framework.generate_ecosystem_graph(&traits);
         assert!(graph.is_ok());
 
-        let graph = graph.unwrap();
+        let graph = graph.expect("expected valid value");
         assert!(!graph.nodes.is_empty());
     }
 
     #[test]
     fn test_export_all_formats() {
-        let framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).unwrap();
+        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
 
         // Test export without writing files
         let results = framework.export_all_formats(&graph, "");
         assert!(results.is_ok());
 
-        let results = results.unwrap();
+        let results = results.expect("expected valid value");
         assert!(results.svg.is_some());
         assert!(results.json.is_some());
         assert!(results.dot.is_some());
@@ -622,21 +622,21 @@ mod tests {
 
     #[test]
     fn test_comprehensive_analysis() {
-        let framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).unwrap();
+        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
         let analysis = framework.analyze_comprehensive(&graph);
 
         assert!(analysis.is_ok());
-        let analysis = analysis.unwrap();
+        let analysis = analysis.expect("expected valid value");
         assert!(!analysis.hub_nodes.is_empty() || analysis.hub_nodes.is_empty()); // Either is valid
     }
 
     #[test]
     fn test_config_update() {
-        let mut framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let mut framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let new_config = GraphConfig::new()
             .with_layout_algorithm(LayoutAlgorithm::Circular)
             .with_theme(VisualizationTheme::Dark);
@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_available_algorithms_and_formats() {
-        let framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
 
         let algorithms = framework.available_layout_algorithms();
         assert!(!algorithms.is_empty());
@@ -670,7 +670,7 @@ mod tests {
         let graph = quick_trait_graph(&trait_info, &implementations);
         assert!(graph.is_ok());
 
-        let graph = graph.unwrap();
+        let graph = graph.expect("expected valid value");
 
         // Test quick HTML export
         let html = quick_html_export(&graph);
@@ -700,19 +700,19 @@ mod tests {
         let temp_dir = env::temp_dir();
         let test_path = temp_dir.join("test_graph_framework");
 
-        let framework = GraphVisualizationFramework::with_defaults().unwrap();
+        let framework = GraphVisualizationFramework::with_defaults().expect("expected valid value");
         let trait_info = create_test_trait_info("TestTrait");
         let implementations = vec!["TestImpl".to_string()];
 
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).unwrap();
+        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
 
         // Export with file writing
-        let results = framework.export_all_formats(&graph, test_path.to_str().unwrap());
+        let results = framework.export_all_formats(&graph, test_path.to_str().expect("export_all_formats should succeed"));
         assert!(results.is_ok());
 
         // Check that files were created
-        let svg_file = format!("{}.svg", test_path.to_str().unwrap());
-        let json_file = format!("{}.json", test_path.to_str().unwrap());
+        let svg_file = format!("{}.svg", test_path.to_str().expect("to_str should succeed"));
+        let json_file = format!("{}.json", test_path.to_str().expect("to_str should succeed"));
 
         if std::path::Path::new(&svg_file).exists() {
             std::fs::remove_file(&svg_file).unwrap_or(());
@@ -730,14 +730,14 @@ mod tests {
             .with_3d_visualization(true)
             .with_advanced_analysis(true);
 
-        let framework = GraphVisualizationFramework::new(config).unwrap();
+        let framework = GraphVisualizationFramework::new(config).expect("expected valid value");
         let trait_info = create_test_trait_info("IntegrationTest");
         let implementations = vec!["TestImpl".to_string()];
 
         // Full workflow test
-        let graph = framework.generate_complete_graph(&trait_info, &implementations).unwrap();
-        let analysis = framework.analyze_comprehensive(&graph).unwrap();
-        let exports = framework.export_all_formats(&graph, "").unwrap();
+        let graph = framework.generate_complete_graph(&trait_info, &implementations).expect("generate_complete_graph should succeed");
+        let analysis = framework.analyze_comprehensive(&graph).expect("analyze_comprehensive should succeed");
+        let exports = framework.export_all_formats(&graph, "").expect("export_all_formats should succeed");
 
         // Verify results
         assert!(!graph.nodes.is_empty());

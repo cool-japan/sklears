@@ -38,12 +38,12 @@ fn demo_basic_dataframe_creation() -> Result<(), Box<dyn std::error::Error>> {
     println!("--------------------------------------------------");
 
     // Create sample financial return data
-    let returns_data = vec![
-        vec![0.02f64, 0.015f64, -0.01f64],   // Day 1: Stock A, B, C returns
-        vec![0.01f64, 0.025f64, 0.005f64],   // Day 2
-        vec![-0.005f64, 0.02f64, 0.01f64],   // Day 3
-        vec![0.03f64, -0.01f64, 0.015f64],   // Day 4
-        vec![0.008f64, 0.018f64, -0.002f64], // Day 5
+    let returns_data = [
+        [0.02f64, 0.015f64, -0.01f64],   // Day 1: Stock A, B, C returns
+        [0.01f64, 0.025f64, 0.005f64],   // Day 2
+        [-0.005f64, 0.02f64, 0.01f64],   // Day 3
+        [0.03f64, -0.01f64, 0.015f64],   // Day 4
+        [0.008f64, 0.018f64, -0.002f64], // Day 5
     ];
 
     let column_names = vec![
@@ -306,12 +306,12 @@ fn demo_advanced_utilities() -> Result<(), Box<dyn std::error::Error>> {
     println!("----------------------------------------");
 
     // Create sample data
-    let raw_data = vec![
-        vec![100.0f64, 200.0f64, 50.0f64], // Different scales
-        vec![110.0f64, 180.0f64, 52.0f64],
-        vec![95.0f64, 220.0f64, 48.0f64],
-        vec![105.0f64, 190.0f64, 51.0f64],
-        vec![98.0f64, 210.0f64, 49.0f64],
+    let raw_data = [
+        [100.0f64, 200.0f64, 50.0f64], // Different scales
+        [110.0f64, 180.0f64, 52.0f64],
+        [95.0f64, 220.0f64, 48.0f64],
+        [105.0f64, 190.0f64, 51.0f64],
+        [98.0f64, 210.0f64, 49.0f64],
     ];
 
     let columns = vec![

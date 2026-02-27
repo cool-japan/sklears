@@ -1013,7 +1013,7 @@ mod tests {
 
         let found = graph.find_node("test");
         assert!(found.is_some());
-        assert_eq!(found.unwrap().label, "Test");
+        assert_eq!(found.expect("expected valid value").label, "Test");
     }
 
     #[test]

@@ -61,7 +61,7 @@ pub fn safe_float_cmp(a: &Float, b: &Float) -> Ordering {
 ///
 /// # Returns
 ///
-/// `Ordering` - The comparison result based on values[i] vs values[j]
+/// `Ordering` - The comparison result based on values\[i\] vs values\[j\]
 #[inline]
 pub fn safe_indexed_float_cmp(values: &Array1<Float>, i: usize, j: usize) -> Ordering {
     safe_float_cmp(&values[i], &values[j])

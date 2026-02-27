@@ -581,8 +581,22 @@ mod tests {
         let config = ResourceConfig::default();
         let context = MacroExecutionContext::new(config);
 
-        assert_eq!(context.errors.lock().unwrap().len(), 0);
-        assert_eq!(context.warnings.lock().unwrap().len(), 0);
+        assert_eq!(
+            context
+                .errors
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .len(),
+            0
+        );
+        assert_eq!(
+            context
+                .warnings
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .len(),
+            0
+        );
     }
 
     #[test]
@@ -604,9 +618,11 @@ mod tests {
 
     #[test]
     fn test_performance_metrics() {
-        let mut metrics = PerformanceMetrics::default();
-        metrics.cache_hits = 7;
-        metrics.cache_misses = 3;
+        let metrics = PerformanceMetrics {
+            cache_hits: 7,
+            cache_misses: 3,
+            ..Default::default()
+        };
 
         assert_eq!(metrics.cache_hit_ratio(), 0.7);
         assert_eq!(metrics.total_time_ms(), 0);

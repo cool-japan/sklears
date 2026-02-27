@@ -26,7 +26,7 @@ use std::collections::HashMap;
 ///     description: "Linear regression algorithm".to_string(),
 ///     author: "SKLears Team".to_string(),
 ///     category: PluginCategory::Algorithm,
-///     supported_types: vec![TypeId::of::`<f64>`()],
+///     supported_types: vec![TypeId::of::<f64>()],
 ///     dependencies: vec!["ndarray".to_string()],
 ///     capabilities: vec![PluginCapability::Parallel],
 ///     min_sdk_version: "0.1.0".to_string(),

@@ -1100,7 +1100,7 @@ pub mod zero_copy {
             if data.len() != shape.0 * shape.1 {
                 return None;
             }
-            Some(ArrayView2::from_shape(shape, data).unwrap())
+            Some(ArrayView2::from_shape(shape, data).expect("valid array shape"))
         }
 
         /// Create a mutable view from slice data
@@ -1116,7 +1116,7 @@ pub mod zero_copy {
             if data.len() != shape.0 * shape.1 {
                 return None;
             }
-            Some(ArrayViewMut2::from_shape(shape, data).unwrap())
+            Some(ArrayViewMut2::from_shape(shape, data).expect("valid array shape"))
         }
 
         /// Convert array to slice view (zero-copy when possible)
@@ -1130,7 +1130,7 @@ pub mod zero_copy {
         /// Convert 2D array to slice view (zero-copy when possible)
         pub fn array2_as_slice<T>(array: &Array2<T>) -> Option<&[T]> {
             if array.is_standard_layout() {
-                Some(array.as_slice().unwrap())
+                Some(array.as_slice().unwrap_or(&[]))
             } else {
                 None // Cannot create contiguous slice view
             }

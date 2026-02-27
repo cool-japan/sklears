@@ -393,9 +393,9 @@ mod tests {
         let result = LinearRegressionConfig::builder()
             .fit_intercept(true)
             .alpha(0.5)
-            .unwrap()
+            .expect("expected valid value")
             .max_iter(500)
-            .unwrap()
+            .expect("expected valid value")
             .build();
 
         assert!(result.is_ok());

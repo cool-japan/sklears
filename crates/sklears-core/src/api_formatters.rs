@@ -1368,7 +1368,9 @@ mod tests {
         let formatter = DocumentFormatter::new(GeneratorConfig::new());
         let api_ref = create_test_api_reference();
 
-        let json = formatter.format_json(&api_ref).unwrap();
+        let json = formatter
+            .format_json(&api_ref)
+            .expect("format_json should succeed");
         assert!(json.contains("test-crate"));
         assert!(json.contains("traits"));
     }
@@ -1378,7 +1380,9 @@ mod tests {
         let formatter = DocumentFormatter::new(GeneratorConfig::new());
         let api_ref = create_test_api_reference();
 
-        let html = formatter.format_html(&api_ref).unwrap();
+        let html = formatter
+            .format_html(&api_ref)
+            .expect("format_html should succeed");
         assert!(html.contains("<html"));
         assert!(html.contains("API Reference for test-crate"));
         assert!(html.contains("</html>"));
@@ -1389,7 +1393,9 @@ mod tests {
         let formatter = DocumentFormatter::new(GeneratorConfig::new());
         let api_ref = create_test_api_reference();
 
-        let md = formatter.format_markdown(&api_ref).unwrap();
+        let md = formatter
+            .format_markdown(&api_ref)
+            .expect("format_markdown should succeed");
         assert!(md.contains("# API Reference - test-crate"));
         assert!(md.contains("## Table of Contents"));
     }
@@ -1399,7 +1405,9 @@ mod tests {
         let formatter = DocumentFormatter::new(GeneratorConfig::new());
         let api_ref = create_test_api_reference();
 
-        let interactive = formatter.format_interactive(&api_ref).unwrap();
+        let interactive = formatter
+            .format_interactive(&api_ref)
+            .expect("format_interactive should succeed");
         assert!(interactive.contains("Interactive API Reference"));
         assert!(interactive.contains("code-editor"));
         assert!(interactive.contains("monaco-editor"));
@@ -1410,7 +1418,9 @@ mod tests {
         let formatter = DocumentFormatter::new(GeneratorConfig::new());
         let api_ref = create_test_api_reference();
 
-        let openapi = formatter.format_openapi(&api_ref).unwrap();
+        let openapi = formatter
+            .format_openapi(&api_ref)
+            .expect("format_openapi should succeed");
         assert!(openapi.contains("openapi: 3.0.3"));
         assert!(openapi.contains("test-crate API"));
     }
@@ -1420,7 +1430,9 @@ mod tests {
         let config = GeneratorConfig::new();
         let mut generator = ApiReferenceGenerator::new(config);
 
-        let api_ref = generator.generate_from_crate("test-crate").unwrap();
+        let api_ref = generator
+            .generate_from_crate("test-crate")
+            .expect("generate_from_crate should succeed");
         assert_eq!(api_ref.crate_name, "test-crate");
         assert!(!api_ref.traits.is_empty());
         assert!(!api_ref.examples.is_empty());
@@ -1432,7 +1444,9 @@ mod tests {
         let generator = ApiReferenceGenerator::new(config);
         let api_ref = create_test_api_reference();
 
-        let output = generator.format_output(&api_ref).unwrap();
+        let output = generator
+            .format_output(&api_ref)
+            .expect("format_output should succeed");
         assert!(output.contains("<html"));
     }
 
@@ -1441,15 +1455,19 @@ mod tests {
         let generator = ApiReferenceGenerator::new(GeneratorConfig::new());
         let api_ref = create_test_api_reference();
 
-        let json = generator.format_as(&api_ref, OutputFormat::Json).unwrap();
+        let json = generator
+            .format_as(&api_ref, OutputFormat::Json)
+            .expect("format_as should succeed");
         assert!(json.contains("test-crate"));
 
-        let html = generator.format_as(&api_ref, OutputFormat::Html).unwrap();
+        let html = generator
+            .format_as(&api_ref, OutputFormat::Html)
+            .expect("format_as should succeed");
         assert!(html.contains("<html"));
 
         let md = generator
             .format_as(&api_ref, OutputFormat::Markdown)
-            .unwrap();
+            .expect("expected valid value");
         assert!(md.contains("# API Reference"));
     }
 

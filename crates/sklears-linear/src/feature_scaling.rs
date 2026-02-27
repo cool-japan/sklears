@@ -780,7 +780,7 @@ mod tests {
         // Check that values are in [0, 1] range
         for row in &scaled {
             for &value in row {
-                assert!(value >= 0.0 && value <= 1.0);
+                assert!((0.0..=1.0).contains(&value));
             }
         }
 

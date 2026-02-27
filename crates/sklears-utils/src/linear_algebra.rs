@@ -747,12 +747,12 @@ mod tests {
         let full_rank = array![[1.0, 0.0], [0.0, 1.0]];
         let rank = MatrixRank::rank(&full_rank, Some(1e-6)).unwrap();
         // Identity matrix should have full rank, but our simplified SVD may not be exact
-        assert!(rank >= 1 && rank <= 2);
+        assert!((1..=2).contains(&rank));
 
         let singular = array![[1.0, 2.0], [2.0, 4.0]];
         let rank_singular = MatrixRank::rank(&singular, Some(1e-6)).unwrap();
         // Singular matrix should have rank less than 2, but our simplified SVD might not be perfect
-        assert!(rank_singular >= 1 && rank_singular <= 2);
+        assert!((1..=2).contains(&rank_singular));
 
         // Test that the function doesn't crash and returns reasonable values
         let zero_matrix = array![[0.0, 0.0], [0.0, 0.0]];

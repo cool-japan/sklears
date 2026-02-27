@@ -1387,7 +1387,7 @@ mod tests {
         assert_eq!(result, vec![0.0, 0.0, 1.0, 2.0]);
 
         let result = GpuArrayOps::apply_activation(&input, ActivationFunction::Sigmoid, 0).unwrap();
-        assert!(result.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(result.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 
     #[test]
@@ -1508,8 +1508,7 @@ mod tests {
 
             // In a test environment, GPU operations might fail due to mock limitations
             // This is acceptable as we're testing the logic, not actual GPU execution
-            if result.is_ok() {
-                let dist_result = result.unwrap();
+            if let Ok(dist_result) = result {
                 assert!(!dist_result.executions.is_empty());
                 assert!(dist_result.total_time >= 0.0);
             } else {

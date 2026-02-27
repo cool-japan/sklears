@@ -5,9 +5,9 @@
 
 use crate::{Nystroem, RBFSampler};
 use scirs2_core::ndarray::Array2;
-use scirs2_linalg::compat::{Norm, SVD};
+use scirs2_linalg::compat::Norm;
 use sklears_core::{
-    error::{Result, SklearsError},
+    error::Result,
     traits::{Fit, Transform},
 };
 use std::collections::HashMap;
@@ -396,7 +396,7 @@ impl BudgetConstrainedRBFSampler {
             .values()
             .map(|(quality, _)| *quality)
             .collect();
-        recent_qualities.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        recent_qualities.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = recent_qualities.len();
         if n >= 3 {
@@ -596,25 +596,34 @@ impl BudgetConstrainedNystroem {
     }
 
     /// Compute quality score for Nyström approximation
+    ///
+    /// Uses trace-based effective rank estimation: effective_rank = trace(X^T X)^2 / trace((X^T X)^2)
+    /// This avoids expensive eigendecomposition/SVD while providing a good quality metric.
     fn compute_nystroem_quality(&self, x_transformed: &Array2<f64>) -> Result<f64> {
-        // Compute effective rank as quality measure
-        let (_, s, _) = x_transformed
-            .svd(true)
-            .map_err(|_| SklearsError::InvalidInput("SVD computation failed".to_string()))?;
+        // Compute X^T X which is (n_components x n_components) - much smaller than X
+        let xtx = x_transformed.t().dot(x_transformed);
+        let n = xtx.nrows();
 
-        let s_sum = s.sum();
-        if s_sum == 0.0 {
+        // trace(X^T X) = sum of diagonal elements
+        let trace_xtx: f64 = (0..n).map(|i| xtx[[i, i]]).sum();
+
+        if trace_xtx <= 1e-12 {
             return Ok(0.0);
         }
 
-        let s_normalized = &s / s_sum;
-        let entropy = -s_normalized
-            .iter()
-            .filter(|&&x| x > 1e-12)
-            .map(|&x| x * x.ln())
-            .sum::<f64>();
+        // trace((X^T X)^2) = sum of squared elements of X^T X (for symmetric matrices)
+        // Because trace(A^2) = sum_{i,j} A_{ij}^2 = ||A||_F^2
+        let trace_xtx_sq: f64 = xtx.iter().map(|&x| x * x).sum();
 
-        Ok(entropy.exp())
+        if trace_xtx_sq <= 1e-24 {
+            return Ok(0.0);
+        }
+
+        // Effective rank = trace(A)^2 / trace(A^2) (a.k.a. participation ratio)
+        // This ranges from 1 (rank-1 matrix) to n (full rank with equal eigenvalues)
+        let effective_rank = (trace_xtx * trace_xtx) / trace_xtx_sq;
+
+        Ok(effective_rank)
     }
 }
 

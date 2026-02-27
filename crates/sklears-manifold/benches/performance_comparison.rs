@@ -5,11 +5,14 @@
 //! established libraries. These benchmarks help quantify the performance
 //! improvements achieved by the Rust implementation.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+#![allow(dead_code)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 /// Performance comparison framework
@@ -80,12 +83,12 @@ mod datasets {
         let mut data = Array2::zeros((n_samples, 3));
 
         for i in 0..n_samples {
-            let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.gen());
-            let height = 21.0 * rng.gen();
+            let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.random::<f64>());
+            let height = 21.0 * rng.random::<f64>();
 
-            data[[i, 0]] = t * t.cos() + noise * rng.gen() * 2.0 - 1.0;
-            data[[i, 1]] = height + noise * rng.gen() * 2.0 - 1.0;
-            data[[i, 2]] = t * t.sin() + noise * rng.gen() * 2.0 - 1.0;
+            data[[i, 0]] = t * t.cos() + noise * rng.random::<f64>() * 2.0 - 1.0;
+            data[[i, 1]] = height + noise * rng.random::<f64>() * 2.0 - 1.0;
+            data[[i, 2]] = t * t.sin() + noise * rng.random::<f64>() * 2.0 - 1.0;
         }
 
         data
@@ -96,12 +99,12 @@ mod datasets {
         let mut data = Array2::zeros((n_samples, 3));
 
         for i in 0..n_samples {
-            let t = 3.0 * std::f64::consts::PI * rng.gen();
-            let height = 2.0 * rng.gen();
+            let t = 3.0 * std::f64::consts::PI * rng.random::<f64>();
+            let height = 2.0 * rng.random::<f64>();
 
-            data[[i, 0]] = t.sin() + noise * rng.gen() * 2.0 - 1.0;
-            data[[i, 1]] = height + noise * rng.gen() * 2.0 - 1.0;
-            data[[i, 2]] = (t / 2.0).sin() + noise * rng.gen() * 2.0 - 1.0;
+            data[[i, 0]] = t.sin() + noise * rng.random::<f64>() * 2.0 - 1.0;
+            data[[i, 1]] = height + noise * rng.random::<f64>() * 2.0 - 1.0;
+            data[[i, 2]] = (t / 2.0).sin() + noise * rng.random::<f64>() * 2.0 - 1.0;
         }
 
         data
@@ -109,7 +112,7 @@ mod datasets {
 
     pub fn gaussian_blob(n_samples: usize, n_features: usize, random_state: u64) -> Array2<f64> {
         let mut rng = StdRng::seed_from_u64(random_state);
-        Array2::from_shape_fn((n_samples, n_features), |_| rng.gen() * 2.0 - 1.0)
+        Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>() * 2.0 - 1.0)
     }
 
     pub fn digits_like(n_samples: usize, random_state: u64) -> Array2<f64> {
@@ -157,10 +160,10 @@ mod datasets {
                             0.0
                         }
                     }
-                    _ => rng.gen(),
+                    _ => rng.random::<f64>(),
                 };
 
-                data[[i, j]] = pattern_value + 0.1 * rng.gen() * 2.0 - 1.0;
+                data[[i, j]] = pattern_value + 0.1 * rng.random::<f64>() * 2.0 - 1.0;
             }
         }
 

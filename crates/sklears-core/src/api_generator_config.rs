@@ -520,8 +520,9 @@ mod tests {
     #[test]
     fn test_config_serialization() {
         let config = GeneratorConfig::new().with_output_format(OutputFormat::Html);
-        let serialized = serde_json::to_string(&config).unwrap();
-        let deserialized: GeneratorConfig = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&config).unwrap_or_default();
+        let deserialized: GeneratorConfig =
+            serde_json::from_str(&serialized).expect("valid JSON operation");
 
         assert_eq!(config.output_format, deserialized.output_format);
         assert_eq!(config.include_examples, deserialized.include_examples);

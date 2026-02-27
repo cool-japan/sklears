@@ -247,8 +247,13 @@ impl Fit<Array2<f64>, Vec<usize>> for MLPClassifier<sklears_core::traits::Untrai
         let mut biases = Vec::new();
 
         for i in 0..layer_sizes.len() - 1 {
-            let w = initialize_weights(layer_sizes[i], layer_sizes[i + 1], &self.weight_init);
-            let b = initialize_biases(layer_sizes[i + 1], &self.weight_init);
+            let w = initialize_weights(
+                layer_sizes[i],
+                layer_sizes[i + 1],
+                &self.weight_init,
+                &mut rng,
+            );
+            let b = initialize_biases(layer_sizes[i + 1], &self.weight_init, &mut rng);
             weights.push(w);
             biases.push(b);
         }
@@ -331,7 +336,7 @@ impl Fit<Array2<f64>, Vec<usize>> for MLPClassifier<sklears_core::traits::Untrai
         };
 
         for epoch in 0..self.max_iter {
-            let batches = create_batches(x, &y_indices, batch_size, self.shuffle);
+            let batches = create_batches(x, &y_indices, batch_size, self.shuffle, &mut rng);
 
             let mut total_loss = 0.0;
             let mut total_samples = 0;

@@ -2,7 +2,7 @@
 //!
 //! This benchmark suite focuses on the algorithms we've been implementing and improving.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::traits::{Fit, Predict};
 use sklears_ensemble::{AdaBoostClassifier, StackingClassifier};
@@ -10,6 +10,7 @@ use sklears_tree::{
     DecisionTreeClassifier, DecisionTreeRegressor, RandomForestClassifier, SplitCriterion,
 };
 use sklears_utils::data_generation::{make_classification, make_regression};
+use std::hint::black_box;
 
 fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<i32>) {
     make_classification(n_samples, n_features, 3, None, None, 0.0, 1.0, Some(42)).unwrap()

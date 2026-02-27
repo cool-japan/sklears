@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(calibrated.len(), test_probs.len());
         // Check that probabilities are in valid range
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
     }
 

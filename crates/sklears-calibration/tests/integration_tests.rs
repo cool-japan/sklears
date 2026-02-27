@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{concatenate, Array1, Array2, Axis};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::seeded_rng;
+use scirs2_core::random::{seeded_rng, Distribution};
 use sklears_calibration::{CalibratedClassifierCV, CalibrationMethod};
 use sklears_core::traits::Fit;
 
@@ -14,7 +14,7 @@ fn generate_test_data(n_samples: usize, seed: u64) -> (Array2<f64>, Array1<i32>)
     let mut rng = seeded_rng(seed);
     let normal = Normal::new(0.0, 1.0).unwrap();
 
-    let x = Array2::from_shape_fn((n_samples, 2), |_| rng.sample(&normal));
+    let x = Array2::from_shape_fn((n_samples, 2), |_| normal.sample(&mut rng));
     let y = Array1::from_shape_fn(n_samples, |i| if i < n_samples / 2 { 0 } else { 1 });
 
     (x, y)

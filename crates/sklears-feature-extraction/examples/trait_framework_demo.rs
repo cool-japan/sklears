@@ -237,7 +237,7 @@ fn main() {
     println!("\n\n8. CONFIGURATION COMPARISON");
     println!("---------------------------");
 
-    let configs = vec![
+    let configs = [
         SentimentAnalyzerConfig {
             neutral_threshold: 0.1,
             case_sensitive: false,

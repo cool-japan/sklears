@@ -892,9 +892,10 @@ mod tests {
 
     #[test]
     fn test_convergence_verification() {
-        let mut config = TheoreticalValidationConfig::default();
-        // Use a more reasonable tolerance for testing
-        config.convergence_tolerance = 1e-6;
+        let config = TheoreticalValidationConfig {
+            convergence_tolerance: 1e-6,
+            ..TheoreticalValidationConfig::default()
+        };
         let validator = TheoreticalCalibrationValidator::new(config);
 
         let convergence_verified = validator.verify_convergence_conditions("sigmoid").unwrap();
@@ -928,7 +929,7 @@ mod tests {
 
     #[test]
     fn test_bound_types() {
-        let bound_types = vec![
+        let bound_types = [
             BoundType::CalibrationErrorUpper,
             BoundType::SampleComplexityLower,
             BoundType::InformationTheoreticLower,

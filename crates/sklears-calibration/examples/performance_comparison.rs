@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_calibration::{CalibratedClassifierCV, CalibrationMethod};
 use sklears_core::traits::Fit;
 use std::time::{Duration, Instant};
@@ -61,12 +61,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let calibrator = CalibratedClassifierCV::new().method(method.clone()).cv(3);
 
                 let start = Instant::now();
-                match calibrator.fit(&x, &y) {
-                    Ok(_) => {
-                        durations.push(start.elapsed());
-                        successes += 1;
-                    }
-                    Err(_) => {}
+                if calibrator.fit(&x, &y).is_ok() {
+                    durations.push(start.elapsed());
+                    successes += 1;
                 }
             }
 
@@ -170,7 +167,7 @@ fn generate_benchmark_data(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
     let normal = Normal::new(0.0, 1.0).unwrap();
 
-    let x = Array2::from_shape_fn((n_samples, 3), |_| rng.sample(&normal));
+    let x = Array2::from_shape_fn((n_samples, 3), |_| normal.sample(&mut rng));
     let y = Array1::from_shape_fn(n_samples, |i| if i < n_samples / 2 { 0 } else { 1 });
 
     (x, y)

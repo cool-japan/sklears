@@ -27,23 +27,23 @@ scirs2-core = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
-chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.19", features = ["v4", "serde"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
 rayon = { workspace = true, optional = true }
 num_cpus = { workspace = true, optional = true }
-memmap2 = { version = "0.9", optional = true }
-tokio = { version = "1.47", features = ["rt", "rt-multi-thread"], optional = true }
+memmap2 = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 # WebAssembly dependencies
-wasm-bindgen = { version = "0.2", optional = true }
-js-sys = { version = "0.3", optional = true }
-web-sys = { version = "0.3", features = ["console", "Window", "Document", "HtmlCanvasElement", "WebGlRenderingContext", "CanvasRenderingContext2d", "Performance", "Navigator"], optional = true }
-console_error_panic_hook = { version = "0.1", optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
+console_error_panic_hook = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
-tokio = { version = "1.47", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { workspace = true }
 
 [features]
 default = ["serde", "parallel", "mmap"]

@@ -101,7 +101,7 @@ pub enum FeatureType {
 pub enum PreprocessingMethod {
     /// Standard scaling (mean=0, std=1)
     StandardScaling,
-    /// Min-Max scaling (range [0,1])
+    /// Min-Max scaling (range \[0,1\])
     MinMaxScaling,
     /// Robust scaling (median and IQR)
     RobustScaling,

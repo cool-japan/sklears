@@ -32,7 +32,9 @@ mod tests {
             runnable: true,
             expected_output: Some("Hello, world!".to_string()),
         };
-        let result = runner.execute_example(&example).unwrap();
+        let result = runner
+            .execute_example(&example)
+            .expect("execute_example should succeed");
         assert_eq!(result.exit_code, 0);
     }
     #[test]
@@ -52,7 +54,9 @@ mod tests {
     fn test_ui_component_builder() {
         let builder = UIComponentBuilder::new();
         let api_ref = create_test_api_reference();
-        let components = builder.generate_ui_components(&api_ref).unwrap();
+        let components = builder
+            .generate_ui_components(&api_ref)
+            .expect("generate_ui_components should succeed");
         assert!(!components.is_empty());
         assert!(components.iter().any(|c| c.name == "code-editor"));
     }
@@ -60,14 +64,18 @@ mod tests {
     fn test_api_search_engine() {
         let mut search_engine = ApiSearchEngine::new();
         let api_ref = create_test_api_reference();
-        let _index = search_engine.build_search_index(&api_ref).unwrap();
+        let _index = search_engine
+            .build_search_index(&api_ref)
+            .expect("build_search_index should succeed");
         assert!(!search_engine.indexed_items.is_empty());
     }
     #[test]
     fn test_signature_conversion() {
         let manager = WasmPlaygroundManager::new();
         let rust_sig = "fn test(&self, x: usize) -> Result<String>";
-        let js_sig = manager.convert_to_js_signature(rust_sig).unwrap();
+        let js_sig = manager
+            .convert_to_js_signature(rust_sig)
+            .expect("convert_to_js_signature should succeed");
         assert!(js_sig.contains("Promise"));
         assert!(js_sig.contains("number"));
         assert!(js_sig.contains("string"));

@@ -989,7 +989,7 @@ mod tests {
         let predictions = ts_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1004,7 +1004,7 @@ mod tests {
         let predictions = reg_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1019,7 +1019,7 @@ mod tests {
         let predictions = ranking_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1038,7 +1038,7 @@ mod tests {
         let predictions = survival_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(predictions.len(), probabilities.len());
-        assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1054,7 +1054,7 @@ mod tests {
         let seq_predictions = seq_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(seq_predictions.len(), probabilities.len());
-        assert!(seq_predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(seq_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         // Test tree structure calibration
         let mut tree_calibrator = StructuredPredictionCalibrator::new(StructureType::Tree)
@@ -1064,7 +1064,7 @@ mod tests {
         let tree_predictions = tree_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(tree_predictions.len(), probabilities.len());
-        assert!(tree_predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(tree_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         // Test graph structure calibration
         let mut graph_calibrator = StructuredPredictionCalibrator::new(StructureType::Graph)
@@ -1075,7 +1075,7 @@ mod tests {
         let graph_predictions = graph_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(graph_predictions.len(), probabilities.len());
-        assert!(graph_predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(graph_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         // Test grid structure calibration
         let mut grid_calibrator = StructuredPredictionCalibrator::new(StructureType::Grid {
@@ -1087,7 +1087,7 @@ mod tests {
         let grid_predictions = grid_calibrator.predict_proba(&probabilities).unwrap();
 
         assert_eq!(grid_predictions.len(), probabilities.len());
-        assert!(grid_predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(grid_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
     #[test]
@@ -1107,7 +1107,7 @@ mod tests {
             let predictions = calibrator.predict_proba(&probabilities).unwrap();
 
             assert_eq!(predictions.len(), probabilities.len());
-            assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
+            assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }
 }

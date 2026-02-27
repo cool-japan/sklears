@@ -4,17 +4,17 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 
 [![Crates.io](https://img.shields.io/crates/v/sklears.svg)](https://crates.io/crates/sklears)
 [![Documentation](https://docs.rs/sklears/badge.svg)](https://docs.rs/sklears)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026) — 11,160 tests passing (11,159 passed, 1 intermittent), 171 skipped. See the [release notes](docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0-rc.1` (February 5, 2026) — 4,409/4,410 tests passing (99.98%), 173 skipped. See the [CHANGELOG.md](CHANGELOG.md) for highlights and upgrade guidance.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.0-beta.1`
-- **14-20x performance improvements (validated)** over Python implementations
+- **>99% scikit-learn API coverage** validated for `0.1.0-rc.1`
+- **Pure Rust implementation** with zero C/Fortran dependencies
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
 - **Zero-copy operations** for efficient data handling
@@ -161,7 +161,7 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.0-beta.1"
+sklears = "0.1.0-rc.1"
 
 # Or with specific features
 sklears = { version = "0.1.0-beta.1", features = ["linear", "clustering", "parallel"] }
@@ -513,7 +513,7 @@ let results: Vec<_> = folds
 - **Rust**: Zero-cost abstractions, predictable performance, no GC pauses
 - **Python**: Interpretation overhead, unpredictable GC pauses, reference counting
 - **Memory**: Rust uses 50-90% less memory than equivalent Python code
-- **Speed**: 14-20x faster execution (validated), especially for CPU-intensive tasks
+- **Speed**: Pure Rust implementation with ongoing performance optimization
 
 ## 🛠️ Advanced Usage
 
@@ -788,15 +788,44 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.1.0-beta.1 — January 1, 2026)
+### Current Release Snapshot (0.1.0-rc.1 — February 5, 2026)
 
 | Area | Status | Notes |
 |------|--------|-------|
-| API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 25 crates |
-| Testing | ✅ 11,292 passing (170 skipped) | Workspace validated with unit, integration, property, and benchmark smoke tests |
-| Performance | ✅ 3–100× over CPython | SIMD + multi-threaded kernels enabled by default |
-| GPU Acceleration | ✅ Available | CUDA/WebGPU backends for forests, neighbors, and deep models |
+| API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 36 crates |
+| Testing | ✅ 4,409/4,410 passing (99.98%) | 173 skipped, comprehensive unit/integration/property tests |
+| Performance | 🔄 Optimization In Progress | Correct results validated, performance optimization ongoing (see benchmarks) |
+| Pure Rust Stack | ✅ 100% | OxiBLAS v0.1.2 + Oxicode v0.1.1, zero system dependencies |
+| SciRS2 Integration | ✅ Complete | v0.1.3 stable, 18 files migrated (sklears-decomposition, linear, svm) |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
+
+### Performance Status (v0.1.0-rc.1)
+
+**Current Status**: Correctness validated, performance optimization in progress
+
+**What Works Well**:
+- **Correctness**: All algorithms produce scientifically correct results
+- **Safety**: Memory safe, type safe, no undefined behavior
+- **Portability**: Pure Rust (zero C/Fortran dependencies), compiles everywhere
+- **API Design**: Clean, ergonomic, scikit-learn compatible
+- **Small Datasets**: Competitive performance on datasets <30 samples
+
+**Performance Benchmarks** (SVM, compared to scikit-learn):
+- 6 samples: ~Equal (~0.5ms)
+- 20-30 samples: 2x slower
+- 50-100 samples: 2-40x slower
+
+**Why Rust Still Makes Sense**:
+- Production deployment without Python runtime
+- Type-safe ML pipelines catch errors at compile-time
+- Fearless concurrency for parallel algorithms
+- Memory safety without GC overhead
+- Future optimization potential with SIMD and GPU acceleration
+
+**Performance Roadmap**:
+- **v0.1.1**: Profiling and algorithmic improvements
+- **v0.2.0**: Performance parity with scikit-learn
+- **v0.3.0**: Exceed scikit-learn with Rust-specific optimizations (SIMD, parallelization)
 
 ### Next Up (toward 0.1.0 Stable)
 1. **Stabilize Public APIs** — finalize breaking-change policy and document RFC process
@@ -814,10 +843,9 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 
 ## 📄 License
 
-This project is dual-licensed under MIT and Apache-2.0 licenses.
+This project is licensed under the Apache License 2.0.
 
-- MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-- Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- Apache License 2.0 ([LICENSE](LICENSE) or http://www.apache.org/licenses/LICENSE-2.0)
 
 ## 🙏 Acknowledgments
 

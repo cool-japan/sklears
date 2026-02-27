@@ -333,20 +333,38 @@ impl Fit<Array1<Float>, Array1<Float>> for IsotonicRegression<Untrained> {
 
 impl IsotonicRegression<Trained> {
     /// Get the fitted x values
-    pub fn x_thresholds(&self) -> &Array1<Float> {
-        self.x_thresholds_.as_ref().unwrap()
+    pub fn x_thresholds(&self) -> Result<&Array1<Float>> {
+        self.x_thresholds_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "x_thresholds".to_string(),
+            })
     }
 
     /// Get the fitted y values
-    pub fn y_thresholds(&self) -> &Array1<Float> {
-        self.y_thresholds_.as_ref().unwrap()
+    pub fn y_thresholds(&self) -> Result<&Array1<Float>> {
+        self.y_thresholds_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "y_thresholds".to_string(),
+            })
     }
 }
 
 impl Predict<Array1<Float>, Array1<Float>> for IsotonicRegression<Trained> {
     fn predict(&self, x: &Array1<Float>) -> Result<Array1<Float>> {
-        let x_thresh = self.x_thresholds_.as_ref().unwrap();
-        let y_thresh = self.y_thresholds_.as_ref().unwrap();
+        let x_thresh = self
+            .x_thresholds_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
+        let y_thresh = self
+            .y_thresholds_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "predict".to_string(),
+            })?;
 
         let predictions =
             x.map(|&xi| linear_interpolate(xi, x_thresh, y_thresh, self.y_min, self.y_max));

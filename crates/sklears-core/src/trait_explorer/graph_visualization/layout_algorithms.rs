@@ -105,11 +105,11 @@ impl ForceDirectedLayout {
                 let fx = (dx / distance_2d) * repulsive_force;
                 let fy = (dy / distance_2d) * repulsive_force;
 
-                let f1 = forces_2d.get_mut(&node1.id).unwrap();
+                let f1 = forces_2d.get_mut(&node1.id).expect("get_mut should succeed");
                 f1.0 += fx;
                 f1.1 += fy;
 
-                let f2 = forces_2d.get_mut(&node2.id).unwrap();
+                let f2 = forces_2d.get_mut(&node2.id).expect("get_mut should succeed");
                 f2.0 -= fx;
                 f2.1 -= fy;
             }
@@ -128,11 +128,11 @@ impl ForceDirectedLayout {
             let fx = (dx / distance_2d) * attractive_force;
             let fy = (dy / distance_2d) * attractive_force;
 
-            let f1 = forces_2d.get_mut(&edge.from).unwrap();
+            let f1 = forces_2d.get_mut(&edge.from).expect("get_mut should succeed");
             f1.0 -= fx;
             f1.1 -= fy;
 
-            let f2 = forces_2d.get_mut(&edge.to).unwrap();
+            let f2 = forces_2d.get_mut(&edge.to).expect("get_mut should succeed");
             f2.0 += fx;
             f2.1 += fy;
         }
@@ -170,12 +170,12 @@ impl ForceDirectedLayout {
                 let fy = (dy / distance_3d) * repulsive_force;
                 let fz = (dz / distance_3d) * repulsive_force;
 
-                let f1_3d = forces_3d.get_mut(&node1.id).unwrap();
+                let f1_3d = forces_3d.get_mut(&node1.id).expect("get_mut should succeed");
                 f1_3d.0 += fx;
                 f1_3d.1 += fy;
                 f1_3d.2 += fz;
 
-                let f2_3d = forces_3d.get_mut(&node2.id).unwrap();
+                let f2_3d = forces_3d.get_mut(&node2.id).expect("get_mut should succeed");
                 f2_3d.0 -= fx;
                 f2_3d.1 -= fy;
                 f2_3d.2 -= fz;
@@ -197,12 +197,12 @@ impl ForceDirectedLayout {
             let fy = (dy / distance_3d) * attractive_force;
             let fz = (dz / distance_3d) * attractive_force;
 
-            let f1_3d = forces_3d.get_mut(&edge.from).unwrap();
+            let f1_3d = forces_3d.get_mut(&edge.from).expect("get_mut should succeed");
             f1_3d.0 -= fx;
             f1_3d.1 -= fy;
             f1_3d.2 -= fz;
 
-            let f2_3d = forces_3d.get_mut(&edge.to).unwrap();
+            let f2_3d = forces_3d.get_mut(&edge.to).expect("get_mut should succeed");
             f2_3d.0 += fx;
             f2_3d.1 += fy;
             f2_3d.2 += fz;
@@ -228,7 +228,7 @@ impl ForceDirectedLayout {
 
             if force_magnitude > 0.0 {
                 let displacement = force_magnitude.min(temperature) * self.damping_factor;
-                let pos = positions_2d.get_mut(&node.id).unwrap();
+                let pos = positions_2d.get_mut(&node.id).expect("get_mut should succeed");
                 let dx = (force_2d.0 / force_magnitude) * displacement;
                 let dy = (force_2d.1 / force_magnitude) * displacement;
 
@@ -244,7 +244,7 @@ impl ForceDirectedLayout {
 
                 if force_magnitude_3d > 0.0 {
                     let displacement_3d = force_magnitude_3d.min(temperature) * self.damping_factor;
-                    let pos_3d = pos_3d_map.get_mut(&node.id).unwrap();
+                    let pos_3d = pos_3d_map.get_mut(&node.id).expect("get_mut should succeed");
 
                     let dx = (force_3d.0 / force_magnitude_3d) * displacement_3d;
                     let dy = (force_3d.1 / force_magnitude_3d) * displacement_3d;
@@ -1013,7 +1013,7 @@ mod tests {
         let result = layout.compute_layout(&graph, &config);
         assert!(result.is_ok());
 
-        let layout_result = result.unwrap();
+        let layout_result = result.expect("expected valid value");
         assert_eq!(layout_result.positions_2d.len(), 2);
         assert!(layout_result.quality_metrics.aesthetic_score >= 0.0);
         assert!(layout_result.quality_metrics.aesthetic_score <= 1.0);
@@ -1039,7 +1039,7 @@ mod tests {
         let result = layout.compute_layout(&graph, &config);
         assert!(result.is_ok());
 
-        let layout_result = result.unwrap();
+        let layout_result = result.expect("expected valid value");
         assert_eq!(layout_result.positions_2d.len(), 2);
     }
 
@@ -1052,7 +1052,7 @@ mod tests {
         let result = layout.compute_layout(&graph, &config);
         assert!(result.is_ok());
 
-        let layout_result = result.unwrap();
+        let layout_result = result.expect("expected valid value");
         assert_eq!(layout_result.positions_2d.len(), 2);
     }
 
@@ -1070,7 +1070,7 @@ mod tests {
         let result = layout.compute_layout(&empty_graph, &config);
         assert!(result.is_ok());
 
-        let layout_result = result.unwrap();
+        let layout_result = result.expect("expected valid value");
         assert!(layout_result.positions_2d.is_empty());
     }
 

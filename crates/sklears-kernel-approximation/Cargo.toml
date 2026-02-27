@@ -31,8 +31,9 @@ scirs2-stats = { workspace = true }
 # ❌ rand_distr - use scirs2_core::random instead
 # ❌ rand_chacha - use scirs2_core::random instead
 rayon = { workspace = true }
-num_cpus = "1.17"
-rustfft = "6.4"
+num_cpus = { workspace = true }
+# ❌ rustfft - REPLACED with oxifft (COOLJAPAN Policy)
+oxifft = { workspace = true }  # Pure Rust FFT (COOLJAPAN Policy)
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

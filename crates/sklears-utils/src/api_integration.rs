@@ -805,10 +805,12 @@ mod tests {
 
     #[test]
     fn test_api_metrics() {
-        let mut metrics = ApiMetrics::default();
-        metrics.total_requests = 10;
-        metrics.successful_requests = 8;
-        metrics.failed_requests = 2;
+        let metrics = ApiMetrics {
+            total_requests: 10,
+            successful_requests: 8,
+            failed_requests: 2,
+            ..ApiMetrics::default()
+        };
 
         assert_eq!(metrics.success_rate(), 0.8);
 

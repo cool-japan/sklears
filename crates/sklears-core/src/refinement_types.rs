@@ -761,7 +761,7 @@ mod tests {
 
     #[test]
     fn test_positive_refinement() {
-        let pos = Positive::<i32>::new(5).unwrap();
+        let pos = Positive::<i32>::new(5).expect("expected valid value");
         assert_eq!(*pos, 5);
 
         let neg_result = Positive::<i32>::new(-5);
@@ -773,10 +773,10 @@ mod tests {
 
     #[test]
     fn test_non_negative_refinement() {
-        let non_neg = NonNegative::<i32>::new(0).unwrap();
+        let non_neg = NonNegative::<i32>::new(0).expect("expected valid value");
         assert_eq!(*non_neg, 0);
 
-        let pos = NonNegative::<i32>::new(5).unwrap();
+        let pos = NonNegative::<i32>::new(5).expect("expected valid value");
         assert_eq!(*pos, 5);
 
         let neg_result = NonNegative::<i32>::new(-5);
@@ -785,13 +785,13 @@ mod tests {
 
     #[test]
     fn test_probability_refinement() {
-        let prob = ValidProbability::new(0.5).unwrap();
+        let prob = ValidProbability::new(0.5).expect("expected valid value");
         assert_eq!(*prob, 0.5);
 
-        let zero_prob = ValidProbability::new(0.0).unwrap();
+        let zero_prob = ValidProbability::new(0.0).expect("expected valid value");
         assert_eq!(*zero_prob, 0.0);
 
-        let one_prob = ValidProbability::new(1.0).unwrap();
+        let one_prob = ValidProbability::new(1.0).expect("expected valid value");
         assert_eq!(*one_prob, 1.0);
 
         let invalid_prob = ValidProbability::new(1.5);
@@ -803,7 +803,7 @@ mod tests {
 
     #[test]
     fn test_learning_rate_refinement() {
-        let lr = ValidLearningRate::new(0.01).unwrap();
+        let lr = ValidLearningRate::new(0.01).expect("expected valid value");
         assert_eq!(*lr, 0.01);
 
         let zero_lr = ValidLearningRate::new(0.0);
@@ -815,7 +815,7 @@ mod tests {
 
     #[test]
     fn test_bounded_int() {
-        let bounded = BoundedInt::<0, 100>::new(50).unwrap();
+        let bounded = BoundedInt::<0, 100>::new(50).expect("expected valid value");
         assert_eq!(bounded.get(), 50);
         assert_eq!(BoundedInt::<0, 100>::min_bound(), 0);
         assert_eq!(BoundedInt::<0, 100>::max_bound(), 100);
@@ -829,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_bounded_float() {
-        let bounded = BoundedFloat::new(0.5, 0.0, 1.0).unwrap();
+        let bounded = BoundedFloat::new(0.5, 0.0, 1.0).expect("expected valid value");
         assert_eq!(bounded.get(), 0.5);
         assert_eq!(bounded.min_bound(), 0.0);
         assert_eq!(bounded.max_bound(), 1.0);
@@ -843,7 +843,7 @@ mod tests {
 
     #[test]
     fn test_non_empty_vec() {
-        let non_empty = NonEmpty::<Vec<i32>>::new(vec![1, 2, 3]).unwrap();
+        let non_empty = NonEmpty::<Vec<i32>>::new(vec![1, 2, 3]).expect("expected valid value");
         assert_eq!(non_empty.len(), 3);
 
         let empty_result = NonEmpty::<Vec<i32>>::new(vec![]);
@@ -852,25 +852,25 @@ mod tests {
 
     #[test]
     fn test_num_clusters() {
-        let clusters = NumClusters::new(5).unwrap();
+        let clusters = NumClusters::new(5).expect("expected valid value");
         assert_eq!(*clusters, 5);
 
         let too_few = NumClusters::new(1);
         assert!(too_few.is_err());
 
-        let min_clusters = NumClusters::new(2).unwrap();
+        let min_clusters = NumClusters::new(2).expect("expected valid value");
         assert_eq!(*min_clusters, 2);
     }
 
     #[test]
     fn test_refinement_map() {
-        let pos = Positive::<i32>::new(5).unwrap();
+        let pos = Positive::<i32>::new(5).expect("expected valid value");
         let doubled: Result<Positive<i32>> = pos.try_map(|x| x * 2);
         assert!(doubled.is_ok());
-        assert_eq!(*doubled.unwrap(), 10);
+        assert_eq!(*doubled.expect("expected valid value"), 10);
 
         // Mapping that violates the predicate should fail
-        let pos2 = Positive::<i32>::new(5).unwrap();
+        let pos2 = Positive::<i32>::new(5).expect("expected valid value");
         let negated: Result<Positive<i32>> = pos2.try_map(|x| -x);
         assert!(negated.is_err());
     }
@@ -879,7 +879,7 @@ mod tests {
     fn test_dependent_refinement() {
         // Value must be less than dependency
         let predicate = |dep: &usize, val: &usize| *val < *dep;
-        let refined = DependentRefinement::new(5, 10, predicate).unwrap();
+        let refined = DependentRefinement::new(5, 10, predicate).expect("expected valid value");
         assert_eq!(*refined.get(), 5);
         assert_eq!(*refined.dependency(), 10);
 
@@ -891,12 +891,12 @@ mod tests {
     #[test]
     fn test_sized_matrix() {
         let data = vec![1, 2, 3, 4, 5, 6];
-        let matrix = SizedMatrix::<i32, 2, 3>::new(data).unwrap();
+        let matrix = SizedMatrix::<i32, 2, 3>::new(data).expect("expected valid value");
 
         assert_eq!(SizedMatrix::<i32, 2, 3>::rows(), 2);
         assert_eq!(SizedMatrix::<i32, 2, 3>::cols(), 3);
-        assert_eq!(*matrix.get(0, 0).unwrap(), 1);
-        assert_eq!(*matrix.get(1, 2).unwrap(), 6);
+        assert_eq!(*matrix.get(0, 0).expect("get should succeed"), 1);
+        assert_eq!(*matrix.get(1, 2).expect("get should succeed"), 6);
 
         // Wrong size should fail
         let wrong_size = SizedMatrix::<i32, 2, 3>::new(vec![1, 2, 3]);
@@ -908,7 +908,7 @@ mod tests {
         // AND: value must be positive AND less than 10
         type PositiveAndSmall = Refined<i32, And<PositivePredicate, PositivePredicate>>;
 
-        let valid = PositiveAndSmall::new(5).unwrap();
+        let valid = PositiveAndSmall::new(5).expect("expected valid value");
         assert_eq!(*valid, 5);
 
         let invalid = PositiveAndSmall::new(0);

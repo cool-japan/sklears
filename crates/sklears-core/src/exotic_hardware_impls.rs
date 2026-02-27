@@ -1086,7 +1086,9 @@ mod tests {
             precision: Precision::BFloat16,
         }];
 
-        let graph_id = tpu.compile_graph(operations).unwrap();
+        let graph_id = tpu
+            .compile_graph(operations)
+            .expect("compile_graph should succeed");
         assert!(tpu.compilation_cache.contains_key(&graph_id));
     }
 
@@ -1101,9 +1103,13 @@ mod tests {
             precision: Precision::Float32,
         }];
 
-        let graph_id = tpu.compile_graph(operations).unwrap();
+        let graph_id = tpu
+            .compile_graph(operations)
+            .expect("compile_graph should succeed");
         let inputs = vec![1.0; 100];
-        let outputs = tpu.execute_graph(&graph_id, &inputs).unwrap();
+        let outputs = tpu
+            .execute_graph(&graph_id, &inputs)
+            .expect("execute_graph should succeed");
 
         assert_eq!(outputs.len(), 100);
     }
@@ -1150,7 +1156,8 @@ mod tests {
             latency_cycles: 10,
         };
 
-        fpga.configure_pipeline(pipeline).unwrap();
+        fpga.configure_pipeline(pipeline)
+            .expect("configure_pipeline should succeed");
         assert_eq!(fpga.pipelines.len(), 1);
     }
 
@@ -1267,7 +1274,9 @@ mod tests {
         let circuit = quantum.create_variational_circuit("test".to_string(), 1);
         quantum.add_circuit(circuit);
 
-        let measurement = quantum.execute_circuit("test", 1000).unwrap();
+        let measurement = quantum
+            .execute_circuit("test", 1000)
+            .expect("execute_circuit should succeed");
 
         assert_eq!(measurement.total_shots, 1000);
         assert!(!measurement.outcomes.is_empty());
@@ -1281,8 +1290,10 @@ mod tests {
         let x1 = vec![1.0, 0.0, 0.0, 1.0];
         let x2 = vec![0.0, 1.0, 1.0, 0.0];
 
-        let kernel_value = quantum.quantum_kernel(&x1, &x2).unwrap();
-        assert!(kernel_value >= 0.0 && kernel_value <= 1.0);
+        let kernel_value = quantum
+            .quantum_kernel(&x1, &x2)
+            .expect("quantum_kernel should succeed");
+        assert!((0.0..=1.0).contains(&kernel_value));
     }
 
     #[test]
@@ -1404,7 +1415,9 @@ mod tests {
             },
         ];
 
-        let result = neuro.simulate("test", &input_spikes).unwrap();
+        let result = neuro
+            .simulate("test", &input_spikes)
+            .expect("simulate should succeed");
 
         assert_eq!(result.total_spikes, 2);
         assert_eq!(result.spike_trains.len(), 20); // 10 + 10 neurons
@@ -1422,7 +1435,9 @@ mod tests {
             time_ms: 1.0,
         }];
 
-        let result = neuro.simulate("test", &input_spikes).unwrap();
+        let result = neuro
+            .simulate("test", &input_spikes)
+            .expect("simulate should succeed");
 
         // Energy consumption should be very low
         assert!(result.energy_consumed < 0.001);

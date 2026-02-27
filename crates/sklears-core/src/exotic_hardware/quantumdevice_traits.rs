@@ -88,7 +88,9 @@ impl ExoticHardware for QuantumDevice {
                     );
                     metrics.insert(
                         "decoherence_error".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from_f64(0.01).unwrap()),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(0.01).expect("valid JSON operation"),
+                        ),
                     );
                     metrics
                 },

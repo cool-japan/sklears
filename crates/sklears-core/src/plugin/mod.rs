@@ -443,7 +443,9 @@ mod integration_tests {
             .register("integration_test", Box::new(mock))
             .is_ok());
 
-        let plugins = registry.list_plugins().unwrap();
+        let plugins = registry
+            .list_plugins()
+            .expect("list_plugins should succeed");
         assert!(plugins.contains(&"integration_test".to_string()));
     }
 
@@ -482,7 +484,9 @@ mod integration_tests {
         let mock = testing_utils::MockPlugin::new("validation_test");
         let manifest = &fixture.create_test_manifests()[3]; // Signed manifest for validation
 
-        let report = validator.validate_comprehensive(&mock, manifest).unwrap();
+        let report = validator
+            .validate_comprehensive(&mock, manifest)
+            .expect("validate_comprehensive should succeed");
         assert!(!report.has_errors());
     }
 

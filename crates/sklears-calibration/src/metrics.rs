@@ -824,7 +824,7 @@ mod tests {
 
         let ece = expected_calibration_error(&y_true, &y_prob, &config).unwrap();
 
-        assert!(ece >= 0.0 && ece <= 1.0);
+        assert!((0.0..=1.0).contains(&ece));
     }
 
     #[test]
@@ -835,7 +835,7 @@ mod tests {
 
         let mce = maximum_calibration_error(&y_true, &y_prob, &config).unwrap();
 
-        assert!(mce >= 0.0 && mce <= 1.0);
+        assert!((0.0..=1.0).contains(&mce));
     }
 
     #[test]
@@ -906,7 +906,7 @@ mod tests {
         let (chi_square, p_value) = chi_squared_calibration_test(&y_true, &y_prob, 4).unwrap();
 
         assert!(chi_square >= 0.0);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
     }
 
     #[test]
@@ -916,8 +916,8 @@ mod tests {
 
         let (ks_stat, p_value) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob).unwrap();
 
-        assert!(ks_stat >= 0.0 && ks_stat <= 1.0);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&ks_stat));
+        assert!((0.0..=1.0).contains(&p_value));
     }
 
     #[test]
@@ -931,9 +931,9 @@ mod tests {
 
         // For well-calibrated data, we expect higher p-values (less significant)
         assert!(chi_square >= 0.0);
-        assert!(chi_p >= 0.0 && chi_p <= 1.0);
-        assert!(ks_stat >= 0.0 && ks_stat <= 1.0);
-        assert!(ks_p >= 0.0 && ks_p <= 1.0);
+        assert!((0.0..=1.0).contains(&chi_p));
+        assert!((0.0..=1.0).contains(&ks_stat));
+        assert!((0.0..=1.0).contains(&ks_p));
     }
 
     #[test]
@@ -947,9 +947,9 @@ mod tests {
 
         // For poorly calibrated data, we expect higher test statistics
         assert!(chi_square >= 0.0);
-        assert!(chi_p >= 0.0 && chi_p <= 1.0);
-        assert!(ks_stat >= 0.0 && ks_stat <= 1.0);
-        assert!(ks_p >= 0.0 && ks_p <= 1.0);
+        assert!((0.0..=1.0).contains(&chi_p));
+        assert!((0.0..=1.0).contains(&ks_stat));
+        assert!((0.0..=1.0).contains(&ks_p));
     }
 
     #[test]
@@ -968,7 +968,7 @@ mod tests {
 
         // All p-values should be between 0 and 1
         for &p in p_values.iter() {
-            assert!(p >= 0.0 && p <= 1.0);
+            assert!((0.0..=1.0).contains(&p));
         }
     }
 
@@ -994,7 +994,7 @@ mod tests {
 
         let ace = advanced_adaptive_calibration_error(&y_true, &y_prob, 3).unwrap();
 
-        assert!(ace >= 0.0 && ace <= 1.0);
+        assert!((0.0..=1.0).contains(&ace));
     }
 
     #[test]
@@ -1011,7 +1011,7 @@ mod tests {
     fn test_binomial_test() {
         // Test exact cases
         let (_z_stat, p_value) = binomial_test(5, 10, 0.5);
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
 
         // Test extreme cases
         let (_z_stat2, p_value2) = binomial_test(0, 10, 0.8);

@@ -60,7 +60,7 @@ impl RobustnessTestSuite {
         // Ensure all outputs are valid probabilities
         for &prob in calibrated.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Probability out of range: {}",
                 prob
             );
@@ -74,7 +74,7 @@ impl RobustnessTestSuite {
 
         for &prob in temp_calibrated.iter() {
             assert!(
-                prob >= 0.0 && prob <= 1.0,
+                (0.0..=1.0).contains(&prob),
                 "Temperature scaling probability out of range: {}",
                 prob
             );
@@ -201,7 +201,7 @@ impl RobustnessTestSuite {
 
         // Should handle constant input gracefully
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
             assert!(prob.is_finite());
         }
 
@@ -211,7 +211,7 @@ impl RobustnessTestSuite {
         let calibrated_zero = isotonic_zero.predict_proba(&zero_probs)?;
 
         for &prob in calibrated_zero.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
 
         // Test with all predictions being 1
@@ -220,7 +220,7 @@ impl RobustnessTestSuite {
         let calibrated_one = isotonic_one.predict_proba(&one_probs)?;
 
         for &prob in calibrated_one.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
         }
 
         Ok(())
@@ -232,7 +232,7 @@ impl RobustnessTestSuite {
 
         // Test with very small differences that might cause numerical issues
         let precision_probs = array![
-            0.5000000000000000,
+            0.5,
             0.5000000000000001,
             0.4999999999999999,
             0.5000000000000002,
@@ -244,7 +244,7 @@ impl RobustnessTestSuite {
 
         // Should handle tiny differences without numerical issues
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
             assert!(prob.is_finite());
         }
 
@@ -260,7 +260,7 @@ impl RobustnessTestSuite {
         let temp_calibrated = temp_calibrator.predict_proba(&epsilon_probs)?;
 
         for &prob in temp_calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
             assert!(prob.is_finite());
         }
 
@@ -389,7 +389,7 @@ impl RobustnessTestSuite {
 
                         // All probabilities should be valid
                         for &prob in row.iter() {
-                            assert!(prob >= 0.0 && prob <= 1.0);
+                            assert!((0.0..=1.0).contains(&prob));
                         }
                     }
                 }
@@ -420,7 +420,7 @@ impl RobustnessTestSuite {
 
         // Should handle perfect separation
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
             assert!(prob.is_finite());
         }
 
@@ -454,7 +454,7 @@ impl RobustnessTestSuite {
 
         // Should produce valid outputs even with adversarial inputs
         for &prob in calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
             assert!(prob.is_finite());
         }
 
@@ -466,7 +466,7 @@ impl RobustnessTestSuite {
         let hist_calibrated = histogram.predict_proba(&repeated_probs)?;
 
         for &prob in hist_calibrated.iter() {
-            assert!(prob >= 0.0 && prob <= 1.0);
+            assert!((0.0..=1.0).contains(&prob));
             assert!(prob.is_finite());
         }
 
@@ -517,7 +517,7 @@ impl RobustnessTestSuite {
                         assert!((sum - 1.0).abs() < 1e-6, "Probabilities don't sum to 1");
 
                         for &prob in row.iter() {
-                            assert!(prob >= 0.0 && prob <= 1.0, "Invalid probability: {}", prob);
+                            assert!((0.0..=1.0).contains(&prob), "Invalid probability: {}", prob);
                             assert!(prob.is_finite(), "Non-finite probability");
                         }
                     }

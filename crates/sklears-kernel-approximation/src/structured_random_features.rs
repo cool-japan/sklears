@@ -203,8 +203,15 @@ impl LowDiscrepancySequences {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```text
 /// use sklears_kernel_approximation::structured_random_features::{
+///     StructuredRandomFeatures, StructuredMatrix,
+/// };
+///
+/// let srf = StructuredRandomFeatures::new(100)
+///     .with_gamma(0.5)
+///     .with_structured_matrix(StructuredMatrix::Hadamard);
+/// ```
 #[derive(Debug, Clone)]
 pub struct StructuredRandomFeatures<State = Untrained> {
     pub n_components: usize,

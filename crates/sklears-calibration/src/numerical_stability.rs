@@ -552,7 +552,7 @@ mod tests {
         let clamped = ops.clamp_probabilities(&probs);
 
         for &value in clamped.iter() {
-            assert!(value >= 0.0 && value <= 1.0);
+            assert!((0.0..=1.0).contains(&value));
             assert!(value.is_finite());
         }
     }
@@ -614,9 +614,10 @@ mod tests {
 
     #[test]
     fn test_robust_optimizer() {
-        let mut config = NumericalConfig::default();
-        // Remove regularization to test basic optimization
-        config.regularization = 0.0;
+        let config = NumericalConfig {
+            regularization: 0.0,
+            ..NumericalConfig::default()
+        };
         let optimizer = RobustOptimizer::new(config);
 
         // Minimize f(x) = (x - 2)²
@@ -652,9 +653,11 @@ mod tests {
     #[test]
     fn test_convergence_fix() {
         // This test specifically validates that the convergence bug has been fixed
-        let mut config = NumericalConfig::default();
-        config.regularization = 0.0;
-        config.convergence_tolerance = 1e-6;
+        let config = NumericalConfig {
+            regularization: 0.0,
+            convergence_tolerance: 1e-6,
+            ..NumericalConfig::default()
+        };
         let optimizer = RobustOptimizer::new(config);
 
         // Test a simple quadratic that should take several iterations to minimize
@@ -687,9 +690,11 @@ mod tests {
 
     #[test]
     fn test_minimize_method() {
-        let mut config = NumericalConfig::default();
-        config.regularization = 0.0;
-        config.convergence_tolerance = 1e-6;
+        let config = NumericalConfig {
+            regularization: 0.0,
+            convergence_tolerance: 1e-6,
+            ..NumericalConfig::default()
+        };
         let optimizer = RobustOptimizer::new(config);
 
         // Test 1: Minimize f(x) = (x - 3)² with different starting point

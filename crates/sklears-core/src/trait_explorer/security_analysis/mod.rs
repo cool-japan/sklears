@@ -538,7 +538,7 @@ impl ComprehensiveSecurityAnalyzer {
 
     fn generate_analysis_id(&self) -> String {
         format!("comprehensive_analysis_{}",
-            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs())
+            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs())
     }
 
     fn calculate_overall_security_score(

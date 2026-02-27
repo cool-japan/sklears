@@ -644,7 +644,9 @@ mod tests {
             }
         "#;
 
-        let result = playground.execute_code(code).unwrap();
+        let result = playground
+            .execute_code(code)
+            .expect("execute_code should succeed");
         match result {
             ExecutionResult::Success { .. } => {}
             _ => panic!("Expected successful execution"),
@@ -665,8 +667,12 @@ mod tests {
         let mut playground = WasmPlaygroundManager::new();
         let code = "fn main() {}";
 
-        playground.execute_code(code).unwrap();
-        playground.execute_code(code).unwrap();
+        playground
+            .execute_code(code)
+            .expect("execute_code should succeed");
+        playground
+            .execute_code(code)
+            .expect("execute_code should succeed");
 
         assert_eq!(playground.get_history().len(), 2);
 

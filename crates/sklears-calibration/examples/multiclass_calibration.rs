@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_calibration::{CalibratedClassifierCV, CalibrationMethod};
 use sklears_core::traits::Fit;
 
@@ -153,8 +153,8 @@ fn generate_multiclass_data(n_samples: usize, n_classes: usize) -> (Array2<f64>,
         let center_y = ((class % 2) as f64) * 2.0 - 1.0;
 
         for i in start_idx..end_idx {
-            x[[i, 0]] = center_x + rng.sample(&normal) * 1.5;
-            x[[i, 1]] = center_y + rng.sample(&normal) * 1.5;
+            x[[i, 0]] = center_x + normal.sample(&mut rng) * 1.5;
+            x[[i, 1]] = center_y + normal.sample(&mut rng) * 1.5;
             y[i] = class as i32;
         }
     }

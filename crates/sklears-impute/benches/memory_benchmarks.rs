@@ -6,11 +6,12 @@
 //! - Memory efficiency with sparse data
 //! - Cache efficiency
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{s, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::traits::{Fit, Transform};
 use sklears_impute::{KNNImputer, SimpleImputer};
+use std::hint::black_box;
 
 /// Generate sparse data with many missing values
 fn generate_sparse_data(n_samples: usize, n_features: usize, sparsity: f64) -> Array2<f64> {
@@ -20,7 +21,7 @@ fn generate_sparse_data(n_samples: usize, n_features: usize, sparsity: f64) -> A
     for i in 0..n_samples {
         for j in 0..n_features {
             if rng.random::<f64>() < (1.0 - sparsity) {
-                data[[i, j]] = rng.gen_range(-10.0..10.0);
+                data[[i, j]] = rng.random_range(-10.0..10.0);
             } else {
                 data[[i, j]] = f64::NAN;
             }
@@ -95,7 +96,7 @@ fn bench_memory_allocation(c: &mut Criterion) {
     let mut data = Array2::zeros((size, n_features));
     for i in 0..size {
         for j in 0..n_features {
-            data[[i, j]] = rng.gen_range(-10.0..10.0);
+            data[[i, j]] = rng.random_range(-10.0..10.0);
             if rng.random::<f64>() < missing_rate {
                 data[[i, j]] = f64::NAN;
             }
@@ -141,8 +142,8 @@ fn bench_model_reuse(c: &mut Criterion) {
 
     for i in 0..size {
         for j in 0..n_features {
-            train_data[[i, j]] = rng.gen_range(-10.0..10.0);
-            test_data[[i, j]] = rng.gen_range(-10.0..10.0);
+            train_data[[i, j]] = rng.random_range(-10.0..10.0);
+            test_data[[i, j]] = rng.random_range(-10.0..10.0);
             if rng.random::<f64>() < missing_rate {
                 train_data[[i, j]] = f64::NAN;
                 test_data[[i, j]] = f64::NAN;
@@ -186,7 +187,7 @@ fn bench_data_layout(c: &mut Criterion) {
     let mut row_major = Array2::zeros((size, n_features));
     for i in 0..size {
         for j in 0..n_features {
-            row_major[[i, j]] = rng.gen_range(-10.0..10.0);
+            row_major[[i, j]] = rng.random_range(-10.0..10.0);
             if rng.random::<f64>() < missing_rate {
                 row_major[[i, j]] = f64::NAN;
             }
@@ -231,7 +232,7 @@ fn bench_scalability(c: &mut Criterion) {
 
         for i in 0..*size {
             for j in 0..n_features {
-                data[[i, j]] = rng.gen_range(-10.0..10.0);
+                data[[i, j]] = rng.random_range(-10.0..10.0);
                 if rng.random::<f64>() < missing_rate {
                     data[[i, j]] = f64::NAN;
                 }

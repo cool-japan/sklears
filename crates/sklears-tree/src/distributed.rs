@@ -247,7 +247,9 @@ impl DistributedEnsembleTrainer {
 
         // Initialize workers
         {
-            let mut workers_guard = workers.lock().unwrap();
+            let mut workers_guard = workers.lock().map_err(|_| {
+                SklearsError::InvalidState("Workers mutex is poisoned".to_string())
+            })?;
             for i in 0..config.n_workers {
                 workers_guard.insert(
                     i,
@@ -444,8 +446,12 @@ impl DistributedEnsembleTrainer {
 
     /// Distribute tasks to workers
     fn distribute_tasks(&self, tasks: Vec<TrainingTask>) -> Result<()> {
-        let mut task_queue = self.task_queue.lock().unwrap();
-        let mut workers = self.workers.lock().unwrap();
+        let mut task_queue = self.task_queue.lock().map_err(|_| {
+            SklearsError::InvalidState("Task queue mutex is poisoned".to_string())
+        })?;
+        let mut workers = self.workers.lock().map_err(|_| {
+            SklearsError::InvalidState("Workers mutex is poisoned".to_string())
+        })?;
 
         for task in tasks {
             // Assign task to worker
@@ -507,13 +513,17 @@ impl DistributedEnsembleTrainer {
         }
 
         // Return completed results
-        let task_results = self.task_results.lock().unwrap();
+        let task_results = self.task_results.lock().map_err(|_| {
+            SklearsError::InvalidState("Task results mutex is poisoned".to_string())
+        })?;
         Ok(task_results.clone())
     }
 
     /// Check worker health and handle failures
     fn check_worker_health(&self) -> Result<()> {
-        let mut workers = self.workers.lock().unwrap();
+        let mut workers = self.workers.lock().map_err(|_| {
+            SklearsError::InvalidState("Workers mutex is poisoned".to_string())
+        })?;
         let timeout_duration = Duration::from_millis(self.config.communication_timeout);
 
         for (worker_id, worker) in workers.iter_mut() {
@@ -538,8 +548,12 @@ impl DistributedEnsembleTrainer {
         log::info!("Handling failure of worker {}", failed_worker_id);
 
         // Find incomplete tasks for the failed worker
-        let mut task_queue = self.task_queue.lock().unwrap();
-        let workers = self.workers.lock().unwrap();
+        let mut task_queue = self.task_queue.lock().map_err(|_| {
+            SklearsError::InvalidState("Task queue mutex is poisoned".to_string())
+        })?;
+        let workers = self.workers.lock().map_err(|_| {
+            SklearsError::InvalidState("Workers mutex is poisoned".to_string())
+        })?;
 
         let mut tasks_to_redistribute = Vec::new();
         task_queue.retain(|task| {
@@ -587,9 +601,15 @@ impl DistributedEnsembleTrainer {
 
     /// Check training completion status
     fn check_completion_status(&self) -> Result<CompletionStatus> {
-        let workers = self.workers.lock().unwrap();
-        let task_queue = self.task_queue.lock().unwrap();
-        let task_results = self.task_results.lock().unwrap();
+        let workers = self.workers.lock().map_err(|_| {
+            SklearsError::InvalidState("Workers mutex is poisoned".to_string())
+        })?;
+        let task_queue = self.task_queue.lock().map_err(|_| {
+            SklearsError::InvalidState("Task queue mutex is poisoned".to_string())
+        })?;
+        let task_results = self.task_results.lock().map_err(|_| {
+            SklearsError::InvalidState("Task results mutex is poisoned".to_string())
+        })?;
 
         let active_workers = workers
             .values()
@@ -831,8 +851,12 @@ impl LoadBalancer {
 
         self.last_balance_time = now;
 
-        let workers_guard = workers.lock().unwrap();
-        let task_queue_guard = task_queue.lock().unwrap();
+        let workers_guard = workers.lock().map_err(|_| {
+            SklearsError::InvalidState("Workers mutex is poisoned".to_string())
+        })?;
+        let task_queue_guard = task_queue.lock().map_err(|_| {
+            SklearsError::InvalidState("Task queue mutex is poisoned".to_string())
+        })?;
 
         // Calculate load imbalance
         let loads: Vec<f64> = workers_guard
@@ -917,7 +941,9 @@ impl DistributedRandomForest {
         let predictions = probabilities.map_axis(scirs2_core::ndarray::Axis(1), |row| {
             row.iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| {
+                    a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .map(|(i, _)| i as i32)
                 .unwrap_or(0)
         });

@@ -594,11 +594,11 @@ mod tests {
     fn test_test_data_generator() {
         let integers = TestDataGenerator::random_integers(10, 1, 100);
         assert_eq!(integers.len(), 10);
-        assert!(integers.iter().all(|&x| x >= 1 && x <= 100));
+        assert!(integers.iter().all(|&x| (1..=100).contains(&x)));
 
         let floats = TestDataGenerator::random_floats(10, 0.0, 1.0);
         assert_eq!(floats.len(), 10);
-        assert!(floats.iter().all(|&x| x >= 0.0 && x <= 1.0));
+        assert!(floats.iter().all(|&x| (0.0..=1.0).contains(&x)));
 
         let matrix = TestDataGenerator::test_matrix(3, 4);
         assert_eq!(matrix.len(), 3);

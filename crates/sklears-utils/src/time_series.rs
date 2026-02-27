@@ -692,6 +692,6 @@ mod tests {
             .resample(Duration::from_secs(2), AggregationMethod::Mean)
             .unwrap();
 
-        assert!(resampled.len() >= 1);
+        assert!(!resampled.is_empty());
     }
 }

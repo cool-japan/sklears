@@ -1723,15 +1723,17 @@ mod tests {
     #[test]
     fn test_dependency_updater_creation() {
         let updater = DependencyUpdater::new();
-        assert_eq!(updater.config.allow_minor_updates, true);
-        assert_eq!(updater.config.allow_major_updates, false);
-        assert_eq!(updater.config.allow_patch_updates, true);
+        assert!(updater.config.allow_minor_updates);
+        assert!(!updater.config.allow_major_updates);
+        assert!(updater.config.allow_patch_updates);
     }
 
     #[test]
     fn test_update_recommendations() {
         let mut updater = DependencyUpdater::new();
-        let recommendations = updater.check_for_updates().unwrap();
+        let recommendations = updater
+            .check_for_updates()
+            .expect("check_for_updates should succeed");
 
         // Should have some recommendations due to simulated version differences
         assert!(!recommendations.is_empty());
@@ -1745,7 +1747,9 @@ mod tests {
     #[test]
     fn test_update_script_generation() {
         let mut updater = DependencyUpdater::new();
-        let recommendations = updater.check_for_updates().unwrap();
+        let recommendations = updater
+            .check_for_updates()
+            .expect("check_for_updates should succeed");
         let script = updater.generate_update_script(&recommendations);
 
         assert!(script.contains("#!/bin/bash"));
@@ -1756,7 +1760,9 @@ mod tests {
     #[test]
     fn test_update_report_generation() {
         let mut updater = DependencyUpdater::new();
-        let recommendations = updater.check_for_updates().unwrap();
+        let recommendations = updater
+            .check_for_updates()
+            .expect("check_for_updates should succeed");
         let report = updater.generate_update_report(&recommendations);
 
         assert!(report.contains("Dependency Update Report"));
@@ -1769,15 +1775,21 @@ mod tests {
         let updater = DependencyUpdater::new();
 
         assert_eq!(
-            updater.determine_update_type("1.0.0", "2.0.0").unwrap(),
+            updater
+                .determine_update_type("1.0.0", "2.0.0")
+                .expect("determine_update_type should succeed"),
             UpdateType::Major
         );
         assert_eq!(
-            updater.determine_update_type("1.0.0", "1.1.0").unwrap(),
+            updater
+                .determine_update_type("1.0.0", "1.1.0")
+                .expect("determine_update_type should succeed"),
             UpdateType::Minor
         );
         assert_eq!(
-            updater.determine_update_type("1.0.0", "1.0.1").unwrap(),
+            updater
+                .determine_update_type("1.0.0", "1.0.1")
+                .expect("determine_update_type should succeed"),
             UpdateType::Patch
         );
     }

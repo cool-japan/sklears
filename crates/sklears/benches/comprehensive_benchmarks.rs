@@ -2,7 +2,9 @@
 //!
 //! These benchmarks measure performance across different algorithms and data sizes.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+#![allow(non_snake_case)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::traits::{Fit, Predict, Transform};
 use sklears_metrics::classification::accuracy_score;
@@ -12,6 +14,7 @@ use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};
 use sklears_preprocessing::feature_engineering::PolynomialFeatures;
 use sklears_tree::{DecisionTreeClassifier, RandomForestClassifier};
 use sklears_utils::data_generation::{make_blobs, make_classification, make_regression};
+use std::hint::black_box;
 
 fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<i32>) {
     make_classification(n_samples, n_features, 3, None, None, 0.0, 1.0, Some(42)).unwrap()
@@ -137,7 +140,7 @@ fn bench_preprocessing(c: &mut Criterion) {
 
     for &n_samples in &[100, 500, 1000, 5000] {
         for &n_features in &[5, 10, 20, 50] {
-            let (X, _) = generate_classification_data(n_samples, n_features);
+            let (_X, _) = generate_classification_data(n_samples, n_features);
 
             group.throughput(Throughput::Elements((n_samples * n_features) as u64));
 
@@ -217,7 +220,7 @@ fn bench_feature_engineering(c: &mut Criterion) {
                         format!("{}x{}_deg{}", n_samples, n_features, degree),
                     ),
                     &(&X, degree),
-                    |b, (X, degree)| {
+                    |b, (X, _degree)| {
                         b.iter(|| {
                             let poly = PolynomialFeatures::new();
                             black_box(poly.fit(X, &()).unwrap())
@@ -248,12 +251,12 @@ fn bench_cross_validation(c: &mut Criterion) {
 
     for &n_samples in &[100, 300, 500] {
         for &n_features in &[5, 10] {
-            let (X, y) = generate_classification_data(n_samples, n_features);
+            let (_X, _y) = generate_classification_data(n_samples, n_features);
 
             group.throughput(Throughput::Elements(n_samples as u64));
 
-            let kfold = KFold::new(5);
-            let regressor = KNeighborsRegressor::new(3);
+            let _kfold = KFold::new(5);
+            let _regressor = KNeighborsRegressor::new(3);
 
             // Cross-validation benchmark temporarily disabled due to trait issues
             // group.bench_with_input(
@@ -286,8 +289,8 @@ fn bench_metrics(c: &mut Criterion) {
 
     for &n_samples in &[100, 500, 1000, 5000, 10000] {
         // Generate predictions for accuracy benchmarking
-        let y_true = Array1::from_vec((0..n_samples).map(|i| (i % 3)).collect());
-        let y_pred = Array1::from_vec((0..n_samples).map(|i| ((i + 1) % 3)).collect());
+        let y_true = Array1::from_vec((0..n_samples).map(|i| i % 3).collect());
+        let y_pred = Array1::from_vec((0..n_samples).map(|i| (i + 1) % 3).collect());
 
         group.throughput(Throughput::Elements(n_samples as u64));
 

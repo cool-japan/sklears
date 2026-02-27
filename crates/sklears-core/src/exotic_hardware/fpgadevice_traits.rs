@@ -82,14 +82,14 @@ impl ExoticHardware for FpgaDevice {
                             "logic_utilization".to_string(),
                             serde_json::Value::Number(
                                 serde_json::Number::from_f64(config.logic_utilization as f64)
-                                    .unwrap(),
+                                    .expect("expected valid value"),
                             ),
                         );
                         metrics.insert(
                             "dsp_utilization".to_string(),
                             serde_json::Value::Number(
                                 serde_json::Number::from_f64(config.dsp_utilization as f64)
-                                    .unwrap(),
+                                    .expect("expected valid value"),
                             ),
                         );
                     }

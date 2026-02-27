@@ -14,6 +14,27 @@ use sklears_core::{
     types::{Float, Int},
 };
 
+// Helper functions for safe operations
+#[inline]
+fn safe_mean(arr: &Array1<f64>) -> Result<f64> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
+}
+
+#[inline]
+fn safe_mean_axis(arr: &Array2<f64>, axis: Axis) -> Result<Array1<f64>> {
+    arr.mean_axis(axis).ok_or_else(|| {
+        SklearsError::NumericalError("Failed to compute mean along axis".to_string())
+    })
+}
+
+#[inline]
+fn compare_floats(a: &f64, b: &f64) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
+
 /// Configuration for Perceptron
 #[derive(Debug, Clone)]
 pub struct PerceptronConfig {
@@ -245,9 +266,13 @@ impl Fit<Array2<Float>, Array1<Int>> for Perceptron<Untrained> {
                 let y_pred = scores
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| {
+                        compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput("Failed to find maximum score".to_string())
+                    })?;
 
                 // Update if mistake
                 if y_pred != y_i {
@@ -326,25 +351,35 @@ impl Fit<Array2<Float>, Array1<Int>> for Perceptron<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Int>> for Perceptron<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Int>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })?;
+        let intercept = self.intercept_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })?;
+        let classes = self.classes_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: classes not available".to_string())
+        })?;
 
         let scores = x.dot(&coef.t()) + intercept;
-        let predictions = scores
+        let predictions: Result<Vec<Int>> = scores
             .axis_iter(Axis(0))
             .map(|row| {
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| {
+                        compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .map(|(idx, _)| idx)
-                    .unwrap();
-                classes[max_idx]
+                    .ok_or_else(|| {
+                        SklearsError::InvalidInput("Failed to find maximum score".to_string())
+                    })?;
+                Ok(classes[max_idx])
             })
             .collect();
 
-        Ok(Array1::from_vec(predictions))
+        Ok(Array1::from_vec(predictions?))
     }
 }
 
@@ -365,8 +400,10 @@ impl Score<Array2<Float>, Array1<Int>> for Perceptron<Trained> {
 
 impl Perceptron<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array2<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })
     }
 
     /// Get the intercept
@@ -375,19 +412,29 @@ impl Perceptron<Trained> {
     }
 
     /// Get the classes
-    pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().unwrap()
+    pub fn classes(&self) -> Result<&Array1<Int>> {
+        self.classes_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: classes not available".to_string())
+        })
     }
 
     /// Get the number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| {
+            SklearsError::InvalidState(
+                "Model not fitted: iteration count not available".to_string(),
+            )
+        })
     }
 
     /// Get decision function (raw scores)
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: coefficients not available".to_string())
+        })?;
+        let intercept = self.intercept_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("Model not fitted: intercept not available".to_string())
+        })?;
 
         Ok(x.dot(&coef.t()) + intercept)
     }
@@ -441,8 +488,8 @@ mod tests {
         assert!(accuracy > 0.8);
 
         // Check that we have the right number of classes
-        assert_eq!(model.classes().len(), 3);
-        assert_eq!(model.coef().nrows(), 3);
+        assert_eq!(model.classes().unwrap().len(), 3);
+        assert_eq!(model.coef().unwrap().nrows(), 3);
     }
 
     #[test]
@@ -477,7 +524,7 @@ mod tests {
             .unwrap();
 
         // L1 penalty should drive the middle feature (always 0) coefficient to 0
-        let coef = model.coef();
+        let coef = model.coef().unwrap();
         assert!(coef[[0, 1]].abs() < 0.1 || coef[[1, 1]].abs() < 0.1);
     }
 
@@ -514,7 +561,7 @@ mod tests {
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
                 .map(|(idx, _)| idx)
                 .unwrap();
-            assert_eq!(model.classes()[max_idx], pred);
+            assert_eq!(model.classes().unwrap()[max_idx], pred);
         }
     }
 }

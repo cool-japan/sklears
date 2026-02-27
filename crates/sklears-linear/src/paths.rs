@@ -970,7 +970,7 @@ mod tests {
 
         let (alphas, _active, coef_path) = lars_path(&x, &y, Some(2), 0.0, true).unwrap();
 
-        assert!(alphas.len() > 0);
+        assert!(!alphas.is_empty());
         assert_eq!(coef_path.nrows(), 2); // n_features
     }
 
@@ -981,7 +981,7 @@ mod tests {
 
         let (alphas, _active, coef_path) = lars_path_gram(&xy, &gram, 5, Some(2), 0.0).unwrap();
 
-        assert!(alphas.len() > 0);
+        assert!(!alphas.is_empty());
         assert_eq!(coef_path.nrows(), 2);
     }
 
@@ -1014,7 +1014,7 @@ mod tests {
         let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
 
         // Test may get fewer alphas due to convergence, so be more flexible
-        assert!(result.alphas.len() >= 1);
+        assert!(!result.alphas.is_empty());
         assert!(result.alphas.len() <= 5);
         assert_eq!(result.coefs.shape(), &[2, result.alphas.len()]); // 2 features, actual alphas
         assert_eq!(result.dual_gaps.len(), result.alphas.len());
@@ -1048,7 +1048,7 @@ mod tests {
 
         let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
 
-        assert!(result.alphas.len() >= 1);
+        assert!(!result.alphas.is_empty());
         assert!(result.alphas.len() <= 3);
         assert_eq!(result.coefs.shape(), &[2, result.alphas.len()]);
 
@@ -1076,7 +1076,7 @@ mod tests {
 
         let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
 
-        assert!(result.alphas.len() >= 1);
+        assert!(!result.alphas.is_empty());
         assert!(result.alphas.len() <= 3);
         assert_eq!(result.coefs.shape(), &[2, result.alphas.len()]);
 
@@ -1099,22 +1099,31 @@ mod tests {
         assert!(valid_config.validate_config().is_ok());
 
         // Invalid l1_ratio
-        let mut invalid_config = ElasticNetPathConfig::default();
-        invalid_config.l1_ratio = -0.1;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_neg = ElasticNetPathConfig {
+            l1_ratio: -0.1,
+            ..ElasticNetPathConfig::default()
+        };
+        assert!(invalid_config_neg.validate().is_err());
 
-        invalid_config.l1_ratio = 1.1;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_high = ElasticNetPathConfig {
+            l1_ratio: 1.1,
+            ..ElasticNetPathConfig::default()
+        };
+        assert!(invalid_config_high.validate().is_err());
 
         // Invalid n_alphas
-        invalid_config = ElasticNetPathConfig::default();
-        invalid_config.n_alphas = 0;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_zero = ElasticNetPathConfig {
+            n_alphas: 0,
+            ..ElasticNetPathConfig::default()
+        };
+        assert!(invalid_config_zero.validate().is_err());
 
         // Test warnings
-        let mut warning_config = ElasticNetPathConfig::default();
-        warning_config.l1_ratio = 0.0; // Ridge
-        warning_config.n_alphas = 1500; // Large
+        let warning_config = ElasticNetPathConfig {
+            l1_ratio: 0.0,
+            n_alphas: 1500,
+            ..ElasticNetPathConfig::default()
+        };
         let warnings = warning_config.get_warnings();
         assert!(warnings.len() >= 2);
         assert!(warnings[0].contains("Ridge"));

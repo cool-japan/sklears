@@ -9,49 +9,49 @@
 //!
 //! ## Time Series Analysis
 //! - **Module**: [`time_series`]
-//! - **Selector**: [`TimeSeriesSelector`](time_series::TimeSeriesSelector)
+//! - **Selector**: [`TimeSeriesSelector`]
 //! - **Focus**: Temporal patterns, autocorrelation, seasonality, trend analysis
 //! - **Applications**: Financial time series, sensor data, economic indicators
 //!
 //! ## Text and Document Analysis
 //! - **Module**: [`text_features`]
-//! - **Selector**: [`TextFeatureSelector`](text_features::TextFeatureSelector)
+//! - **Selector**: [`TextFeatureSelector`]
 //! - **Focus**: TF-IDF, document frequency, chi-squared analysis, linguistic features
 //! - **Applications**: Document classification, sentiment analysis, information retrieval
 //!
 //! ## Image and Visual Data
 //! - **Module**: [`image_features`]
-//! - **Selector**: [`ImageFeatureSelector`](image_features::ImageFeatureSelector)
+//! - **Selector**: [`ImageFeatureSelector`]
 //! - **Focus**: Spatial correlation, frequency domain, texture analysis, computer vision
 //! - **Applications**: Medical imaging, pattern recognition, visual classification
 //!
 //! ## Graph and Network Data
 //! - **Module**: [`graph_features`]
-//! - **Selector**: [`GraphFeatureSelector`](graph_features::GraphFeatureSelector)
+//! - **Selector**: [`GraphFeatureSelector`]
 //! - **Focus**: Centrality measures, community detection, structural properties
 //! - **Applications**: Social networks, biological networks, knowledge graphs
 //!
 //! ## Multi-Modal Data
 //! - **Module**: [`multi_modal`]
-//! - **Selector**: [`MultiModalFeatureSelector`](multi_modal::MultiModalFeatureSelector)
+//! - **Selector**: [`MultiModalFeatureSelector`]
 //! - **Focus**: Cross-modal analysis, fusion strategies, heterogeneous data integration
 //! - **Applications**: Multimedia analysis, sensor fusion, multimodal machine learning
 //!
 //! ## Bioinformatics and Genomics
 //! - **Module**: [`bioinformatics`]
-//! - **Selector**: [`BioinformaticsFeatureSelector`](bioinformatics::BioinformaticsFeatureSelector)
+//! - **Selector**: [`BioinformaticsFeatureSelector`]
 //! - **Focus**: Gene expression, SNP analysis, pathway enrichment, multiple testing correction
 //! - **Applications**: Genomics, proteomics, drug discovery, personalized medicine
 //!
 //! ## Finance and Trading
 //! - **Module**: [`finance`]
-//! - **Selector**: [`FinanceFeatureSelector`](finance::FinanceFeatureSelector)
+//! - **Selector**: [`FinanceFeatureSelector`]
 //! - **Focus**: Technical indicators, risk metrics, market microstructure, regime detection
 //! - **Applications**: Algorithmic trading, risk management, portfolio optimization
 //!
 //! ## Advanced NLP
 //! - **Module**: [`advanced_nlp`]
-//! - **Selector**: [`AdvancedNLPFeatureSelector`](advanced_nlp::AdvancedNLPFeatureSelector)
+//! - **Selector**: [`AdvancedNLPFeatureSelector`]
 //! - **Focus**: Syntactic parsing, semantic analysis, discourse features, transformer models
 //! - **Applications**: Language understanding, text generation, machine translation
 //!
@@ -138,9 +138,9 @@
 //! # Integration with Core Framework
 //!
 //! All domain-specific selectors implement the core traits:
-//! - [`Estimator`](crate::core::Estimator) for consistent configuration
-//! - [`Fit`](crate::core::Fit) and [`Transform`](crate::core::Transform) for sklearn-like API
-//! - [`SelectorMixin`](crate::core::SelectorMixin) for feature selection functionality
+//! - `Estimator` for consistent configuration
+//! - `Fit` and `Transform` for sklearn-like API
+//! - `SelectorMixin` for feature selection functionality
 //!
 //! This ensures compatibility with the broader sklears ecosystem while providing
 //! specialized capabilities for domain-specific applications.

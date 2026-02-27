@@ -8,7 +8,7 @@ This document summarizes the structure and files created for the sklears machine
 - `Cargo.toml` - Workspace configuration with all dependencies
 - `README.md` - Main project documentation
 - `TODO.md` - Implementation roadmap and task tracking
-- `LICENSE-MIT` - MIT license file
+- `LICENSE` - Apache License 2.0
 - `.gitignore` - Git ignore configuration
 - `rust-toolchain.toml` - Rust toolchain specification
 - `.github/workflows/ci.yml` - GitHub Actions CI/CD pipeline

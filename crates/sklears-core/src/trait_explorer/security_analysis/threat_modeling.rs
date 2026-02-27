@@ -414,7 +414,7 @@ impl ThreatModelingEngine {
         let confidence_intervals = self.calculate_confidence_intervals(&stride_scores)?;
 
         Ok(StrideAnalysisResult {
-            analysis_id: format!("stride_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()),
+            analysis_id: format!("stride_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs()),
             spoofing_threats,
             tampering_threats,
             repudiation_threats,
@@ -576,7 +576,7 @@ impl ThreatModelingEngine {
             }
         }
 
-        priorities.sort_by(|a, b| b.risk_score.partial_cmp(&a.risk_score).unwrap());
+        priorities.sort_by(|a, b| b.risk_score.partial_cmp(&a.risk_score).unwrap_or(std::cmp::Ordering::Equal));
         Ok(priorities)
     }
 

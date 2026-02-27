@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-neighbors.svg)](https://crates.io/crates/sklears-neighbors)
 [![Documentation](https://docs.rs/sklears-neighbors/badge.svg)](https://docs.rs/sklears-neighbors)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 Efficient nearest neighbor algorithms for Rust with advanced indexing structures, GPU acceleration, and production-ready tooling.
@@ -229,9 +229,7 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Licensed under either of:
-- Apache License, Version 2.0
-- MIT license
+Licensed under the Apache License, Version 2.0.
 
 ## Citation
 

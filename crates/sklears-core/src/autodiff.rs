@@ -205,7 +205,7 @@ impl Variable {
 
         // Register with tape
         if let Ok(mut tape_guard) = tape.lock() {
-            tape_guard.add_node(var.node.as_ref().unwrap().clone());
+            tape_guard.add_node(var.node.as_ref().expect("value should be present").clone());
         }
 
         var

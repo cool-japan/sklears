@@ -12,6 +12,55 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+/// Compute the inverse of a symmetric positive definite matrix via Cholesky decomposition.
+///
+/// For an SPD matrix A = L L^T, computes A^{-1} = L^{-T} L^{-1}.
+/// This is O(n^3) with small constants and no external library overhead.
+fn cholesky_inverse(a: &Array2<f64>, n: usize) -> std::result::Result<Array2<f64>, String> {
+    // Step 1: Cholesky factorization A = L L^T
+    let mut l = Array2::<f64>::zeros((n, n));
+    for j in 0..n {
+        let mut sum = 0.0;
+        for k in 0..j {
+            sum += l[[j, k]] * l[[j, k]];
+        }
+        let diag = a[[j, j]] - sum;
+        if diag <= 0.0 {
+            return Err(format!(
+                "Matrix is not positive definite (diagonal element {} = {})",
+                j, diag
+            ));
+        }
+        l[[j, j]] = diag.sqrt();
+
+        for i in (j + 1)..n {
+            let mut s = 0.0;
+            for k in 0..j {
+                s += l[[i, k]] * l[[j, k]];
+            }
+            l[[i, j]] = (a[[i, j]] - s) / l[[j, j]];
+        }
+    }
+
+    // Step 2: Compute L^{-1} by forward substitution on identity columns
+    let mut l_inv = Array2::<f64>::zeros((n, n));
+    for col in 0..n {
+        // Solve L * x = e_col
+        for i in 0..n {
+            let mut sum = if i == col { 1.0 } else { 0.0 };
+            for k in 0..i {
+                sum -= l[[i, k]] * l_inv[[k, col]];
+            }
+            l_inv[[i, col]] = sum / l[[i, i]];
+        }
+    }
+
+    // Step 3: A^{-1} = L^{-T} * L^{-1} = (L^{-1})^T * L^{-1}
+    let result = l_inv.t().dot(&l_inv);
+
+    Ok(result)
+}
+
 /// Sampling strategy for Nyström approximation
 #[derive(Debug, Clone)]
 /// SamplingStrategy
@@ -386,13 +435,15 @@ impl Nystroem<Untrained> {
         Ok(selected_indices)
     }
 
-    /// Compute eigendecomposition using power iteration method
-    /// Returns (eigenvalues, eigenvectors) for symmetric matrix
+    /// Compute eigendecomposition using scirs2-linalg's eigh for symmetric matrices
+    /// Returns (eigenvalues, eigenvectors) sorted in descending order by eigenvalue magnitude
     fn compute_eigendecomposition(
         &self,
         matrix: &Array2<Float>,
-        rng: &mut RealStdRng,
+        _rng: &mut RealStdRng,
     ) -> Result<(Array1<Float>, Array2<Float>)> {
+        use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
+
         let n = matrix.nrows();
 
         if n != matrix.ncols() {
@@ -401,39 +452,20 @@ impl Nystroem<Untrained> {
             ));
         }
 
-        let mut eigenvals = Array1::zeros(n);
-        let mut eigenvecs = Array2::zeros((n, n));
+        // Use scirs2-linalg's eigh for symmetric eigendecomposition (much faster than power iteration)
+        let (eigenvals, eigenvecs) = matrix
+            .eigh(UPLO::Lower)
+            .map_err(|e| SklearsError::InvalidInput(format!("Eigendecomposition failed: {}", e)))?;
 
-        // Use deflation method to find multiple eigenvalues
-        let mut deflated_matrix = matrix.clone();
-
-        for k in 0..n {
-            // Power iteration for k-th eigenvalue/eigenvector
-            let (eigenval, eigenvec) = self.power_iteration(&deflated_matrix, 100, 1e-8, rng)?;
-
-            eigenvals[k] = eigenval;
-            eigenvecs.column_mut(k).assign(&eigenvec);
-
-            // Deflate matrix: A_new = A - λ * v * v^T
-            for i in 0..n {
-                for j in 0..n {
-                    deflated_matrix[[i, j]] -= eigenval * eigenvec[i] * eigenvec[j];
-                }
-            }
-        }
-
-        // Sort eigenvalues and eigenvectors in descending order
-        let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&i, &j| eigenvals[j].partial_cmp(&eigenvals[i]).unwrap());
-
+        // eigh returns eigenvalues in ascending order, we need descending
         let mut sorted_eigenvals = Array1::zeros(n);
         let mut sorted_eigenvecs = Array2::zeros((n, n));
 
-        for (new_idx, &old_idx) in indices.iter().enumerate() {
-            sorted_eigenvals[new_idx] = eigenvals[old_idx];
+        for i in 0..n {
+            sorted_eigenvals[i] = eigenvals[n - 1 - i];
             sorted_eigenvecs
-                .column_mut(new_idx)
-                .assign(&eigenvecs.column(old_idx));
+                .column_mut(i)
+                .assign(&eigenvecs.column(n - 1 - i));
         }
 
         Ok((sorted_eigenvals, sorted_eigenvecs))
@@ -526,50 +558,21 @@ impl Fit<Array2<Float>, ()> for Nystroem<Untrained> {
         // Compute kernel matrix K_11 on sampled points
         let k11: Array2<f64> = self.kernel.compute_kernel(&components, &components);
 
-        // Proper Nyström approximation using eigendecomposition
-        // K ≈ K₁₂ K₁₁⁻¹ K₁₂ᵀ where K₁₁⁻¹ is the pseudo-inverse of landmark kernel matrix
-        let eps = 1e-12;
+        // Proper Nyström approximation
+        // K ≈ K₁₂ K₁₁⁻¹ K₁₂ᵀ where K₁₁⁻¹ is the inverse of landmark kernel matrix
+        let eps = 1e-8;
 
-        // Add small regularization to diagonal for numerical stability
-        let mut k11_reg = k11.clone();
+        // Add regularization to diagonal for numerical stability (ensures positive definiteness)
+        let mut k11_reg = k11;
         for i in 0..n_components_actual {
             k11_reg[[i, i]] += eps;
         }
 
-        // Compute pseudo-inverse using eigendecomposition
-        // For symmetric positive definite matrices, we can use power iteration for eigendecomposition
-        let (eigenvals, eigenvecs) = self.compute_eigendecomposition(&k11_reg, &mut rng)?;
-
-        // Filter out small eigenvalues for numerical stability
-        let threshold = 1e-8;
-        let valid_indices: Vec<usize> = eigenvals
-            .iter()
-            .enumerate()
-            .filter(|(_, &val)| val > threshold)
-            .map(|(i, _)| i)
-            .collect();
-
-        if valid_indices.is_empty() {
-            return Err(SklearsError::InvalidInput(
-                "No valid eigenvalues found in kernel matrix".to_string(),
-            ));
-        }
-
-        // Construct pseudo-inverse: V * Λ⁻¹ * V^T
-        let _n_valid = valid_indices.len();
-        let mut pseudo_inverse = Array2::zeros((n_components_actual, n_components_actual));
-
-        for i in 0..n_components_actual {
-            for j in 0..n_components_actual {
-                let mut sum = 0.0;
-                for &k in &valid_indices {
-                    sum += eigenvecs[[i, k]] * eigenvecs[[j, k]] / eigenvals[k];
-                }
-                pseudo_inverse[[i, j]] = sum;
-            }
-        }
-
-        let normalization = pseudo_inverse;
+        // Compute inverse via Cholesky decomposition (fast for SPD matrices)
+        // K11_reg = L L^T, so K11_reg^{-1} = L^{-T} L^{-1}
+        let normalization = cholesky_inverse(&k11_reg, n_components_actual).map_err(|e| {
+            SklearsError::InvalidInput(format!("Failed to invert regularized kernel matrix: {}", e))
+        })?;
 
         Ok(Nystroem {
             kernel: self.kernel,

@@ -183,7 +183,7 @@ impl GpuArray<f32> {
     pub fn from_array2(context: &GpuContext, array: &Array2<f32>) -> Result<Self> {
         // Convert 2D array to contiguous data
         let data: Vec<f32> = if array.is_standard_layout() {
-            array.as_slice().unwrap().to_vec()
+            array.as_slice().unwrap_or(&[]).to_vec()
         } else {
             array.iter().cloned().collect()
         };
@@ -670,7 +670,7 @@ mod tests {
         // This test will only run if GPU support is enabled and CUDA is available
         match GpuContext::new() {
             Ok(ctx) => {
-                let memory_info = ctx.memory_info().unwrap();
+                let memory_info = ctx.memory_info().expect("memory_info should succeed");
                 assert!(memory_info.total > 0);
             }
             Err(_) => {

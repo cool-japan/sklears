@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::thread_rng;
+use scirs2_core::random::{thread_rng, Distribution};
 use sklears_calibration::{CalibratedClassifierCV, CalibrationMethod};
 use sklears_core::traits::Fit;
 
@@ -71,7 +71,7 @@ fn generate_synthetic_data(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
     let normal = Normal::new(0.0, 1.0).unwrap();
 
     // Generate features
-    let x = Array2::from_shape_fn((n_samples, 2), |_| rng.sample(&normal));
+    let x = Array2::from_shape_fn((n_samples, 2), |_| normal.sample(&mut rng));
 
     // Generate true labels (binary classification)
     let y = Array1::from_shape_fn(n_samples, |i| {

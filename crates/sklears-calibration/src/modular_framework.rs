@@ -791,7 +791,7 @@ mod tests {
             )
             .unwrap();
 
-        assert!(ece >= 0.0 && ece <= 1.0);
+        assert!((0.0..=1.0).contains(&ece));
 
         // Test alias
         metrics.register_alias("ece".to_string(), "expected_calibration_error".to_string());
@@ -839,7 +839,7 @@ mod tests {
         let result = pipeline.execute(&probabilities, &targets).unwrap();
 
         assert_eq!(result.len(), probabilities.len());
-        assert!(result.iter().all(|&p| p >= 0.0 && p <= 1.0));
+        assert!(result.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
         // Check execution summary
         let summary = pipeline.get_execution_summary();
@@ -876,7 +876,7 @@ mod tests {
         let brier = metrics
             .compute_metric("brier", &targets, &probabilities, &config)
             .unwrap();
-        assert!(brier >= 0.0 && brier <= 1.0);
+        assert!((0.0..=1.0).contains(&brier));
 
         let metrics_list = metrics.list_metrics();
         assert!(metrics_list.len() >= 2);

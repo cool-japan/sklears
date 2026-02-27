@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/sklears-metrics.svg)](https://crates.io/crates/sklears-metrics)
 [![Documentation](https://docs.rs/sklears-metrics/badge.svg)](https://docs.rs/sklears-metrics)
-[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 Comprehensive, high-performance evaluation metrics for machine learning in Rust, offering 10-50x speedup over scikit-learn with GPU acceleration support.
@@ -182,9 +182,7 @@ We welcome contributions! See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guide
 
 ## License
 
-Licensed under either of:
-- Apache License, Version 2.0 ([LICENSE-APACHE](../../LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](../../LICENSE-MIT))
+Licensed under the Apache License, Version 2.0 ([LICENSE](../../LICENSE)).
 
 ## Citation
 

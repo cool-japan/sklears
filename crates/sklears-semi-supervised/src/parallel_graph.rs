@@ -90,7 +90,7 @@ impl ParallelStrategy {
 ///
 /// # Returns
 ///
-/// Adjacency matrix of shape (n_samples, n_samples) where element [i,j]
+/// Adjacency matrix of shape (n_samples, n_samples) where element \[i,j\]
 /// indicates the weight of the edge from node i to node j.
 ///
 /// # Performance

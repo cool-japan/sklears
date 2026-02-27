@@ -982,14 +982,15 @@ mod tests {
 
     #[test]
     fn test_array_binary_format() {
-        let array = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let array = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
 
         // Test serialization
-        let bytes = ArrayBinaryFormat::serialize_array2(&array).unwrap();
+        let bytes = ArrayBinaryFormat::serialize_array2(&array).expect("expected valid value");
         assert!(bytes.len() > 24); // Header + data
 
         // Test deserialization
-        let restored = ArrayBinaryFormat::deserialize_array2(&bytes).unwrap();
+        let restored = ArrayBinaryFormat::deserialize_array2(&bytes).expect("expected valid value");
         assert_eq!(restored.dim(), array.dim());
 
         for ((i, j), &original) in array.indexed_iter() {
@@ -1002,11 +1003,11 @@ mod tests {
         let array = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
         // Test serialization
-        let bytes = ArrayBinaryFormat::serialize_array1(&array).unwrap();
+        let bytes = ArrayBinaryFormat::serialize_array1(&array).expect("expected valid value");
         assert!(bytes.len() > 16); // Header + data
 
         // Test deserialization
-        let restored = ArrayBinaryFormat::deserialize_array1(&bytes).unwrap();
+        let restored = ArrayBinaryFormat::deserialize_array1(&bytes).expect("expected valid value");
         assert_eq!(restored.len(), array.len());
 
         for (i, &original) in array.iter().enumerate() {
@@ -1022,11 +1023,15 @@ mod tests {
         let serializer = BinarySerializer::new(config);
 
         // Test serialization
-        let bytes = serializer.serialize(&data).unwrap();
+        let bytes = serializer
+            .serialize(&data)
+            .expect("serialize should succeed");
         assert!(!bytes.is_empty());
 
         // Test deserialization
-        let restored: Vec<f64> = serializer.deserialize(&bytes).unwrap();
+        let restored: Vec<f64> = serializer
+            .deserialize(&bytes)
+            .expect("deserialize should succeed");
         assert_eq!(restored, data);
     }
 
@@ -1044,17 +1049,20 @@ mod tests {
     #[cfg(feature = "binary")]
     #[test]
     fn test_array_binary_serialize_traits() {
-        let array = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let array = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
         let config = BinaryConfig {
             format: BinaryFormat::Custom,
             ..Default::default()
         };
 
         // Test trait implementation
-        let bytes = array.serialize_binary(&config).unwrap();
+        let bytes = array
+            .serialize_binary(&config)
+            .expect("serialize_binary should succeed");
         assert!(!bytes.is_empty());
 
-        let restored = Array2::deserialize_binary(&bytes, &config).unwrap();
+        let restored = Array2::deserialize_binary(&bytes, &config).expect("expected valid value");
         assert_eq!(restored.dim(), array.dim());
 
         for ((i, j), &original) in array.indexed_iter() {
@@ -1066,14 +1074,15 @@ mod tests {
     fn test_convenience_functions() {
         use tempfile::NamedTempFile;
 
-        let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let array =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("valid array shape");
 
         // Test save and load with temporary file
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("failed to create temp file");
         let path = temp_file.path();
 
-        convenience::save_array2(&array, path).unwrap();
-        let loaded = convenience::load_array2(path).unwrap();
+        convenience::save_array2(&array, path).expect("expected valid value");
+        let loaded = convenience::load_array2(path).expect("expected valid value");
 
         assert_eq!(loaded.dim(), array.dim());
         for ((i, j), &original) in array.indexed_iter() {
@@ -1087,11 +1096,11 @@ mod tests {
 
         let array = Array1::from_vec(vec![10.0, 20.0, 30.0]);
 
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("failed to create temp file");
         let path = temp_file.path();
 
-        convenience::save_array1(&array, path).unwrap();
-        let loaded = convenience::load_array1(path).unwrap();
+        convenience::save_array1(&array, path).expect("expected valid value");
+        let loaded = convenience::load_array1(path).expect("expected valid value");
 
         assert_eq!(loaded.len(), array.len());
         for (i, &original) in array.iter().enumerate() {

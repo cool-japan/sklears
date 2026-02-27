@@ -13,6 +13,21 @@ use sklears_core::{
     types::{Float, Int},
 };
 
+/// Helper function to safely compute mean of 1D array
+#[inline]
+fn safe_mean(arr: &Array1<f64>) -> Result<f64> {
+    arr.mean()
+        .ok_or_else(|| SklearsError::NumericalError("Failed to compute mean".to_string()))
+}
+
+/// Helper function to safely compare floats
+#[inline]
+fn compare_floats(a: &f64, b: &f64) -> Result<std::cmp::Ordering> {
+    a.partial_cmp(b).ok_or_else(|| {
+        SklearsError::InvalidInput("Cannot compare values: NaN encountered".to_string())
+    })
+}
+
 /// Loss functions for SGD
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SGDLoss {
@@ -397,7 +412,9 @@ impl Fit<Array2<Float>, Array1<Int>> for SGDClassifier<Untrained> {
             for &idx in &indices {
                 let x_i = x.row(idx);
                 let y_i = y[idx];
-                let class_idx = classes.iter().position(|&c| c == y_i).unwrap();
+                let class_idx = classes.iter().position(|&c| c == y_i).ok_or_else(|| {
+                    SklearsError::InvalidInput(format!("Unknown class label: {}", y_i))
+                })?;
 
                 // Compute learning rate
                 let learning_rate =
@@ -525,25 +542,35 @@ impl Fit<Array2<Float>, Array1<Int>> for SGDClassifier<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Int>> for SGDClassifier<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Int>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })?;
+        let intercept = self.intercept_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })?;
+        let classes = self.classes_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("classes_ should be Some in Trained state".to_string())
+        })?;
 
         let scores = x.dot(&coef.t()) + intercept;
-        let predictions = scores
+        let predictions: Result<Vec<Int>> = scores
             .axis_iter(Axis(0))
-            .map(|row| {
+            .map(|row: scirs2_core::ndarray::ArrayView1<Float>| {
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| {
+                        compare_floats(a, b).unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .map(|(idx, _)| idx)
-                    .unwrap();
-                classes[max_idx]
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("Failed to find maximum score".to_string())
+                    })?;
+                Ok(classes[max_idx])
             })
             .collect();
 
-        Ok(Array1::from_vec(predictions))
+        Ok(Array1::from_vec(predictions?))
     }
 }
 
@@ -564,8 +591,10 @@ impl Score<Array2<Float>, Array1<Int>> for SGDClassifier<Trained> {
 
 impl SGDClassifier<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array2<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the intercept
@@ -574,13 +603,17 @@ impl SGDClassifier<Trained> {
     }
 
     /// Get the classes
-    pub fn classes(&self) -> &Array1<Int> {
-        self.classes_.as_ref().unwrap()
+    pub fn classes(&self) -> Result<&Array1<Int>> {
+        self.classes_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("classes_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| {
+            SklearsError::InvalidState("n_iter_ should be Some in Trained state".to_string())
+        })
     }
 }
 
@@ -903,8 +936,12 @@ impl Fit<Array2<Float>, Array1<Float>> for SGDRegressor<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for SGDRegressor<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })?;
+        let intercept = self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })?;
 
         Ok(x.dot(coef) + intercept)
     }
@@ -916,7 +953,7 @@ impl Score<Array2<Float>, Array1<Float>> for SGDRegressor<Trained> {
     fn score(&self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Float> {
         let predictions = self.predict(x)?;
         let ss_res = (y - &predictions).mapv(|e| e * e).sum();
-        let y_mean = y.mean().unwrap();
+        let y_mean = safe_mean(y)?;
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
 
         Ok(1.0 - ss_res / ss_tot)
@@ -925,18 +962,24 @@ impl Score<Array2<Float>, Array1<Float>> for SGDRegressor<Trained> {
 
 impl SGDRegressor<Trained> {
     /// Get the coefficients
-    pub fn coef(&self) -> &Array1<Float> {
-        self.coef_.as_ref().unwrap()
+    pub fn coef(&self) -> Result<&Array1<Float>> {
+        self.coef_.as_ref().ok_or_else(|| {
+            SklearsError::InvalidState("coef_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the intercept
-    pub fn intercept(&self) -> Option<Float> {
-        Some(self.intercept_.unwrap())
+    pub fn intercept(&self) -> Result<Float> {
+        self.intercept_.ok_or_else(|| {
+            SklearsError::InvalidState("intercept_ should be Some in Trained state".to_string())
+        })
     }
 
     /// Get the number of iterations
-    pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+    pub fn n_iter(&self) -> Result<usize> {
+        self.n_iter_.ok_or_else(|| {
+            SklearsError::InvalidState("n_iter_ should be Some in Trained state".to_string())
+        })
     }
 }
 
@@ -996,8 +1039,8 @@ mod tests {
         assert!(accuracy > 0.8);
 
         // Check that we have the right number of classes
-        assert_eq!(model.classes().len(), 3);
-        assert_eq!(model.coef().nrows(), 3);
+        assert_eq!(model.classes().unwrap().len(), 3);
+        assert_eq!(model.coef().unwrap().nrows(), 3);
     }
 
     #[test]
@@ -1019,7 +1062,7 @@ mod tests {
         assert!(r2 > 0.95);
 
         // Check that coefficient is close to 2
-        assert!((model.coef()[0] - 2.0).abs() < 0.1);
+        assert!((model.coef().unwrap()[0] - 2.0).abs() < 0.1);
     }
 
     #[test]
@@ -1036,7 +1079,7 @@ mod tests {
             .unwrap();
 
         // Should be robust to the outlier
-        let coef = model.coef()[0];
+        let coef = model.coef().unwrap()[0];
         assert!(coef > 1.5 && coef < 3.0);
     }
 
@@ -1058,7 +1101,7 @@ mod tests {
             .unwrap();
 
         // L1 penalty should drive the middle feature (always 0) coefficient to 0
-        assert!(model.coef()[1].abs() < 0.1);
+        assert!(model.coef().unwrap()[1].abs() < 0.1);
     }
 
     #[test]

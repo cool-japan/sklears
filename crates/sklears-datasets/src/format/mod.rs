@@ -1,16 +1,33 @@
-//! Auto-generated module structure
+//! Dataset format support for import/export
+//!
+//! This module provides functionality to export and import datasets in various formats.
 
-pub mod csvconfig_traits;
-pub mod types;
-pub mod functions;
-pub mod functions_2;
-pub mod functions_3;
-pub mod functions_4;
+pub mod core;
+pub mod csv;
+pub mod text_formats;
 
-// Re-export all types
-pub use csvconfig_traits::*;
-pub use types::*;
-pub use functions::*;
-pub use functions_2::*;
-pub use functions_3::*;
-pub use functions_4::*;
+#[cfg(feature = "parquet")]
+pub mod parquet;
+
+#[cfg(feature = "hdf5")]
+pub mod hdf5;
+
+#[cfg(feature = "cloud-storage")]
+pub mod cloud;
+
+#[cfg(test)]
+mod tests;
+
+// Re-export main types
+pub use core::*;
+pub use csv::*;
+pub use text_formats::*;
+
+#[cfg(feature = "parquet")]
+pub use self::parquet::*;
+
+#[cfg(feature = "hdf5")]
+pub use self::hdf5::*;
+
+#[cfg(feature = "cloud-storage")]
+pub use cloud::*;

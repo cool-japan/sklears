@@ -1,9 +1,12 @@
 //! Benchmarks for KNN algorithms
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+#![allow(non_snake_case)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::traits::{Fit, Predict, PredictProba};
 use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};
+use std::hint::black_box;
 
 fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<i32>) {
     // Generate simple synthetic data for benchmarking
@@ -19,7 +22,7 @@ fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<
 
         for j in 0..n_features {
             let base_value = class as f64 * 2.0 + j as f64 * 0.1;
-            let noise = rng.gen() * 0.5;
+            let noise = rng.random::<f64>() * 0.5;
             data.push(base_value + noise);
         }
     }
@@ -40,11 +43,11 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
     for _ in 0..n_samples {
         let mut feature_sum = 0.0;
         for _ in 0..n_features {
-            let value = rng.gen() * 10.0 - 5.0;
+            let value = rng.random::<f64>() * 10.0 - 5.0;
             data.push(value);
             feature_sum += value;
         }
-        targets.push(feature_sum + rng.gen() * 0.1);
+        targets.push(feature_sum + rng.random::<f64>() * 0.1);
     }
 
     (

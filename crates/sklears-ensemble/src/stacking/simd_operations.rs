@@ -41,12 +41,12 @@ pub fn simd_linear_prediction(
 /// using optimized matrix operations.
 ///
 /// # Arguments
-/// * `x` - Input data matrix [n_samples, n_features]
-/// * `base_weights` - Base estimator weights [n_estimators, n_features]
-/// * `base_intercepts` - Base estimator intercepts [n_estimators]
+/// * `x` - Input data matrix \[n_samples, n_features\]
+/// * `base_weights` - Base estimator weights \[n_estimators, n_features\]
+/// * `base_intercepts` - Base estimator intercepts \[n_estimators\]
 ///
 /// # Returns
-/// Meta-features matrix [n_samples, n_estimators]
+/// Meta-features matrix \[n_samples, n_estimators\]
 pub fn simd_generate_meta_features(
     x: &ArrayView2<Float>,
     base_weights: &ArrayView2<Float>,
@@ -90,12 +90,12 @@ pub fn simd_generate_meta_features(
 /// Aggregates meta-features using a meta-learner with optimized operations.
 ///
 /// # Arguments
-/// * `meta_features` - Meta-feature matrix [n_samples, n_meta_features]
-/// * `meta_weights` - Meta-learner weights [n_meta_features]
+/// * `meta_features` - Meta-feature matrix \[n_samples, n_meta_features\]
+/// * `meta_weights` - Meta-learner weights \[n_meta_features\]
 /// * `meta_intercept` - Meta-learner intercept
 ///
 /// # Returns
-/// Final predictions [n_samples]
+/// Final predictions \[n_samples\]
 pub fn simd_aggregate_predictions(
     meta_features: &ArrayView2<Float>,
     meta_weights: &ArrayView1<Float>,
@@ -126,11 +126,11 @@ pub fn simd_aggregate_predictions(
 /// Computes C = A @ B with optimized operations for batch processing.
 ///
 /// # Arguments
-/// * `a` - Left matrix [m, k]
-/// * `b` - Right matrix [k, n]
+/// * `a` - Left matrix \[m, k\]
+/// * `b` - Right matrix \[k, n\]
 ///
 /// # Returns
-/// Result matrix [m, n]
+/// Result matrix \[m, n\]
 pub fn simd_batch_matmul(a: &ArrayView2<Float>, b: &ArrayView2<Float>) -> Result<Array2<Float>> {
     let (m, k1) = a.dim();
     let (k2, n) = b.dim();
@@ -151,11 +151,11 @@ pub fn simd_batch_matmul(a: &ArrayView2<Float>, b: &ArrayView2<Float>) -> Result
 /// Computes weighted average of predictions with optimized operations.
 ///
 /// # Arguments
-/// * `predictions` - Prediction matrix [n_samples, n_estimators]
-/// * `weights` - Estimator weights [n_estimators]
+/// * `predictions` - Prediction matrix \[n_samples, n_estimators\]
+/// * `weights` - Estimator weights \[n_estimators\]
 ///
 /// # Returns
-/// Weighted average predictions [n_samples]
+/// Weighted average predictions \[n_samples\]
 pub fn simd_weighted_average(
     predictions: &ArrayView2<Float>,
     weights: &ArrayView1<Float>,

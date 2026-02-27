@@ -814,9 +814,11 @@ mod tests {
     #[test]
     fn test_hierarchical_compression() {
         let matrix = Array2::eye(8);
-        let mut config = CompressionConfig::default();
-        config.block_size = 4;
-        config.method = CompressionMethod::LowRank;
+        let config = CompressionConfig {
+            block_size: 4,
+            method: CompressionMethod::LowRank,
+            ..CompressionConfig::default()
+        };
 
         let compressed = HierarchicalKernelMatrix::new(&matrix, config).unwrap();
         assert_eq!(compressed.dimensions(), (8, 8));

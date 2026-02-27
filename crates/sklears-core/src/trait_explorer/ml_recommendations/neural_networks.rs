@@ -549,7 +549,7 @@ mod tests {
         let result = model.forward(&input);
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("expected valid value");
         assert_eq!(output.len(), 5);
 
         // Check that output is normalized (tanh activation)
@@ -635,18 +635,18 @@ mod tests {
                 5.0, 6.0, 7.0, 8.0,
                 9.0, 10.0, 11.0, 12.0,
             ],
-        ).unwrap();
+        ).expect("expected valid value");
 
         let result = model.forward_batch(&batch_input);
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("expected valid value");
         assert_eq!(output.shape(), &[3, 2]);
 
         // Verify individual samples match batch processing
         for i in 0..3 {
             let individual_input = batch_input.row(i).to_owned();
-            let individual_output = model.forward(&individual_input).unwrap();
+            let individual_output = model.forward(&individual_input).expect("forward should succeed");
             let batch_output = output.row(i);
 
             for j in 0..2 {

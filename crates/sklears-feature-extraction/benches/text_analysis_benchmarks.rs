@@ -3,12 +3,13 @@
 //! These benchmarks measure the performance of text feature extraction methods
 //! including sentiment analysis, emotion detection, and aspect-based sentiment analysis.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sklears_core::traits::Fit;
 use sklears_feature_extraction::text::{
     AspectBasedSentimentAnalyzer, CountVectorizer, EmotionDetector, SentimentAnalyzer,
     TfidfVectorizer,
 };
+use std::hint::black_box;
 
 /// Generate sample documents for benchmarking
 fn generate_documents(count: usize, words_per_doc: usize) -> Vec<String> {

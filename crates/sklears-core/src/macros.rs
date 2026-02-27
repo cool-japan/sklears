@@ -314,13 +314,13 @@ macro_rules! define_estimator {
             fn test_default_creation() {
                 let estimator = $name::default();
                 assert_eq!(estimator.name(), stringify!($name));
-                estimator.validate().unwrap();
+                estimator.validate().expect("validate should succeed");
             }
 
             #[test]
             fn test_builder_pattern() {
                 let estimator = $name::builder();
-                estimator.validate().unwrap();
+                estimator.validate().expect("validate should succeed");
             }
         }
     };

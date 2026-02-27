@@ -1258,7 +1258,7 @@ pub mod geographic {
             let end = GeoPoint::new(52.0, 1.0);
 
             let bearing = start.bearing_to(&end);
-            assert!(bearing >= 0.0 && bearing < 360.0);
+            assert!((0.0..360.0).contains(&bearing));
         }
 
         #[test]

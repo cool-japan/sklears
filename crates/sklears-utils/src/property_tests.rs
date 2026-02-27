@@ -37,7 +37,7 @@ proptest! {
             // Check that at least some classes are present (unless heavily flipped)
             let unique_classes: std::collections::HashSet<i32> = y.iter().copied().collect();
             if flip_y < 0.9 {
-                prop_assert!(unique_classes.len() >= 1);
+                prop_assert!(!unique_classes.is_empty());
             }
 
             // All feature values should be finite
@@ -279,7 +279,7 @@ proptest! {
             // At least some overlap in classes between train and test
             let overlap: std::collections::HashSet<_> = train_classes.intersection(&test_classes).collect();
             if test_size < 0.9 && n_samples >= n_classes * 4 {
-                prop_assert!(overlap.len() > 0);
+                prop_assert!(!overlap.is_empty());
             }
         }
     }

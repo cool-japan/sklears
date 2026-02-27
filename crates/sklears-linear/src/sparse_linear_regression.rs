@@ -301,9 +301,25 @@ impl SparseLinearRegression<Untrained> {
 }
 
 impl SparseLinearRegression<Trained> {
+    /// Helper method to get coefficients safely
+    fn get_coefficients(&self) -> Result<&Array1<Float>> {
+        self.coefficients_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NotFitted {
+                operation: "coefficients".to_string(),
+            })
+    }
+
+    /// Helper method to get n_features safely
+    fn get_n_features(&self) -> Result<usize> {
+        self.n_features_.ok_or_else(|| SklearsError::NotFitted {
+            operation: "n_features".to_string(),
+        })
+    }
+
     /// Get the fitted coefficients
-    pub fn coefficients(&self) -> &Array1<Float> {
-        self.coefficients_.as_ref().expect("Model is trained")
+    pub fn coefficients(&self) -> Result<&Array1<Float>> {
+        self.get_coefficients()
     }
 
     /// Get the fitted intercept (if fit_intercept=true)
@@ -317,21 +333,21 @@ impl SparseLinearRegression<Trained> {
     }
 
     /// Get number of features
-    pub fn n_features(&self) -> usize {
-        self.n_features_.expect("Model is trained")
+    pub fn n_features(&self) -> Result<usize> {
+        self.get_n_features()
     }
 
     /// Get sparsity ratio of the fitted coefficients
-    pub fn coefficient_sparsity(&self) -> f64 {
-        let coeffs = self.coefficients();
+    pub fn coefficient_sparsity(&self) -> Result<f64> {
+        let coeffs = self.get_coefficients()?;
         let nnz = coeffs
             .iter()
             .filter(|&&c| c.abs() > self.config.sparsity_threshold)
             .count();
         if !coeffs.is_empty() {
-            1.0 - (nnz as f64 / coeffs.len() as f64)
+            Ok(1.0 - (nnz as f64 / coeffs.len() as f64))
         } else {
-            0.0
+            Ok(0.0)
         }
     }
 }
@@ -339,7 +355,7 @@ impl SparseLinearRegression<Trained> {
 /// Prediction for dense inputs
 impl Predict<Array2<Float>, Array1<Float>> for SparseLinearRegression<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.get_n_features()?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -348,7 +364,7 @@ impl Predict<Array2<Float>, Array1<Float>> for SparseLinearRegression<Trained> {
             )));
         }
 
-        let coeffs = self.coefficients_.as_ref().expect("Model is trained");
+        let coeffs = self.get_coefficients()?;
         let mut predictions = x.dot(coeffs);
 
         // Add intercept if fitted
@@ -364,7 +380,7 @@ impl Predict<Array2<Float>, Array1<Float>> for SparseLinearRegression<Trained> {
 #[cfg(feature = "sparse")]
 impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseLinearRegression<Trained> {
     fn predict(&self, x: &SparseMatrixCSR<Float>) -> Result<Array1<Float>> {
-        let n_features = self.n_features_.expect("Model is trained");
+        let n_features = self.get_n_features()?;
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -373,7 +389,7 @@ impl Predict<SparseMatrixCSR<Float>, Array1<Float>> for SparseLinearRegression<T
             )));
         }
 
-        let coeffs = self.coefficients_.as_ref().expect("Model is trained");
+        let coeffs = self.get_coefficients()?;
         let mut predictions = x.matvec(coeffs)?;
 
         // Add intercept if fitted
@@ -402,7 +418,7 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let coeffs = model.coefficients();
+        let coeffs = model.coefficients().unwrap();
         let intercept = model.intercept().unwrap();
 
         // Should recover the true parameters
@@ -441,7 +457,7 @@ mod tests {
 
         assert!(model.is_sparse_fitted());
 
-        let coeffs = model.coefficients();
+        let coeffs = model.coefficients().unwrap();
         assert_eq!(coeffs.len(), 2);
 
         // Test sparse prediction
@@ -499,13 +515,17 @@ mod tests {
         let valid_config = SparseLinearRegressionConfig::default();
         assert!(valid_config.validate().is_ok());
 
-        let mut invalid_config = SparseLinearRegressionConfig::default();
-        invalid_config.sparsity_threshold = -1.0;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_neg = SparseLinearRegressionConfig {
+            sparsity_threshold: -1.0,
+            ..SparseLinearRegressionConfig::default()
+        };
+        assert!(invalid_config_neg.validate().is_err());
 
-        let mut invalid_config = SparseLinearRegressionConfig::default();
-        invalid_config.min_sparsity_ratio = 1.5;
-        assert!(invalid_config.validate().is_err());
+        let invalid_config_ratio = SparseLinearRegressionConfig {
+            min_sparsity_ratio: 1.5,
+            ..SparseLinearRegressionConfig::default()
+        };
+        assert!(invalid_config_ratio.validate().is_err());
     }
 
     #[test]
@@ -524,8 +544,8 @@ mod tests {
             .fit(&x, &y)
             .unwrap();
 
-        let sparsity = model.coefficient_sparsity();
-        assert!(sparsity >= 0.0 && sparsity <= 1.0);
+        let sparsity = model.coefficient_sparsity().unwrap();
+        assert!((0.0..=1.0).contains(&sparsity));
     }
 }
 

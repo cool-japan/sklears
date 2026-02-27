@@ -1236,7 +1236,7 @@ macro_rules! define_metrics_supporting_types {
         impl DataSource {
             pub fn new(source_type: &str) -> Self {
                 Self {
-                    source_id: format!("{}_{}", source_type, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()),
+                    source_id: format!("{}_{}", source_type, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("duration_since should succeed").as_secs()),
                     source_type: source_type.to_string(),
                     connection_info: HashMap::new(),
                 }

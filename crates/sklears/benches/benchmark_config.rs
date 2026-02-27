@@ -1,8 +1,9 @@
 //! Benchmark configuration and utilities for continuous benchmarking
 
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use scirs2_core::ndarray::{Array1, Array2};
 use sklears_core::types::Float;
+use std::hint::black_box;
 
 /// Generate synthetic data for benchmarking
 pub fn generate_benchmark_data(

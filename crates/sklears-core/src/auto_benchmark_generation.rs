@@ -270,14 +270,14 @@ impl BenchmarkGenerator {
                 group.bench_function("fit", |b| {
                     let mut model = #type_name::default();
                     b.iter(|| {
-                        black_box(model.fit(&test_data.x, &test_data.y).unwrap())
+                        black_box(model.fit(&test_data.x, &test_data.y).expect("model fitting should succeed"))
                     })
                 });
 
                 group.bench_function("predict", |b| {
-                    let model = #type_name::default().fit(&test_data.x, &test_data.y).unwrap();
+                    let model = #type_name::default().fit(&test_data.x, &test_data.y).expect("model fitting should succeed");
                     b.iter(|| {
-                        black_box(model.predict(&test_data.x_test).unwrap())
+                        black_box(model.predict(&test_data.x_test).expect("prediction should succeed"))
                     })
                 });
 
@@ -320,10 +320,10 @@ impl BenchmarkGenerator {
                         // Model training
                         let model = #type_name::default()
                             .fit(&x_train, &y_train)
-                            .unwrap();
+                            .expect("expected valid value");
 
                         // Prediction and evaluation
-                        let predictions = model.predict(&x_test).unwrap();
+                        let predictions = model.predict(&x_test).expect("prediction should succeed");
                         let score = evaluate_predictions(&predictions, &y_test);
 
                         black_box(score)
@@ -369,7 +369,7 @@ impl BenchmarkGenerator {
                             let mut model = #type_name::default();
 
                             b.iter(|| {
-                                black_box(model.fit(&test_data.x, &test_data.y).unwrap())
+                                black_box(model.fit(&test_data.x, &test_data.y).expect("model fitting should succeed"))
                             })
                         }
                     );
@@ -448,7 +448,7 @@ impl BenchmarkGenerator {
                             let test_data = generate_test_data();
                             let model = #type_name::default()
                                 .fit(&test_data.x, &test_data.y)
-                                .unwrap();
+                                .expect("expected valid value");
                             black_box(model);
                         }
 
@@ -531,7 +531,7 @@ impl BenchmarkGenerator {
                     let mut model = {}::default();
 
                     b.iter(|| {{
-                        black_box(model.fit(&test_data.x, &test_data.y).unwrap())
+                        black_box(model.fit(&test_data.x, &test_data.y).expect("model fitting should succeed"))
                     }})
                 }});
 
@@ -572,10 +572,10 @@ impl BenchmarkGenerator {
                 let n_samples = 1000;
                 let n_features = 20;
 
-                let x = Array2::random((n_samples, n_features), Normal::new(0.0, 1.0).unwrap());
-                let y = Array1::random(n_samples, Normal::new(0.0, 1.0).unwrap());
-                let x_test = Array2::random((100, n_features), Normal::new(0.0, 1.0).unwrap());
-                let y_test = Array1::random(100, Normal::new(0.0, 1.0).unwrap());
+                let x = Array2::random((n_samples, n_features), Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
+                let y = Array1::random(n_samples, Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
+                let x_test = Array2::random((100, n_features), Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
+                let y_test = Array1::random(100, Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
 
                 TestData {{ x, y, x_test, y_test }}
             }}
@@ -583,10 +583,10 @@ impl BenchmarkGenerator {
             fn generate_test_data_with_size(size: usize) -> TestData {{
                 let n_features = 20;
 
-                let x = Array2::random((size, n_features), Normal::new(0.0, 1.0).unwrap());
-                let y = Array1::random(size, Normal::new(0.0, 1.0).unwrap());
-                let x_test = Array2::random((size / 10, n_features), Normal::new(0.0, 1.0).unwrap());
-                let y_test = Array1::random(size / 10, Normal::new(0.0, 1.0).unwrap());
+                let x = Array2::random((size, n_features), Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
+                let y = Array1::random(size, Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
+                let x_test = Array2::random((size / 10, n_features), Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
+                let y_test = Array1::random(size / 10, Normal::new(0.0, 1.0).unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("default normal distribution")));
 
                 TestData {{ x, y, x_test, y_test }}
             }}
@@ -599,7 +599,7 @@ impl BenchmarkGenerator {
             fn evaluate_predictions(predictions: &Array1<f64>, y_true: &Array1<f64>) -> f64 {{
                 // Mean squared error
                 let diff = predictions - y_true;
-                diff.mapv(|x| x * x).mean().unwrap()
+                diff.mapv(|x| x * x).mean().unwrap_or_default()
             }}
             "#,
             type_name
@@ -1133,7 +1133,9 @@ mod tests {
         let config = AutoBenchmarkConfig::default();
         let mut generator = BenchmarkGenerator::new(config);
 
-        let benchmarks = generator.generate_for_type::<String>("TestType").unwrap();
+        let benchmarks = generator
+            .generate_for_type::<String>("TestType")
+            .expect("expected valid value");
         assert!(!benchmarks.is_empty());
 
         for benchmark in &benchmarks {
@@ -1162,7 +1164,9 @@ mod tests {
             scaling_analysis: None,
         };
 
-        let result = executor.execute_benchmark(&benchmark).unwrap();
+        let result = executor
+            .execute_benchmark(&benchmark)
+            .expect("execute_benchmark should succeed");
         assert_eq!(result.benchmark_name, "test_benchmark");
         assert_eq!(result.benchmark_type, BenchmarkType::Microbenchmark);
     }

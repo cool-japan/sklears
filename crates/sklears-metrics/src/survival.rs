@@ -587,7 +587,7 @@ mod tests {
 
         let auc: f64 =
             time_dependent_auc(&event_times, &event_observed, &risk_scores, time_point).unwrap();
-        assert!(auc >= 0.0 && auc <= 1.0);
+        assert!((0.0..=1.0).contains(&auc));
     }
 
     #[test]
@@ -609,7 +609,7 @@ mod tests {
         let event_observed = array![true, false, true, true, false];
 
         let (times, survival_probs) = kaplan_meier_survival(&event_times, &event_observed).unwrap();
-        assert!(times.len() > 0);
+        assert!(!times.is_empty());
         assert_eq!(times.len(), survival_probs.len());
 
         // Survival probabilities should be non-increasing

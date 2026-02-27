@@ -192,7 +192,7 @@ pub fn reference_temperature_scaling(logits: &Array1<Float>, targets: &Array1<i3
 
         let delta_temp = -gradient / hessian;
         temperature += learning_rate * delta_temp;
-        temperature = temperature.max(0.01).min(100.0); // Constrain temperature
+        temperature = temperature.clamp(0.01, 100.0); // Constrain temperature
 
         if delta_temp.abs() < 1e-6 {
             break;
@@ -327,10 +327,9 @@ mod tests {
             // Find which bin this score belongs to
             let mut bin_idx = 0;
             for j in 0..n_bins {
-                if score >= bin_boundaries[j] && score < bin_boundaries[j + 1] {
-                    bin_idx = j;
-                    break;
-                } else if j == n_bins - 1 && score <= bin_boundaries[j + 1] {
+                if (score >= bin_boundaries[j] && score < bin_boundaries[j + 1])
+                    || (j == n_bins - 1 && score <= bin_boundaries[j + 1])
+                {
                     bin_idx = j;
                     break;
                 }
@@ -363,7 +362,7 @@ mod tests {
         // (Different optimization algorithms can produce different results)
         for &pred in our_predictions.iter() {
             assert!(
-                pred >= 0.0 && pred <= 1.0,
+                (0.0..=1.0).contains(&pred),
                 "Temperature scaling should produce valid probabilities: {}",
                 pred
             );
@@ -440,7 +439,7 @@ mod tests {
             // All methods should produce valid probabilities
             for &pred in predictions.iter() {
                 assert!(
-                    pred >= 0.0 && pred <= 1.0,
+                    (0.0..=1.0).contains(&pred),
                     "Predictions should be in [0,1] range: {}",
                     pred
                 );
@@ -518,7 +517,7 @@ mod tests {
         // Basic validity checks
         for &pred in predictions.iter() {
             assert!(
-                pred >= 0.0 && pred <= 1.0,
+                (0.0..=1.0).contains(&pred),
                 "Predictions should be in [0,1] range: {}",
                 pred
             );

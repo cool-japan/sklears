@@ -52,6 +52,28 @@
 ///
 /// ```rust,no_run
 /// use sklears_core::ensemble_improvements::{
+///     ParallelEnsemble, EnsembleConfig, ParallelConfig,
+/// };
+/// use scirs2_core::ndarray::{Array1, Array2};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let config = EnsembleConfig::random_forest()
+///     .with_n_estimators(50)
+///     .with_parallel_config(
+///         ParallelConfig::new().with_num_threads(4)
+///     );
+///
+/// let ensemble = ParallelEnsemble::new(config);
+///
+/// let features = Array2::zeros((100, 10));
+/// let targets = Array1::zeros(100);
+///
+/// let trained = ensemble.parallel_fit(&features.view(), &targets.view())?;
+/// let predictions = trained.parallel_predict(&features.view())?;
+/// println!("Predictions: {:?}", predictions);
+/// # Ok(())
+/// # }
+/// ```
 use crate::error::{Result, SklearsError};
 // SciRS2 Policy: Using scirs2_core::ndarray and scirs2_core::random (COMPLIANT)
 use rayon::prelude::*;
@@ -119,7 +141,10 @@ impl ParallelEnsemble {
 
         // Update training state
         {
-            let mut state = self.training_state.write().unwrap();
+            let mut state = self
+                .training_state
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             state.start_training(x.nrows(), self.n_estimators());
         }
 
@@ -141,7 +166,10 @@ impl ParallelEnsemble {
 
                     // Update progress
                     {
-                        let mut state = self.training_state.write().unwrap();
+                        let mut state = self
+                            .training_state
+                            .write()
+                            .unwrap_or_else(|e| e.into_inner());
                         state.update_progress(i, result.is_ok());
                     }
 
@@ -152,14 +180,21 @@ impl ParallelEnsemble {
 
         // Update final state
         {
-            let mut state = self.training_state.write().unwrap();
+            let mut state = self
+                .training_state
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             state.complete_training(start_time.elapsed());
         }
 
         Ok(TrainedParallelEnsemble {
             config: self.config.clone(),
             trained_learners,
-            training_metrics: self.training_state.read().unwrap().clone(),
+            training_metrics: self
+                .training_state
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone(),
         })
     }
 
@@ -848,7 +883,7 @@ impl_base_estimator!(AdaBoostEstimator, TrainedAdaBoostModel, 12, |row| row
     .unwrap_or(0.0));
 impl_base_estimator!(VotingEstimator, TrainedVotingModel, 8, |row| row
     .iter()
-    .max_by(|a, b| a.partial_cmp(b).unwrap())
+    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     .unwrap_or(&0.0)
     * 0.5);
 impl_base_estimator!(StackingEstimator, TrainedStackingModel, 20, |row| row.sum()
@@ -1021,10 +1056,14 @@ mod tests {
         let config = EnsembleConfig::random_forest();
         let ensemble = ParallelEnsemble::new(config);
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
-        let y = Array1::from_shape_vec(10, (0..10).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("valid array shape");
+        let y = Array1::from_shape_vec(10, (0..10).map(|i| i as f64).collect())
+            .expect("valid array shape");
 
-        let (sampled_x, sampled_y) = ensemble.bootstrap_sample(&x.view(), &y.view(), 0).unwrap();
+        let (sampled_x, sampled_y) = ensemble
+            .bootstrap_sample(&x.view(), &y.view(), 0)
+            .expect("expected valid value");
         assert_eq!(sampled_x.shape(), x.shape());
         assert_eq!(sampled_y.len(), y.len());
     }
@@ -1065,7 +1104,7 @@ mod tests {
         let result = ensemble.parallel_predict(&x.view());
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("expected valid value");
         assert_eq!(predictions.len(), 5);
     }
 

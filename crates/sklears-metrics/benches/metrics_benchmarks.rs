@@ -8,31 +8,32 @@
 //!
 //! Run with: `cargo bench --bench metrics_benchmarks`
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Uniform;
 use scirs2_core::random::seeded_rng;
 use sklears_metrics::{classification, clustering, ranking, regression};
+use std::hint::black_box;
 
 // Helper function to generate random f64 arrays
 fn generate_random_f64(size: usize, seed: u64) -> Array1<f64> {
     let mut rng = seeded_rng(seed);
     let dist = Uniform::new(0.0, 1.0).unwrap();
-    Array1::from_iter((0..size).map(|_| rng.sample(&dist)))
+    Array1::from_iter((0..size).map(|_| rng.sample(dist)))
 }
 
 // Helper function to generate random i32 arrays for classification
 fn generate_random_labels(size: usize, n_classes: i32, seed: u64) -> Array1<i32> {
     let mut rng = seeded_rng(seed);
     let dist = Uniform::new(0, n_classes).unwrap();
-    Array1::from_iter((0..size).map(|_| rng.sample(&dist)))
+    Array1::from_iter((0..size).map(|_| rng.sample(dist)))
 }
 
 // Helper function to generate random 2D array for clustering
 fn generate_random_2d(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
     let mut rng = seeded_rng(seed);
     let dist = Uniform::new(-1.0, 1.0).unwrap();
-    Array2::from_shape_fn((n_samples, n_features), |_| rng.sample(&dist))
+    Array2::from_shape_fn((n_samples, n_features), |_| rng.sample(dist))
 }
 
 // ============================================================================

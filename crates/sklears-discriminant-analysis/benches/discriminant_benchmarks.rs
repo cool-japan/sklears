@@ -3,13 +3,14 @@
 //! This module provides benchmarking utilities for comparing performance of
 //! different discriminant analysis methods across various datasets and scenarios.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::{s, Array1, Array2};
 use sklears_core::traits::{Fit, Predict, PredictProba};
 use sklears_discriminant_analysis::{
     DiagonalLinearDiscriminantAnalysis, KernelDiscriminantAnalysis, KernelType,
     LinearDiscriminantAnalysis, MixtureDiscriminantAnalysis, QuadraticDiscriminantAnalysis,
 };
+use std::hint::black_box;
 use std::time::Instant;
 
 /// Generate synthetic dataset for benchmarking

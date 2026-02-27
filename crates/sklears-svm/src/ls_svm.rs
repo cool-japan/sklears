@@ -460,9 +460,9 @@ mod tests {
 
         assert_eq!(lssvm.config.gamma, 2.0);
         assert_eq!(lssvm.config.kernel, KernelType::Linear);
-        assert_eq!(lssvm.config.fit_intercept, false);
+        assert!(!lssvm.config.fit_intercept);
         assert_eq!(lssvm.config.tol, 1e-10);
-        assert_eq!(lssvm.config.regularized_kernel, false);
+        assert!(!lssvm.config.regularized_kernel);
     }
 
     #[test]
@@ -477,7 +477,7 @@ mod tests {
             classifier.lssvm.config.kernel,
             KernelType::Rbf { gamma: 0.5 }
         );
-        assert_eq!(classifier.lssvm.config.fit_intercept, true);
+        assert!(classifier.lssvm.config.fit_intercept);
     }
 
     #[test]

@@ -603,7 +603,7 @@ mod tests {
         let issues = array.safety_issues();
         assert!(!issues.is_empty());
 
-        let sanitized = array.sanitize().unwrap();
+        let sanitized = array.sanitize().expect("sanitize should succeed");
         assert!(sanitized.is_safe());
     }
 
@@ -620,7 +620,9 @@ mod tests {
 
         // Test a string with only forbidden characters (no dangerous patterns)
         let string_with_forbidden_chars = "Hello\0World".to_string();
-        let sanitized = string_with_forbidden_chars.sanitize().unwrap();
+        let sanitized = string_with_forbidden_chars
+            .sanitize()
+            .expect("sanitize should succeed");
         assert!(!sanitized.contains('\0'));
     }
 
@@ -643,8 +645,10 @@ mod tests {
 
     #[test]
     fn test_sanitization_config() {
-        let mut config = SanitizationConfig::default();
-        config.max_string_length = Some(10);
+        let config = SanitizationConfig {
+            max_string_length: Some(10),
+            ..Default::default()
+        };
 
         let sanitizer = InputSanitizer::with_config(config);
         let long_string = "This is a very long string that exceeds the limit".to_string();

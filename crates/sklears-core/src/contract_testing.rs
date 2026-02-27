@@ -97,9 +97,8 @@ impl ContractTester {
     pub fn test_estimator_contract<E>(&mut self, estimator: &E) -> Result<()>
     where
         E: Estimator + Clone + std::fmt::Debug,
-        for<'a> E: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <E as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Predict<ArrayView2<'a, f64>, Array1<f64>>,
+        E: Fit<Array2<f64>, Array1<f64>>,
+        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
     {
         let mut test_result = ContractTestResult::new("Estimator".to_string());
 
@@ -131,10 +130,9 @@ impl ContractTester {
     pub fn test_transform_contract<T>(&mut self, transformer: &T) -> Result<()>
     where
         T: Clone + std::fmt::Debug,
-        for<'a> T: Transform<ArrayView2<'a, f64>, Array2<f64>>,
-        for<'a> T: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <T as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Transform<ArrayView2<'a, f64>, Array2<f64>>,
+        T: Transform<Array2<f64>, Array2<f64>>,
+        T: Fit<Array2<f64>, Array1<f64>>,
+        <T as Fit<Array2<f64>, Array1<f64>>>::Fitted: Transform<Array2<f64>, Array2<f64>>,
     {
         let mut test_result = ContractTestResult::new("Transform".to_string());
 
@@ -158,7 +156,7 @@ impl ContractTester {
     pub fn test_predict_proba_contract<P>(&mut self, predictor: &P) -> Result<()>
     where
         P: Clone + std::fmt::Debug,
-        for<'a> P: PredictProba<ArrayView2<'a, f64>, Array2<f64>>,
+        P: PredictProba<Array2<f64>, Array2<f64>>,
     {
         let mut test_result = ContractTestResult::new("PredictProba".to_string());
 
@@ -295,9 +293,8 @@ impl ContractTester {
     fn test_fit_consistency<E>(&self, estimator: &E, result: &mut ContractTestResult) -> Result<()>
     where
         E: Estimator + Clone,
-        for<'a> E: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <E as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Predict<ArrayView2<'a, f64>, Array1<f64>>,
+        E: Fit<Array2<f64>, Array1<f64>>,
+        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -308,11 +305,11 @@ impl ContractTester {
         let y = Array1::from_shape_fn(20, |i| (i % 3) as f64);
 
         // Fit twice and compare predictions
-        let fitted1 = estimator.clone().fit(&x.view(), &y.view())?;
-        let fitted2 = estimator.clone().fit(&x.view(), &y.view())?;
+        let fitted1 = estimator.clone().fit(&x, &y)?;
+        let fitted2 = estimator.clone().fit(&x, &y)?;
 
-        let predictions1 = fitted1.predict(&x.view())?;
-        let predictions2 = fitted2.predict(&x.view())?;
+        let predictions1 = fitted1.predict(&x)?;
+        let predictions2 = fitted2.predict(&x)?;
 
         // Check if predictions are consistent (within tolerance)
         for (p1, p2) in predictions1.iter().zip(predictions2.iter()) {
@@ -340,9 +337,8 @@ impl ContractTester {
     ) -> Result<()>
     where
         E: Estimator + Clone,
-        for<'a> E: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <E as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Predict<ArrayView2<'a, f64>, Array1<f64>>,
+        E: Fit<Array2<f64>, Array1<f64>>,
+        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -356,10 +352,10 @@ impl ContractTester {
             let y_train = Array1::zeros(n_samples);
             let x_test = Array2::zeros((n_samples * 2, n_features));
 
-            let fit_result = estimator.clone().fit(&x_train.view(), &y_train.view());
+            let fit_result = estimator.clone().fit(&x_train, &y_train);
             match fit_result {
                 Ok(fitted) => {
-                    let predict_result = fitted.predict(&x_test.view());
+                    let predict_result = fitted.predict(&x_test);
                     match predict_result {
                         Ok(predictions) => {
                             if predictions.len() != x_test.nrows() {
@@ -404,9 +400,8 @@ impl ContractTester {
     ) -> Result<()>
     where
         E: Estimator + Clone,
-        for<'a> E: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <E as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Predict<ArrayView2<'a, f64>, Array1<f64>>,
+        E: Fit<Array2<f64>, Array1<f64>>,
+        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -418,7 +413,7 @@ impl ContractTester {
 
         if estimator
             .clone()
-            .fit(&x_mismatch.view(), &y_mismatch.view())
+            .fit(&x_mismatch, &y_mismatch)
             .is_ok()
         {
             passed = false;
@@ -430,7 +425,7 @@ impl ContractTester {
         let y_empty = Array1::zeros(0);
 
         // This might be ok or might fail - just ensure it doesn't panic
-        let _ = estimator.clone().fit(&x_empty.view(), &y_empty.view());
+        let _ = estimator.clone().fit(&x_empty, &y_empty);
 
         result.test_cases.push(TestCase {
             test_name: "Error handling contracts".to_string(),
@@ -474,9 +469,8 @@ impl ContractTester {
     ) -> Result<()>
     where
         E: Estimator + Clone,
-        for<'a> E: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <E as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Predict<ArrayView2<'a, f64>, Array1<f64>>,
+        E: Fit<Array2<f64>, Array1<f64>>,
+        <E as Fit<Array2<f64>, Array1<f64>>>::Fitted: Predict<Array2<f64>, Array1<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -493,13 +487,13 @@ impl ContractTester {
 
             // Measure fit time
             let fit_start = Instant::now();
-            let fitted = estimator.clone().fit(&x.view(), &y.view())?;
+            let fitted = estimator.clone().fit(&x, &y)?;
             let fit_time = fit_start.elapsed();
             fit_times.push(fit_time);
 
             // Measure predict time
             let predict_start = Instant::now();
-            let _ = fitted.predict(&x.view())?;
+            let _ = fitted.predict(&x)?;
             let predict_time = predict_start.elapsed();
             predict_times.push(predict_time);
         }
@@ -534,10 +528,9 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        for<'a> T: Transform<ArrayView2<'a, f64>, Array2<f64>>,
-        for<'a> T: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <T as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Transform<ArrayView2<'a, f64>, Array2<f64>>,
+        T: Transform<Array2<f64>, Array2<f64>>,
+        T: Fit<Array2<f64>, Array1<f64>>,
+        <T as Fit<Array2<f64>, Array1<f64>>>::Fitted: Transform<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -546,11 +539,11 @@ impl ContractTester {
         // Fit the transformer first
         let x = Array2::from_shape_fn((20, 5), |(i, j)| (i + j) as f64);
         let y = Array1::zeros(20);
-        let fitted = transformer.clone().fit(&x.view(), &y.view())?;
+        let fitted = transformer.clone().fit(&x, &y)?;
 
         // Transform the same data multiple times
-        let transform1 = fitted.transform(&x.view())?;
-        let transform2 = fitted.transform(&x.view())?;
+        let transform1 = fitted.transform(&x)?;
+        let transform2 = fitted.transform(&x)?;
 
         // Check consistency
         if transform1.shape() != transform2.shape() {
@@ -583,7 +576,7 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        for<'a> T: Transform<ArrayView2<'a, f64>, Array2<f64>>,
+        T: Transform<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let passed = true;
@@ -592,7 +585,7 @@ impl ContractTester {
         // Try to transform without fitting first
         let x = Array2::zeros((10, 5));
 
-        match transformer.transform(&x.view()) {
+        match transformer.transform(&x) {
             Ok(_) => {
                 // If this succeeds, the transformer might not require fitting,
                 // which could be valid for some transformers
@@ -619,10 +612,9 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        for<'a> T: Transform<ArrayView2<'a, f64>, Array2<f64>>,
-        for<'a> T: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
-        for<'a> <T as Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>>::Fitted:
-            Transform<ArrayView2<'a, f64>, Array2<f64>>,
+        T: Transform<Array2<f64>, Array2<f64>>,
+        T: Fit<Array2<f64>, Array1<f64>>,
+        <T as Fit<Array2<f64>, Array1<f64>>>::Fitted: Transform<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
@@ -632,8 +624,8 @@ impl ContractTester {
         let x = Array2::from_shape_fn((25, 8), |(i, j)| (i + j) as f64);
         let y = Array1::zeros(25);
 
-        let fitted = transformer.clone().fit(&x.view(), &y.view())?;
-        let transformed = fitted.transform(&x.view())?;
+        let fitted = transformer.clone().fit(&x, &y)?;
+        let transformed = fitted.transform(&x)?;
 
         if transformed.nrows() != x.nrows() {
             passed = false;
@@ -661,7 +653,7 @@ impl ContractTester {
     ) -> Result<()>
     where
         T: Clone,
-        for<'a> T: Transform<ArrayView2<'a, f64>, Array2<f64>>,
+        T: Transform<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let passed = true; // Placeholder - not all transformers have inverse
@@ -685,14 +677,14 @@ impl ContractTester {
         result: &mut ContractTestResult,
     ) -> Result<()>
     where
-        for<'a> P: PredictProba<ArrayView2<'a, f64>, Array2<f64>>,
+        P: PredictProba<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
         let mut error_message = None;
 
         let x = Array2::from_shape_fn((10, 5), |(i, j)| (i + j) as f64);
-        let probabilities = predictor.predict_proba(&x.view())?;
+        let probabilities = predictor.predict_proba(&x)?;
 
         // Check that each row sums to 1.0
         for (i, row) in probabilities.rows().into_iter().enumerate() {
@@ -722,14 +714,14 @@ impl ContractTester {
         result: &mut ContractTestResult,
     ) -> Result<()>
     where
-        for<'a> P: PredictProba<ArrayView2<'a, f64>, Array2<f64>>,
+        P: PredictProba<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let mut passed = true;
         let mut error_message = None;
 
         let x = Array2::from_shape_fn((10, 5), |(i, j)| (i + j) as f64);
-        let probabilities = predictor.predict_proba(&x.view())?;
+        let probabilities = predictor.predict_proba(&x)?;
 
         // Check that all probabilities are in [0, 1]
         for (i, prob) in probabilities.iter().enumerate() {
@@ -758,7 +750,7 @@ impl ContractTester {
         result: &mut ContractTestResult,
     ) -> Result<()>
     where
-        for<'a> P: PredictProba<ArrayView2<'a, f64>, Array2<f64>>,
+        P: PredictProba<Array2<f64>, Array2<f64>>,
     {
         let start_time = Instant::now();
         let passed = true; // Placeholder - would need Predict trait too
@@ -851,7 +843,7 @@ impl TraitLaws {
     pub fn test_functor_laws<T>(_transformer: &T) -> Result<bool>
     where
         T: Clone,
-        for<'a> T: Transform<ArrayView2<'a, f64>, Array2<f64>>,
+        T: Transform<Array2<f64>, Array2<f64>>,
         for<'a> T: Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>>,
     {
         // Law 1: Identity law - transform(identity) should be close to identity
