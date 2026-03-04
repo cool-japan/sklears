@@ -120,6 +120,40 @@ pub fn triangular_solve(L: &Array2<f64>, b: &Array1<f64>) -> SklResult<Array1<f6
     Ok(x)
 }
 
+/// Solve lower-triangular system L * X = B (forward substitution only, no back-solve).
+/// This is the batch version needed for predictive variance: solve once for all columns.
+pub fn forward_solve_matrix(L: &Array2<f64>, B: &Array2<f64>) -> SklResult<Array2<f64>> {
+    let n = L.nrows();
+    let m = B.ncols();
+
+    if n != B.nrows() || n != L.ncols() {
+        return Err(SklearsError::InvalidInput(
+            "Dimension mismatch in forward_solve_matrix".to_string(),
+        ));
+    }
+
+    let mut X = Array2::<f64>::zeros((n, m));
+
+    // Forward substitution for all columns at once (better cache locality than column-by-column)
+    for i in 0..n {
+        if L[[i, i]].abs() < 1e-14 {
+            return Err(SklearsError::NumericalError(format!(
+                "Near-singular matrix in forward_solve_matrix at row {}", i
+            )));
+        }
+        let inv_diag = 1.0 / L[[i, i]];
+        for j in 0..m {
+            let mut sum = B[[i, j]];
+            for k in 0..i {
+                sum -= L[[i, k]] * X[[k, j]];
+            }
+            X[[i, j]] = sum * inv_diag;
+        }
+    }
+
+    Ok(X)
+}
+
 /// Compute log marginal likelihood for Gaussian process
 pub fn log_marginal_likelihood(L: &Array2<f64>, alpha: &Array1<f64>, y: &Array1<f64>) -> f64 {
     let n = y.len() as f64;
